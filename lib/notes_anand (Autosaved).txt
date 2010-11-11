@@ -1,0 +1,24 @@
+OpticalTrainMW
+	init
+	amplitudeMask
+	toConjugate
+	setsavetype
+	setsavebox_pixels
+	satpsavebox
+	displayproperties
+	saveIntensity
+	saveComplexAmplitude
+	saveComponent
+	getComplexAmplitude
+	getIntensity
+	planeinfo
+	totalPower
+	maxIntensity
+	totalArea
+	saveTransmissionMask
+	deletePlane
+	displaytrain
+
+
+
+

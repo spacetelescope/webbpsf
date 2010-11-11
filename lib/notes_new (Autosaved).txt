@@ -1,0 +1,20 @@
+
+
+Wavefront class
+	knows own spatial scale and sampling, can transform itself via FFT or DFT/SFT
+		no, actually this should be a property of the OpticalSystem.
+	toConjugate()
+
+opticalSystem
+	addPupil
+	addImage
+
+
+
+
+TODO - investigate FFT vs DFT speed just for a regular non-coronagraphic PSF computation.
+	use python profiler module. 
+
+	DFT is beneficial in that you can specify the sampling directly - to get a specific pixel e.g. detector pixel size. w/out later interpolation. 
+
+

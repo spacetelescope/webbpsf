@@ -1,0 +1,5 @@
+
+
+Wavefront class
+	knows own spatial scale and sampling, can transform itself via FFT or DFT
+	toConjugate()
