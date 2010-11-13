@@ -4,6 +4,8 @@ import numpy as N
 import pylab as p
 import pyfits
 import scipy.special
+import copy 
+from matplotlib.colors import LogNorm  # for log scaling of images, with automatic colorbar support
 
 import SFT
 
@@ -54,7 +56,7 @@ def padToOversample(array, oversample):
     " Add zeros around the edge of an array "
     npix = array.shape[0]
     padded = N.zeros(shape=(npix*oversample, npix*oversample))
-    n0 = npix*(oversample - 1)
+    n0 = float(npix)*(oversample - 1)/2
     n1 = n0+npix
     padded[n0:n1, n0:n1] = array
     return padded
@@ -62,7 +64,7 @@ def padToOversample(array, oversample):
 def removePadding(array,oversample):
     " Remove zeros around the edge of an array "
     npix = array.shape[0] / oversample
-    n0 = npix*(oversample - 1)
+    n0 = float(npix)*(oversample - 1)/2
     n1 = n0+npix
     return array[n0:n1,n0:n1].copy()
 
@@ -83,9 +85,9 @@ class Wavefront():
 
 
     """
-    def __init__(self,wavelength=2e-6, npix=1024, dtype=N.complex128, diam=8.0, name=None, oversample=1):
+    def __init__(self,wavelength=2e-6, npix=1024, dtype=N.complex128, diam=8.0, name=None, oversample=1, pixelscale=None):
         """
-        Create a wavefront object in a pupil plane. 
+        Create a wavefront object. By default, is in a pupil plane. Set pixelscale= to make an image plane. 
 
         Parameters
         ----------
@@ -94,6 +96,7 @@ class Wavefront():
         *   diam        physical size corresponding to npix, in meters
         *   dtype       default is double. 
         *   oversample  how much to oversample by in FFTs
+        *   pixelscale  Create an IMAGE PLANE wavefront with this pixel scale. 
 
         """
 
@@ -106,13 +109,19 @@ class Wavefront():
         self.wavelength = float(wavelength)                 # wavelen in meters, obviously
         self.diam= float(diam)                              # pupil plane size in meters
         self.fov = None                                     # image plane size in arcsec
-        self.pixelscale = self.diam / npix                  # scale in meters/pix or arcsec/pix, as appropriate
-        self.planetype = PUPIL                              # are we at image or pupil?
+
+        if pixelscale is None: 
+            self.pixelscale = self.diam / npix                  # scale in meters/pix or arcsec/pix, as appropriate
+            self.planetype = PUPIL                              # are we at image or pupil?
+        else:
+            self.pixelscale = pixelscale
+            self.planetype = IMAGE
         self.wavefront = N.ones((npix,npix), dtype=dtype)   # the actual complex wavefront array
         self.ispadded = False                               # is the wavefront padded for oversampling? 
         self.history=[]
         self.history.append("Created wavefront: wavelen=%g m, diam=%f m" %(self.wavelength, self.diam))
         self.history.append(" using array size %s" % (self.wavefront.shape,) )
+        self.location='Entrance'
 
     def __str__(self):
         # TODO add switches for image/pupil planes
@@ -122,6 +131,9 @@ class Wavefront():
         sampling = %f meters/pixel
         """ % (self.name, self.wavelength/1e-6, self.wavefront.shape[0], self.wavefront.shape[1], self.pixelscale )
 
+    def copy(self):
+        return copy.deepcopy(self)
+
     def normalize(self):
         "Set wavefront total intensity to 1 "
         #print "Wavefront normalized"
@@ -129,9 +141,15 @@ class Wavefront():
 
 
     def __imul__(self, optic):
-        "Multiply a Wavefront by an OpticalElement"
-        if not isinstance(optic, OpticalElement):
-            raise ValueError('Wavefronts can only be *= multiplied by OpticalElements')
+        "Multiply a Wavefront by an OpticalElement or scalar"
+        if (isinstance(optic,float)) or isinstance(optic,int):
+            self.wavefront *= optic # it's just a scalar
+            self.history.append("Multiplied WF by scalar value "+str(optic))
+            return self
+
+
+        if (not isinstance(optic, OpticalElement)) :
+            raise ValueError('Wavefronts can only be *= multiplied by OpticalElements or scalar values')
 
         if isinstance(optic,Detector):
             # detectors don't modify a wavefront.
@@ -145,7 +163,27 @@ class Wavefront():
         self.wavefront *= phasor
         if optic.verbose: print "  Multiplied WF by phasor for "+str(optic)
         self.history.append("Multiplied WF by phasor for "+str(optic))
+        self.location='after '+optic.name
         return self
+
+    def __mul__(self, optic):
+        new = self.copy()
+        new *= optic
+        return new
+
+    def __iadd__(self,wave):
+        "Add another wavefront to this one"
+        if not isinstance(wave,Wavefront):
+            raise ValueError('Wavefronts can only be summed with other Wavefronts')
+
+        if not self.wavefront.shape[0] == wave.wavefront.shape[0]:
+            raise ValueError('Wavefronts can only be added if they have the same size and shape')
+
+        self.wavefront += wave.wavefront
+        self.history.append("Summed with another wavefront!")
+        return self
+
+
 
     def asFITS(self, what='intensity'):
         """ Return a wavefront as a pyFITS HDUList object 
@@ -203,21 +241,60 @@ class Wavefront():
         print("  Wavefront saved to %s" % filename)
 
 
-    def display(self,which='intensity', nrows=1,row=1):
+    def display(self,which='intensity', nrows=1,row=1,showpadding=False,imagezoom=5.0):
         "Display wavefront on screen"
+
+        intens = self.intensity
+        phase = self.phase
+        amp = self.amplitude
+
+        if not showpadding and self.ispadded:
+            if self.planetype == PUPIL:
+                intens = removePadding(intens,self.oversample)
+                phase = removePadding(phase,self.oversample)
+                amp = removePadding(amp,self.oversample)
+
+
+        if self.planetype == PUPIL:
+            extent = [0,self.pixelscale*intens.shape[0], 0,self.pixelscale*intens.shape[1]]
+            unit = "m"
+            norm=None
+        else:
+            halffov = self.pixelscale*intens.shape[0]/2
+            extent = [-halffov, halffov, -halffov, halffov]
+            unit="arcsec"
+            norm=LogNorm(vmin=1e-8,vmax=1e-1)
+
         if which == 'intensity':
-            p.subplot(nrows,1,row)
-            p.imshow(self.intensity)
-            p.title("Wavefront intensity")
+
+
+            nc = int(N.ceil(N.sqrt(nrows)))
+            nr = N.ceil(float(nrows)/nc)
+            p.subplot(nr,nc,row)
+            p.imshow(intens,extent=extent, norm=norm)
+            p.title("Intensity "+self.location)
+            p.xlabel(unit)
             p.colorbar(orientation='vertical')
+
+            if self.planetype ==IMAGE:
+                p.axhline(0,ls="k:")
+                p.axvline(0,ls="k:")
+                ax = p.gca()
+                imsize = min( (imagezoom, halffov))
+                ax.set_xbound(-imsize, imsize)
+                ax.set_ybound(-imsize, imsize)
+
+
         else:
             p.subplot(nrows,2,(row*2)-1)
-            p.imshow(self.amplitude)
+            p.imshow(amp,extent=extent)
             p.title("Wavefront amplitude")
+            p.ylabel(unit)
             p.colorbar(orientation='vertical')
 
             p.subplot(nrows,2,row*2)
-            p.imshow(self.phase)
+            p.imshow(self.phase,extent=extent)
+            p.ylabel(unit)
             p.title("Wavefront phase")
 
 
@@ -261,6 +338,8 @@ class Wavefront():
             self._propagateMFT(optic)
         else:
             self._propagateFFT(optic)
+
+        self.location='before '+optic.name
 
     def _propagateFFT(self, optic):
         """ Propagate from pupil to image or vice versa using a padded FFT """
@@ -518,6 +597,8 @@ class BandLimitedCoron(AnalyticOpticalElement):
         self.planetype=IMAGE
 
         self.kind = kind.lower()        # either circular or linear
+        if self.kind not in ['circular', 'linear']:
+            raise ValueError("Invalid kind of BLC: "+self.kind)
         self.sigma = sigma              # size parameter. See section 2.1 of Krist et al. SPIE 2009
 
     def getPhasor(self,wave):
@@ -551,8 +632,6 @@ class IdealMonoFQPM(AnalyticOpticalElement):
     def __init__(self, name="unnamed FQPM ", wavelength=10.65e-6, **kwargs):
         AnalyticOpticalElement.__init__(self,**kwargs)
         self.name = name
-        self.verbose=verbose
-        self.planetype=IMAGE
 
         self.central_wavelength =wavelength
 
@@ -663,7 +742,6 @@ class Detector(OpticalElement):
     def __str__(self):
         return "Detector plane: %s (%dx%d, %f arcsec/pixel)" % (self.name, self.fov_npix, self.fov_npix, self.pixelscale)
 
-
 #------
 class OpticalSystem():
     """ A class representing a series of optical elements, 
@@ -723,11 +801,11 @@ class OpticalSystem():
 
         """
         if optic is None:
-            if function == 'circle':
+            if function == 'CircularOcculter':
                 fn = IdealCircularOcculter
             elif function == 'fieldstop':
                 fn = IdealFieldStop
-            elif function == 'bandlimitedcoron':
+            elif function == 'BandLimitedCoron':
                 fn = BandLimitedCoron
             elif function == 'FQPM':
                 fn = IdealMonoFQPM
@@ -756,7 +834,7 @@ class OpticalSystem():
     def __getitem__(self, num):
         return self.planes[num]
 
- 
+
     # methods for dealing with wavefronts:
     def inputWavefront(self, wavelength=2e-6):
         """Create a Wavefront object suitable for sending through a given optical system, based on
@@ -766,7 +844,7 @@ class OpticalSystem():
                 diam = self.planes[0].pupil_diam, 
                 oversample=self.oversample)
 
-    def propagate(self, wavelength=2e-6, normalize='first', save_intermediates=False, display_intermediates=False, intermediate_fn='wave_step_%03d.fits'):
+    def propagate(self, wavelength=2e-6, normalize='first', save_intermediates=False, display_intermediates=False, intermediate_fn='wave_step_%03d.fits', poly_weight=None):
         """ Propagate a wavefront through some number of optics. 
         Returns a pyfits.HDUList object.
 
@@ -777,16 +855,28 @@ class OpticalSystem():
                         'first' = set total flux = 1 after the first optic, presumably a pupil
                         'last' = set total flux = 1 after the entire optical system.
 
+        * poly_weight   is this being called as part of a polychromatic calculation?
+                        if not, set this to None. if so, set this to the weight for 
+                        that wavelength. 
+        * display_intermediates
+        * save_intermediates
+
+        poly_weight controls whether intermediate optical planes are actually saved to disk by this routine
+        (for the monochromatic case) or are handled in calcPSF (for the polychromatic case).
+
 
         """
         #if not isinstance(wavefront, Wavefront):
             #raise TypeError("propagate must be called with a valid Wavefront object.")
 
 
-        if self.verbose: print "\nPropagating wavelength = %g meters" % wavelength
+        if self.verbose: print "\n*** Propagating wavelength = %g meters" % wavelength
         wavefront = self.inputWavefront(wavelength)
 
-        if save_intermediates: self.intermediate_wfs=[]
+        if save_intermediates and poly_weight is None: 
+            self.intermediate_wfs=[]
+            print "reset intermediates"
+        if display_intermediates: p.clf()
 
         # do the propagation:
         count = 0
@@ -800,13 +890,17 @@ class OpticalSystem():
                 wavefront.normalize()
 
 
-            print "==== "+str(wavefront.totalIntensity)
-            #wavefront.writeto('test_plane'+str(count)+".fits", write='intensity')
-            if save_intermediates: 
-                self.intermediate_wfs.append(wavefront)
-                wavefront.writeto(intermediate_fn % count, what='parts')
+            print "  Flux === "+str(wavefront.totalIntensity)
+
+            if save_intermediates:
+                if len(self.intermediate_wfs) < count:
+                    self.intermediate_wfs.append(wavefront.copy())
+                else:
+                    self.intermediate_wfs[count-1] += wavefront.copy()*poly_weight
+                if poly_weight is None: self.intermediate_wfs[count-1].writeto(intermediate_fn % count, what='parts')
             if display_intermediates:
-               wavefront.display(nrows=len(self.planes),row=count)
+               if save_intermediates: self.intermediate_wfs[count-1].display(nrows=len(self.planes),row=count)
+               else: wavefront.display(nrows=len(self.planes),row=count)
 
         # prepare output arrays
         if normalize.lower()=='last':
@@ -814,10 +908,7 @@ class OpticalSystem():
 
         return wavefront.asFITS()
 
-
-
-
-    def calcPSF(self, source, save_intermediates=False):
+    def calcPSF(self, source, save_intermediates=False, **kwargs):
         """Calculate a multi-wavelength PSF over some weighted
         sum of wavelengths.
 
@@ -838,14 +929,20 @@ class OpticalSystem():
 
 
         if save_intermediates:
-            raise ValueError("Saving intermediates for multi-wavelen not yet implemented!!")
+            self.intermediate_wfs = []
+            print 'reset intermediates in calcPSF'
+            #raise ValueError("Saving intermediates for multi-wavelen not yet implemented!!")
 
         # loop over wavelengths
         if self.verbose:
             print "Calculating PSF with %d wavelengths" % (len(source['wavelengths']))
         outFITS = None
-        for wavelen, weight in zip(source['wavelengths'], source['weights']):
-            mono_psf = self.propagate(wavelen)
+
+        normwts =  N.asarray(source['weights'])
+        normwts /= normwts.sum()
+
+        for wavelen, weight in zip(source['wavelengths'], normwts):
+            mono_psf = self.propagate(wavelen, poly_weight=weight, save_intermediates=save_intermediates, **kwargs)
             # add mono_psf into the output array
 
             if outFITS is None:
@@ -854,7 +951,9 @@ class OpticalSystem():
             else:
                 outFITS[0].data += mono_psf[0].data *weight
         
-        outFITS[0].data /= N.asarray(source['weights']).sum()
+        if save_intermediates:
+            for i in range(len(self.intermediate_wfs)):
+                self.intermediate_wfs[i].writeto('wave_step_%03d.fits' % i )
 
         waves = N.asarray(source['wavelengths'])
         wts = N.asarray(source['weights'])
@@ -891,14 +990,16 @@ def test_MFT():
 if __name__ == "__main__":
 
     #test_MFT()
+    p.clf()
 
-    osys = OpticalSystem("Perfect JW", oversample=2)
+    osys = OpticalSystem("Perfect JW", oversample=4)
     osys.addPupil(transmission="/Users/mperrin/software/newJWPSF/data/pupil.fits", name='JW Pupil')
     osys.addImage(function='fieldstop', name='20 arcsec stop', size=20)
-    osys.addPupil(transmission="/Users/mperrin/software/newJWPSF/data/MIRI/coronagraph/MIRI_FQPMLyotStop.fits")
-    osys.addDetector(0.032, fov_npix=128)
+    osys.addImage(function='FQPM',wavelength=10.65e-6)
+    osys.addPupil(transmission="/Users/mperrin/software/newJWPSF/data/MIRI/coronagraph/MIRI_FQPMLyotStop.fits", name='MIRI FQPM Lyot')
+    osys.addDetector(0.032, name="Detector", fov_npix=128)
 
-    out = osys.propagate(wavelength=2e-6, display_intermediates=True, save_intermediates=True)
+    out = osys.propagate(wavelength=10.65e-6, display_intermediates=True, save_intermediates=True)
     out.writeto('test_fft.fits',clobber=True)
 
 

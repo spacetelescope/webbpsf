@@ -8,7 +8,7 @@ def convert_pupil(filename, diam=6.5):
     usage format for the JWST PSF modeling tools. This includes, for instance, adding
     the expected PUPLDIAM and PUPLSCAL keywords
     """
-    f = pyfits.open(filename, mode='update')
+    f = pyfits.open(filename , mode='update')
 
     print "--- updating file: "+filename
 
@@ -43,7 +43,8 @@ def convert_pupil(filename, diam=6.5):
 
     f[0].header.update('PUPLDIAM', diam, 'Pupil diameter in meters')
     f[0].header.update('PUPLSCAL', diam*1.0 / f[0].data.shape[0], 'Pupil pixel scale in meters/pixel')
-    f.close()
+    f.close(output_verify='ignore')
+    #f.writeto(filename,output_verify='ignore')
 
     print("Updated FITS file "+filename)
 
