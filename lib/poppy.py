@@ -139,7 +139,6 @@ class Wavefront():
         #print "Wavefront normalized"
         self.wavefront /= N.sqrt(self.totalIntensity)
 
-
     def __imul__(self, optic):
         "Multiply a Wavefront by an OpticalElement or scalar"
         if (isinstance(optic,float)) or isinstance(optic,int):
@@ -183,8 +182,6 @@ class Wavefront():
         self.history.append("Summed with another wavefront!")
         return self
 
-
-
     def asFITS(self, what='intensity'):
         """ Return a wavefront as a pyFITS HDUList object 
 
@@ -223,7 +220,6 @@ class Wavefront():
 
         return outFITS
 
-
     def writeto(self,filename, clobber=True, **kwargs):
         """Write a wavefront to a FITS file.
 
@@ -239,7 +235,6 @@ class Wavefront():
         """
         self.asFITS(**kwargs).writeto(filename, clobber=clobber)
         print("  Wavefront saved to %s" % filename)
-
 
     def display(self,which='intensity', nrows=1,row=1,showpadding=False,imagezoom=5.0):
         "Display wavefront on screen"
@@ -266,8 +261,6 @@ class Wavefront():
             norm=LogNorm(vmin=1e-8,vmax=1e-1)
 
         if which == 'intensity':
-
-
             nc = int(N.ceil(N.sqrt(nrows)))
             nr = N.ceil(float(nrows)/nc)
             p.subplot(nr,nc,row)
@@ -283,7 +276,6 @@ class Wavefront():
                 imsize = min( (imagezoom, halffov))
                 ax.set_xbound(-imsize, imsize)
                 ax.set_ybound(-imsize, imsize)
-
 
         else:
             p.subplot(nrows,2,(row*2)-1)
@@ -499,7 +491,6 @@ class OpticalElement():
                  except: 
                     raise ValueError('That image appears to be missing the required PIXSCALE keyword.')
 
-
     def getPhasor(self,wave):
         """ Compute a complex phasor from an OPD, given a wavelength.
 
@@ -523,14 +514,14 @@ class OpticalElement():
         else:
             return self.phasor
 
-    def display(self):
+    def display(self, nrows=1, row=1):
         "Display plots showing an optic's transmission and OPD"
-        p.subplot(121)
+        p.subplot(nrows, 2, row*2-1)
         p.imshow(self.amplitude)
         p.title("Transmissivity for "+self.name)
         p.colorbar(orientation="horizontal")
 
-        p.subplot(122)
+        p.subplot(nrows, 2, row*2)
         p.imshow(self.opd)
         p.title("OPD for "+self.name)
         p.colorbar(orientation="horizontal")
@@ -543,7 +534,6 @@ class OpticalElement():
             return "Image plane: %s (%dx%d pixels, scale=%f arcsec/pixel'')" % (self.name, self.shape[0], self.shape[0], self.pixelscale)
         else: 
             return "Optic: "+self.name
-
 
     @property
     def shape(self):
@@ -582,9 +572,31 @@ class AnalyticOpticalElement(OpticalElement):
         else: 
             return "Optic: "+self.name
 
-
     def getPhasor(self,wave):
         raise NotImplementedError("getPhasor must be supplied by a derived subclass")
+
+    def display(self, nrows=1, row=1):
+        halffov = 2
+        w = Wavefront(npix=512,  pixelscale = 2.*halffov/512)
+
+        phasor = self.getPhasor(wave)
+        trans = N.abs(phasor)
+        phase = N.angle(phasor) * 2*N.pi
+
+        extent = [-halffov, halffov, -halffov, halffov]
+        unit="arcsec"
+
+        p.subplot(nrows,2,(row*2)-1)
+        p.imshow(trans,extent=extent)
+        p.title("Transmission for "+self.name)
+        p.ylabel(unit)
+        p.colorbar(orientation='vertical')
+
+        p.subplot(nrows,2,row*2)
+        p.imshow(self.phase,extent=extent)
+        p.ylabel(unit)
+        p.title("Phase for "+self.name)
+
 
 class BandLimitedCoron(AnalyticOpticalElement):
     """ Defines an ideal band limited coronagraph occulting mask
