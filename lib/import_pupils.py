@@ -8,6 +8,9 @@ def convert_pupil(filename, diam=6.5):
     usage format for the JWST PSF modeling tools. This includes, for instance, adding
     the expected PUPLDIAM and PUPLSCAL keywords
     """
+
+    print "Converting pupil file %s" % filename
+
     f = pyfits.open(filename , mode='update')
 
     print "--- updating file: "+filename
@@ -17,11 +20,15 @@ def convert_pupil(filename, diam=6.5):
         return
 
     # check for blank padding rows. 
+    # CHANGE - no longer delete these - leave them as 1024x1024 for better FFTs
     if (f[0].data[0:4,:].sum() ==0 ) and (f[0].data[:,0:4].sum() ==0) :
-        newdata = f[0].data.copy()
-        newdata = newdata[4:-4, 4:-4]
-        f[0].header.add_history('Unnecessary blank padding rows trimmed off by trim_pupil.py')
-        f[0].data = newdata
+        #newdata = f[0].data.copy()
+        #newdata = newdata[4:-4, 4:-4]
+        #f[0].header.add_history('Unnecessary blank padding rows trimmed off by trim_pupil.py')
+        #f[0].data = newdata
+        true_pupil_diam = 1016
+    else:
+        true_pupil_diam = 1024
 
 
     # check for invalid/illegal chars in keyword names
@@ -41,8 +48,12 @@ def convert_pupil(filename, diam=6.5):
             print  "\tReplaced keyword %s to %s" % (k, k.upper() )
             f[0].header.rename_key(k, k.upper())
 
-    f[0].header.update('PUPLDIAM', diam, 'Pupil diameter in meters')
-    f[0].header.update('PUPLSCAL', diam*1.0 / f[0].data.shape[0], 'Pupil pixel scale in meters/pixel')
+    pupilscale = diam*1.0/true_pupil_diam
+    file_diam = f[0].data.shape[0] * pupilscale
+
+    f[0].header.update('PUPLDIAM', file_diam, 'Pupil *file* diameter in meters')
+    f[0].header.update('DIAM', diam, 'True Pupil diameter in meters (ignoring padding)')
+    f[0].header.update('PUPLSCAL', pupilscale, 'Pupil pixel scale in meters/pixel')
     f.close(output_verify='ignore')
     #f.writeto(filename,output_verify='ignore')
 
@@ -53,3 +64,11 @@ def convert_all(dir):
     fits = glob.glob(dir+"/*.fits")
     for f in fits:
         convert_pupil(f)
+
+
+if __name__ == "__main__":
+    convert_all("/Users/mperrin/software/newJWPSF/data/MIRI/OPD")
+    convert_all("/Users/mperrin/software/newJWPSF/data/NIRCam/OPD")
+    convert_all("/Users/mperrin/software/newJWPSF/data/NIRSpec/OPD")
+    convert_all("/Users/mperrin/software/newJWPSF/data/TFI/OPD")
+    convert_all("/Users/mperrin/software/newJWPSF/data")

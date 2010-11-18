@@ -31,7 +31,10 @@ class JWInstrument(object):
 
 
         def sort_filters(filtname):
-            return int(filtname[1:-2])
+            try:
+                return int(filtname[1:-2])
+            except:
+                return filtname
         self.filter_list.sort(key=sort_filters)
 
         self.filter = self.filter_list[0]
