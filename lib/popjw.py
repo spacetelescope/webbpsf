@@ -7,8 +7,13 @@ import glob
 import atpy
 import types
 
-from IPython.Debugger import Tracer; stop = Tracer()
 
+
+try:
+    __IPYTHON__
+    from IPython.Debugger import Tracer; stop = Tracer()
+except:
+    pass
 
 
 
@@ -29,16 +34,20 @@ class JWInstrument(object):
         self.__filter_files= [os.path.abspath(f) for f in glob.glob(self.datapath+os.sep+'filters/*.fits')]
         self.filter_list=[os.path.basename(f).split("_")[0] for f in self.__filter_files]
 
-
         def sort_filters(filtname):
             try:
                 return int(filtname[1:-2])
             except:
                 return filtname
         self.filter_list.sort(key=sort_filters)
+        self.__filter_files = [self.datapath+os.sep+'filters/'+f+"_thru.fits" for f in self.filter_list]
 
         self.filter = self.filter_list[0]
 
+
+        self.opd_list = [os.path.basename(os.path.abspath(f)) for f in glob.glob(self.datapath+os.sep+'OPD/*.fits')]
+        #self.opd_list.insert(0,"Zero OPD (Perfect)")
+        
         self.__image_mask=None
         self.image_mask_list=[]
 
@@ -67,6 +76,7 @@ class JWInstrument(object):
         return self.__image_mask
     @image_mask.setter
     def image_mask(self, name):
+        if name is "": name = None
         if name is not None:
             if name not in self.image_mask_list:
                 raise ValueError("Instrument %s doesn't have an image mask called %s." % (self.name, value))
@@ -77,6 +87,7 @@ class JWInstrument(object):
         return self.__pupil_mask
     @pupil_mask.setter
     def pupil_mask(self,name):
+        if name is "": name = None
         if name is not None:
             if name not in self.pupil_mask_list:
                 raise ValueError("Instrument %s doesn't have an pupil mask called %s." % (self.name, value))
@@ -95,8 +106,8 @@ class JWInstrument(object):
         if filter is not None:
             self.filter = filter
 
-        if outfile is None: 
-            outfile = "PSF_%s_%s.fits" % (self.name, self.filter)
+        #if outfile is None: 
+            #outfile = "PSF_%s_%s.fits" % (self.name, self.filter)
             #raise ValueError("You must specify an output file name.")
 
         self.optsys = self.getOpticalSystem(fov_arcsec=fov_arcsec, oversample=oversample)
@@ -109,7 +120,7 @@ class JWInstrument(object):
 
         if mono:
             centerwave = (filterdata.THROUGHPUT*filterdata.WAVELENGTH).sum() / filterdata.THROUGHPUT.sum() / 1e10  # convert from angstroms to meters
-            result = self.optsys.propagate(centerwave, display_intermediates=True, save_intermediates=True)
+            result = self.optsys.propagate(centerwave, display_intermediates=True, save_intermediates=False)
         else:
             print "CAUTION: Really basic top-hat function for filter profile, with %d steps" % nlambda
             wtrans = N.where(filterdata.THROUGHPUT > 0.5)
@@ -117,13 +128,17 @@ class JWInstrument(object):
             lambd = N.linspace(N.min(lrange), N.max(lrange), nlambda)
             weights = N.ones(nlambda)
             source = {'wavelengths': lambd, 'weights': weights}
-            result = self.optsys.calcPSF(source, display_intermediates=True, save_intermediates=True)
+            result = self.optsys.calcPSF(source, display_intermediates=True, save_intermediates=False)
 
             f = p.gcf()
             p.text( 0.1, 0.95, "%s, filter= %s" % (self.name, self.filter), transform=f.transFigure, size='xx-large')
             p.text( 0.7, 0.95, "Calculation with %d wavelengths (%g - %g um)" % (nlambda, lambd[0]*1e6, lambd[-1]*1e6), transform=f.transFigure)
 
-        result.writeto(outfile, clobber=clobber)
+
+        if outfile is not None:
+            result.writeto(outfile, clobber=clobber)
+        else:
+            return outfile
 
 
         # load filter profile
@@ -135,7 +150,7 @@ class JWInstrument(object):
         self.__validate_config()
 
         optsys = OpticalSystem(name='JWST+'+self.name, oversample=oversample)
-        optsys.addPupil(name='JWST Pupil', transmission= self.pupil, opd=self.pupilopd)
+        optsys.addPupil(name='JWST Pupil', transmission= self.pupil, opd=self.pupilopd, opdunits='micron')
 
         if self.image_mask is not None:
             optsys = self.addCoronagraphOptics(optsys)
@@ -144,12 +159,30 @@ class JWInstrument(object):
         return optsys
 
 
+    def display(self):
+        optsys = self.getOpticalSystem()
+        optsys.display()
+
     def addCoronagraphOptics(self,optsys):
         """Add coronagraphic optics to an optical system. 
         This should be replaced by derived instrument classes. 
         """
         raise NotImplementedError("needs to be subclassed.")
 
+
+    def getFilter(self,filtername):
+        if filtername not in self.filter_list:
+            raise ValueError("Unknown/incorrect filter name for %s: %s" % (self.name, filtername))
+
+        wm = N.where(N.asarray(self.filter_list) == filtername)
+        filtfile = self.__filter_files[wm[0]]
+        print "Loading filter %s from %s" % (filtername, filtfile)
+        t = atpy.Table(filtfile)
+
+        t.WAVELENGTH /= 1e4 # convert from angstroms to microns
+        return t
+
+        #t = atpy.Table(self.datapath+os.sep+"filters"+os.sep+filtername+"_th
 
 
 class MIRI(JWInstrument):
@@ -495,8 +528,10 @@ def makeFakeFilter(filename, lcenter, dlam, clobber=False):
     lstart = lcenter - dlam/2
     lstop = lcenter + dlam/2
 
+    nlambda = 40
+
     print "Filter from %f - %f " % (lstart, lstop)
-    wavelength = N.linspace( lstart-dlam*0.1, lstop+dlam*0.1, 20)
+    wavelength = N.linspace( lstart-dlam*0.1, lstop+dlam*0.1, nlambda)
     print wavelength
     transmission = N.zeros_like(wavelength)
     transmission[N.where( (wavelength > lstart) & (wavelength < lstop) )] = 1.0
@@ -521,6 +556,41 @@ def makeMIRIfilters():
     makeFakeFilter('F2300C_thru.fits',23.00, 4.60,clobber=True)
 
     makeFakeFilter('FGS_thru.fits', 2.8, 4.40,clobber=True)
+
+
+def makeNIRCamFilters():
+    "Create nircam filters based on http://ircamera.as.arizona.edu/nircam/features.html "
+    makeFakeFilter('F070W_thru.fits', 0.7000, 0.1750, clobber=True)
+    makeFakeFilter('F090W_thru.fits', 0.9000, 0.2250, clobber=True)
+    makeFakeFilter('F115W_thru.fits', 1.1500, 0.2875, clobber=True)
+    makeFakeFilter('F150W_thru.fits', 1.5000, 0.3750, clobber=True)
+    makeFakeFilter('F150W2_thru.fits', 1.5000, 1.0000, clobber=True)
+    makeFakeFilter('F200W_thru.fits', 2.0000, 0.5000, clobber=True)
+    makeFakeFilter('F277W_thru.fits', 2.7700, 0.6925, clobber=True)
+    makeFakeFilter('F322W2_thru.fits', 3.2200, 1.6100, clobber=True)
+    makeFakeFilter('F356W_thru.fits', 3.5600, 0.8900, clobber=True)
+    makeFakeFilter('F444W_thru.fits', 4.4400, 1.1100, clobber=True)
+    makeFakeFilter('F140M_thru.fits', 1.4000, 0.1400, clobber=True)
+    makeFakeFilter('F162M_thru.fits', 1.6200, 0.1510, clobber=True)
+    makeFakeFilter('F182M_thru.fits', 1.8200, 0.2210, clobber=True)
+    makeFakeFilter('F210M_thru.fits', 2.1000, 0.2100, clobber=True)
+    makeFakeFilter('F250M_thru.fits', 2.5000, 0.1667, clobber=True)
+    makeFakeFilter('F300M_thru.fits', 3.0000, 0.3000, clobber=True)
+    makeFakeFilter('F335M_thru.fits', 3.3500, 0.3350, clobber=True)
+    makeFakeFilter('F360M_thru.fits', 3.6000, 0.3600, clobber=True)
+    makeFakeFilter('F410M_thru.fits', 4.1000, 0.4100, clobber=True)
+    makeFakeFilter('F430M_thru.fits', 4.3000, 0.2000, clobber=True)
+    makeFakeFilter('F460M_thru.fits', 4.6000, 0.2000, clobber=True)
+    makeFakeFilter('F480M_thru.fits', 4.8000, 0.4000, clobber=True)
+    makeFakeFilter('F164N_thru.fits', 1.6440, 0.0164, clobber=True)
+    makeFakeFilter('F187N_thru.fits', 1.8756, 0.0188, clobber=True)
+    makeFakeFilter('F212N_thru.fits', 2.1218, 0.0212, clobber=True)
+    makeFakeFilter('F225N_thru.fits', 2.2477, 0.0225, clobber=True)
+    makeFakeFilter('F323N_thru.fits', 3.2350, 0.0324, clobber=True)
+    makeFakeFilter('F405N_thru.fits', 4.0523, 0.0405, clobber=True)
+    makeFakeFilter('F418N_thru.fits', 4.1813, 0.0418, clobber=True)
+    makeFakeFilter('F466N_thru.fits', 4.6560, 0.0466, clobber=True)
+    makeFakeFilter('F470N_thru.fits', 4.7050, 0.0471, clobber=True)
 #########################3
 
 
@@ -530,15 +600,15 @@ if __name__ == "__main__":
         m = MIRI()
         m.filter = 'F1000W'
         m.calcPSF('test1.fits', clobber=True)
-    nc = NIRCam()
-    nc.filter = 'F200W'
+    #nc = NIRCam()
+    #nc.filter = 'F200W'
     #nc.calcPSF('test_nircam.fits', mono=False)
 
     miri=MIRI()
     miri.filter='F1065C'
     miri.image_mask = 'FQPM1065'
     miri.pupil_mask = 'MASKFQPM'
-    nircam=NIRCam()
+    #nircam=NIRCam()
     tfi = TFI()
     nirspec = NIRSpec()
 

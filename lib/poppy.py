@@ -4,7 +4,8 @@ import numpy as N
 import pylab as p
 import pyfits
 import scipy.special
-import copy 
+import copy
+import matplotlib
 from matplotlib.colors import LogNorm  # for log scaling of images, with automatic colorbar support
 
 import SFT
@@ -239,8 +240,8 @@ class Wavefront():
     def display(self,which='intensity', nrows=1,row=1,showpadding=False,imagezoom=5.0):
         "Display wavefront on screen"
 
-        intens = self.intensity
-        phase = self.phase
+        intens = N.ma.masked_array(self.intensity, mask=(self.intensity==0))
+        phase = N.ma.masked_array(self.phase, mask=(intens==0))
         amp = self.amplitude
 
         if not showpadding and self.ispadded:
@@ -253,18 +254,27 @@ class Wavefront():
         if self.planetype == PUPIL:
             extent = [0,self.pixelscale*intens.shape[0], 0,self.pixelscale*intens.shape[1]]
             unit = "m"
-            norm=None
+            norm=matplotlib.colors.Normalize(vmin=0)
         else:
             halffov = self.pixelscale*intens.shape[0]/2
             extent = [-halffov, halffov, -halffov, halffov]
             unit="arcsec"
             norm=LogNorm(vmin=1e-8,vmax=1e-1)
 
+        cmap = matplotlib.cm.jet
+        cmap.set_bad('k', 0.8)
+
+
+        if which =='best':
+            if self.planetype ==IMAGE: which = 'intensity' # always show intensity for image planes
+            elif phase.sum() == 0: which = 'intensity' # for perfect pupils
+            else: which='phase' # for aberrated pupils 
+
         if which == 'intensity':
             nc = int(N.ceil(N.sqrt(nrows)))
-            nr = N.ceil(float(nrows)/nc)
-            p.subplot(nr,nc,row)
-            p.imshow(intens,extent=extent, norm=norm)
+            nr = int(N.ceil(float(nrows)/nc))
+            p.subplot(nr,nc,int(row))
+            p.imshow(intens,extent=extent, norm=norm, cmap=cmap)
             p.title("Intensity "+self.location)
             p.xlabel(unit)
             p.colorbar(orientation='vertical')
@@ -276,16 +286,26 @@ class Wavefront():
                 imsize = min( (imagezoom, halffov))
                 ax.set_xbound(-imsize, imsize)
                 ax.set_ybound(-imsize, imsize)
+        elif which =='phase':
+            nc = int(N.ceil(N.sqrt(nrows)))
+            nr = int(N.ceil(float(nrows)/nc))
+            p.subplot(nr,nc,int(row))
+            p.imshow(phase,extent=extent, norm=norm, cmap=cmap)
+            p.title("Phase "+self.location)
+            p.xlabel(unit)
+            p.colorbar(orientation='vertical')
+
+
 
         else:
             p.subplot(nrows,2,(row*2)-1)
-            p.imshow(amp,extent=extent)
+            p.imshow(amp,extent=extent,cmap=cmap)
             p.title("Wavefront amplitude")
             p.ylabel(unit)
             p.colorbar(orientation='vertical')
 
             p.subplot(nrows,2,row*2)
-            p.imshow(self.phase,extent=extent)
+            p.imshow(self.phase,extent=extent, cmap=cmap)
             p.ylabel(unit)
             p.title("Wavefront phase")
 
@@ -434,7 +454,7 @@ class OpticalElement():
 
     NOTE: All mask files must be **squares**. 
     """
-    def __init__(self, name="unnamed optic", transmission=None, opd= None, verbose=True, planetype=None, oversample=1):
+    def __init__(self, name="unnamed optic", transmission=None, opd= None, verbose=True, planetype=None, oversample=1,opdunits="meters"):
         self.name = name
         self.verbose=verbose
 
@@ -472,6 +492,13 @@ class OpticalElement():
                     raise ValueError, "OPD image must be 2-D and square"
                 if not self.verbose:
                     print(self.name+": Loaded opd from "+self.opd_file)
+
+
+                # convert OPD into meters
+                if opdunits.lower() == 'meters' or opdunits.lower() == 'meter':
+                    pass # no need to rescale
+                elif opdunits.lower() == 'micron' or opdunits.lower() == 'um':
+                    self.opd *= 1e-6
             else:
                 self.opd = N.zeros(self.amplitude.shape)
 
@@ -514,17 +541,38 @@ class OpticalElement():
         else:
             return self.phasor
 
-    def display(self, nrows=1, row=1):
+    def display(self, nrows=1, row=1, phase=False, wavelength=None):
         "Display plots showing an optic's transmission and OPD"
+        if self.planetype == PUPIL:
+            pixelscale = self.pupil_scale
+            units = "meters"
+        else:
+            pixelscale = self.pixelscale
+            units = "arcsec"
+
+        extent = [0,pixelscale*self.amplitude.shape[0], 0,pixelscale*self.amplitude.shape[1]]
+        
+        if nrows == 1: orient = "horizontal"
+        else: orient = "vertical"
+
+        cmap = matplotlib.cm.jet
+        cmap.set_bad('k', 0.8)
+        norm_amp=matplotlib.colors.Normalize(vmin=0, vmax=1)
+        norm_opd=matplotlib.colors.Normalize(vmin=-0.5e-6, vmax=0.5e-6)
+
+        ampl = N.ma.masked_equal(self.amplitude, 0)
+        opd= N.ma.masked_array(self.opd, mask=(self.amplitude ==0))
+
         p.subplot(nrows, 2, row*2-1)
-        p.imshow(self.amplitude)
+        p.imshow(ampl, extent=extent, cmap=cmap, norm=norm_amp)
         p.title("Transmissivity for "+self.name)
-        p.colorbar(orientation="horizontal")
+        p.colorbar(orientation=orient, ticks=[0,0.25, 0.5, 0.75, 1.0])
 
         p.subplot(nrows, 2, row*2)
-        p.imshow(self.opd)
+        p.imshow(opd, extent=extent, cmap=cmap, norm=norm_opd)
         p.title("OPD for "+self.name)
-        p.colorbar(orientation="horizontal")
+        cb = p.colorbar(orientation=orient, ticks=N.array([-0.5, -0.25, 0, 0.25, 0.5])*1e-6)
+        cb.set_label('meters')
 
     def __str__(self):
         typestrs = ['', 'Pupil plane', 'Image plane', 'Detector']
@@ -575,13 +623,16 @@ class AnalyticOpticalElement(OpticalElement):
     def getPhasor(self,wave):
         raise NotImplementedError("getPhasor must be supplied by a derived subclass")
 
-    def display(self, nrows=1, row=1):
+    def display(self, nrows=1, row=1, phase=False, wavelength=2e-6):
+        "Display an Analytic optic by first computing it onto a grid..."
         halffov = 2
-        w = Wavefront(npix=512,  pixelscale = 2.*halffov/512)
+        w = Wavefront(wavelength=wavelength, npix=512,  pixelscale = 2.*halffov/512)
 
-        phasor = self.getPhasor(wave)
-        trans = N.abs(phasor)
+        phasor = self.getPhasor(w)
+        self.amplitude = N.abs(phasor)
         phase = N.angle(phasor) * 2*N.pi
+        self.opd = phase
+
 
         extent = [-halffov, halffov, -halffov, halffov]
         unit="arcsec"
@@ -593,7 +644,7 @@ class AnalyticOpticalElement(OpticalElement):
         p.colorbar(orientation='vertical')
 
         p.subplot(nrows,2,row*2)
-        p.imshow(self.phase,extent=extent)
+        p.imshow(phase,extent=extent)
         p.ylabel(unit)
         p.title("Phase for "+self.name)
 
@@ -911,8 +962,8 @@ class OpticalSystem():
                     self.intermediate_wfs[count-1] += wavefront.copy()*poly_weight
                 if poly_weight is None: self.intermediate_wfs[count-1].writeto(intermediate_fn % count, what='parts')
             if display_intermediates:
-               if save_intermediates: self.intermediate_wfs[count-1].display(nrows=len(self.planes),row=count)
-               else: wavefront.display(nrows=len(self.planes),row=count)
+               if save_intermediates: self.intermediate_wfs[count-1].display(which='best',nrows=len(self.planes),row=count)
+               else: wavefront.display(which='best',nrows=len(self.planes),row=count)
 
         # prepare output arrays
         if normalize.lower()=='last':
@@ -929,7 +980,7 @@ class OpticalSystem():
         source :
             a dict containing 'wavelengths' and 'weights' list.
             TBD - replace w/ pysynphot observation object
-        save_intermediates :
+        s # always show intensity for image planesave_intermediates :
             Bool, whether to output intermediate optical planes
 
 
@@ -977,6 +1028,12 @@ class OpticalSystem():
 
         return outFITS
 
+    def display(self, **kwargs):
+
+        planes_to_display = [p for p in self.planes if not isinstance(p, Detector)]
+        nplanes = len(planes_to_display)
+        for i in range(nplanes): 
+            self.planes[i].display(nrows=nplanes, row=1, **kwargs)
 
 
 def test_MFT():
