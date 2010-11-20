@@ -277,7 +277,7 @@ class Wavefront():
             p.imshow(intens,extent=extent, norm=norm, cmap=cmap)
             p.title("Intensity "+self.location)
             p.xlabel(unit)
-            p.colorbar(orientation='vertical')
+            p.colorbar(orientation='vertical', shrink=0.8)
 
             if self.planetype ==IMAGE:
                 p.axhline(0,ls="k:")
@@ -293,7 +293,7 @@ class Wavefront():
             p.imshow(phase,extent=extent, norm=norm, cmap=cmap)
             p.title("Phase "+self.location)
             p.xlabel(unit)
-            p.colorbar(orientation='vertical')
+            p.colorbar(orientation='vertical', shrink=0.8)
 
 
 
@@ -302,13 +302,14 @@ class Wavefront():
             p.imshow(amp,extent=extent,cmap=cmap)
             p.title("Wavefront amplitude")
             p.ylabel(unit)
-            p.colorbar(orientation='vertical')
+            p.colorbar(orientation='vertical',shrink=0.8)
 
             p.subplot(nrows,2,row*2)
             p.imshow(self.phase,extent=extent, cmap=cmap)
             p.ylabel(unit)
             p.title("Wavefront phase")
 
+        p.draw()
 
 
     # add convenient properties for intensity, phase, amplitude, total_flux
@@ -386,12 +387,12 @@ class Wavefront():
         elif self.planetype == IMAGE and optic.planetype ==PUPIL:
             FFT_direction= 'BACKWARD'
             # do FFT
-            print "Pre-FFT total intensity: "+str(self.totalIntensity)
+            #print "Pre-FFT total intensity: "+str(self.totalIntensity)
                 # due to annoying normalization convention in numpy fft, we have to divide by the number of pixels
                 # when doing this fft step:
             self.wavefront = N.fft.ifftshift(self.wavefront) * self.wavefront.shape[0]
             self.wavefront = N.fft.ifft2(self.wavefront)
-            print "Post-FFT total intensity: "+str(self.totalIntensity)
+            #print "Post-FFT total intensity: "+str(self.totalIntensity)
             # update keywords
             self.planetype=PUPIL
             self.pixelscale = self.diam *self.oversample / self.wavefront.shape[0]
@@ -633,6 +634,8 @@ class AnalyticOpticalElement(OpticalElement):
         phase = N.angle(phasor) * 2*N.pi
         self.opd = phase
 
+
+        stop()  # rewrite this to set properties appropriately then call parent class display
 
         extent = [-halffov, halffov, -halffov, halffov]
         unit="arcsec"
@@ -939,6 +942,8 @@ class OpticalSystem():
         if save_intermediates and poly_weight is None: 
             self.intermediate_wfs=[]
             print "reset intermediates"
+        #if display_intermediates and poly_weight is None: p.clf()
+        # need to CLF due to obnoxious color bar re-creation otherwise
         if display_intermediates: p.clf()
 
         # do the propagation:
@@ -997,8 +1002,7 @@ class OpticalSystem():
             #raise ValueError("Saving intermediates for multi-wavelen not yet implemented!!")
 
         # loop over wavelengths
-        if self.verbose:
-            print "Calculating PSF with %d wavelengths" % (len(source['wavelengths']))
+        if self.verbose: print "** Calculating PSF with %d wavelengths" % (len(source['wavelengths']))
         outFITS = None
 
         normwts =  N.asarray(source['weights'])
@@ -1022,10 +1026,12 @@ class OpticalSystem():
         wts = N.asarray(source['weights'])
         mnwave = (waves*wts).sum() / wts.sum()
         outFITS[0].header.update('WAVELEN', mnwave, 'Weighted mean wavelength in meters')
+        outFITS[0].header.update('NWAVES',waves.size, 'Number of wavelengths used in calculation')
         for i in range(waves.size):
             outFITS[0].header.update('WAVE'+str(i), waves[i], "Wavelength "+str(i))
             outFITS[0].header.update('WGHT'+str(i), wts[i], "Wavelength weight "+str(i))
 
+        if self.verbose: print "** PSF Calculation completed."
         return outFITS
 
     def display(self, **kwargs):

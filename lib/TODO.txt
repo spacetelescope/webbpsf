@@ -1,0 +1,15 @@
+
+SFT:
+ - rotated/diagonal SFTs
+
+popjw: 
+ - downsample to detector pixel resolution. Save as additional FITS image extension. 
+ - offset sources for coronagraphy. Lyot mask offsets. 
+
+GUI:
+ - add support for downsampling
+ - add support for misaligned coronagraphy optics. 
+ - derived class for image display which allows mouseover display of the image values, not just coordinates. 
+ - derived class for colorbar (or hooks into existing code) to allow dynamic rescaling with windows. 
+ - actually do something with stellar spectral types!
+ - calculations for large FOV should display the whole thing when calculating...

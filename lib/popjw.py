@@ -100,7 +100,9 @@ class JWInstrument(object):
 
     #----- actual optical calculations follow here -----
     def calcPSF(self, filter=None, outfile=None,oversample=2, fov_arcsec=5., clobber=True, mono=False, nlambda=5 ):
-        """ Compute a PSF
+        """ Compute a PSF. 
+        The result can either be written to disk (set outfile="filename") or else will be returned as
+        a pyfits HDUlist object.
         """
         
         if filter is not None:
@@ -131,14 +133,32 @@ class JWInstrument(object):
             result = self.optsys.calcPSF(source, display_intermediates=True, save_intermediates=False)
 
             f = p.gcf()
-            p.text( 0.1, 0.95, "%s, filter= %s" % (self.name, self.filter), transform=f.transFigure, size='xx-large')
+            #p.text( 0.1, 0.95, "%s, filter= %s" % (self.name, self.filter), transform=f.transFigure, size='xx-large')
+            p.suptitle( "%s, filter= %s" % (self.name, self.filter), size='xx-large')
             p.text( 0.7, 0.95, "Calculation with %d wavelengths (%g - %g um)" % (nlambda, lambd[0]*1e6, lambd[-1]*1e6), transform=f.transFigure)
+
+
+
+        # TODO update FITS header here
+        result[0].header.update('PUPIL', os.path.basename(self.pupil))
+        if self.pupilopd is None:
+            result[0].header.update('PUPILOPD', "NONE - perfect telescope! ")
+        else:
+            result[0].header.update('PUPILOPD', os.path.basename(self.pupilopd))
+        result[0].header.update('INSTRUME', self.name)
+        result[0].header.update('FILTER', self.filter)
+        if self.image_mask is not None:
+            result[0].header.update('CORON', self.image_mask)
+        if self.pupil_mask is not None:
+            result[0].header.update('LYOTMASK', self.pupil_mask)
+        result[0].header.add_history('Created by JWPSF v4 ')
 
 
         if outfile is not None:
             result.writeto(outfile, clobber=clobber)
+            print "Saved result to "+outfile
         else:
-            return outfile
+            return result
 
 
         # load filter profile

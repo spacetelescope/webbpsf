@@ -7,6 +7,7 @@ import pyfits
 import ttk
 import Tkinter as tk
 import tkMessageBox
+import tkFileDialog
 #from Tkinter import N,E,S,W
 
 try:
@@ -193,7 +194,9 @@ class JWPSF_GUI(object):
 
         lf = ttk.Frame(frame)
         ttk.Button(lf, text='Compute PSF', command=self.cb_calcPSF ).grid(column=0, row=0)
-        ttk.Button(lf, text='Save PSF...', command=self.setSaveAsFilename ).grid(column=1, row=0, sticky='E')
+        self.widgets['SaveAs'] = ttk.Button(lf, text='Save PSF...', command=self.cb_SaveAs )
+        self.widgets['SaveAs'].grid(column=1, row=0, sticky='E')
+        self.widgets['SaveAs'].state(['disabled'])
         #ttk.Button(lf, text='Display PSF', command=self.cb_displayPSF).grid(column=1, row=0)
         ttk.Button(lf, text='Display Optics', command=self.cb_displayOptics ).grid(column=3, row=0)
         ttk.Button(lf, text='Quit', command=self.quit).grid(column=5, row=0)
@@ -219,8 +222,14 @@ class JWPSF_GUI(object):
         if tkMessageBox.askyesno( message='Are you sure you want to quit?', icon='question', title='Install') :
             self.root.destroy()
 
-    def setSaveAsFilename(self):
-        pass
+    def cb_SaveAs(self):
+        filename = tkFileDialog.asksaveasfilename(
+                initialfile='PSF_%s_%s.fits' %(self.iname, self.filter), 
+                filetypes=[('FITS', '.fits')],
+                parent=self.root)
+        if len(filename) > 0:
+            self.PSF_HDUlist.writeto(filename) 
+            print "Saved to %s" % filename
 
     def cb_plotspectrum(self):
 
@@ -249,7 +258,9 @@ class JWPSF_GUI(object):
     def cb_calcPSF(self):
 
         self._updateFromGUI()
-        self.inst.calcPSF(oversample=self.oversampling, fov_arcsec = self.FOV,nlambda = self.nlambda)
+        self.PSF_HDUlist = self.inst.calcPSF(oversample=self.oversampling, fov_arcsec = self.FOV,nlambda = self.nlambda)
+        self.widgets['SaveAs'].state(['!disabled'])
+
 
     def cb_displayPSF(self):
         self._updateFromGUI()
