@@ -19,39 +19,40 @@ except:
 
 
 class JWInstrument(object):
+    """ A JWST Instrument """
     def __init__(self, name=None):
         self.name=name
 
-        self.JWPSF_basepath = os.path.dirname(os.path.dirname(os.path.abspath(poppy.__file__))) +os.sep+"data"
+        self._JWPSF_basepath = os.path.dirname(os.path.dirname(os.path.abspath(poppy.__file__))) +os.sep+"data"
 
-        self.datapath = self.JWPSF_basepath + os.sep + self.name + os.sep
-        self.pupil = os.path.abspath(self.datapath+"../pupil.fits")
+        self._datapath = self._JWPSF_basepath + os.sep + self.name + os.sep
+        self.pupil = os.path.abspath(self._datapath+"../pupil.fits")
         self.pupilopd = None
 
         #create private instance variables. These will be
         # wrapped just below to create properties with validation.
         self.__filter=None
-        self.__filter_files= [os.path.abspath(f) for f in glob.glob(self.datapath+os.sep+'filters/*.fits')]
+        self.__filter_files= [os.path.abspath(f) for f in glob.glob(self._datapath+os.sep+'filters/*.fits')]
         self.filter_list=[os.path.basename(f).split("_")[0] for f in self.__filter_files]
 
         def sort_filters(filtname):
             try:
-                return int(filtname[1:-2])
+                return int(filtname[1:4])
             except:
                 return filtname
         self.filter_list.sort(key=sort_filters)
-        self.__filter_files = [self.datapath+os.sep+'filters/'+f+"_thru.fits" for f in self.filter_list]
+        self.__filter_files = [self._datapath+os.sep+'filters/'+f+"_thru.fits" for f in self.filter_list]
 
         self.filter = self.filter_list[0]
 
 
-        self.opd_list = [os.path.basename(os.path.abspath(f)) for f in glob.glob(self.datapath+os.sep+'OPD/*.fits')]
+        self.opd_list = [os.path.basename(os.path.abspath(f)) for f in glob.glob(self._datapath+os.sep+'OPD/*.fits')]
         #self.opd_list.insert(0,"Zero OPD (Perfect)")
         
-        self.__image_mask=None
+        #self._image_mask=None
         self.image_mask_list=[]
 
-        self.__pupil_mask=None
+        #self._pupil_mask=None
         self.pupil_mask_list=[]
 
         self.pixelscale = 0.0
@@ -73,18 +74,18 @@ class JWInstrument(object):
     @property
     def image_mask(self):
         'Currently selected image_mask'
-        return self.__image_mask
+        return self._image_mask
     @image_mask.setter
     def image_mask(self, name):
         if name is "": name = None
         if name is not None:
             if name not in self.image_mask_list:
                 raise ValueError("Instrument %s doesn't have an image mask called %s." % (self.name, value))
-        self.__image_mask = name
+        self._image_mask = name
     @property
     def pupil_mask(self):
         'Currently selected pupil_mask'
-        return self.__pupil_mask
+        return self._pupil_mask
     @pupil_mask.setter
     def pupil_mask(self,name):
         if name is "": name = None
@@ -92,17 +93,34 @@ class JWInstrument(object):
             if name not in self.pupil_mask_list:
                 raise ValueError("Instrument %s doesn't have an pupil mask called %s." % (self.name, value))
 
-        self.__pupil_mask = name
+        self._pupil_mask = name
             #self.__validate_config()
 
     def __str__(self):
         return "JWInstrument name="+self.name
 
     #----- actual optical calculations follow here -----
-    def calcPSF(self, filter=None, outfile=None,oversample=2, fov_arcsec=5., clobber=True, mono=False, nlambda=5 ):
-        """ Compute a PSF. 
+    def calcPSF(self, filter=None, outfile=None,oversample=2, fov_arcsec=5., clobber=True, nlambda=5 ):
+        """ Compute a PSF.
         The result can either be written to disk (set outfile="filename") or else will be returned as
         a pyfits HDUlist object.
+
+        Parameters:
+
+        * filter
+            string, filtername. This is just a shortcut for setting the object's filter first, then
+            calling calcPSF afterwards. 
+        * outfile
+            Filename to write. If None, then result is returned as an HDUList
+        * oversample
+            How much to oversample. Default=2
+        * fov_arcsec
+            field of view in arcsec. Default=5
+        * clobber
+            Bool. overwrite output FITS file if it already exists?
+        * nlambda
+            How many wavelengths to model for broadband? Default=5
+
         """
         
         if filter is not None:
@@ -112,30 +130,29 @@ class JWInstrument(object):
             #outfile = "PSF_%s_%s.fits" % (self.name, self.filter)
             #raise ValueError("You must specify an output file name.")
 
+
+        # instantiate an optical system using the current parameters
         self.optsys = self.getOpticalSystem(fov_arcsec=fov_arcsec, oversample=oversample)
 
-        # for now, just calc monochromatic, centered on the filter transmission curve
 
+        # compute a source spectrum weighted by the desired filter curves.
+        # TBD this will eventually use pysynphot, so don't write anything fancy for now!
         wf = N.where(self.filter_list == self.filter)
         wf = N.where(self.filter == N.asarray(self.filter_list))[0]
         filterdata = atpy.Table(self.__filter_files[wf])
 
-        if mono:
-            centerwave = (filterdata.THROUGHPUT*filterdata.WAVELENGTH).sum() / filterdata.THROUGHPUT.sum() / 1e10  # convert from angstroms to meters
-            result = self.optsys.propagate(centerwave, display_intermediates=True, save_intermediates=False)
-        else:
-            print "CAUTION: Really basic top-hat function for filter profile, with %d steps" % nlambda
-            wtrans = N.where(filterdata.THROUGHPUT > 0.5)
-            lrange = filterdata.WAVELENGTH[wtrans] *1e-10
-            lambd = N.linspace(N.min(lrange), N.max(lrange), nlambda)
-            weights = N.ones(nlambda)
-            source = {'wavelengths': lambd, 'weights': weights}
-            result = self.optsys.calcPSF(source, display_intermediates=True, save_intermediates=False)
+        print "CAUTION: Really basic top-hat function for filter profile, with %d steps" % nlambda
+        wtrans = N.where(filterdata.THROUGHPUT > 0.5)
+        lrange = filterdata.WAVELENGTH[wtrans] *1e-10
+        lambd = N.linspace(N.min(lrange), N.max(lrange), nlambda)
+        weights = N.ones(nlambda)
+        source = {'wavelengths': lambd, 'weights': weights}
+        result = self.optsys.calcPSF(source, display_intermediates=True, save_intermediates=False)
 
-            f = p.gcf()
-            #p.text( 0.1, 0.95, "%s, filter= %s" % (self.name, self.filter), transform=f.transFigure, size='xx-large')
-            p.suptitle( "%s, filter= %s" % (self.name, self.filter), size='xx-large')
-            p.text( 0.7, 0.95, "Calculation with %d wavelengths (%g - %g um)" % (nlambda, lambd[0]*1e6, lambd[-1]*1e6), transform=f.transFigure)
+        f = p.gcf()
+        #p.text( 0.1, 0.95, "%s, filter= %s" % (self.name, self.filter), transform=f.transFigure, size='xx-large')
+        p.suptitle( "%s, filter= %s" % (self.name, self.filter), size='xx-large')
+        p.text( 0.7, 0.95, "Calculation with %d wavelengths (%g - %g um)" % (nlambda, lambd[0]*1e6, lambd[-1]*1e6), transform=f.transFigure)
 
 
 
@@ -160,10 +177,6 @@ class JWInstrument(object):
         else:
             return result
 
-
-        # load filter profile
-        # load stellar/target profile
-        # compute output
 
 
     def getOpticalSystem(self,oversample=2, fov_arcsec=2):
@@ -190,7 +203,8 @@ class JWInstrument(object):
         raise NotImplementedError("needs to be subclassed.")
 
 
-    def getFilter(self,filtername):
+    def loadFilter(self,filtername):
+        """ Given a filter name, load the actual response curve and return it."""
         if filtername not in self.filter_list:
             raise ValueError("Unknown/incorrect filter name for %s: %s" % (self.name, filtername))
 
@@ -202,15 +216,12 @@ class JWInstrument(object):
         t.WAVELENGTH /= 1e4 # convert from angstroms to microns
         return t
 
-        #t = atpy.Table(self.datapath+os.sep+"filters"+os.sep+filtername+"_th
-
 
 class MIRI(JWInstrument):
     def __init__(self):
         JWInstrument.__init__(self, "MIRI")
         self.pixelscale = 0.11
 
-        self.pupilopd = self.datapath+"OPD/MIRI_OPDisim1.fits"
         self.pupilopd = None
         self.image_mask_list = ['FQPM1065', 'FQPM1140', 'FQPM1550', 'LYOT2300']
         self.pupil_mask_list = ['MASKFQPM', 'MASKLYOT']
@@ -262,9 +273,9 @@ class MIRI(JWInstrument):
             optsys.addImage(function='fieldstop',size=30)
 
         if self.pupil_mask == 'MASKFQPM':
-            optsys.addPupil(transmission=self.datapath+"/coronagraph/MIRI_FQPMLyotStop.fits", name=self.pupil_mask)
+            optsys.addPupil(transmission=self._datapath+"/coronagraph/MIRI_FQPMLyotStop.fits", name=self.pupil_mask)
         elif self.pupil_mask == 'MASKLYOT':
-            optsys.addPupil(transmission=self.datapath+"/coronagraph/MIRI_LyotLyotStop.fits", name=self.pupil_mask)
+            optsys.addPupil(transmission=self._datapath+"/coronagraph/MIRI_LyotLyotStop.fits", name=self.pupil_mask)
 
 
         return optsys
@@ -307,9 +318,9 @@ class NIRCam(JWInstrument):
             optsys.addImage(function='BandLimitedCoron', kind='linear', sigma=1, name=self.image_mask)
 
         if self.pupil_mask == 'MASKFQPM':
-            optsys.addPupil(self.datapath+"/coronagraph/MIRI_FQPMLyotStop.fits", name=self.pupil_mask)
+            optsys.addPupil(self._datapath+"/coronagraph/MIRI_FQPMLyotStop.fits", name=self.pupil_mask)
         elif self.pupil_mask == 'MASKLYOT':
-            optsys.addPupil(self.datapath+"/coronagraph/MIRI_LyotLyotStop.fits", name=self.pupil_mask)
+            optsys.addPupil(self._datapath+"/coronagraph/MIRI_LyotLyotStop.fits", name=self.pupil_mask)
 
         return optsys
 
@@ -352,11 +363,11 @@ class TFI(JWInstrument):
             optsys.addImage(function='CircularOcculter', radius=2.0/2, name=self.image_mask)
 
         if self.pupil_mask == 'MASKC21N':
-            optsys.addPupil(self.datapath+"/coronagraph/MIRI_FQPMLyotStop.fits", name=self.pupil_mask)
+            optsys.addPupil(self._datapath+"/coronagraph/MIRI_FQPMLyotStop.fits", name=self.pupil_mask)
         if self.pupil_mask == 'MASKC66N':
-            optsys.addPupil(self.datapath+"/coronagraph/MIRI_FQPMLyotStop.fits", name=self.pupil_mask)
+            optsys.addPupil(self._datapath+"/coronagraph/MIRI_FQPMLyotStop.fits", name=self.pupil_mask)
         if self.pupil_mask == 'MASKC71N':
-            optsys.addPupil(self.datapath+"/coronagraph/MIRI_FQPMLyotStop.fits", name=self.pupil_mask)
+            optsys.addPupil(self._datapath+"/coronagraph/MIRI_FQPMLyotStop.fits", name=self.pupil_mask)
 
 
         return optsys
@@ -454,7 +465,7 @@ class kurucz_stars(object):
         
         self.sptype_list.sort(key=sort_sptype)
 
-        self.JWPSF_basepath = os.path.dirname(os.path.dirname(os.path.abspath(poppy.__file__))) +os.sep+"data"
+        self._JWPSF_basepath = os.path.dirname(os.path.dirname(os.path.abspath(poppy.__file__))) +os.sep+"data"
 
 
 
@@ -513,7 +524,7 @@ class kurucz_stars(object):
 
         startype = spectral_type.upper()
         (fname, gcol) = self.Kurucz_filenames[startype]
-        fullname = os.path.join (self.JWPSF_basepath, 'k93models', fname[0:4], fname)
+        fullname = os.path.join (self._JWPSF_basepath, 'k93models', fname[0:4], fname)
         self.spectrum_file = fullname
         fd = pyfits.open (fullname)
         hdu = fd[1]

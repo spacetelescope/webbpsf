@@ -68,6 +68,7 @@ def convert_all(dir):
 
 if __name__ == "__main__":
     convert_all("/Users/mperrin/software/newJWPSF/data/MIRI/OPD")
+    convert_all("/Users/mperrin/software/newJWPSF/data/MIRI/coronagraph")
     convert_all("/Users/mperrin/software/newJWPSF/data/NIRCam/OPD")
     convert_all("/Users/mperrin/software/newJWPSF/data/NIRSpec/OPD")
     convert_all("/Users/mperrin/software/newJWPSF/data/TFI/OPD")
