@@ -310,7 +310,6 @@ class Wavefront():
 
         p.draw()
 
-
     # add convenient properties for intensity, phase, amplitude, total_flux
     @property
     def amplitude(self):
@@ -433,6 +432,19 @@ class Wavefront():
         self.fov = det.fov_arcsec
         self.pixelscale = det.fov_arcsec / det_calc_size_pixels
 
+    def tilt(self, Xangle=0.0, Yangle=0.0):
+        """ Tilt a wavefront in X and Y. """
+        if self.planetype==IMAGE:
+            raise NotImplementedError("Are you sure you want to tilt a wavefront in an IMAGE plane?")
+
+        #Compute the tilt of the wavefront required to shift it by some amount in the image plane. 
+        
+        tiltphasor = 1.
+
+        self.wavefront *= tiltphasor
+        self.history.append("Tilted wavefront")
+
+
 #------
 class OpticalElement():
     """ Defines an arbitrary optic, based on amplitude transmission and/or OPD files. 
@@ -444,17 +456,24 @@ class OpticalElement():
         string, descriptive name for optic
     tranmission, opd :
         FITS filenames for the transmission (from 0-1) and opd (in meters)
+    opdunits:
+        string, units for the OPD file. Default is meters. 
     verbose :
         bool, whether to print stuff while computing
     planetype :
         either IMAGE or PUPIL
     oversample :
-        how much to oversample beyond Nyquist. 
+        how much to oversample beyond Nyquist.
+
+    shift :
+        2-tuple containing X and Y fractional shifts for the pupil.
+
+
 
 
     NOTE: All mask files must be **squares**. 
     """
-    def __init__(self, name="unnamed optic", transmission=None, opd= None, verbose=True, planetype=None, oversample=1,opdunits="meters"):
+    def __init__(self, name="unnamed optic", transmission=None, opd= None, verbose=True, planetype=None, oversample=1,opdunits="meters", shift=None):
         self.name = name
         self.verbose=verbose
 
@@ -466,7 +485,7 @@ class OpticalElement():
         self.ispadded = False           # are we padded w/ zeros for oversampling the FFT?
 
         # Read amplitude and/or OPD from disk
-        if opd is None and transmission is None:
+        if opd is None and transmission is None:   # no input files, so just make a scalar
             print "No input files specified. "
             print "Creating a null optical element. Are you sure that's what you want to do?"
             self.amplitude = N.asarray([1.])
@@ -474,18 +493,19 @@ class OpticalElement():
             self.pixelscale = 0
             self.name = "-empty-"
         else:
-            if transmission is not None:
+            if transmission is not None:        # load transmission file. 
                 self.amplitude_file = transmission 
                 self.amplitude, self.amplitude_header = pyfits.getdata(self.amplitude_file, header=True)
                 if len (self.amplitude.shape) != 2 or self.amplitude.shape[0] != self.amplitude.shape[1]:
                     raise ValueError, "OPD image must be 2-D and square"
                 if self.verbose:
                     print(self.name+": Loaded amplitude from "+self.amplitude_file)
-            else:
+            else:                               # else if only OPD set, create an array of 1s with same size.
                 opd_shape = pyfits.getdata(opd).shape
                 self.amplitude = N.ones(opd_shape)
 
-            if opd is not None:
+            if opd is not None:         # Load OPD file. 
+                # if OPD is specified as a tuple, treat the first element as the filename and 2nd as the slice of a cube.
                 if isinstance(opd, basestring):
                     self.opd_file = opd
                     self.opd_slice = 0
@@ -511,11 +531,28 @@ class OpticalElement():
                     pass # no need to rescale
                 elif opdunits.lower() == 'micron' or opdunits.lower() == 'um':
                     self.opd *= 1e-6
-            else:
+            else:                   #else if only amplitude set, create an array of 0s with same size. 
                 self.opd = N.zeros(self.amplitude.shape)
 
             assert self.amplitude.shape == self.opd.shape
             assert self.amplitude.shape[0] == self.amplitude.shape[1]
+
+            # if a shift is specified and we're NOT a null (scalar) optic, then do the shift:
+            if shift is not None and len(self.amplitude.shape) ==2:
+                if abs(shift[0]) > 0.5 or abs(shift[1])> 0.5:
+                    raise ValueError("""You have asked for an implausibly large shift. Remember, shifts should be specified as
+                      decimal values between 0.0 and 1.0, a fraction of the total optic diameter. """)
+                rolly = int(N.round(self.amplitude.shape[0] * shift[1])) #remember Y,X order for shape, but X,Y order for shift
+                rollx = int(N.round(self.amplitude.shape[1] * shift[0]))
+                print "Requested optic shift of (%6.3f, %6.3f) %%" % (shift)
+                print "Actual shift applied   = (%6.3f, %6.3f) %%" % (rollx*1.0/self.amplitude.shape[1], rolly *1.0/ self.amplitude.shape[0])
+
+                self.amplitude = N.roll(self.amplitude, rolly, axis=0)
+                self.amplitude = N.roll(self.amplitude, rollx, axis=1)
+                self.opd       = N.roll(self.opd,       rolly, axis=0)
+                self.opd       = N.roll(self.opd,       rollx, axis=1)
+
+
 
 
             if self.planetype == PUPIL:

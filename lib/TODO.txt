@@ -1,9 +1,13 @@
 
 
-Add FITS keywords for data/timeof calculation, user and machine where performed. 
 Add object
 Add real use of stellar spectral type
+	- pysynphot next week!
 
+debug circular occulter masks
+
+
+Add detector QE and germanium filter features. 
 
 Overall:
  ** debug broad band calculations ??

@@ -7,6 +7,7 @@ import glob
 import atpy
 import types
 import utils
+import time
 
 __doc__ = """
 An object-oriented modeling system for the JWST instruments.
@@ -52,7 +53,7 @@ class JWInstrument(object):
         #create private instance variables. These will be
         # wrapped just below to create properties with validation.
         self.__filter=None
-        self.__filter_files= [os.path.abspath(f) for f in glob.glob(self._datapath+os.sep+'filters/*.fits')]
+        self.__filter_files= [os.path.abspath(f) for f in glob.glob(self._datapath+os.sep+'filters/*_thru.fits')]
         self.filter_list=[os.path.basename(f).split("_")[0] for f in self.__filter_files]
 
         def sort_filters(filtname):
@@ -196,6 +197,9 @@ class JWInstrument(object):
         result[0].header.update('EXTNAME', 'OVERSAMP')
         result[0].header.add_history('Created by JWPSF v4 ')
 
+        (year, month, day, hour, minute, second, weekday, DOY, DST) =  time.gmtime()
+        result[0].header.update ("DATE", "%4d-%02d-%02dT%02d:%02d:%02d" % (year, month, day, hour, minute, second), "Date of calculation")
+        result[0].header.update ("AUTHOR", "%s@%s" % (os.getenv('USER'), os.getenv('HOST')), "username@host for calculation")
 
 
         # Should we downsample? 
@@ -213,6 +217,8 @@ class JWInstrument(object):
 
 
         if outfile is not None:
+            result[0].header.update ("FILENAME", os.path.basename (outfile),
+                           comment="Name of this file")
             result.writeto(outfile, clobber=clobber)
             print "Saved result to "+outfile
         else:
@@ -300,6 +306,7 @@ class MIRI(JWInstrument):
         """Add coronagraphic optics for MIRI 
         """
 
+        # Add image plane mask
         if self.image_mask == 'FQPM1065':
             optsys.addImage(function='FQPM',wavelength=10.65e-6, name=self.image_mask)
             optsys.addImage(function='fieldstop',size=24)
@@ -313,10 +320,17 @@ class MIRI(JWInstrument):
             optsys.addImage(function='CircularOcculter',radius =1., name=self.image_mask) 
             optsys.addImage(function='fieldstop',size=30)
 
+
+        # add pupil plane mask
+        if ('pupil_shift_x' in self.options.keys() and self.options['pupil_shift_x'] != 0) or \
+           ('pupil_shift_y' in self.options.keys() and self.options['pupil_shift_y'] != 0):
+            shift = (self.options['pupil_shift_x'], self.options['pupil_shift_y'])
+        else: shift = None
+
         if self.pupil_mask == 'MASKFQPM':
-            optsys.addPupil(transmission=self._datapath+"/coronagraph/MIRI_FQPMLyotStop.fits", name=self.pupil_mask)
+            optsys.addPupil(transmission=self._datapath+"/coronagraph/MIRI_FQPMLyotStop.fits", name=self.pupil_mask, shift=shift)
         elif self.pupil_mask == 'MASKLYOT':
-            optsys.addPupil(transmission=self._datapath+"/coronagraph/MIRI_LyotLyotStop.fits", name=self.pupil_mask)
+            optsys.addPupil(transmission=self._datapath+"/coronagraph/MIRI_LyotLyotStop.fits", name=self.pupil_mask, shift=shift)
 
 
         return optsys
@@ -358,10 +372,17 @@ class NIRCam(JWInstrument):
         elif self.image_mask is 'WEDGELW':
             optsys.addImage(function='BandLimitedCoron', kind='linear', sigma=1, name=self.image_mask)
 
+        # add pupil plane mask
+        if ('pupil_shift_x' in self.options.keys() and self.options['pupil_shift_x'] != 0) or \
+           ('pupil_shift_y' in self.options.keys() and self.options['pupil_shift_y'] != 0):
+            shift = (self.options['pupil_shift_x'], self.options['pupil_shift_y'])
+        else: shift = None
+
+
         if self.pupil_mask == 'MASKFQPM':
-            optsys.addPupil(self._datapath+"/coronagraph/MIRI_FQPMLyotStop.fits", name=self.pupil_mask)
+            optsys.addPupil(self._datapath+"/coronagraph/MIRI_FQPMLyotStop.fits", name=self.pupil_mask, shift=shift)
         elif self.pupil_mask == 'MASKLYOT':
-            optsys.addPupil(self._datapath+"/coronagraph/MIRI_LyotLyotStop.fits", name=self.pupil_mask)
+            optsys.addPupil(self._datapath+"/coronagraph/MIRI_LyotLyotStop.fits", name=self.pupil_mask, shift=shift)
 
         return optsys
 
@@ -386,7 +407,7 @@ class TFI(JWInstrument):
         self.pixelscale = 0.064 # for TFI
 
         self.image_mask_list = ['CORON058', 'CORON075','CORON150','CORON200']
-        self.pupil_mask_list = ['MASKC21N','MASKC66N','MASKC71N']
+        self.pupil_mask_list = ['MASKC21N','MASKC66N','MASKC71N','MASK_NRM','CLEAR']
 
     def __validate_config(self):
         pass
@@ -403,12 +424,20 @@ class TFI(JWInstrument):
         if self.image_mask is 'CORON200':
             optsys.addImage(function='CircularOcculter', radius=2.0/2, name=self.image_mask)
 
+        # add pupil plane mask
+        if ('pupil_shift_x' in self.options.keys() and self.options['pupil_shift_x'] != 0) or \
+           ('pupil_shift_y' in self.options.keys() and self.options['pupil_shift_y'] != 0):
+            shift = (self.options['pupil_shift_x'], self.options['pupil_shift_y'])
+        else: shift = None
+
         if self.pupil_mask == 'MASKC21N':
-            optsys.addPupil(self._datapath+"/coronagraph/MIRI_FQPMLyotStop.fits", name=self.pupil_mask)
+            optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKC21N.fits", name=self.pupil_mask, shift=shift)
         if self.pupil_mask == 'MASKC66N':
-            optsys.addPupil(self._datapath+"/coronagraph/MIRI_FQPMLyotStop.fits", name=self.pupil_mask)
+            optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKC66N.fits", name=self.pupil_mask, shift=shift)
         if self.pupil_mask == 'MASKC71N':
-            optsys.addPupil(self._datapath+"/coronagraph/MIRI_FQPMLyotStop.fits", name=self.pupil_mask)
+            optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKC71N.fits", name=self.pupil_mask, shift=shift)
+        if self.pupil_mask == 'CLEAR':
+            optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKCLEAR.fits", name=self.pupil_mask, shift=shift)
 
 
         return optsys
@@ -682,5 +711,11 @@ if __name__ == "__main__":
     tfi = TFI()
     nirspec = NIRSpec()
 
+    if 0:
+        miri.options = {'pupil_shift_y': 0.2, 'pupil_shift_x': 0}
+        miri.calcPSF(nlambda=1)
 
 
+    tfi.image_mask = 'CORON075'
+    tfi.pupil_mask = 'MASKC21N'
+    tfi.calcPSF(nlambda=1)
