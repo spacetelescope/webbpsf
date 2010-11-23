@@ -318,7 +318,7 @@ def centralSection(a, npoints=None):
 	return b
 
 
-def  rebin(a = None, rc=(2,2), verbose=None):
+def  rebin(a = None, rc=(2,2), verbose=False):
 
 	"""  
 	anand@stsci.edu
@@ -343,10 +343,10 @@ def  rebin(a = None, rc=(2,2), verbose=None):
 			print "row loop"
 		for ci in range(0, nc):
 			Clo = ci * c
-			b[ri, ci] = add.reduce(a[Rlo:Rlo+r, Clo:Clo+c].copy().flat)
+			b[ri, ci] = N.add.reduce(a[Rlo:Rlo+r, Clo:Clo+c].copy().flat)
 			if verbose:
 				print "    [%d:%d, %d:%d]" % (Rlo,Rlo+r, Clo,Clo+c),
-				print "%4.0f"  %   add.reduce(a[Rlo:Rlo+r, Clo:Clo+c].copy().flat)
+				print "%4.0f"  %   N.add.reduce(a[Rlo:Rlo+r, Clo:Clo+c].copy().flat)
 	return b
 
 
@@ -355,20 +355,20 @@ def test_rebin():
 	R = 4
 	C = 6
 	rc = (1,2)
-	a = zeros((R,C), float32)
+	a = N.zeros((R,C), dtype=float)
 	for i in range(R):
 		for j in range(C):
 			a[i,j] = 10 * i + 1 * j
 	print a, "\n\n"
-	b = rebin(a=a, rc=rc, verbose=0xff)
+	b = rebin(a=a, rc=rc, verbose=True)
 	print b
 
 	rc = (2,1)
-	b = rebin(a=a, rc=rc, verbose=0xff)
+	b = rebin(a=a, rc=rc, verbose=True)
 	print b
 
 	rc = (2,2)
-	b = rebin(a=a, rc=rc, verbose=0xff)
+	b = rebin(a=a, rc=rc, verbose=True)
 	print b
 
 

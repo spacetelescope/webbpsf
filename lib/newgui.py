@@ -22,7 +22,6 @@ import popjw
 
 class JWPSF_GUI(object):
     def __init__(self):
-
         # init the object and subobjects
         self.instrument = {}
         self.widgets = {}
@@ -31,7 +30,6 @@ class JWPSF_GUI(object):
         self.stars = popjw.kurucz_stars()
         for i in insts:
             self.instrument[i] = popjw.Instrument(i)
-
 
 
 
@@ -103,8 +101,6 @@ class JWPSF_GUI(object):
                 ttk.Label(fr2, text='deg' ).grid(row=2, column=8)
                 fr2.grid(row=2,column=3, sticky='W')
 
- 
-
 
             if len(self.instrument[iname].image_mask_list) >0 :
                 self.vars[iname+"_pupil"] = tk.StringVar()
@@ -132,15 +128,31 @@ class JWPSF_GUI(object):
 
 
             ttk.Label(page, text='    Configuration Options for the OTE').grid(row=4, columnspan=2, sticky='W')
-            ttk.Label(page, text='   OPD: ' ).grid(row=5, column=0)
+
+            fr2 = ttk.Frame(page)
+            ttk.Label(fr2, text='   OPD set: ' ).grid(row=0, column=0)
             self.vars[iname+"_opd"] = tk.StringVar()
-            self.widgets[iname+"_opd"] = ttk.Combobox(page,textvariable =self.vars[iname+"_opd"], width=30)
+            self.widgets[iname+"_opd"] = ttk.Combobox(fr2,textvariable =self.vars[iname+"_opd"], width=25)
             opd_list =  self.instrument[iname].opd_list
             opd_list.insert(0,"Zero OPD (perfect)")
             self.widgets[iname+"_opd"]['values'] = opd_list
             self.widgets[iname+"_opd"].set(self.widgets[iname+"_opd"]['values'][0])
-            self.widgets[iname+"_opd"].grid(row=5, column=1)
-            ttk.Button(page, text='Display', command=self.cb_displayOPD).grid(row=5,column=2,sticky='E')
+            self.widgets[iname+"_opd"].grid(column=1,row=0)
+
+            ttk.Label(fr2, text=' # ' ).grid(column=2,row=0)
+            self.vars[iname+"_opd_i"] = tk.StringVar()
+            self.widgets[iname+"_opd_i"] = ttk.Combobox(fr2,textvariable =self.vars[iname+"_opd_i"], width=3)
+            self.widgets[iname+"_opd_i"]['values'] = [str(i+1) for i in range(10)]
+            self.widgets[iname+"_opd_i"].set(self.widgets[iname+"_opd_i"]['values'][0])
+            self.widgets[iname+"_opd_i"].grid(column=3,row=0)
+
+            self.widgets[iname+"_opd_label"] = ttk.Label(fr2, text='                        ')
+            self.widgets[iname+"_opd_label"].grid( column=4,sticky='W')
+            ttk.Button(fr2, text='Display', command=self.cb_displayOPD).grid(column=5,sticky='E',row=0)
+
+            fr2.grid(row=5, column=0, columnspan=4,sticky='S')
+
+
 
 
         lf.grid(row=2, sticky='E,W', padx=10, pady=5)
@@ -226,13 +238,14 @@ class JWPSF_GUI(object):
         filename = tkFileDialog.asksaveasfilename(
                 initialfile='PSF_%s_%s.fits' %(self.iname, self.filter), 
                 filetypes=[('FITS', '.fits')],
+                defaultextension='.fits',
+                mustexist=True,  # directory chosen must exist.
                 parent=self.root)
         if len(filename) > 0:
             self.PSF_HDUlist.writeto(filename) 
             print "Saved to %s" % filename
 
     def cb_plotspectrum(self):
-
         sptype = self.widgets['SpType'].get()
         iname = self.widgets[self.widgets['tabset'].select()]
         filter = self.widgets[iname+"_filter"].get()
@@ -256,11 +269,9 @@ class JWPSF_GUI(object):
         P.legend(loc="upper left")
 
     def cb_calcPSF(self):
-
         self._updateFromGUI()
         self.PSF_HDUlist = self.inst.calcPSF(oversample=self.oversampling, fov_arcsec = self.FOV,nlambda = self.nlambda)
         self.widgets['SaveAs'].state(['!disabled'])
-
 
     def cb_displayPSF(self):
         self._updateFromGUI()
@@ -275,13 +286,16 @@ class JWPSF_GUI(object):
         if self.inst.pupilopd is None:
             tkMessageBox.showwarning( message="You currently have selected no OPD file (i.e. perfect telescope) so there's nothing to display.", title="Can't Display") 
         else:
-            opd = pyfits.getdata(self.inst.pupilopd)
+            opd = pyfits.getdata(self.inst.pupilopd[0])
+
+            opd = opd[self.opd_i,:,:] # grab correct slice
+
             masked_opd = N.ma.masked_equal(opd,  0) # mask out all pixels which are exactly 0, outside the aperture
             cmap = matplotlib.cm.jet
             cmap.set_bad('k', 0.8)
             P.clf()
             P.imshow(masked_opd, cmap=cmap, interpolation='nearest', vmin=-0.5, vmax=0.5)
-            P.title("OPD from "+self.opd)
+            P.title("OPD from %s, #%d" %( os.path.basename(self.opd), self.opd_i))
             cb = P.colorbar(orientation='vertical')
             cb.set_label('microns')
 
@@ -294,9 +308,16 @@ class JWPSF_GUI(object):
         self.iname = self.widgets[self.widgets['tabset'].select()]
         self.filter = self.widgets[self.iname+"_filter"].get()
         self.opd= self.widgets[self.iname+"_opd"].get()
+        self.opd_i= int(self.widgets[self.iname+"_opd_i"].get())
         self.nlambda= int(self.widgets['nlambda'].get())
         self.FOV= float(self.widgets['FOV'].get())
         self.oversampling= int(self.widgets['oversampling'].get())
+
+
+        options = {}
+        options['downsample'] = bool(self.vars['downsamp'])
+        #print "Downsamp value: ",  options['downsample']
+
 
         # configure the relevant instrument object
         self.inst = self.instrument[self.iname]
@@ -305,13 +326,19 @@ class JWPSF_GUI(object):
             self.opd = None
             self.inst.pupilopd = None
         else:
-            self.inst.pupilopd = self.inst.datapath+os.sep+"OPD"+os.sep+self.opd
+            self.inst.pupilopd = (self.inst._datapath+os.sep+"OPD"+os.sep+self.opd,self.opd_i)  #filename, slice
         if self.iname+"_coron" in self.widgets:
             self.inst.image_mask = self.widgets[self.iname+"_coron"].get()
             self.inst.pupil_mask = self.widgets[self.iname+"_pupil"].get()
             # TODO read in mis-registration options here.
 
 
+            options['targ_offset_r'] = float(self.widgets[self.iname+"_cor_off_r"].get())
+            options['targ_offset_theta'] = float(self.widgets[self.iname+"_cor_off_theta"].get())
+            options['pupil_shift_x'] = float(self.widgets[self.iname+"_pupilshift_x"].get())/100. # convert from percent to fraction
+            options['pupil_shift_y'] = float(self.widgets[self.iname+"_pupilshift_y"].get())/100. # convert from percent to fraction
+
+        self.inst.options = options
 
 
     def mainloop(self):

@@ -1,14 +1,27 @@
 
+
+Add FITS keywords for data/timeof calculation, user and machine where performed. 
+Add object
+Add real use of stellar spectral type
+
+
+Overall:
+ ** debug broad band calculations ??
+
+ ** better rasterization of pupils - perhaps use GTKAgg or one of the other Agg ones, in a special ipython session, and then dump the output to png
+
+-----
 SFT:
  - rotated/diagonal SFTs
 
+poppy:
+ - add interpolation for size-mismatched pupil files using 'ndimage.interpolate.zoom' and then round back to integer pixels.
+
 popjw: 
- - downsample to detector pixel resolution. Save as additional FITS image extension. 
  - offset sources for coronagraphy. Lyot mask offsets. 
 
+
 GUI:
- - add support for downsampling
- - add support for misaligned coronagraphy optics. 
  - derived class for image display which allows mouseover display of the image values, not just coordinates. 
  - derived class for colorbar (or hooks into existing code) to allow dynamic rescaling with windows. 
  - actually do something with stellar spectral types!

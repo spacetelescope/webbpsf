@@ -12,26 +12,25 @@ import SFT
 
 from IPython.Debugger import Tracer; stop = Tracer()
 
-__doc__ = """ 
+__doc__ = """
     Physical Optics Propagation in PYthon (POPPY)
 
 
-This package implements several classes for modeling 
-physical optics with diffraction, particularly for 
-telescopic and coronagraphic imaging. Right now only
-image and pupil planes are supported; intermediate
-planes are a future goal. 
+This package implements an object-oriented system for modeling physical optics
+propagation with diffraction, particularly for telescopic and coronagraphic
+imaging. Right now only image and pupil planes are supported; intermediate
+planes are a future goal.
 
 Classes:
  * Wavefront
- * OpticalSystem
  * OpticalElement
-   * BandLimitedCoron
-   * IdealMonoFQPM
-   * IdealFieldStop
+   * AnalyticOpticalElement
+     * BandLimitedCoron
+     * IdealMonoFQPM
+     * IdealFieldStop
+     * IdealCircularOcculter
    * Detector
-
-
+ * OpticalSystem
 
 
     Code by Marshall Perrin <mperrin@stsci.edu>
@@ -487,8 +486,20 @@ class OpticalElement():
                 self.amplitude = N.ones(opd_shape)
 
             if opd is not None:
-                self.opd_file = opd
+                if isinstance(opd, basestring):
+                    self.opd_file = opd
+                    self.opd_slice = 0
+                    datacube = False
+                else:
+                    self.opd_file = opd[0]
+                    self.opd_slice = opd[1]
+                    datacube = True
+
                 self.opd, self.opd_header = pyfits.getdata(self.opd_file, header=True)
+
+                if datacube:
+                    self.opd = self.opd[self.opd_slice, :,:]
+
                 if len (self.opd.shape) != 2 or self.opd.shape[0] != self.opd.shape[1]:
                     raise ValueError, "OPD image must be 2-D and square"
                 if not self.verbose:
@@ -511,6 +522,7 @@ class OpticalElement():
                 try:
                     self.pupil_scale = self.amplitude_header['PUPLSCAL']
                     self.pupil_diam = self.amplitude_header['PUPLDIAM']
+                    self.pixelscale = self.pupil_scale # synonyms
                 except: 
                     raise ValueError('That pupil appears to be missing the required PUPLDIAM keyword.')
             elif self.planetype == IMAGE:
@@ -533,10 +545,27 @@ class OpticalElement():
             wavelength=wave.wavelength
         else:
             wavelength=wave
-        # compute the phasor 
         scale = 2. * N.pi / wavelength
-        self.phasor = self.amplitude * N.exp (1.j * self.opd * scale)
 
+        # set the self.phasor attribute:
+        # first check whether we need to interpolate to do this.
+        float_tolerance = 0.0001  #how big of a relative scale mismatch before resampling?
+        if hasattr(wave,'pixelscale') and abs(wave.pixelscale -self.pixelscale)/self.pixelscale >= float_tolerance:
+            print wave.pixelscale, self.pixelscale
+            raise ValueError("Non-matching pixel scale for wavefront and optic! Need to add interpolation / rescaling ")
+            if self.has_attr('_resampled_scale') and abs(self._resampled_scale-wave.pixelscale)/self._resampled_scale >= float_tolerance:
+                # we already did this same resampling, so just re-use it!
+                self.phasor = self._resampled_amplitude * N.exp (1.j * self._resampled_opd * scale)
+            else:
+                raise NotImplementedError("Need to implement resampling.") 
+
+        else:
+            # compute the phasor directly, without any need to rescale. 
+            self.phasor = self.amplitude * N.exp (1.j * self.opd * scale)
+
+
+
+        # check whether we need to pad before returning or not. 
         if self.planetype == PUPIL and wave.ispadded:
             return padToOversample(self.phasor, wave.oversample)
         else:
@@ -650,7 +679,6 @@ class AnalyticOpticalElement(OpticalElement):
         p.imshow(phase,extent=extent)
         p.ylabel(unit)
         p.title("Phase for "+self.name)
-
 
 class BandLimitedCoron(AnalyticOpticalElement):
     """ Defines an ideal band limited coronagraph occulting mask
@@ -910,7 +938,7 @@ class OpticalSystem():
                 diam = self.planes[0].pupil_diam, 
                 oversample=self.oversample)
 
-    def propagate(self, wavelength=2e-6, normalize='first', save_intermediates=False, display_intermediates=False, intermediate_fn='wave_step_%03d.fits', poly_weight=None):
+    def propagate_mono(self, wavelength=2e-6, normalize='first', save_intermediates=False, display_intermediates=False, intermediate_fn='wave_step_%03d.fits', poly_weight=None):
         """ Propagate a wavefront through some number of optics. 
         Returns a pyfits.HDUList object.
 
@@ -1009,7 +1037,7 @@ class OpticalSystem():
         normwts /= normwts.sum()
 
         for wavelen, weight in zip(source['wavelengths'], normwts):
-            mono_psf = self.propagate(wavelen, poly_weight=weight, save_intermediates=save_intermediates, **kwargs)
+            mono_psf = self.propagate_mono(wavelen, poly_weight=weight, save_intermediates=save_intermediates, **kwargs)
             # add mono_psf into the output array
 
             if outFITS is None:
@@ -1048,7 +1076,7 @@ def test_MFT():
     osys.addDetector(0.032, fov_npix=128)
 
 
-    out = osys.propagate(wavelength=2e-6)
+    out = osys.propagate_mono(wavelength=2e-6)
     out.writeto('test_mono.fits',clobber=True)
 
 
@@ -1060,11 +1088,7 @@ def test_MFT():
 
 
 
-
-
-if __name__ == "__main__":
-
-    #test_MFT()
+def test_poppy():
     p.clf()
 
     osys = OpticalSystem("Perfect JW", oversample=4)
@@ -1074,8 +1098,15 @@ if __name__ == "__main__":
     osys.addPupil(transmission="/Users/mperrin/software/newJWPSF/data/MIRI/coronagraph/MIRI_FQPMLyotStop.fits", name='MIRI FQPM Lyot')
     osys.addDetector(0.032, name="Detector", fov_npix=128)
 
-    out = osys.propagate(wavelength=10.65e-6, display_intermediates=True, save_intermediates=True)
+    out = osys.propagate_mono(wavelength=10.65e-6, display_intermediates=True, save_intermediates=True)
     out.writeto('test_fft.fits',clobber=True)
 
 
+
+
+
+if __name__ == "__main__":
+
+    #test_MFT()
+    test_poppy()
 

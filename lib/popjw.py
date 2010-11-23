@@ -6,8 +6,26 @@ import os
 import glob
 import atpy
 import types
+import utils
+
+__doc__ = """
+An object-oriented modeling system for the JWST instruments.
+
+Classes:
+  * JWInstrument
+    * MIRI
+    * NIRCam
+    * NIRSpec
+    * TFI
+    * FGS
+
+  * kurucz_stars  (a wrapper for the Kurucz spectra library)
 
 
+
+    Code by Marshall Perrin <mperrin@stsci.edu>
+
+"""
 
 try:
     __IPYTHON__
@@ -19,15 +37,17 @@ except:
 
 
 class JWInstrument(object):
-    """ A JWST Instrument """
+    """ A JWST Instrument. Do not use this class directly - instead use one of the instrument subclasses! """
     def __init__(self, name=None):
         self.name=name
 
         self._JWPSF_basepath = os.path.dirname(os.path.dirname(os.path.abspath(poppy.__file__))) +os.sep+"data"
 
         self._datapath = self._JWPSF_basepath + os.sep + self.name + os.sep
-        self.pupil = os.path.abspath(self._datapath+"../pupil.fits")
-        self.pupilopd = None
+        self.pupil = os.path.abspath(self._datapath+"../pupil_RevV.fits")
+        self.pupilopd = None   # This can optionally be set to a tuple indicating (filename, slice in datacube)
+
+        self.options = {} # dict for storing other arbitrary options. 
 
         #create private instance variables. These will be
         # wrapped just below to create properties with validation.
@@ -46,13 +66,14 @@ class JWInstrument(object):
         self.filter = self.filter_list[0]
 
 
-        self.opd_list = [os.path.basename(os.path.abspath(f)) for f in glob.glob(self._datapath+os.sep+'OPD/*.fits')]
+        #self.opd_list = [os.path.basename(os.path.abspath(f)) for f in glob.glob(self._datapath+os.sep+'OPD/*.fits')]
+        self.opd_list = [os.path.basename(os.path.abspath(f)) for f in glob.glob(self._datapath+os.sep+'OPD/OPD*.fits')]
         #self.opd_list.insert(0,"Zero OPD (Perfect)")
         
-        #self._image_mask=None
+        self._image_mask=None
         self.image_mask_list=[]
 
-        #self._pupil_mask=None
+        self._pupil_mask=None
         self.pupil_mask_list=[]
 
         self.pixelscale = 0.0
@@ -161,14 +182,34 @@ class JWInstrument(object):
         if self.pupilopd is None:
             result[0].header.update('PUPILOPD', "NONE - perfect telescope! ")
         else:
-            result[0].header.update('PUPILOPD', os.path.basename(self.pupilopd))
+
+            if isinstance(self.pupilopd, basestring):
+                result[0].header.update('PUPILOPD', os.path.basename(self.pupilopd))
+            else:
+                result[0].header.update('PUPILOPD', "%s slice %d" % (os.path.basename(self.pupilopd[0]), self.pupilopd[1]))
         result[0].header.update('INSTRUME', self.name)
         result[0].header.update('FILTER', self.filter)
         if self.image_mask is not None:
             result[0].header.update('CORON', self.image_mask)
         if self.pupil_mask is not None:
             result[0].header.update('LYOTMASK', self.pupil_mask)
+        result[0].header.update('EXTNAME', 'OVERSAMP')
         result[0].header.add_history('Created by JWPSF v4 ')
+
+
+
+        # Should we downsample? 
+        if 'downsample' in self.options.keys() and self.options['downsample'] == True:
+            print "** Downsampling to detector pixel scale."
+            downsampled_result = result[0].copy()
+            downsampled_result.data = utils.rebin(downsampled_result.data, rc=(oversample, oversample))
+            downsampled_result.header.update('OVERSAMP', 1, 'These data are rebinned to detector pixels')
+            downsampled_result.header.update('CALCSAMP', oversample, 'This much oversampling used in calculation')
+            downsampled_result.header.update('EXTNAME', 'DET_SAMP')
+            downsampled_result.header['PIXELSCL'] *= oversample
+            result.append(downsampled_result)
+
+
 
 
         if outfile is not None:
@@ -587,8 +628,6 @@ def makeMIRIfilters():
     makeFakeFilter('F2300C_thru.fits',23.00, 4.60,clobber=True)
 
     makeFakeFilter('FGS_thru.fits', 2.8, 4.40,clobber=True)
-
-
 def makeNIRCamFilters():
     "Create nircam filters based on http://ircamera.as.arizona.edu/nircam/features.html "
     makeFakeFilter('F070W_thru.fits', 0.7000, 0.1750, clobber=True)
