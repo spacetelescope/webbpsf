@@ -17,7 +17,7 @@ except:
     pass
 
 
-import popjw
+import jwopt
 
 
 class JWPSF_GUI(object):
@@ -27,9 +27,9 @@ class JWPSF_GUI(object):
         self.widgets = {}
         self.vars = {}
         insts = ['NIRCam', 'NIRSpec','MIRI', 'TFI', 'FGS']
-        self.stars = popjw.kurucz_stars()
+        self.stars = jwopt.kurucz_stars()
         for i in insts:
-            self.instrument[i] = popjw.Instrument(i)
+            self.instrument[i] = jwopt.Instrument(i)
 
 
 
@@ -257,7 +257,7 @@ class JWPSF_GUI(object):
 
         P.clf()
 
-        speclib = popjw.kurucz_stars()
+        speclib = jwopt.kurucz_stars()
 
         spectrum = speclib.specFromSpectralType(sptype)
         P.loglog(spectrum['wavelength_um'],spectrum['flux'],label=sptype)

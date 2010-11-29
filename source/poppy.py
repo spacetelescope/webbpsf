@@ -1,19 +1,6 @@
 #!/usr/bin/env python
-#import os, sys
-import numpy as N
-import pylab as p
-import pyfits
-import scipy.special
-import copy
-import matplotlib
-from matplotlib.colors import LogNorm  # for log scaling of images, with automatic colorbar support
-
-import SFT
-
-from IPython.Debugger import Tracer; stop = Tracer()
-
-__doc__ = """
-    Physical Optics Propagation in PYthon (POPPY)
+"""
+Physical Optics Propagation in PYthon (POPPY)
 
 
 This package implements an object-oriented system for modeling physical optics
@@ -37,6 +24,19 @@ Classes:
 
 """
 
+#import os, sys
+import numpy as N
+import pylab as p
+import pyfits
+import scipy.special
+import copy
+import matplotlib
+from matplotlib.colors import LogNorm  # for log scaling of images, with automatic colorbar support
+
+import SFT
+
+from IPython.Debugger import Tracer; stop = Tracer()
+
 
 # constants for types of plane
 PUPIL = 1
@@ -53,7 +53,20 @@ MICRONStoNANOMETERS = 1000.
 
 
 def padToOversample(array, oversample):
-    " Add zeros around the edge of an array "
+    """ Add zeros around the edge of an array.
+
+    Parameters
+    ----------
+    array :  ndarray
+        A 2D array representing some image
+    oversample : int
+        Padding factor for expanding the array
+
+    Returns
+    -------
+    padded_array : ndarray
+        A larger array containing mostly zeros but with the input array in the center.
+    """
     npix = array.shape[0]
     padded = N.zeros(shape=(npix*oversample, npix*oversample))
     n0 = float(npix)*(oversample - 1)/2
@@ -468,35 +481,38 @@ class Wavefront():
 #------
 class OpticalElement():
     """ Defines an arbitrary optic, based on amplitude transmission and/or OPD files.
-    This optic could be a pupil or field stop, an aberrated mirror, a phase mask, etc.
 
+    This optic could be a pupil or field stop, an aberrated mirror, a phase mask, etc.
     The OpticalElement class follows the behavoior of the Wavefront class, using units
     of meters/pixel in pupil space and arcsec/pixel in image space.
-
-    Parameters
-    ----------
-    name :
-        string, descriptive name for optic
-    tranmission, opd :
-        FITS filenames for the transmission (from 0-1) and opd (in meters)
-    opdunits:
-        string, units for the OPD file. Default is meters.
-    verbose :
-        bool, whether to print stuff while computing
-    planetype :
-        either IMAGE or PUPIL
-    oversample :
-        how much to oversample beyond Nyquist.
-
-    shift :
-        2-tuple containing X and Y fractional shifts for the pupil.
-
-
 
 
     NOTE: All mask files must be **squares**.
     """
     def __init__(self, name="unnamed optic", transmission=None, opd= None, verbose=True, planetype=None, oversample=1,opdunits="meters", shift=None):
+        """
+        Parameters
+        ----------
+        name : string
+            descriptive name for optic
+        tranmission, opd : string
+            FITS filenames for the transmission (from 0-1) and opd (in meters)
+        opdunits: string
+            units for the OPD file. Default is 'meters'.
+        verbose : bool
+            whether to print stuff while computing
+        planetype : int
+            either IMAGE or PUPIL
+        oversample : int
+            how much to oversample beyond Nyquist.
+
+        shift : tuple of floats
+            2-tuple containing X and Y fractional shifts for the pupil.
+
+
+        """
+
+
         self.name = name
         self.verbose=verbose
 
@@ -594,9 +610,9 @@ class OpticalElement():
     def getPhasor(self,wave):
         """ Compute a complex phasor from an OPD, given a wavelength.
 
-        Arguments
+        Parameters
         ----------
-        wave :
+        wave : float or obj
             either a scalar wavelength or a Wavefront object
 
         """

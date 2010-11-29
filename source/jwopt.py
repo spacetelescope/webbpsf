@@ -265,6 +265,7 @@ class JWInstrument(object):
 
 
 class MIRI(JWInstrument):
+    """ A class modeling the optics of MIRI, the Mid-InfraRed Instrument"""
     def __init__(self):
         JWInstrument.__init__(self, "MIRI")
         self.pixelscale = 0.11
@@ -343,6 +344,7 @@ class MIRI(JWInstrument):
 
 
 class NIRCam(JWInstrument):
+    """ A class modeling the optics of NIRCam"""
     def __init__(self):
         JWInstrument.__init__(self, "NIRCam")
         self.pixelscale = 0.0317 # for short-wavelen channels
@@ -393,6 +395,7 @@ class NIRCam(JWInstrument):
 
 
 class NIRSpec(JWInstrument):
+    """ A class modeling the optics of NIRSpec"""
     def __init__(self):
         JWInstrument.__init__(self, "NIRSpec")
         self.pixelscale = 0.0317 # for NIRCAM short-wavelen channels
@@ -407,6 +410,7 @@ class NIRSpec(JWInstrument):
 
 
 class TFI(JWInstrument):
+    """ A class modeling the optics of the Tunable Filter Imager """
     def __init__(self):
         JWInstrument.__init__(self, "TFI")
         self.pixelscale = 0.064 # for TFI
@@ -449,6 +453,7 @@ class TFI(JWInstrument):
 
 
 class FGS(JWInstrument):
+    """ A class modeling the optics of the FGS """
     def __init__(self):
         JWInstrument.__init__(self, "FGS")
         self.pixelscale = 0.069 # for FGS
