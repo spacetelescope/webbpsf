@@ -307,9 +307,14 @@ class MIRI(JWInstrument):
         """
 
         # Add image plane mask
+        # For the MIRI FQPMs, we require the star to be centered not on the middle pixel, but
+        # on the cross-hairs between four pixels. (Since that is where the FQPM itself is centered)
+        # This is with respect to the intermediate calculation pixel scale, of course, not the
+        # final detector pixel scale. 
         if self.image_mask == 'FQPM1065':
             optsys.addImage(function='FQPM',wavelength=10.65e-6, name=self.image_mask)
             optsys.addImage(function='fieldstop',size=24)
+            optsys.source_position = N.array([0.5, 0.5]) * intermediate_pixel_scale
         elif self.image_mask == 'FQPM1140':
             optsys.addImage(function='FQPM',wavelength=11.40e-6, name=self.image_mask)
             optsys.addImage(function='fieldstop',size=24)
