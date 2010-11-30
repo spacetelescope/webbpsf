@@ -22,4 +22,5 @@ Specific Instruments
 
 .. autofunction:: jwopt.Instrument
 
+Documentation last updated on |today|
 

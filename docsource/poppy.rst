@@ -29,6 +29,7 @@ List of Classes
  * OpticalSystem
 
 
+.. Wavefront:
 
 Wavefront
 ---------
@@ -36,6 +37,7 @@ Wavefront
 .. autoclass:: poppy.Wavefront
     :members:
 
+.. OpticalSystem:
 
 Optical System 
 --------------
@@ -43,6 +45,7 @@ Optical System
 .. autoclass:: poppy.OpticalSystem
     :members:
 
+.. OpticalElement:
 
 Optical Elements
 ----------------
@@ -72,4 +75,7 @@ Optical Elements
 
 .. autoclass:: poppy.Detector
    :show-inheritance:
+
+
+Documentation last updated on |today|
 

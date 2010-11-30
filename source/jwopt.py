@@ -310,7 +310,7 @@ class JWInstrument(object):
         raise NotImplementedError("needs to be subclassed.")
 
 
-    def loadFilter(self,filtername):
+    def getFilter(self,filtername):
         """ Given a filter name, load the actual response curve and return it.  (depreciated??)"""
         if filtername not in self.filter_list:
             raise ValueError("Unknown/incorrect filter name for %s: %s" % (self.name, filtername))

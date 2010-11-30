@@ -28,14 +28,14 @@ Classes:
 """
 
 #import os, sys
+import multiprocessing
+import copy
 import numpy as N
 import pylab as p
 import pyfits
 import scipy.special
-import copy
 import matplotlib
 from matplotlib.colors import LogNorm  # for log scaling of images, with automatic colorbar support
-
 import SFT
 
 from IPython.Debugger import Tracer; stop = Tracer()
@@ -83,6 +83,23 @@ def removePadding(array,oversample):
     n0 = float(npix)*(oversample - 1)/2
     n1 = n0+npix
     return array[n0:n1,n0:n1].copy()
+
+
+def _wrap_propagate_for_multiprocessing(args):
+    """ This is an internal helper routine for parallelizing computations across multiple processors.
+    
+    Python's multiprocessing module allows easy execution of tasks across 
+    many CPUs or even distinct machines. It relies on Python's pickle mechanism to
+    serialize and pass objects between processes. One annoying side effect of this is
+    that object instance methods cannot easily be pickled, and thus cannot be easily 
+    invoked in other processes. 
+
+    Here, we work around that by pickling the entire object and argument list, packed
+    as a tuple, transmitting that to the new process, and then unpickling that, 
+    unpacking the results, and *then* at last making our instance method call. 
+    """
+    self, wavelength, weight, kwargs = args 
+    return args[0].propagate_mono(wavelength, poly_weight=weight, save_intermediates=False, **kwargs)
 
 #------
 class Wavefront(object):
@@ -230,6 +247,7 @@ class Wavefront(object):
         outFITS[0].header.update('WAVELEN', self.wavelength, 'Wavelength in meters')
         outFITS[0].header.update('DIFFLMT', self.wavelength/self.diam*206265., 'Diffraction limit lambda/D in arcsec')
         outFITS[0].header.update('OVERSAMP', self.oversample, 'Oversampling factor for computation')
+        outFITS[0].header.update('OUT_SAMP', self.oversample, 'Oversampling factor for output file')
         if self.planetype ==IMAGE:
             outFITS[0].header.update('PIXELSCL', self.pixelscale, 'Pixel scale in arcsec/pixel')
             outFITS[0].header.update('FOV', self.fov, 'Field of view in arcsec (full array)')
@@ -1119,7 +1137,7 @@ class OpticalSystem():
     def addPupil(self, **kwargs):
         """ Add a pupil plane optic from file(s) giving transmission or OPD 
 
-        Any provided parameters are passed to :ref:`OpticalElement()`.
+        Any provided parameters are passed to :ref:`OpticalElement`.
 
 
         """
@@ -1170,7 +1188,24 @@ class OpticalSystem():
         self.planes.append(optic)
         if self.verbose: print "Added image plane: "+self.planes[-1].name
 
-    def addDetector(self, *args, **kwargs):
+    def addDetector(self, oversample=None, *args, **kwargs):
+        """ Add a Detector object to an optical system. 
+        By default, use the same oversampling as the rest of the optical system, 
+        but the user can override to a different value if desired by setting `oversample`.
+
+
+        Other arguments are passed to the init method for Detector().
+
+        Parameters
+        ----------
+        oversample : int, optional
+            Oversampling factor for *this detector*, relative to hardware pixel size. 
+            Optionally distinct from the default oversampling parameter of the OpticalSystem.
+
+        """
+
+        if oversample is None:
+            oversample = self.oversample
         self.planes.append(Detector(oversample=self.oversample, *args, **kwargs))
         if self.verbose: print "Added detector: "+self.planes[-1].name
 
@@ -1280,6 +1315,83 @@ class OpticalSystem():
                 wavefront.normalize()
 
         return wavefront.asFITS()
+
+    def calcPSFmulti(self, source, save_intermediates=False, **kwargs):
+        """Calculate a multi-wavelength PSF over some weighted
+        sum of wavelengths.
+
+        This version uses Python's `multiprocessing` package to span tasks across
+        available processor cores. 
+
+        Any additional `kwargs` will be passed on to `propagate_mono()`
+
+        Parameters
+        ----------
+        source : dict
+            a dict containing 'wavelengths' and 'weights' list.
+            *TBD - replace w/ pysynphot observation object*
+        save_intermediates : bool
+            whether to output intermediate optical planes to disk. Default is False
+
+
+        Returns
+        -------
+        outfits :
+            a pyfits.HDUList
+        """
+
+        if save_intermediates:
+            raise NotImplementedError("Can't save intermediate steps if using parallelized code")
+        self.intermediate_wfs = []
+            #print 'reset intermediates in calcPSF'
+
+        # loop over wavelengths
+        if self.verbose: print "** Calculating PSF with %d wavelengths, using multiprocessing" % (len(source['wavelengths']))
+        outFITS = None
+
+        normwts =  N.asarray(source['weights'])
+        normwts /= normwts.sum()
+
+        pool = multiprocessing.Pool( len(normwts) ) # create one worker process per wavelength.
+
+        # build a single iterable containing the required function arguments
+        print("Beginning multiprocessor job")
+        iterable = [(self, wavelen, weight, kwargs) for wavelen, weight in zip(source['wavelengths'], normwts]
+        results = pool.map(_wrap_propagate_for_multiprocessing, iterable)
+        print("Finished multiprocessor job")
+
+        outfits = results[0].copy()
+        outfits[0].data = results[0].data*normwts[0]
+        for i in range(1, len(normwts)):
+            outFITS[0].data += results[i][0].data * normwts[i]
+
+
+        #for wavelen, weight in zip(source['wavelengths'], normwts):
+        #    mono_psf = self.propagate_mono(wavelen, poly_weight=weight, save_intermediates=save_intermediates, **kwargs)
+        #    # add mono_psf into the output array
+        #
+        #    if outFITS is None:
+        #        outFITS = mono_psf
+        #        outFITS[0].data = mono_psf[0].data*weight
+        #    else:
+        #        outFITS[0].data += mono_psf[0].data *weight
+        #
+        #if save_intermediates:
+        #    for i in range(len(self.intermediate_wfs)):
+        #        self.intermediate_wfs[i].writeto('wave_step_%03d.fits' % i )
+
+        waves = N.asarray(source['wavelengths'])
+        wts = N.asarray(source['weights'])
+        mnwave = (waves*wts).sum() / wts.sum()
+        outFITS[0].header.update('WAVELEN', mnwave, 'Weighted mean wavelength in meters')
+        outFITS[0].header.update('NWAVES',waves.size, 'Number of wavelengths used in calculation')
+        for i in range(waves.size):
+            outFITS[0].header.update('WAVE'+str(i), waves[i], "Wavelength "+str(i))
+            outFITS[0].header.update('WGHT'+str(i), wts[i], "Wavelength weight "+str(i))
+
+        if self.verbose: print "** PSF Calculation completed."
+        return outFITS
+
 
     def calcPSF(self, source, save_intermediates=False, **kwargs):
         """Calculate a multi-wavelength PSF over some weighted

@@ -32,3 +32,5 @@ Indices and tables
 * :ref:`modindex`
 * :ref:`search`
 
+Documentation last updated on |today|
+

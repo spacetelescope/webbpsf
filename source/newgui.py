@@ -58,7 +58,26 @@ class JWPSF_GUI(object):
         self.widgets['SpType']['values'] = self.stars.sptype_list
         self.widgets['SpType'].set('G0V')
         ttk.Label(lf, text='    ' ).grid(row=0, column=2)
-        ttk.Button(lf, text='Plot spectrum', command=self.ev_plotspectrum).grid(row=0,column=3,sticky='E')
+        ttk.Button(lf, text='Plot spectrum', command=self.ev_plotspectrum).grid(row=0,column=2,sticky='E',columnspan=4)
+
+        r = 1
+        ttk.Label(lf, text='    Source Position: r=' ).grid(row=r, column=0)
+        fr2 = ttk.Frame(lf)
+
+        self.vars["source_off_r"] = tk.StringVar()
+        self.vars["source_off_theta"] = tk.StringVar()
+        self.widgets["source_off_r"] = ttk.Entry(fr2,textvariable =self.vars["source_off_r"], width=5)
+        self.widgets["source_off_r"].insert(0,"0.0")
+        self.widgets["source_off_r"].grid(row=r, column=1, sticky='W')
+        ttk.Label(fr2, text='arcsec,  PA=' ).grid(row=r, column=2)
+        self.widgets["source_off_theta"] = ttk.Entry(fr2,textvariable =self.vars["source_off_theta"], width=3)
+        self.widgets["source_off_theta"].insert(0,"0")
+        self.widgets["source_off_theta"].grid(row=r, column=3)
+        ttk.Label(fr2, text='deg' ).grid(row=r, column=4)
+        fr2.grid(row=r, column=1, columnspan=5, sticky='W')
+
+
+
         lf.columnconfigure(2, weight=1)
         lf.grid(row=1, sticky='E,W', padx=10,pady=5)
 
@@ -120,7 +139,7 @@ class JWPSF_GUI(object):
                 fr2 = ttk.Frame(page)
                 self.vars[iname+"_pupilshift_x"] = tk.StringVar()
                 self.vars[iname+"_pupilshift_y"] = tk.StringVar()
-                ttk.Label(fr2, text=' pupil shift in X:' ).grid(row=3, column=4)
+                ttk.Label(fr2, text='  pupil shift in X:' ).grid(row=3, column=4)
                 self.widgets[iname+"_pupilshift_x"] = ttk.Entry(fr2,textvariable =self.vars[iname+"_pupilshift_x"], width=3)
                 self.widgets[iname+"_pupilshift_x"].insert(0,"0")
                 self.widgets[iname+"_pupilshift_x"].grid(row=3, column=5)
@@ -183,10 +202,17 @@ class JWPSF_GUI(object):
         self.widgets['FOV'].insert(0,'5')
         ttk.Label(lf, text='arcsec/side' ).grid(row=r, column=2, sticky='W')
         r+=1
-        ttk.Label(lf, text='Oversampling:').grid(row=r, sticky='W')
-        self.widgets['oversampling'] = ttk.Entry(lf, width=5)
-        self.widgets['oversampling'].grid(row=r,column=1, sticky='E')
-        self.widgets['oversampling'].insert(0,'2')
+        ttk.Label(lf, text='Calc. Oversampling:').grid(row=r, sticky='W')
+        self.widgets['calc_oversampling'] = ttk.Entry(lf, width=3)
+        self.widgets['calc_oversampling'].grid(row=r,column=1, sticky='E')
+        self.widgets['calc_oversampling'].insert(0,'2')
+        ttk.Label(lf, text='x finer than Nyquist' ).grid(row=r, column=2, sticky='W', columnspan=2)
+
+        r+=1
+        ttk.Label(lf, text='Output Oversampling:').grid(row=r, sticky='W')
+        self.widgets['out_oversampling'] = ttk.Entry(lf, width=3)
+        self.widgets['out_oversampling'].grid(row=r,column=1, sticky='E')
+        self.widgets['out_oversampling'].insert(0,'2')
         ttk.Label(lf, text='x finer than instrument pixels       ' ).grid(row=r, column=2, sticky='W', columnspan=2)
 
         self.vars['downsamp'] = tk.BooleanVar()
@@ -195,7 +221,7 @@ class JWPSF_GUI(object):
         self.widgets['downsamp'].grid(row=r, column=4, sticky='E')
         r+=1
         ttk.Label(lf, text='# of wavelengths:').grid(row=r, sticky='W')
-        self.widgets['nlambda'] = ttk.Entry(lf, width=5)
+        self.widgets['nlambda'] = ttk.Entry(lf, width=3)
         self.widgets['nlambda'].grid(row=r,column=1, sticky='E')
         self.widgets['nlambda'].insert(0,'1')
         #ttk.Label(lf, text='x finer than instrument pixels' ).grid(row=r, column=2, sticky='W', columnspan=2)
@@ -279,7 +305,7 @@ class JWPSF_GUI(object):
     def ev_calcPSF(self):
         "Event handler for PSF Calculations"
         self._updateFromGUI()
-        self.PSF_HDUlist = self.inst.calcPSF(oversample=self.oversampling, fov_arcsec = self.FOV,nlambda = self.nlambda)
+        self.PSF_HDUlist = self.inst.calcPSF(oversample=self.calc_oversampling, fov_arcsec = self.FOV,nlambda = self.nlambda)
         self.widgets['SaveAs'].state(['!disabled'])
 
     def ev_displayPSF(self):
@@ -322,7 +348,8 @@ class JWPSF_GUI(object):
         self.opd_i= int(self.widgets[self.iname+"_opd_i"].get())
         self.nlambda= int(self.widgets['nlambda'].get())
         self.FOV= float(self.widgets['FOV'].get())
-        self.oversampling= int(self.widgets['oversampling'].get())
+        self.calc_oversampling= int(self.widgets['calc_oversampling'].get())
+        self.out_oversampling= int(self.widgets['out_oversampling'].get())
 
 
         options = {}
