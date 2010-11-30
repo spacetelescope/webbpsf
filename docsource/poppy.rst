@@ -7,6 +7,7 @@
 Physical Optics Propagation in PYthon (POPPY)
 =============================================
 
+.. module:: poppy
 
 This package implements an object-oriented system for modeling physical optics
 propagation with diffraction, particularly for telescopic and coronagraphic
@@ -53,14 +54,19 @@ Optical Elements
 
 .. autoclass:: poppy.AnalyticOpticalElement
    :show-inheritance:
-.. autoclass:: poppy.BandLimitedCoron
-   :show-inheritance:
-.. autoclass:: poppy.IdealMonoFQPM
+.. autoclass:: poppy.CircularAperture
    :show-inheritance:
 .. autoclass:: poppy.IdealFieldStop
    :show-inheritance:
 .. autoclass:: poppy.IdealCircularOcculter
    :show-inheritance:
+.. autoclass:: poppy.IdealBarOcculter
+   :show-inheritance:
+.. autoclass:: poppy.BandLimitedCoron
+   :show-inheritance:
+.. autoclass:: poppy.IdealMonoFQPM
+   :show-inheritance:
+
 
 ------
 

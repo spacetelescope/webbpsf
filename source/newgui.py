@@ -21,6 +21,11 @@ import jwopt
 
 
 class JWPSF_GUI(object):
+    """ A GUI for the PSF Simulator 
+
+    Documentation TBD!
+
+    """
     def __init__(self):
         # init the object and subobjects
         self.instrument = {}
@@ -53,7 +58,7 @@ class JWPSF_GUI(object):
         self.widgets['SpType']['values'] = self.stars.sptype_list
         self.widgets['SpType'].set('G0V')
         ttk.Label(lf, text='    ' ).grid(row=0, column=2)
-        ttk.Button(lf, text='Plot spectrum', command=self.cb_plotspectrum).grid(row=0,column=3,sticky='E')
+        ttk.Button(lf, text='Plot spectrum', command=self.ev_plotspectrum).grid(row=0,column=3,sticky='E')
         lf.columnconfigure(2, weight=1)
         lf.grid(row=1, sticky='E,W', padx=10,pady=5)
 
@@ -148,7 +153,7 @@ class JWPSF_GUI(object):
 
             self.widgets[iname+"_opd_label"] = ttk.Label(fr2, text='                        ')
             self.widgets[iname+"_opd_label"].grid( column=4,sticky='W')
-            ttk.Button(fr2, text='Display', command=self.cb_displayOPD).grid(column=5,sticky='E',row=0)
+            ttk.Button(fr2, text='Display', command=self.ev_displayOPD).grid(column=5,sticky='E',row=0)
 
             fr2.grid(row=5, column=0, columnspan=4,sticky='S')
 
@@ -205,12 +210,12 @@ class JWPSF_GUI(object):
         lf.grid(row=4, sticky='E,W', padx=10, pady=5)
 
         lf = ttk.Frame(frame)
-        ttk.Button(lf, text='Compute PSF', command=self.cb_calcPSF ).grid(column=0, row=0)
-        self.widgets['SaveAs'] = ttk.Button(lf, text='Save PSF...', command=self.cb_SaveAs )
+        ttk.Button(lf, text='Compute PSF', command=self.ev_calcPSF ).grid(column=0, row=0)
+        self.widgets['SaveAs'] = ttk.Button(lf, text='Save PSF...', command=self.ev_SaveAs )
         self.widgets['SaveAs'].grid(column=1, row=0, sticky='E')
         self.widgets['SaveAs'].state(['disabled'])
-        #ttk.Button(lf, text='Display PSF', command=self.cb_displayPSF).grid(column=1, row=0)
-        ttk.Button(lf, text='Display Optics', command=self.cb_displayOptics ).grid(column=3, row=0)
+        #ttk.Button(lf, text='Display PSF', command=self.ev_displayPSF).grid(column=1, row=0)
+        ttk.Button(lf, text='Display Optics', command=self.ev_displayOptics ).grid(column=3, row=0)
         ttk.Button(lf, text='Quit', command=self.quit).grid(column=5, row=0)
         lf.columnconfigure(2, weight=1)
         lf.columnconfigure(4, weight=1)
@@ -231,10 +236,12 @@ class JWPSF_GUI(object):
         self.root.update()
 
     def quit(self):
+        " Quit the GUI"
         if tkMessageBox.askyesno( message='Are you sure you want to quit?', icon='question', title='Install') :
             self.root.destroy()
 
-    def cb_SaveAs(self):
+    def ev_SaveAs(self):
+        "Event handler for Save As of output PSFs"
         filename = tkFileDialog.asksaveasfilename(
                 initialfile='PSF_%s_%s.fits' %(self.iname, self.filter), 
                 filetypes=[('FITS', '.fits')],
@@ -245,7 +252,8 @@ class JWPSF_GUI(object):
             self.PSF_HDUlist.writeto(filename) 
             print "Saved to %s" % filename
 
-    def cb_plotspectrum(self):
+    def ev_plotspectrum(self):
+        "Event handler for Plot Spectrum "
         sptype = self.widgets['SpType'].get()
         iname = self.widgets[self.widgets['tabset'].select()]
         filter = self.widgets[iname+"_filter"].get()
@@ -268,20 +276,23 @@ class JWPSF_GUI(object):
         P.plot(filt.WAVELENGTH, filt.THROUGHPUT+1e-9, label=filter)
         P.legend(loc="upper left")
 
-    def cb_calcPSF(self):
+    def ev_calcPSF(self):
+        "Event handler for PSF Calculations"
         self._updateFromGUI()
         self.PSF_HDUlist = self.inst.calcPSF(oversample=self.oversampling, fov_arcsec = self.FOV,nlambda = self.nlambda)
         self.widgets['SaveAs'].state(['!disabled'])
 
-    def cb_displayPSF(self):
+    def ev_displayPSF(self):
+        "Event handler for Displaying the PSF"
         self._updateFromGUI()
 
-    def cb_displayOptics(self):
+    def ev_displayOptics(self):
+        "Event handler for Displaying the optical system"
         self._updateFromGUI()
         P.clf()
         self.inst.display()
 
-    def cb_displayOPD(self):
+    def ev_displayOPD(self):
         self._updateFromGUI()
         if self.inst.pupilopd is None:
             tkMessageBox.showwarning( message="You currently have selected no OPD file (i.e. perfect telescope) so there's nothing to display.", title="Can't Display") 

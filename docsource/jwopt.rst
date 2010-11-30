@@ -20,5 +20,6 @@ Specific Instruments
 .. autoclass:: jwopt.TFI
 .. autoclass:: jwopt.FGS
 
+.. autofunction:: jwopt.Instrument
 
 

@@ -1,15 +1,10 @@
 #!/usr/bin/env python
-import numpy as N
-import poppy
-from poppy import *
-import os
-import glob
-import atpy
-import types
-import utils
-import time
+"""
 
-__doc__ = """
+=====
+JWOPT
+=====
+
 An object-oriented modeling system for the JWST instruments.
 
 Classes:
@@ -28,6 +23,17 @@ Classes:
 
 """
 
+import numpy as N
+import poppy
+from poppy import *
+import os
+import glob
+import atpy
+import types
+import utils
+import time
+
+
 try:
     __IPYTHON__
     from IPython.Debugger import Tracer; stop = Tracer()
@@ -38,7 +44,26 @@ except:
 
 
 class JWInstrument(object):
-    """ A JWST Instrument. Do not use this class directly - instead use one of the instrument subclasses! """
+    """ A generic JWST Instrument class.
+    
+    *Note*: Do not use this class directly - instead use one of the instrument subclasses!
+    
+    This class provides a simple interface for modeling PSF formation through the JWST instruments, 
+    with configuration options and software interface loosely resembling the configuration of the instrument 
+    mechanisms.   For instance, one can create an instance of MIRI and configure it for coronagraphic observations, 
+    and then compute a PSF:
+
+    >>> miri = MIRI()
+    >>> miri.filter = 'F1065C'
+    >>> miri.image_mask = 'FQPM1065'
+    >>> miri.pupil_mask = 'MASKFQPM'
+    >>> miri.calcPSF('outfile.fits')
+
+    Note that the interface currently only provides a modicum of error checking, and relies on the user
+    being knowledgable enough to avoid trying to simulate some physically impossible or just plain silly
+    configuration (such as trying to use a FQPM with the wrong filter).
+
+    """
     def __init__(self, name=None):
         self.name=name
 
@@ -52,9 +77,9 @@ class JWInstrument(object):
 
         #create private instance variables. These will be
         # wrapped just below to create properties with validation.
-        self.__filter=None
-        self.__filter_files= [os.path.abspath(f) for f in glob.glob(self._datapath+os.sep+'filters/*_thru.fits')]
-        self.filter_list=[os.path.basename(f).split("_")[0] for f in self.__filter_files]
+        self._filter=None
+        self._filter_files= [os.path.abspath(f) for f in glob.glob(self._datapath+os.sep+'filters/*_thru.fits')]
+        self.filter_list=[os.path.basename(f).split("_")[0] for f in self._filter_files]
 
         def sort_filters(filtname):
             try:
@@ -62,7 +87,7 @@ class JWInstrument(object):
             except:
                 return filtname
         self.filter_list.sort(key=sort_filters)
-        self.__filter_files = [self._datapath+os.sep+'filters/'+f+"_thru.fits" for f in self.filter_list]
+        self._filter_files = [self._datapath+os.sep+'filters/'+f+"_thru.fits" for f in self.filter_list]
 
         self.filter = self.filter_list[0]
 
@@ -79,23 +104,23 @@ class JWInstrument(object):
 
         self.pixelscale = 0.0
 
-    def __validate_config(self):
+    def _validate_config(self):
         pass
 
     # create properties with error checking
     @property
     def filter(self):
-        'Currently selected filter'
-        return self.__filter
+        'Currently selected filter name (e.g. "F200W")'
+        return self._filter
     @filter.setter
     def filter(self, value):
         if value not in self.filter_list:
             raise ValueError("Instrument %s doesn't have a filter called %s." % (self.name, value))
-        self.__filter = value
-        #self.__validate_config()
+        self._filter = value
+        #self._validate_config()
     @property
     def image_mask(self):
-        'Currently selected image_mask'
+        'Currently selected coronagraphic image plane mask, or None for direct imaging'
         return self._image_mask
     @image_mask.setter
     def image_mask(self, name):
@@ -106,7 +131,7 @@ class JWInstrument(object):
         self._image_mask = name
     @property
     def pupil_mask(self):
-        'Currently selected pupil_mask'
+        'Currently selected Lyot pupil mask, or None for direct imaging'
         return self._pupil_mask
     @pupil_mask.setter
     def pupil_mask(self,name):
@@ -116,7 +141,7 @@ class JWInstrument(object):
                 raise ValueError("Instrument %s doesn't have an pupil mask called %s." % (self.name, value))
 
         self._pupil_mask = name
-            #self.__validate_config()
+            #self._validate_config()
 
     def __str__(self):
         return "JWInstrument name="+self.name
@@ -127,24 +152,30 @@ class JWInstrument(object):
         The result can either be written to disk (set outfile="filename") or else will be returned as
         a pyfits HDUlist object.
 
-        Parameters:
-
-        * filter
-            string, filtername. This is just a shortcut for setting the object's filter first, then
-            calling calcPSF afterwards. 
-        * outfile
+        Parameters
+        ----------
+        outfile : string
             Filename to write. If None, then result is returned as an HDUList
-        * oversample
+        oversample : int
             How much to oversample. Default=2
-        * fov_arcsec
+        fov_arcsec: float
             field of view in arcsec. Default=5
-        * clobber
-            Bool. overwrite output FITS file if it already exists?
-        * nlambda
+        clobber: bool
+            overwrite output FITS file if it already exists?
+        nlambda : int
             How many wavelengths to model for broadband? Default=5
+        filter : string, optional
+            Filter name. Setting this is just a shortcut for setting the object's filter first, then
+            calling calcPSF afterwards.
+
+        Returns
+        -------
+        outfits : pyfits.HDUList
+            If `outfile` is set, the output is written to that file. Otherwise it is
+            returned as a pyfits.HDUList object.
+
 
         """
-        
         if filter is not None:
             self.filter = filter
 
@@ -161,7 +192,7 @@ class JWInstrument(object):
         # TBD this will eventually use pysynphot, so don't write anything fancy for now!
         wf = N.where(self.filter_list == self.filter)
         wf = N.where(self.filter == N.asarray(self.filter_list))[0]
-        filterdata = atpy.Table(self.__filter_files[wf])
+        filterdata = atpy.Table(self._filter_files[wf])
 
         print "CAUTION: Really basic top-hat function for filter profile, with %d steps" % nlambda
         wtrans = N.where(filterdata.THROUGHPUT > 0.5)
@@ -226,8 +257,36 @@ class JWInstrument(object):
 
 
 
-    def getOpticalSystem(self,oversample=2, fov_arcsec=2):
-        self.__validate_config()
+    def getOpticalSystem(self,oversample=2, oversample_detector = None, fov_arcsec=2):
+        """ Return an OpticalSystem instance corresponding to the instrument as currently configured.
+
+        When creating such an OpticalSystem, you must specify the parameters needed to define the 
+        desired sampling, specifically the oversampling and field of view. 
+
+
+        Parameters
+        ----------
+
+        oversample : int
+            Oversampling factor for intermediate plane calculations. Default is 2
+        oversample_detector: int, optional
+            By default the detector oversampling is equal to the intermediate calculation oversampling.
+            If you wish to use a different value for the detector, set this parameter.
+            Note that if you just want images at detector pixel resolution you will achieve higher fidelity
+            by still using some oversampling (i.e. *not* setting `oversample_detector=1`) and instead rebinning
+            down the oversampled data.
+        fov_arcsec : float
+            Field of view, in arcseconds. Default is 2
+
+
+        Returns
+        -------
+        osys : poppy.OpticalSystem 
+            an optical system instance representing the desired configuration.
+
+        """
+
+        self._validate_config()
 
         optsys = OpticalSystem(name='JWST+'+self.name, oversample=oversample)
         optsys.addPupil(name='JWST Pupil', transmission= self.pupil, opd=self.pupilopd, opdunits='micron')
@@ -240,23 +299,24 @@ class JWInstrument(object):
 
 
     def display(self):
+        """Display the currently configured optical system on screen """
         optsys = self.getOpticalSystem()
         optsys.display()
 
     def addCoronagraphOptics(self,optsys):
         """Add coronagraphic optics to an optical system. 
-        This should be replaced by derived instrument classes. 
+        This method must be provided by derived instrument classes. 
         """
         raise NotImplementedError("needs to be subclassed.")
 
 
     def loadFilter(self,filtername):
-        """ Given a filter name, load the actual response curve and return it."""
+        """ Given a filter name, load the actual response curve and return it.  (depreciated??)"""
         if filtername not in self.filter_list:
             raise ValueError("Unknown/incorrect filter name for %s: %s" % (self.name, filtername))
 
         wm = N.where(N.asarray(self.filter_list) == filtername)
-        filtfile = self.__filter_files[wm[0]]
+        filtfile = self._filter_files[wm[0]]
         print "Loading filter %s from %s" % (filtername, filtfile)
         t = atpy.Table(filtfile)
 
@@ -282,7 +342,7 @@ class MIRI(JWInstrument):
                 {'name': 'MRS', 'size': (100,100), 'avail_filt': 'IFU'}]
 
 
-    def __validate_config(self):
+    def _validate_config(self):
         if self.image_mask is not None or self.pupil_mask is not None:
             if self.filter == 'F1065C':
                 assert self.image_mask == 'FQPM1065', 'Invalid configuration'
@@ -361,7 +421,7 @@ class NIRCam(JWInstrument):
             {'name': 'Coron-BLC 2.1', 'size': (256,256), 'avail_filt': self.filter_list}]
 
 
-    def __validate_config(self):
+    def _validate_config(self):
         pass
 
     def addCoronagraphOptics(self,optsys):
@@ -400,7 +460,7 @@ class NIRSpec(JWInstrument):
         JWInstrument.__init__(self, "NIRSpec")
         self.pixelscale = 0.0317 # for NIRCAM short-wavelen channels
 
-    def __validate_config(self):
+    def _validate_config(self):
         if (not self.image_mask is None) or (not self.pupil_mask is None):
             raise ValueError('NIRSpec does not have image or pupil masks!')
             self.image_mask = None
@@ -418,7 +478,7 @@ class TFI(JWInstrument):
         self.image_mask_list = ['CORON058', 'CORON075','CORON150','CORON200']
         self.pupil_mask_list = ['MASKC21N','MASKC66N','MASKC71N','MASK_NRM','CLEAR']
 
-    def __validate_config(self):
+    def _validate_config(self):
         pass
 
     def addCoronagraphOptics(self,optsys):
@@ -458,7 +518,7 @@ class FGS(JWInstrument):
         JWInstrument.__init__(self, "FGS")
         self.pixelscale = 0.069 # for FGS
 
-    def __validate_config(self):
+    def _validate_config(self):
         if (not self.image_mask is None) or (not self.pupil_mask is None):
             raise ValueError('FGS does not have image or pupil masks!')
             self.image_mask = None
@@ -469,7 +529,19 @@ class FGS(JWInstrument):
 
 
 def Instrument(name):
-    "a wrapper routine to access instrument objects based on a string"
+    """This is just a convenience function, allowing one to access instrument objects based on a string.
+    For instance, 
+
+    >>> t = Instrument('TFI')
+
+
+    
+    Parameters
+    ----------
+    name : string
+        Name of the instrument class to return. Case insensitive.
+    
+    """
     name = name.lower()
     if name == 'miri': return MIRI()
     if name == 'nircam': return NIRCam()

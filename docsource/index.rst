@@ -3,10 +3,19 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to JWST-PSFs's documentation!
+Documentation for JWST PSF Simulation
 =====================================
 
-Contents:
+
+
+Conceptually, the new JWST PSF simulation code relies on several layers of abstraction: 
+ * A base layer implementing wavefront propagation through generic optical systems (provided by the Python module `poppy`).
+ * An implementation of the specific details of JWST instruments using that base system (provided by `jwopt`)
+ * And a graphical user interface (provided by `newgui`).
+
+It is entirely possible (and indeed recommended for scripting) to just use the `jwopt` interface without the GUI, but the
+GUI will provide a quicker method for simple interactive or exploratory calculations.
+
 
 .. toctree::
    :maxdepth: 2
