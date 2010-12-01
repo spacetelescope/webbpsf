@@ -17,8 +17,6 @@ It is entirely possible (and indeed recommended for scripting) to just use the `
 GUI will provide a quicker method for simple interactive or exploratory calculations.
 
 
-
-
 Why a new JWST PSF Simulator?
 =============================
 
@@ -33,8 +31,6 @@ From a user's perspective this new code provides the following enhancements:
   a fixed oversampling factor.)
 * *TODO* includes the detector rotations, particularly for MIRI and NIRSpec
 * ability to set output image field of view size and pixel sampling, separate from the oversampling factor used for the optical propagation.
-
-
 * Improved graphical user interface
 
 
@@ -52,6 +48,7 @@ Requirements
 ============
 
 Beyond the usual scipy core modules, the following are required:
+
 * pyfits
 * ATPy
 * pyFFTW3 is optional, but highly recommended. The code will work fine without it, but will be significantly slower.
@@ -64,8 +61,8 @@ Python 2.5 or 2.6 provided `ttk` is available. Alternatively, you can just skip 
 themselves have no dependency on these widgets.
 
 
-Contents
-========
+Module Documentation 
+====================
 
 .. toctree::
    :maxdepth: 2
@@ -73,6 +70,7 @@ Contents
    poppy.rst
    jwopt.rst
    gui.rst  
+   fft_optimization.rst
 
 
 Indices and tables

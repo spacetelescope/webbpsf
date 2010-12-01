@@ -63,7 +63,13 @@ class JWInstrument(object):
     being knowledgable enough to avoid trying to simulate some physically impossible or just plain silly
     configuration (such as trying to use a FQPM with the wrong filter).
 
+
+    The instrument constructors do not take any arguments. Instead, create an instrument object and then
+    configure the filter or other attributes as desired. 
+
+
     """
+
     def __init__(self, name=None):
         self.name=name
 
@@ -71,15 +77,37 @@ class JWInstrument(object):
 
         self._datapath = self._JWPSF_basepath + os.sep + self.name + os.sep
         self.pupil = os.path.abspath(self._datapath+"../pupil_RevV.fits")
+        "Filename for JWST pupil mask. Usually there is no need to change this."
         self.pupilopd = None   # This can optionally be set to a tuple indicating (filename, slice in datacube)
+        "Filename for JWST pupil OPD. If the file contains a datacube, set this to a tuple (filename, slice) "
 
         self.options = {} # dict for storing other arbitrary options. 
+        """ A dictionary capable of storing other arbitrary options, for extensibility. The following are all optional, and
+        may or may not be meaningful depending on which instrument is selected.
+
+        Parameters
+        ----------
+        source_offset_r : float
+            Radial offset of the target from the center, in arcseconds
+        source_offset_theta : float
+            Position angle for that offset
+        pupil_shift_x, pupil_shift_y : float
+            Relative shift of a coronagraphic pupil in X and Y, expressed as a decimal between 0.0-1.0
+            Note that shifting an array too much will wrap around to the other side unphysically, but
+            for reasonable values of shift this is a non-issue.
+        downsample : bool
+            For output files, write an additional FITS extension including a version of the output array 
+            rebinned down to the actual detector pixel scale?
+        jitter : string
+            Type of jitter model to apply.
+        """
 
         #create private instance variables. These will be
         # wrapped just below to create properties with validation.
         self._filter=None
         self._filter_files= [os.path.abspath(f) for f in glob.glob(self._datapath+os.sep+'filters/*_thru.fits')]
         self.filter_list=[os.path.basename(f).split("_")[0] for f in self._filter_files]
+        "List of available filters"
 
         def sort_filters(filtname):
             try:
@@ -98,11 +126,14 @@ class JWInstrument(object):
         
         self._image_mask=None
         self.image_mask_list=[]
+        "List of available image_masks"
 
         self._pupil_mask=None
         self.pupil_mask_list=[]
+        "List of available pupil_masks"
 
         self.pixelscale = 0.0
+        "Detector pixel scale, in arcsec/pixel"
 
     def _validate_config(self):
         pass
@@ -147,7 +178,7 @@ class JWInstrument(object):
         return "JWInstrument name="+self.name
 
     #----- actual optical calculations follow here -----
-    def calcPSF(self, filter=None, outfile=None, oversample=None, detector_oversample=None, calc_oversample=None, fov_arcsec=5., clobber=True, nlambda=5 ):
+    def calcPSF(self, filter=None, outfile=None, oversample=None, detector_oversample=None, calc_oversample=None, fov_arcsec=5., display=True, clobber=True, nlambda=5 ):
         """ Compute a PSF.
         The result can either be written to disk (set outfile="filename") or else will be returned as
         a pyfits HDUlist object.
@@ -173,6 +204,8 @@ class JWInstrument(object):
             overwrite output FITS file if it already exists?
         nlambda : int
             How many wavelengths to model for broadband? Default=5
+        display : bool
+            Whether to display the PSF when done or not.
         filter : string, optional
             Filter name. Setting this is just a shortcut for setting the object's filter first, then
             calling calcPSF afterwards.
@@ -188,6 +221,7 @@ class JWInstrument(object):
         if filter is not None:
             self.filter = filter
 
+
         #if outfile is None: 
             #outfile = "PSF_%s_%s.fits" % (self.name, self.filter)
             #raise ValueError("You must specify an output file name.")
@@ -200,10 +234,8 @@ class JWInstrument(object):
         elif oversample is None and detector_oversample is None and calc_oversample is None:
             # nothing set -> set oversample = 2
             oversample = 2
-        else:
-            if detector_oversample is None: detector_oversample = oversample
-            if calc_oversample is None: detector_oversample = oversample
-
+        if detector_oversample is None: detector_oversample = oversample
+        if calc_oversample is None: calc_oversample = oversample
 
         # instantiate an optical system using the current parameters
         self.optsys = self.getOpticalSystem(fov_arcsec=fov_arcsec, calc_oversample=calc_oversample, detector_oversample=detector_oversample)
@@ -221,7 +253,7 @@ class JWInstrument(object):
         lambd = N.linspace(N.min(lrange), N.max(lrange), nlambda)
         weights = N.ones(nlambda)
         source = {'wavelengths': lambd, 'weights': weights}
-        result = self.optsys.calcPSF(source, display_intermediates=True, save_intermediates=False)
+        result = self.optsys.calcPSF(source, display_intermediates=True, save_intermediates=False, display=display)
 
         f = p.gcf()
         #p.text( 0.1, 0.95, "%s, filter= %s" % (self.name, self.filter), transform=f.transFigure, size='xx-large')
@@ -258,11 +290,11 @@ class JWInstrument(object):
         if 'downsample' in self.options.keys() and self.options['downsample'] == True:
             print "** Downsampling to detector pixel scale."
             downsampled_result = result[0].copy()
-            downsampled_result.data = utils.rebin(downsampled_result.data, rc=(oversample, oversample))
+            downsampled_result.data = utils.rebin(downsampled_result.data, rc=(detector_oversample, detector_oversample))
             downsampled_result.header.update('OVERSAMP', 1, 'These data are rebinned to detector pixels')
-            downsampled_result.header.update('CALCSAMP', oversample, 'This much oversampling used in calculation')
+            downsampled_result.header.update('CALCSAMP', detector_oversample, 'This much oversampling used in calculation')
             downsampled_result.header.update('EXTNAME', 'DET_SAMP')
-            downsampled_result.header['PIXELSCL'] *= oversample
+            downsampled_result.header['PIXELSCL'] *= detector_oversample
             result.append(downsampled_result)
 
 
@@ -309,6 +341,7 @@ class JWInstrument(object):
 
         self._validate_config()
 
+        print calc_oversample, detector_oversample
         optsys = OpticalSystem(name='JWST+'+self.name, oversample=calc_oversample)
         optsys.addPupil(name='JWST Pupil', transmission= self.pupil, opd=self.pupilopd, opdunits='micron')
 
@@ -432,6 +465,8 @@ class NIRCam(JWInstrument):
 
         self.image_mask_list = ['BLC2100','BLC3350','BLC4300','WEDGESW','WEDGELW']
         self.pupil_mask_list = ['CIRCLYOT','WEDGELYOT']
+
+        self.filter = 'F200W' # default
 
         self.apertures = [
             {'name': 'Imager-SW A', 'size': (2048,2048), 'avail_filt': self.filter_list}, 

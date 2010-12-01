@@ -103,7 +103,7 @@ class JWPSF_GUI(object):
             self.vars[iname+"_filter"] = tk.StringVar()
             self.widgets[iname+"_filter"] = ttk.Combobox(page,textvariable =self.vars[iname+"_filter"], width=10, state='readonly')
             self.widgets[iname+"_filter"]['values'] = self.instrument[iname].filter_list
-            self.widgets[iname+"_filter"].set(self.widgets[iname+"_filter"]['values'][0])
+            self.widgets[iname+"_filter"].set(self.instrument[iname].filter)
             #self.widgets[iname+"_filter"]['readonly'] = True
             ttk.Label(page, text='    Filter: ' ).grid(row=1, column=0)
             self.widgets[iname+"_filter"].grid(row=1, column=1)
@@ -401,6 +401,7 @@ class JWPSF_GUI(object):
 
         options = {}
         options['downsample'] = bool(self.vars['downsamp'])
+        options['jitter'] = self.widgets['jitter'].get()
         #print "Downsamp value: ",  options['downsample']
 
 
