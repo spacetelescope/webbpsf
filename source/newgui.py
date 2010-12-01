@@ -154,9 +154,9 @@ class JWPSF_GUI(object):
             ttk.Label(page, text='    Configuration Options for the OTE').grid(row=4, columnspan=2, sticky='W')
 
             fr2 = ttk.Frame(page)
-            ttk.Label(fr2, text='   OPD set: ' ).grid(row=0, column=0)
+            ttk.Label(fr2, text='   OPD file: ' ).grid(row=0, column=0)
             self.vars[iname+"_opd"] = tk.StringVar()
-            self.widgets[iname+"_opd"] = ttk.Combobox(fr2,textvariable =self.vars[iname+"_opd"], width=25)
+            self.widgets[iname+"_opd"] = ttk.Combobox(fr2,textvariable =self.vars[iname+"_opd"], width=18)
             opd_list =  self.instrument[iname].opd_list
             opd_list.insert(0,"Zero OPD (perfect)")
             self.widgets[iname+"_opd"]['values'] = opd_list
@@ -170,8 +170,14 @@ class JWPSF_GUI(object):
             self.widgets[iname+"_opd_i"].set(self.widgets[iname+"_opd_i"]['values'][0])
             self.widgets[iname+"_opd_i"].grid(column=3,row=0)
 
-            self.widgets[iname+"_opd_label"] = ttk.Label(fr2, text='                        ')
+            self.widgets[iname+"_opd_label"] = ttk.Label(fr2, text='--                      ')
             self.widgets[iname+"_opd_label"].grid( column=4,sticky='W')
+
+
+            self.widgets[iname+"_opd"].bind('<Enter>', lambda e: self.widgets[iname+"_opd_label"].configure(text='entered'))
+
+            self.widgets[iname+"_opd"].bind('<<ComboboxSelected>>',
+                    lambda e: self.ev_update_OPD_label(self.widgets[iname+"_opd"], self.widgets[iname+"_opd_label"]) )
             ttk.Button(fr2, text='Display', command=self.ev_displayOPD).grid(column=5,sticky='E',row=0)
 
             fr2.grid(row=5, column=0, columnspan=4,sticky='S')
@@ -338,6 +344,14 @@ class JWPSF_GUI(object):
 
             f = P.gcf()
             P.text(0.4, 0.02, "OPD WFE = %6.2f nm RMS" % (masked_opd.std()*1000.), transform=f.transFigure)
+
+    def ev_update_OPD_label(self, widget_combobox, widget_label):
+        print "Here!"
+        filename = widget_combobox.get()
+        if filename.endswith(".fits"):
+            header_summary = pyfits.getheader(filename)['SUMMARY']
+        else header_summary = " "
+        widget_label.configure(text=header_summary)
 
     def _updateFromGUI(self):
         # get GUI values
