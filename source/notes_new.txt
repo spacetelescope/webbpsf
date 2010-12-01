@@ -1,5 +1,37 @@
 
 
-Wavefront class
-	knows own spatial scale and sampling, can transform itself via FFT or DFT
-	toConjugate()
+
+The complicated issue here is that, while doing FFT based propagation, each wavelength has its own spatial scale. 
+* The pupil planes are always the same size, in meters
+* the image planes are always the same size, but in units of resolution elements, lambda/D
+	Therefore each one has its own unique scale in arcseconds. 
+
+If we wish to shift a star by some given angle in arcseconds, that translates to a different shift in 
+lambda/D units for each wavelength.  OK so far. 
+
+Now, if we want to have the FFT centered on the corners between pixels, then we need to add some
+shift in pixel units - specifically 0.5 pixels or whatever the equivalent in lambda/D units is. 
+
+PROBLEM: That is a *different* physical shift for each wavelength. So we have to be careful:
+   *) compute desired shift in lambda/D units
+   *) apply that appropriate tilt to the input wavefront, before anything else. 
+	*) Optionally, apply additional tilt specified in physical units.
+   *) propagate through the optics.
+   *) Back out the extra half pixel of tilt again (to re-center on the array)
+   *) Then transform to the desired final coordinates in whatever way is desired, using SFT.
+
+
+Said another way:
+
+1) when creating an input wavefront:
+    - check if centered on a corner. if so, convert 0.5 pixel shift into lam/D units
+    - check if other shift is specified. If so, convert from arcsec into lam/D units
+    - Then generate a wavefront with that desired tilt. 
+2) Propagate through all the optics via FFTs
+3) Take back out the corner shift. This is needed to re-align all the wavelengths together.
+4) Propagate to final detector plane using MFT
+5) Combine.
+
+
+
+

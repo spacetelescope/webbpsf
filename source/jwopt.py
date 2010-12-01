@@ -147,17 +147,26 @@ class JWInstrument(object):
         return "JWInstrument name="+self.name
 
     #----- actual optical calculations follow here -----
-    def calcPSF(self, filter=None, outfile=None,oversample=2, fov_arcsec=5., clobber=True, nlambda=5 ):
+    def calcPSF(self, filter=None, outfile=None, oversample=None, detector_oversample=None, calc_oversample=None, fov_arcsec=5., clobber=True, nlambda=5 ):
         """ Compute a PSF.
         The result can either be written to disk (set outfile="filename") or else will be returned as
         a pyfits HDUlist object.
+
+
+        Output sampling may be specified in one of two ways: 
+        1) Set `oversample=<number>`. This will use that oversampling factor beyond detector pixels
+           for output images, and beyond Nyquist sampling for any FFTs to prior optical planes. 
+        2) set `detector_oversample=<number>` and `calc_oversample=<other_number>`. This syntax lets
+           you specify distinct oversampling factors for intermediate and final planes. 
+
+        By default, both oversampling factors are set equal to 2.
 
         Parameters
         ----------
         outfile : string
             Filename to write. If None, then result is returned as an HDUList
         oversample : int
-            How much to oversample. Default=2
+            How much to oversample. Default=2.
         fov_arcsec: float
             field of view in arcsec. Default=5
         clobber: bool
@@ -184,8 +193,20 @@ class JWInstrument(object):
             #raise ValueError("You must specify an output file name.")
 
 
+        # Implement the semi-convoluted logic for the oversampling options. See docstring above
+        if oversample is not None and detector_oversample is not None and calc_oversample is not None:
+            # all set -> complain!
+            raise ValueError("You cannot specify simultaneously the oversample= option with the detector_oversample and calc_oversample options. Pick one or the other!")
+        elif oversample is None and detector_oversample is None and calc_oversample is None:
+            # nothing set -> set oversample = 2
+            oversample = 2
+        else:
+            if detector_oversample is None: detector_oversample = oversample
+            if calc_oversample is None: detector_oversample = oversample
+
+
         # instantiate an optical system using the current parameters
-        self.optsys = self.getOpticalSystem(fov_arcsec=fov_arcsec, oversample=oversample)
+        self.optsys = self.getOpticalSystem(fov_arcsec=fov_arcsec, calc_oversample=calc_oversample, detector_oversample=detector_oversample)
 
 
         # compute a source spectrum weighted by the desired filter curves.
@@ -257,7 +278,7 @@ class JWInstrument(object):
 
 
 
-    def getOpticalSystem(self,oversample=2, oversample_detector = None, fov_arcsec=2):
+    def getOpticalSystem(self,calc_oversample=2, detector_oversample = None, fov_arcsec=2):
         """ Return an OpticalSystem instance corresponding to the instrument as currently configured.
 
         When creating such an OpticalSystem, you must specify the parameters needed to define the 
@@ -267,9 +288,9 @@ class JWInstrument(object):
         Parameters
         ----------
 
-        oversample : int
+        calc_oversample : int
             Oversampling factor for intermediate plane calculations. Default is 2
-        oversample_detector: int, optional
+        detector_oversample: int, optional
             By default the detector oversampling is equal to the intermediate calculation oversampling.
             If you wish to use a different value for the detector, set this parameter.
             Note that if you just want images at detector pixel resolution you will achieve higher fidelity
@@ -288,13 +309,13 @@ class JWInstrument(object):
 
         self._validate_config()
 
-        optsys = OpticalSystem(name='JWST+'+self.name, oversample=oversample)
+        optsys = OpticalSystem(name='JWST+'+self.name, oversample=calc_oversample)
         optsys.addPupil(name='JWST Pupil', transmission= self.pupil, opd=self.pupilopd, opdunits='micron')
 
         if self.image_mask is not None:
             optsys = self.addCoronagraphOptics(optsys)
 
-        optsys.addDetector(self.pixelscale, fov_npix = fov_arcsec/self.pixelscale, name=self.name+" detector")
+        optsys.addDetector(self.pixelscale, fov_npix = fov_arcsec/self.pixelscale, oversample = detector_oversample, name=self.name+" detector")
         return optsys
 
 

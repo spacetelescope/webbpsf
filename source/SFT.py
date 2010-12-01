@@ -1,9 +1,5 @@
 #! /usr/bin/env  python 
-import numpy as np
-import utils
-import SimpleFits as SF
-
-__doc__ = """
+"""
     "Slow Fourier Transform"
 
     Matrix-based Fourier transforms for computing PSFs. 
@@ -24,7 +20,13 @@ __doc__ = """
     2010-11-05 Revised normalizations for flux conservation consistent
         with Soummer et al. 2007. Updated documentation.  -- M. Perrin
 
-    """
+"""
+
+
+import numpy as np
+import utils
+import pyfits
+#import SimpleFits as SF
 
 
 # FFTSTYLE
@@ -200,8 +202,10 @@ class SlowFourierTransform:
 
 
 
-def test_SFT(choice='FFTSTYLE', outdir='testdata', outname='SFT1'):
+def test_SFT(choice='FFTSTYLE', outdir='.', outname='SFT1'):
     import os
+
+    print "Testing SFT, style = "+choice
 
     def complexinfo(a, str=None):
 
@@ -230,7 +234,7 @@ def test_SFT(choice='FFTSTYLE', outdir='testdata', outname='SFT1'):
 
     pupil /= np.sqrt(pupil.sum())
 
-    SF.SimpleFitsWrite(fn=outdir+os.sep+outname+"pupil.fits", data=pupil.astype(np.float32), clobber='y')
+    pyfits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir+os.sep+outname+"pupil.fits", clobber=True)
 
     a = sft1.perform(pupil, u, npix)
 
@@ -248,10 +252,12 @@ def test_SFT(choice='FFTSTYLE', outdir='testdata', outname='SFT1'):
     complexinfo(a, str="sft1 asf")
     #print 
     asf = a.real.copy()
-    SF.SimpleFitsWrite(fn=outdir+os.sep+outname+"asf.fits", data=asf.astype(np.float32), clobber='y')
+    #SF.SimpleFitsWrite(fn=outdir+os.sep+outname+"asf.fits", data=asf.astype(np.float32), clobber='y')
+    pyfits.PrimaryHDU(asf.astype(np.float32)).writeto(outdir+os.sep+outname+"asf.fits", clobber=True)
     cpsf = a * a.conjugate()
     psf = cpsf.real.copy()
-    SF.SimpleFitsWrite(fn=outdir+os.sep+outname+"psf.fits", data=psf.astype(np.float32), clobber='y')
+    #SF.SimpleFitsWrite(fn=outdir+os.sep+outname+"psf.fits", data=psf.astype(np.float32), clobber='y')
+    pyfits.PrimaryHDU(psf.astype(np.float32)).writeto(outdir+os.sep+outname+"psf.fits", clobber=True)
 
 
 

@@ -53,7 +53,7 @@ class JWPSF_GUI(object):
         lf = ttk.LabelFrame(frame, text='Source Properties')
         ttk.Label(lf, text='    Spectral Type' ).grid(row=0, column=0)
         self.vars['SpType'] = tk.StringVar()
-        self.widgets['SpType'] = ttk.Combobox(lf, textvariable = self.vars['SpType'],width=6)
+        self.widgets['SpType'] = ttk.Combobox(lf, textvariable = self.vars['SpType'],width=6, state='readonly')
         self.widgets['SpType'].grid(row=0, column=1)
         self.widgets['SpType']['values'] = self.stars.sptype_list
         self.widgets['SpType'].set('G0V')
@@ -66,6 +66,8 @@ class JWPSF_GUI(object):
 
         self.vars["source_off_r"] = tk.StringVar()
         self.vars["source_off_theta"] = tk.StringVar()
+        self.vars["source_off_centerpos"] = tk.StringVar()
+        self.vars["source_off_centerpos"].set('corner')
         self.widgets["source_off_r"] = ttk.Entry(fr2,textvariable =self.vars["source_off_r"], width=5)
         self.widgets["source_off_r"].insert(0,"0.0")
         self.widgets["source_off_r"].grid(row=r, column=1, sticky='W')
@@ -73,7 +75,12 @@ class JWPSF_GUI(object):
         self.widgets["source_off_theta"] = ttk.Entry(fr2,textvariable =self.vars["source_off_theta"], width=3)
         self.widgets["source_off_theta"].insert(0,"0")
         self.widgets["source_off_theta"].grid(row=r, column=3)
-        ttk.Label(fr2, text='deg' ).grid(row=r, column=4)
+        ttk.Label(fr2, text='deg, centered on ' ).grid(row=r, column=4)
+        pixel = ttk.Radiobutton(fr2, text='pixel', variable=self.vars["source_off_centerpos"], value='pixel')
+        pixel.grid(row=r, column=5)
+        corner = ttk.Radiobutton(fr2, text='corner', variable=self.vars["source_off_centerpos"], value='corner')
+        corner.grid(row=r, column=6)
+
         fr2.grid(row=r, column=1, columnspan=5, sticky='W')
 
 
@@ -91,10 +98,10 @@ class JWPSF_GUI(object):
             notebook.add(page,text=iname) 
             notebook.select(i)  # make it active
             self.widgets[notebook.select()] = iname # save reverse lookup from meaningless widget "name" to string name
-            ttk.Label(page, text='    Configuration Options for '+iname+"                      ").grid(row=0, columnspan=2, sticky='W')
+            ttk.Label(page, text='Configuration Options for '+iname+"                      ").grid(row=0, columnspan=2, sticky='W')
 
             self.vars[iname+"_filter"] = tk.StringVar()
-            self.widgets[iname+"_filter"] = ttk.Combobox(page,textvariable =self.vars[iname+"_filter"], width=10)
+            self.widgets[iname+"_filter"] = ttk.Combobox(page,textvariable =self.vars[iname+"_filter"], width=10, state='readonly')
             self.widgets[iname+"_filter"]['values'] = self.instrument[iname].filter_list
             self.widgets[iname+"_filter"].set(self.widgets[iname+"_filter"]['values'][0])
             #self.widgets[iname+"_filter"]['readonly'] = True
@@ -103,7 +110,7 @@ class JWPSF_GUI(object):
 
             if len(self.instrument[iname].image_mask_list) >0 :
                 self.vars[iname+"_coron"] = tk.StringVar()
-                self.widgets[iname+"_coron"] = ttk.Combobox(page,textvariable =self.vars[iname+"_coron"], width=10)
+                self.widgets[iname+"_coron"] = ttk.Combobox(page,textvariable =self.vars[iname+"_coron"], width=10, state='readonly')
                 masks = self.instrument[iname].image_mask_list
                 masks.insert(0, "")
                 self.widgets[iname+"_coron"]['values'] = masks
@@ -111,24 +118,24 @@ class JWPSF_GUI(object):
                 self.widgets[iname+"_coron"].set(self.widgets[iname+"_coron"]['values'][0])
                 self.widgets[iname+"_coron"].grid(row=2, column=1)
 
-                fr2 = ttk.Frame(page)
-                self.vars[iname+"_cor_off_r"] = tk.StringVar()
-                self.vars[iname+"_cor_off_theta"] = tk.StringVar()
-                ttk.Label(fr2, text='target offset:  r=' ).grid(row=2, column=4)
-                self.widgets[iname+"_cor_off_r"] = ttk.Entry(fr2,textvariable =self.vars[iname+"_cor_off_r"], width=5)
-                self.widgets[iname+"_cor_off_r"].insert(0,"0.0")
-                self.widgets[iname+"_cor_off_r"].grid(row=2, column=5)
-                ttk.Label(fr2, text='arcsec,  PA=' ).grid(row=2, column=6)
-                self.widgets[iname+"_cor_off_theta"] = ttk.Entry(fr2,textvariable =self.vars[iname+"_cor_off_theta"], width=3)
-                self.widgets[iname+"_cor_off_theta"].insert(0,"0")
-                self.widgets[iname+"_cor_off_theta"].grid(row=2, column=7)
-                ttk.Label(fr2, text='deg' ).grid(row=2, column=8)
-                fr2.grid(row=2,column=3, sticky='W')
+                #fr2 = ttk.Frame(page)
+                #self.vars[iname+"_cor_off_r"] = tk.StringVar()
+                #self.vars[iname+"_cor_off_theta"] = tk.StringVar()
+                #ttk.Label(fr2, text='target offset:  r=' ).grid(row=2, column=4)
+                #self.widgets[iname+"_cor_off_r"] = ttk.Entry(fr2,textvariable =self.vars[iname+"_cor_off_r"], width=5)
+                #self.widgets[iname+"_cor_off_r"].insert(0,"0.0")
+                #self.widgets[iname+"_cor_off_r"].grid(row=2, column=5)
+                #ttk.Label(fr2, text='arcsec,  PA=' ).grid(row=2, column=6)
+                #self.widgets[iname+"_cor_off_theta"] = ttk.Entry(fr2,textvariable =self.vars[iname+"_cor_off_theta"], width=3)
+                #self.widgets[iname+"_cor_off_theta"].insert(0,"0")
+                #self.widgets[iname+"_cor_off_theta"].grid(row=2, column=7)
+                #ttk.Label(fr2, text='deg' ).grid(row=2, column=8)
+                #fr2.grid(row=2,column=3, sticky='W')
 
 
             if len(self.instrument[iname].image_mask_list) >0 :
                 self.vars[iname+"_pupil"] = tk.StringVar()
-                self.widgets[iname+"_pupil"] = ttk.Combobox(page,textvariable =self.vars[iname+"_pupil"], width=10)
+                self.widgets[iname+"_pupil"] = ttk.Combobox(page,textvariable =self.vars[iname+"_pupil"], width=10, state='readonly')
                 masks = self.instrument[iname].pupil_mask_list
                 masks.insert(0, "")
                 self.widgets[iname+"_pupil"]['values'] = masks
@@ -151,12 +158,12 @@ class JWPSF_GUI(object):
                 fr2.grid(row=3,column=3, sticky='W')
 
 
-            ttk.Label(page, text='    Configuration Options for the OTE').grid(row=4, columnspan=2, sticky='W')
+            ttk.Label(page, text='Configuration Options for the OTE').grid(row=4, columnspan=2, sticky='W')
 
             fr2 = ttk.Frame(page)
             ttk.Label(fr2, text='   OPD file: ' ).grid(row=0, column=0)
             self.vars[iname+"_opd"] = tk.StringVar()
-            self.widgets[iname+"_opd"] = ttk.Combobox(fr2,textvariable =self.vars[iname+"_opd"], width=18)
+            self.widgets[iname+"_opd"] = ttk.Combobox(fr2,textvariable =self.vars[iname+"_opd"], width=21, state='readonly')
             opd_list =  self.instrument[iname].opd_list
             opd_list.insert(0,"Zero OPD (perfect)")
             self.widgets[iname+"_opd"]['values'] = opd_list
@@ -165,19 +172,20 @@ class JWPSF_GUI(object):
 
             ttk.Label(fr2, text=' # ' ).grid(column=2,row=0)
             self.vars[iname+"_opd_i"] = tk.StringVar()
-            self.widgets[iname+"_opd_i"] = ttk.Combobox(fr2,textvariable =self.vars[iname+"_opd_i"], width=3)
+            self.widgets[iname+"_opd_i"] = ttk.Combobox(fr2,textvariable =self.vars[iname+"_opd_i"], width=3, state='disabled')
             self.widgets[iname+"_opd_i"]['values'] = [str(i+1) for i in range(10)]
             self.widgets[iname+"_opd_i"].set(self.widgets[iname+"_opd_i"]['values'][0])
             self.widgets[iname+"_opd_i"].grid(column=3,row=0)
 
-            self.widgets[iname+"_opd_label"] = ttk.Label(fr2, text='--                      ')
-            self.widgets[iname+"_opd_label"].grid( column=4,sticky='W')
+            self.widgets[iname+"_opd_label"] = ttk.Label(fr2, text=' 0 nm RMS            ', width=25)
+            self.widgets[iname+"_opd_label"].grid( column=4,sticky='W', row=0)
 
 
-            self.widgets[iname+"_opd"].bind('<Enter>', lambda e: self.widgets[iname+"_opd_label"].configure(text='entered'))
-
-            self.widgets[iname+"_opd"].bind('<<ComboboxSelected>>',
-                    lambda e: self.ev_update_OPD_label(self.widgets[iname+"_opd"], self.widgets[iname+"_opd_label"]) )
+            self.widgets[iname+"_opd"].bind('<<ComboboxSelected>>', 
+                    lambda e: self.ev_update_OPD_labels() )
+                    # The below code does not work, and I can't tell why. This only ever has iname = 'FGS' no matter which instrument.
+                    # So instead brute-force it with the above to just update all 5. 
+                    #lambda e: self.ev_update_OPD_label(self.widgets[iname+"_opd"], self.widgets[iname+"_opd_label"], iname) )
             ttk.Button(fr2, text='Display', command=self.ev_displayOPD).grid(column=5,sticky='E',row=0)
 
             fr2.grid(row=5, column=0, columnspan=4,sticky='S')
@@ -203,33 +211,43 @@ class JWPSF_GUI(object):
         lf = ttk.LabelFrame(frame, text='Calculation Options')
         r =0
         ttk.Label(lf, text='Field of View:' ).grid(row=r, sticky='W')
-        self.widgets['FOV'] = ttk.Entry(lf, width=5)
+        self.widgets['FOV'] = ttk.Entry(lf, width=3)
         self.widgets['FOV'].grid(row=r,column=1, sticky='E')
         self.widgets['FOV'].insert(0,'5')
         ttk.Label(lf, text='arcsec/side' ).grid(row=r, column=2, sticky='W')
         r+=1
-        ttk.Label(lf, text='Calc. Oversampling:').grid(row=r, sticky='W')
-        self.widgets['calc_oversampling'] = ttk.Entry(lf, width=3)
-        self.widgets['calc_oversampling'].grid(row=r,column=1, sticky='E')
-        self.widgets['calc_oversampling'].insert(0,'2')
-        ttk.Label(lf, text='x finer than Nyquist' ).grid(row=r, column=2, sticky='W', columnspan=2)
-
-        r+=1
         ttk.Label(lf, text='Output Oversampling:').grid(row=r, sticky='W')
-        self.widgets['out_oversampling'] = ttk.Entry(lf, width=3)
-        self.widgets['out_oversampling'].grid(row=r,column=1, sticky='E')
-        self.widgets['out_oversampling'].insert(0,'2')
+        self.widgets['detector_oversampling'] = ttk.Entry(lf, width=3)
+        self.widgets['detector_oversampling'].grid(row=r,column=1, sticky='E')
+        self.widgets['detector_oversampling'].insert(0,'2')
         ttk.Label(lf, text='x finer than instrument pixels       ' ).grid(row=r, column=2, sticky='W', columnspan=2)
 
         self.vars['downsamp'] = tk.BooleanVar()
         self.vars['downsamp'].set(True)
         self.widgets['downsamp'] = ttk.Checkbutton(lf, text='Save in instr. pixel scale, too?', onvalue=True, offvalue=False,variable=self.vars['downsamp'])
         self.widgets['downsamp'].grid(row=r, column=4, sticky='E')
+
+
+        r+=1
+        ttk.Label(lf, text='Coronagraph Oversampling:').grid(row=r, sticky='W')
+        self.widgets['calc_oversampling'] = ttk.Entry(lf, width=3)
+        self.widgets['calc_oversampling'].grid(row=r,column=1, sticky='E')
+        self.widgets['calc_oversampling'].insert(0,'2')
+        ttk.Label(lf, text='x finer than Nyquist' ).grid(row=r, column=2, sticky='W', columnspan=2)
+
+
         r+=1
         ttk.Label(lf, text='# of wavelengths:').grid(row=r, sticky='W')
         self.widgets['nlambda'] = ttk.Entry(lf, width=3)
         self.widgets['nlambda'].grid(row=r,column=1, sticky='E')
         self.widgets['nlambda'].insert(0,'1')
+        r+=1
+        ttk.Label(lf, text='Jitter model:').grid(row=r, sticky='W')
+        self.widgets['jitter'] = ttk.Combobox(lf, width=20, state='readonly')
+        self.widgets['jitter']['values'] = ['Just use OPDs', 'Gaussian blur', 'Accurate yet SLOW grid']
+        self.widgets['jitter'].set('Just use OPDs')
+        self.widgets['jitter'].grid(row=r,column=1, columnspan=2, sticky='E')
+ 
         #ttk.Label(lf, text='x finer than instrument pixels' ).grid(row=r, column=2, sticky='W', columnspan=2)
  
         #r=r+1
@@ -300,18 +318,21 @@ class JWPSF_GUI(object):
         speclib = jwopt.kurucz_stars()
 
         spectrum = speclib.specFromSpectralType(sptype)
-        P.loglog(spectrum['wavelength_um'],spectrum['flux'],label=sptype)
+        P.loglog(spectrum['wavelength_um'],spectrum['flux']/spectrum['flux'].max(),label=sptype+" star")
         P.xlabel("Wavelength [$\mu$m]")
         P.ylabel("Flux [$erg s^{-1} cm^{-2} \AA^{-1} \\times$ arbitrary scale factor ]")
 
         filt = self.instrument[iname].getFilter(filter)
-        P.plot(filt.WAVELENGTH, filt.THROUGHPUT+1e-9, label=filter)
+        P.plot(filt.WAVELENGTH, filt.THROUGHPUT+1e-9, "--" ,label=filter+" filter")
+        P.gca().set_ybound(1e-6,10)
         P.legend(loc="upper left")
 
     def ev_calcPSF(self):
         "Event handler for PSF Calculations"
         self._updateFromGUI()
-        self.PSF_HDUlist = self.inst.calcPSF(oversample=self.calc_oversampling, fov_arcsec = self.FOV,nlambda = self.nlambda)
+        self.PSF_HDUlist = self.inst.calcPSF(detector_oversample= self.detector_oversampling,
+                calc_oversample=self.calc_oversampling,
+                fov_arcsec = self.FOV,  nlambda = self.nlambda)
         self.widgets['SaveAs'].state(['!disabled'])
 
     def ev_displayPSF(self):
@@ -345,13 +366,25 @@ class JWPSF_GUI(object):
             f = P.gcf()
             P.text(0.4, 0.02, "OPD WFE = %6.2f nm RMS" % (masked_opd.std()*1000.), transform=f.transFigure)
 
-    def ev_update_OPD_label(self, widget_combobox, widget_label):
-        print "Here!"
-        filename = widget_combobox.get()
+    def ev_update_OPD_labels(self):
+        "Update the descriptive text for all OPD files"
+        for iname in self.instrument.keys():
+            self.ev_update_OPD_label(self.widgets[iname+"_opd"], self.widgets[iname+"_opd_label"], iname)
+
+    def ev_update_OPD_label(self, widget_combobox, widget_label, iname):
+        "Update the descriptive text displayed about one OPD file"
+        #print "Here! for "+iname
+        filename = self.instrument[iname]._datapath +os.sep+ 'OPD'+ os.sep+widget_combobox.get()
         if filename.endswith(".fits"):
+            #print "read fits %s" % filename
             header_summary = pyfits.getheader(filename)['SUMMARY']
-        else header_summary = " "
-        widget_label.configure(text=header_summary)
+            self.widgets[iname+"_opd_i"]['state'] = 'readonly'
+        else:
+            #print "not fits: %s" % filename
+            header_summary = " 0 nm RMS"
+            self.widgets[iname+"_opd_i"]['state'] = 'disabled'
+
+        widget_label.configure(text=header_summary, width=25)
 
     def _updateFromGUI(self):
         # get GUI values
@@ -363,7 +396,7 @@ class JWPSF_GUI(object):
         self.nlambda= int(self.widgets['nlambda'].get())
         self.FOV= float(self.widgets['FOV'].get())
         self.calc_oversampling= int(self.widgets['calc_oversampling'].get())
-        self.out_oversampling= int(self.widgets['out_oversampling'].get())
+        self.detector_oversampling= int(self.widgets['detector_oversampling'].get())
 
 
         options = {}
@@ -385,8 +418,8 @@ class JWPSF_GUI(object):
             # TODO read in mis-registration options here.
 
 
-            options['targ_offset_r'] = float(self.widgets[self.iname+"_cor_off_r"].get())
-            options['targ_offset_theta'] = float(self.widgets[self.iname+"_cor_off_theta"].get())
+            options['source_offset_r'] = float(self.widgets["source_off_r"].get())
+            options['source_offset_theta'] = float(self.widgets["source_off_theta"].get())
             options['pupil_shift_x'] = float(self.widgets[self.iname+"_pupilshift_x"].get())/100. # convert from percent to fraction
             options['pupil_shift_y'] = float(self.widgets[self.iname+"_pupilshift_y"].get())/100. # convert from percent to fraction
 
