@@ -31,7 +31,9 @@ help:
 html:
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) ../Documentation/html
 	@echo
-	@echo "Build finished. The HTML pages are in Documentation/html."
+	@echo "Build finished. The HTML pages are in ../Documentation/html."
+	@echo " try this to examine it: "
+	@echo "        open  ../Documentation/html/index.html"
 
 dirhtml:
 	$(SPHINXBUILD) -b dirhtml $(ALLSPHINXOPTS) ../Documentation/dirhtml

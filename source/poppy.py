@@ -41,6 +41,13 @@ import SFT
 from IPython.Debugger import Tracer; stop = Tracer()
 
 
+try:
+    import fftw3
+    __use_fftw3__ = True
+except:
+    __use_fftw3__ = False
+
+
 # constants for types of plane
 PUPIL = 1
 IMAGE = 2
@@ -135,6 +142,16 @@ class Wavefront(object):
         default is double complex.
 
     """
+
+    planetype = IMAGE
+    "Is this a PUPIL or IMAGE plane? Uses constants from poppy to define."
+    intensity = 0
+    "numpy.ndarray.  The intensity of the wavefront as a function of position."
+    amplitude = 0
+    "numpy.ndarray.  Amplitude of the electric field"
+    phase = 0
+    "numpy.ndarray.  The phase of the wavefront, in units of radians."
+
     def __init__(self,wavelength=2e-6, npix=1024, dtype=N.complex128, diam=8.0, oversample=2, pixelscale=None):
 
         if wavelength > 1e-4:
@@ -168,6 +185,7 @@ class Wavefront(object):
         """ % (self.wavelength/1e-6, self.wavefront.shape[0], self.wavefront.shape[1], self.pixelscale )
 
     def copy(self):
+        "Return a copy of the wavefront as a different object."
         return copy.deepcopy(self)
 
     def normalize(self):
@@ -389,6 +407,7 @@ class Wavefront(object):
     @property
     def intensity(self):
         return N.abs(self.wavefront)**2
+    "Intensity of the wavefront"
 
     @property
     def phase(self):
@@ -423,8 +442,9 @@ class Wavefront(object):
 
         self.location='before '+optic.name
 
-    def _propagateFFT(self, optic):
-        """ Propagate from pupil to image or vice versa using a padded FFT """
+
+    def _propagateFFT_FFTW3(self, optic):
+        """ Propagate from pupil to image or vice versa using a padded FFT, and using the FFTW3 library."""
 
 
         if self.oversample > 1 and not self.ispadded: #add padding for oversampling
@@ -440,8 +460,64 @@ class Wavefront(object):
             #print "Pre-FFT total intensity: "+str(self.totalIntensity)
                 # due to annoying normalization convention in numpy fft, we have to divide by the number of pixels
                 # when doing this fft step:
+
+            aligned_in_wave = fftw3.create_aligned_array(shape=self.wavefront.shape)
+            aligned_out_wave = fftw3.create_aligned_array(shape=self.wavefront.shape)
+            #create a plan:
+            fftplan = fftw3.Plan(aligned_in_wave, aligned_out_wave, direction='forward')
+
+
             self.wavefront = N.fft.fft2(self.wavefront) / self.wavefront.shape[0]
             self.wavefront = N.fft.fftshift(self.wavefront)
+            #print "Post-FFT total intensity: "+str(self.totalIntensity)
+            # update keywords
+            self.planetype=IMAGE
+            self.pixelscale = self.wavelength/ self.diam / self.oversample * RADIANStoARCSEC
+            self.fov = self.wavefront.shape[0] * self.pixelscale
+            self.history.append('   FFT %s,  to IMAGE  scale=%f' %(self.wavefront.shape, self.pixelscale))
+
+
+        elif self.planetype == IMAGE and optic.planetype ==PUPIL:
+            FFT_direction= 'BACKWARD'
+            # do FFT
+            #print "Pre-FFT total intensity: "+str(self.totalIntensity)
+                # due to annoying normalization convention in numpy fft, we have to divide by the number of pixels
+                # when doing this fft step:
+            self.wavefront = N.fft.ifftshift(self.wavefront) * self.wavefront.shape[0]
+            self.wavefront = N.fft.ifft2(self.wavefront)
+            #print "Post-FFT total intensity: "+str(self.totalIntensity)
+            # update keywords
+            self.planetype=PUPIL
+            self.pixelscale = self.diam *self.oversample / self.wavefront.shape[0]
+            self.history.append('   FFT %s,  to PUPIL scale=%f' %(self.wavefront.shape, self.pixelscale))
+
+    def _propagateFFT(self, optic):
+        """ Propagate from pupil to image or vice versa using a padded FFT """
+
+
+        if self.oversample > 1 and not self.ispadded: #add padding for oversampling
+            assert self.oversample == optic.oversample
+            self.wavefront = padToOversample(self.wavefront, self.oversample)
+            self.ispadded = True
+            if optic.verbose: print "    Padded WF array for oversampling by %dx" % self.oversample
+            self.history.append("    Padded WF array for oversampling by %dx" % self.oversample)
+
+        if self.planetype == PUPIL and optic.planetype == IMAGE:
+            FFT_direction = 'FORWARD'
+            # do FFT
+            #print "Pre-FFT total intensity: "+str(self.totalIntensity)
+            if __use_fftw3__:
+                inarr = N.empty(shape=self.wavefront.shape, dtype=self.wavefront.dtype)
+                outarr = N.empty(shape=self.wavefront.shape, dtype=self.wavefront.dtype)
+                fftplan = fftw3.Plan(inarr, outarr, nthreads = multiprocessing.cpu_count(),direction='forward')
+                inarr = self.wavefront # must do this AFTER the plan is made, since planning messes with the input array
+                fftplan() # execute the plan
+                self.wavefront = N.fft.fftshift(outarr)
+            else:
+                # due to annoying normalization convention in numpy fft, we have to divide by the number of pixels
+                # when doing this fft step:
+                self.wavefront = N.fft.fft2(self.wavefront) / self.wavefront.shape[0]
+                self.wavefront = N.fft.fftshift(self.wavefront)
             #print "Post-FFT total intensity: "+str(self.totalIntensity)
             # update keywords
             self.planetype=IMAGE
@@ -457,10 +533,18 @@ class Wavefront(object):
             FFT_direction= 'BACKWARD'
             # do FFT
             #print "Pre-FFT total intensity: "+str(self.totalIntensity)
+            if __use_fftw3__:
+                inarr = N.empty(shape=self.wavefront.shape, dtype=self.wavefront.dtype)
+                outarr = N.empty(shape=self.wavefront.shape, dtype=self.wavefront.dtype)
+                fftplan = fftw3.Plan(inarr, outarr, nthreads = multiprocessing.cpu_count(),direction='forward')
+                inarr = N.fft.ifftshift(self.wavefront) # must do this AFTER the plan is made, since planning messes with the input array
+                fftplan() # execute the plan
+                self.wavefront = outarr
+            else:
                 # due to annoying normalization convention in numpy fft, we have to divide by the number of pixels
                 # when doing this fft step:
-            self.wavefront = N.fft.ifftshift(self.wavefront) * self.wavefront.shape[0]
-            self.wavefront = N.fft.ifft2(self.wavefront)
+                self.wavefront = N.fft.ifftshift(self.wavefront) * self.wavefront.shape[0]
+                self.wavefront = N.fft.ifft2(self.wavefront)
             #print "Post-FFT total intensity: "+str(self.totalIntensity)
             # update keywords
             self.planetype=PUPIL
@@ -1188,7 +1272,7 @@ class OpticalSystem():
         self.planes.append(optic)
         if self.verbose: print "Added image plane: "+self.planes[-1].name
 
-    def addDetector(self, oversample=None, *args, **kwargs):
+    def addDetector(self, pixelscale, oversample=None, **kwargs):
         """ Add a Detector object to an optical system. 
         By default, use the same oversampling as the rest of the optical system, 
         but the user can override to a different value if desired by setting `oversample`.
@@ -1198,6 +1282,8 @@ class OpticalSystem():
 
         Parameters
         ----------
+        pixelscale : float
+            Pixel scale in arcsec/pixel
         oversample : int, optional
             Oversampling factor for *this detector*, relative to hardware pixel size. 
             Optionally distinct from the default oversampling parameter of the OpticalSystem.
@@ -1206,11 +1292,11 @@ class OpticalSystem():
 
         if oversample is None:
             oversample = self.oversample
-        self.planes.append(Detector(oversample=self.oversample, *args, **kwargs))
+        self.planes.append(Detector(pixelscale, oversample=oversample, **kwargs))
         if self.verbose: print "Added detector: "+self.planes[-1].name
 
 
-        return "Optical system '%s' containing %d optics" % (self.name, len(self.planes))
+        #return "Optical system '%s' containing %d optics" % (self.name, len(self.planes))
 
     def list(self):
         print str(self)+"\n\t"+ "\n\t".join([str(p) for p in self.planes])
@@ -1241,7 +1327,7 @@ class OpticalSystem():
                 diam = self.planes[0].pupil_diam,
                 oversample=self.oversample)
 
-        if abs(self.source_tilt).sum() >= 0:
+        if abs(self.source_tilt).sum() > 0:
             raise NotImplementedError("Need to implement shift of target")
 
         return inwave
@@ -1349,19 +1435,22 @@ class OpticalSystem():
         if self.verbose: print "** Calculating PSF with %d wavelengths, using multiprocessing" % (len(source['wavelengths']))
         outFITS = None
 
-        normwts =  N.asarray(source['weights'])
+        normwts =  N.asarray(source['weights'], dtype=float)
         normwts /= normwts.sum()
 
-        pool = multiprocessing.Pool( len(normwts) ) # create one worker process per wavelength.
+        #pool = multiprocessing.Pool( len(normwts) ) # create one worker process per wavelength.
+        #pool = multiprocessing.Pool( ) # create one worker process per wavelength.
+        pool = multiprocessing.Pool(4 ) # create one worker process per wavelength.
 
         # build a single iterable containing the required function arguments
         print("Beginning multiprocessor job")
-        iterable = [(self, wavelen, weight, kwargs) for wavelen, weight in zip(source['wavelengths'], normwts]
+        iterable = [(self, wavelen, weight, kwargs) for wavelen, weight in zip(source['wavelengths'], normwts)]
         results = pool.map(_wrap_propagate_for_multiprocessing, iterable)
         print("Finished multiprocessor job")
+        pool.close()
 
-        outfits = results[0].copy()
-        outfits[0].data = results[0].data*normwts[0]
+        outFITS = results[0]
+        outFITS[0].data *= normwts[0]
         for i in range(1, len(normwts)):
             outFITS[0].data += results[i][0].data * normwts[i]
 
@@ -1424,7 +1513,7 @@ class OpticalSystem():
         if self.verbose: print "** Calculating PSF with %d wavelengths" % (len(source['wavelengths']))
         outFITS = None
 
-        normwts =  N.asarray(source['weights'])
+        normwts =  N.asarray(source['weights'], dtype=float)
         normwts /= normwts.sum()
 
         for wavelen, weight in zip(source['wavelengths'], normwts):
@@ -1449,6 +1538,11 @@ class OpticalSystem():
         for i in range(waves.size):
             outFITS[0].header.update('WAVE'+str(i), waves[i], "Wavelength "+str(i))
             outFITS[0].header.update('WGHT'+str(i), wts[i], "Wavelength weight "+str(i))
+        if __use_fftw3__:
+            ffttype = "pyFFTW3"
+        else:
+            ffttype = "numpy.fft"
+        outFITS[0].header.update('FFTTYPE',ffttype, 'Algorithm for FFTs: numpy or fftw')
 
         if self.verbose: print "** PSF Calculation completed."
         return outFITS
@@ -1504,5 +1598,55 @@ def test_poppy():
 if __name__ == "__main__":
 
     #test_MFT()
-    test_poppy()
+    osys = OpticalSystem("Perfect JW", oversample=4)
+    osys.addPupil(transmission="/Users/mperrin/software/newJWPSF/data/pupil.fits", name='JW Pupil')
+    osys.addImage(function='fieldstop', name='20 arcsec stop', size=20)
+    osys.addImage(function='FQPM',wavelength=10.65e-6)
+    osys.addPupil(transmission="/Users/mperrin/software/newJWPSF/data/MIRI/coronagraph/MIRI_FQPMLyotStop.fits", name='MIRI FQPM Lyot')
+    osys.addDetector(0.032, name="Detector", fov_npix=128)
+
+
+
+    nlam = 20
+    nlam = 3
+    source = {'wavelengths': N.linspace(10,15,nlam)*1e-6, 'weights': nlam* [1]}
+    #source = {'wavelengths': N.arange(10,11,0.25)*1e-6, 'weights': 4* [1]}
+    mono = {'wavelengths': [source['wavelengths'].mean()], 'weights': [1]}
+
+    import time
+
+    #print "-- mono, regular --"
+    #t1 = time.time()
+    #osys.calcPSF(mono).writeto('test_mono.fits', clobber=True)
+    #print "-- poly, single process --"
+    #t2 = time.time()
+    #osys.calcPSF(source).writeto('test_single.fits', clobber=True)
+    #print "-- poly, multi process --"
+    #t3 = time.time()
+    #osys.calcPSFmulti(source).writeto('test_multi.fits', clobber=True)
+    #t4 = time.time()
+    #print "for %d wavelengths: " % nlam
+    #for t, v in zip(['mono:', 'poly single:', 'poly multi:'], [t2-t1, t3-t2, t4-t3]):
+        #print "  Executed %s in %f seconds." % (t,v)
+
+    #print "poly single relative computation time:\t%f" % ( (t3-t2)/(t2-t1)/nlam )
+    #print "multi/single relative computation time:\t%f" % ( (t4-t3)/(t3-t2) )
+
+
+    print "-- poly, singleprocess, numpy fft--"
+    t2 = time.time()
+    __use_fftw3__ = False
+    osys.calcPSF(source).writeto('test_numpyfft.fits', clobber=True)
+    print "-- poly, single process, fftw3 --"
+    t3 = time.time()
+    __use_fftw3__ = True
+    osys.calcPSF(source).writeto('test_fftw3.fits', clobber=True)
+    t4 = time.time()
+
+
+    print "for %d wavelengths: " % nlam
+    for t, v in zip(['Numpy FFT', 'FFTW3'], [t3-t2, t4-t3]):
+        print "  Executed %s in %f seconds." % (t,v)
+
+
 
