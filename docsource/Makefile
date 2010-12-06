@@ -35,6 +35,16 @@ html:
 	@echo " try this to examine it: "
 	@echo "        open  ../Documentation/html/index.html"
 
+
+htmlstsci:
+	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) ../Documentation/html
+	rsync -av ../Documentation/html/ nemesis.stsci.edu:web/software/newjwpsf/
+	@echo "Software built and copied to STScI"
+	@echo "try :"
+	@echo "   open http://www.stsci.edu/~mperrin/software/newjwpsf/"
+
+
+
 dirhtml:
 	$(SPHINXBUILD) -b dirhtml $(ALLSPHINXOPTS) ../Documentation/dirhtml
 	@echo

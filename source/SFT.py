@@ -69,10 +69,9 @@ def SFT1(pupil, nlamD, npix):
 
     expXU = np.exp(-2.0 * np.pi * 1j * XU)
     expYV = np.exp(-2.0 * np.pi * 1j * YV)
-
     expXU = expXU.T.copy()
-    t1 = np.dot(expXU, pupil)
 
+    t1 = np.dot(expXU, pupil)
     t2 = np.dot(t1, expYV)
 
     #return  nlamD/(npup*npix) *   t2 * dx * dy
@@ -109,29 +108,165 @@ def SFT2(pupil, nlamD, npix):
     dy = 1.0/float(npup)
 
     Xs = (np.arange(npup) - float(npup)/2.0 + 0.5) * dx
-    #print "xs ", xs.shape,
-    #xs.shape = (1,npup)
-    #xs.transpose()
-
     Ys = (np.arange(npup) - float(npup)/2.0 + 0.5) * dy
-    #ys.shape = (1, npup)
-    #ys.transpose()
 
     Us = (np.arange(npix) - float(npix)/2.0 + 0.5) * du
-    #print "ps", ps.shape
-    #ps.shape = (1,npix)
     Vs = (np.arange(npix) - float(npix)/2.0 + 0.5) * dv
-    #qs.shape = (1,npix)
 
     XU = np.outer(Xs, Us)
     YV = np.outer(Ys, Vs)
 
+
     expXU = np.exp(-2.0 * np.pi * 1j * XU)
     expYV = np.exp(-2.0 * np.pi * 1j * YV)
-
     expXU = expXU.T.copy()
-    t1 = np.dot(expXU, pupil)
 
+    t1 = np.dot(expXU, pupil)
+    t2 = np.dot(t1, expYV)
+
+    #return t2 * dx * dy
+    return  float(nlamD)/(npup*npix) *   t2 
+
+
+# ADJUSTIBLE
+def SFT3(pupil, nlamD, npix, offset=(0.0,0.0)):
+    """
+    Compute an adjustible-center matrix fourier transform. 
+
+    For an output array with ODD size n,
+    the PSF center will be at the center of pixel (n-1)/2
+    
+    For an output array with EVEN size n, 
+    the PSF center will be in the corner between pixel (n/2-1,n/2-1) and (n/2,n/2)
+
+    Those coordinates all assume IDL or Python style pixel coordinates running from
+    (0,0) up to (n-1, n-1). 
+
+    Parameters
+    ----------
+    pupil
+        pupil array (n by n)
+    nlamD
+        size of focal plane array, in units of lam/D
+        (corresponds to 'm' in Soummer et al. 2007 4.2)
+    npix
+        number of pixels per side side of focal plane array
+        (corresponds to 'N_B' in Soummer et al. 2007 4.2)
+    offset
+        an offset in pixels relative to the above
+
+    """
+
+
+
+    npup = pupil.shape[0]
+
+    du = nlamD / float(npix)
+    dv = nlamD / float(npix)
+
+    dx = 1.0/float(npup)
+    dy = 1.0/float(npup)
+
+    Xs = (np.arange(npup) - float(npup)/2.0 - offset[1] + 0.5) * dx
+    Ys = (np.arange(npup) - float(npup)/2.0 - offset[0] + 0.5) * dy
+
+    Us = (np.arange(npix) - float(npix)/2.0 - offset[1] + 0.5) * du
+    Vs = (np.arange(npix) - float(npix)/2.0 - offset[0] + 0.5) * dv
+
+    XU = np.outer(Xs, Us)
+    YV = np.outer(Ys, Vs)
+
+
+    expXU = np.exp(-2.0 * np.pi * 1j * XU)
+    expYV = np.exp(-2.0 * np.pi * 1j * YV)
+    expXU = expXU.T.copy()
+
+    t1 = np.dot(expXU, pupil)
+    t2 = np.dot(t1, expYV)
+
+    #return t2 * dx * dy
+    return  float(nlamD)/(npup*npix) *   t2 
+
+
+
+# ROTATABLE 
+def SFT4(pupil, nlamD, npix, offset=(0.0,0.0), angle=0.0):
+    """
+    Compute an adjustible-center, rotatable matrix fourier transform. 
+
+    For an output array with ODD size n,
+    the PSF center will be at the center of pixel (n-1)/2
+    
+    For an output array with EVEN size n, 
+    the PSF center will be in the corner between pixel (n/2-1,n/2-1) and (n/2,n/2)
+
+    Those coordinates all assume IDL or Python style pixel coordinates running from
+    (0,0) up to (n-1, n-1). 
+
+    Parameters
+    ----------
+    pupil
+        pupil array (n by n)
+    nlamD
+        size of focal plane array, in units of lam/D
+        (corresponds to 'm' in Soummer et al. 2007 4.2)
+    npix
+        number of pixels per side side of focal plane array
+        (corresponds to 'N_B' in Soummer et al. 2007 4.2)
+    offset
+        an offset in pixels relative to the above
+
+    """
+
+    rotation = 45.0
+    cosr = np.cos( np.radians(rotation))
+    sinr = np.sin( np.radians(rotation))
+
+
+    npup = pupil.shape[0]
+
+    du = nlamD / float(npix)
+    dv = nlamD / float(npix)
+
+    dx = 1.0/float(npup)
+    dy = 1.0/float(npup)
+
+    # Xs and Ys are, unsurprisingly, the X and Y coordinates for the pupil array.
+    # I think? Though then why does it make it work properly to shift them here like this?
+    # Actually it should make NO difference. A shift in the pupil plane just induces a phase tilt
+    # in the image plane, which we don't care about for PSFs since we just measure total intensity.
+      #Yep, confirmed numerically with some tests. Applying shifts here is unnecessary!
+        #Xs = (np.arange(npup) - float(npup)/2.0 - offset[1] + 0.5) * dx
+        #Ys = (np.arange(npup) - float(npup)/2.0 - offset[0] + 0.5) * dy
+
+    Xs = (np.arange(npup) - float(npup)/2.0 ) * dx
+    Ys = (np.arange(npup) - float(npup)/2.0 ) * dy
+
+
+
+    # OK, a 2D FFT can be computed as a the result of two separate 1D transforms...
+
+
+    # Aaaargh this is not going to work.
+    #
+    Us = (np.arange(npix) - float(npix)/2.0 - offset[1] + 0.5) * du
+    Vs = (np.arange(npix) - float(npix)/2.0 - offset[0] + 0.5) * dv
+    Us.shape = (1,npix)
+    Vs.shape = (npix,1)
+
+    UsR =  cosr*Us + sinr*Vs
+    VsR = -sinr*Us + cosr*Vs
+
+
+    XU = np.outer(Xs, Us)
+    YV = np.outer(Ys, Vs)
+
+
+    expXU = np.exp(-2.0 * np.pi * 1j * XU)
+    expYV = np.exp(-2.0 * np.pi * 1j * YV)
+    expXU = expXU.T.copy()
+
+    t1 = np.dot(expXU, pupil)
     t2 = np.dot(t1, expYV)
 
     #return t2 * dx * dy
@@ -146,10 +281,11 @@ class SlowFourierTransform:
 
     Parameters
     ----------
-    choice
-        Either 'SYMMETRIC' or 'FFTSTYLE'. Sets whether the DFT result is
-        centered at pixel n/2+1 (FFTSTYLE) or on the crosshairs between
-        the central pixels (SYMMETRIC). Default is FFTSTYLE. 
+    choice : string
+        Either 'SYMMETRIC', 'FFTSTYLE', or 'ADJUSTIBLE'. 
+        Sets whether the DFT result is centered at pixel n/2+1 (FFTSTYLE) 
+        or on the crosshairs between the central pixels (SYMMETRIC),
+        or exactly centered in the array no matter what (ADJUSTIBLE). Default is FFTSTYLE. 
 
 
     Example
@@ -169,22 +305,19 @@ class SlowFourierTransform:
 
         self.verbose=verbose
 
-        self.choix = ("FFTSTYLE", "SYMMETRIC")
-        self.correctoffset = {self.choix[0]: 0.5, self.choix[1]: 0.0}
-        if choice not in self.choix:
-            print "Error: choice must be one of ", selff.choix
+        self.choices = ("FFTSTYLE", "SYMMETRIC", "ADJUSTIBLE")
+        self.correctoffset = {self.choices[0]: 0.5, self.choices[1]: 0.0}
+        if choice not in self.choices:
+            raise ValueError("Error: choice must be one of " % self.choices)
         self.choice = choice
 
-        if self.choice == self.choix[0]:
-            if self.verbose:
-                print "Announcement  - This instance of SlowFourierTransform uses SFT1"
-                print "This is a FFTSTYLE sft set-up"
-            self.perform = SFT1
-        if self.choice == self.choix[1]:
-            if self.verbose:
-                print "Announcement  - This instance of SlowFourierTransform uses SFT2"
-                print "This is a SYMMETRIC sft set-up"
-            self.perform = SFT2
+        fns = {'FFTSTYLE':SFT1, "SYMMETRIC":SFT2, "ADJUSTIBLE":SFT3}
+
+        if self.verbose:
+            #print choice
+            #print "Announcement  - This instance of SlowFourierTransform uses SFT2"
+            print "This instance of SFT is a(n) %s  set-up calling %s " % (choice, fns[choice])
+        self.perform = fns[choice]
 
     def offset(self):
             return self.correctoffset[self.choice]
@@ -258,6 +391,54 @@ def test_SFT(choice='FFTSTYLE', outdir='.', outname='SFT1'):
     psf = cpsf.real.copy()
     #SF.SimpleFitsWrite(fn=outdir+os.sep+outname+"psf.fits", data=psf.astype(np.float32), clobber='y')
     pyfits.PrimaryHDU(psf.astype(np.float32)).writeto(outdir+os.sep+outname+"psf.fits", clobber=True)
+
+
+
+def test_SFT_center( npix=100, outdir='.', outname='SFT1'):
+    choice='ADJUSTIBLE'
+    import os
+
+    npupil = 156
+    pctr = int(npupil/2)
+    npix = 1024
+    u = 100    # of lam/D
+    s = (npupil,npupil)
+
+
+    # FFT style
+    sft1 = SlowFourierTransform(choice=choice)
+
+    ctr = (float(npupil)/2.0 + sft1.offset(), float(npupil)/2.0 + sft1.offset())
+    #print ctr
+    pupil = utils.makedisk(s=s, c=ctr, r=float(npupil)/2.0001, t=np.float64, grey=0)
+
+    pupil /= np.sqrt(pupil.sum())
+
+    pyfits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir+os.sep+outname+"pupil.fits", clobber=True)
+
+    a = sft1.perform(pupil, u, npix)
+
+    pre = (abs(pupil)**2).sum() 
+    post = (abs(a)**2).sum() 
+    ratio = post / pre
+    calcr = 1./(u**2 *npix**2)     # multiply post by this to make them equal
+    print "Pre-FFT  total: "+str( pre)
+    print "Post-FFT total: "+str( post )
+    print "Ratio:          "+str( ratio)
+    #print "Calc ratio  :   "+str( calcr)
+    #print "uncorrected:    "+str( ratio/calcr)
+
+
+    complexinfo(a, str="sft1 asf")
+    #print 
+    asf = a.real.copy()
+    #SF.SimpleFitsWrite(fn=outdir+os.sep+outname+"asf.fits", data=asf.astype(np.float32), clobber='y')
+    pyfits.PrimaryHDU(asf.astype(np.float32)).writeto(outdir+os.sep+outname+"asf.fits", clobber=True)
+    cpsf = a * a.conjugate()
+    psf = cpsf.real.copy()
+    #SF.SimpleFitsWrite(fn=outdir+os.sep+outname+"psf.fits", data=psf.astype(np.float32), clobber='y')
+    pyfits.PrimaryHDU(psf.astype(np.float32)).writeto(outdir+os.sep+outname+"psf.fits", clobber=True)
+
 
 
 

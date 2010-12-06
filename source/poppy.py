@@ -380,10 +380,13 @@ class Wavefront(object):
         cmap = matplotlib.cm.jet
         cmap.set_bad('0.3')
 
-
         if what =='best':
-            if self.planetype ==IMAGE: what = 'intensity' # always show intensity for image planes
-            elif phase.sum() == 0: what = 'intensity' # for perfect pupils
+            if self.planetype ==IMAGE: 
+                what = 'intensity' # always show intensity for image planes
+            elif phase.sum() == 0:
+                what = 'intensity' # for perfect pupils
+                cmap = matplotlib.cm.gray
+                cmap.set_bad('0.0')
             else: what='phase' # for aberrated pupils
 
         if what == 'intensity':
@@ -555,12 +558,19 @@ class Wavefront(object):
         det_fov_lamD = det.fov_arcsec / lamD
         det_calc_size_pixels = det.fov_npix * det.oversample
 
-        mfter = SFT.SlowFourierTransform()
+        mft = SFT.SlowFourierTransform(choice='ADJUSTIBLE', verbose=True)
         msg= '    Propagating w/ MFT: %.4f"/pix     fov=%.3f lam/D    npix=%d' % \
             (det.pixelscale/det.oversample, det_fov_lamD, det_calc_size_pixels)
         print(msg)
         self.history.append(msg)
-        self.wavefront = mfter.perform(self.wavefront, det_fov_lamD, det_calc_size_pixels)
+        det_offset = det.det_offset if hasattr(det, 'det_offset') else (0,0)
+
+        # det_offset controls how to shift the PSF.
+        # it gives the coordinates (X, Y) relative to the exact center of the array
+        # for the location of the phase center of a converging perfect spherical wavefront.
+        # This is where a perfect PSF would be centered. Of course any tilts, comas, etc, from the OPD
+        # will probably shift it off elsewhere for an entirely different reason, too.
+        self.wavefront = mft.perform(self.wavefront, det_fov_lamD, det_calc_size_pixels, offset=det_offset)
 
         self.planetype=IMAGE
         self.fov = det.fov_arcsec
@@ -615,6 +625,8 @@ class OpticalElement():
         how much to oversample beyond Nyquist.
     shift : tuple of floats, optional
         2-tuple containing X and Y fractional shifts for the pupil.
+    rotation : float
+        Rotation for that optic
 
 
 
@@ -624,7 +636,7 @@ class OpticalElement():
     #"float attribute. Pixelscale in arcsec or meters per pixel. Will be 'None' for null or analytic optics."
 
 
-    def __init__(self, name="unnamed optic", transmission=None, opd= None, verbose=True, planetype=None, oversample=1,opdunits="meters", shift=None):
+    def __init__(self, name="unnamed optic", transmission=None, opd= None, verbose=True, planetype=None, oversample=1,opdunits="meters", shift=None, rotation=None):
 
         self.name = name
         """ string. Descriptive Name of this optic"""
@@ -699,13 +711,27 @@ class OpticalElement():
                 rollx = int(N.round(self.amplitude.shape[1] * shift[0]))
                 print "Requested optic shift of (%6.3f, %6.3f) %%" % (shift)
                 print "Actual shift applied   = (%6.3f, %6.3f) %%" % (rollx*1.0/self.amplitude.shape[1], rolly *1.0/ self.amplitude.shape[0])
+                self._shift = (rollx*1.0/self.amplitude.shape[1], rolly *1.0/ self.amplitude.shape[0])
 
                 self.amplitude = N.roll(self.amplitude, rolly, axis=0)
                 self.amplitude = N.roll(self.amplitude, rollx, axis=1)
                 self.opd       = N.roll(self.opd,       rolly, axis=0)
                 self.opd       = N.roll(self.opd,       rollx, axis=1)
 
+            # Likewise, if a rotation is specified and we're NOT a null (scalar) optic, then do the rotation:
+            if rotation is not None and len(self.amplitude.shape) ==2:
 
+                # do rotation with interpolation, but try to clean up some of the artifacts afterwards. 
+                # this is imperfect at best, of course...
+
+                self.amplitude = scipy.ndimage.interpolation.rotate(self.amplitude, rotation, reshape=False).clip(min=0,max=1.0)
+                wnoise = N.where(( self.amplitude < 1e-3) & (self.amplitude > 0))
+                self.amplitude[wnoise] = 0
+                self.opd       = scipy.ndimage.interpolation.rotate(self.opd,       rotation, reshape=False)
+                print "Rotated optic by %f degrees counter clockwise." % rotation
+                pyfits.PrimaryHDU(self.amplitude).writeto("test_rotated_amp.fits", clobber=True)
+                pyfits.PrimaryHDU(self.opd).writeto("test_rotated_opt.fits", clobber=True)
+                self._rotation = rotation
 
 
             if self.planetype == PUPIL:
@@ -1062,7 +1088,7 @@ class IdealCircularOcculter(AnalyticOpticalElement):
         """ Compute the transmission inside/outside of the occulter.
         """
         if not isinstance(wave, Wavefront):
-            raise ValueError("IdealCircleOcculter getPhasor must be called with a Wavefront to define the spacing")
+            raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
         assert (wave.planetype == IMAGE)
 
         y, x = N.indices(wave.shape)
@@ -1102,7 +1128,7 @@ class IdealBarOcculter(AnalyticOpticalElement):
         """
         raise NotImplementedError("Need to write this one!")
         if not isinstance(wave, Wavefront):
-            raise ValueError("IdealCircleOcculter getPhasor must be called with a Wavefront to define the spacing")
+            raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
         assert (wave.planetype == IMAGE)
 
         y, x = N.indices(wave.shape)
@@ -1157,6 +1183,42 @@ class CircularAperture(AnalyticOpticalElement):
         self.transmission[w_outside] = 0
 
         return self.transmission
+
+class SquareAperture(AnalyticOpticalElement):
+    """ Defines an ideal square pupil aperture
+
+    Parameters
+    ----------
+    name : string
+        Descriptive name
+    radius : float
+        Radius of the pupil, in meters. Default is 1.0
+
+    """
+
+    def __init__(self, name="unnamed pupil",  size=1.0, **kwargs):
+        AnalyticOpticalElement.__init__(self,name=name,**kwargs)
+        self.size = size    
+
+    def getPhasor(self,wave):
+        """ Compute the transmission inside/outside of the occulter.
+        """
+        if not isinstance(wave, Wavefront):
+            raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
+        assert (wave.planetype == PUPIL)
+
+        y, x = N.indices(wave.shape)
+        y -= wave.shape[0]/2
+        x -= wave.shape[1]/2
+        #r = N.sqrt(x**2+y**2) * wave.pixelscale
+
+        self.transmission = N.ones(wave.shape)
+
+        w_outside = N.where( (abs(y) > self.size/wave.pixelscale) | (abs(x) > self.size/wave.pixelscale) )
+        self.transmission[w_outside] = 0
+
+        return self.transmission
+
 
 class Detector(OpticalElement):
     """ A Detector is a specialized type of OpticalElement that forces a wavefront
@@ -1251,7 +1313,7 @@ class OpticalSystem():
           1) from file(s) giving transmission or OPD
                 [set arguments `transmission=filename` and/or `opd=filename`]
           2) from an analytic function
-                [set `function='Circle'`
+                [set `function='Circle', 'Square'`
                 and set additional kwargs to define shape etc.
           3) from an already-created OpticalElement object
                 [set `optic=that object`]
@@ -1263,7 +1325,7 @@ class OpticalSystem():
         function: string, optional
             Name of some analytic function to add. 
             Optional `kwargs` can be used to set the parameters of that function.
-            Allowable function names are Circle
+            Allowable function names are Circle, Square
         opd, transmission : string, optional
             Filenames of FITS files describing the desired optic.
 
@@ -1277,6 +1339,8 @@ class OpticalSystem():
         if optic is None:
             if function == 'Circle':
                 fn = CircularAperture
+            elif function == 'Square':
+                fn = SquareAperture
             else: # create image from files specified in kwargs
                 fn = OpticalElement
 
@@ -1745,19 +1809,35 @@ def test_fftw3():
 if __name__ == "__main__":
     import pylab as P
 
-    osys = OpticalSystem("Circle JW", oversample=4)
-    osys.addPupil(function='Circle', name = "6.5m circle", radius=6.5/2)
-    osys.addImage()
-    #osys.addDetector(0.032, name="Detector", fov_npix=128)
 
-    _USE_FFTW3 = True
-    _USE_FFTW3 = False
-    _TIMETESTS= True
 
-    res = osys.propagate_mono(2e-6,display_intermediates=False)
+    if 0:
+        for npix in (111,112):
+        #for offset in [ (0,0)]:
+            for offset in [ (0,0), (0,0.5), (1,0), (1,1.5)]:
 
-    #P.clf()
-    #P.imshow(res[0].data) 
-    #res.writeto('test.fits', clobber=True)
+                osys = OpticalSystem("Circle JW", oversample=1)
+                #osys.addPupil(function='Square', name = "6.5m square", size=6.5)
+                osys.addPupil(function='Circle', name = "6.5m circle", radius=6.5/2)
+                #osys.addImage()
+                #osys.addDetector(0.032, name="Detector", fov_npix=128)
+                osys.addDetector(0.032/2, name="Detector", fov_npix=npix)
+
+                osys.planes[-1].det_offset = offset
+
+                #_USE_FFTW3 = True
+                #_USE_FFTW3 = False
+                #_TIMETESTS= True
+
+                #res = osys.propagate_mono(2e-6,display_intermediates=False)
+
+                src = {'wavelengths': [2e-6], 'weights': [1.0]}
+                res = osys.calcPSF(src, display=True)
+
+
+                #P.clf()
+                #P.imshow(res[0].data) 
+                res.writeto('test_ci_np%d_off%s.fits' %(npix, offset), clobber=True)
+
 
 

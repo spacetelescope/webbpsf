@@ -118,6 +118,7 @@ class JWInstrument(object):
         self._filter_files = [self._datapath+os.sep+'filters/'+f+"_thru.fits" for f in self.filter_list]
 
         self.filter = self.filter_list[0]
+        self._rotation = None
 
 
         #self.opd_list = [os.path.basename(os.path.abspath(f)) for f in glob.glob(self._datapath+os.sep+'OPD/*.fits')]
@@ -343,7 +344,7 @@ class JWInstrument(object):
 
         print calc_oversample, detector_oversample
         optsys = OpticalSystem(name='JWST+'+self.name, oversample=calc_oversample)
-        optsys.addPupil(name='JWST Pupil', transmission= self.pupil, opd=self.pupilopd, opdunits='micron')
+        optsys.addPupil(name='JWST Pupil', transmission= self.pupil, opd=self.pupilopd, opdunits='micron', rotation=self._rotation)
 
         if self.image_mask is not None:
             optsys = self.addCoronagraphOptics(optsys)
@@ -383,6 +384,7 @@ class MIRI(JWInstrument):
     def __init__(self):
         JWInstrument.__init__(self, "MIRI")
         self.pixelscale = 0.11
+        self._rotation = 5
 
         self.pupilopd = None
         self.image_mask_list = ['FQPM1065', 'FQPM1140', 'FQPM1550', 'LYOT2300']
@@ -515,6 +517,9 @@ class NIRSpec(JWInstrument):
     def __init__(self):
         JWInstrument.__init__(self, "NIRSpec")
         self.pixelscale = 0.0317 # for NIRCAM short-wavelen channels
+        self._rotation = None
+        self._rotation = 45.0
+        self.filter = 'F140W'
 
     def _validate_config(self):
         if (not self.image_mask is None) or (not self.pupil_mask is None):
@@ -843,8 +848,9 @@ if __name__ == "__main__":
 
     miri=MIRI()
     miri.filter='F1065C'
-    miri.image_mask = 'FQPM1065'
-    miri.pupil_mask = 'MASKFQPM'
+    miri.filter='F1000W'
+    #miri.image_mask = 'FQPM1065'
+    #miri.pupil_mask = 'MASKFQPM'
     #nircam=NIRCam()
     tfi = TFI()
     nirspec = NIRSpec()
@@ -856,4 +862,4 @@ if __name__ == "__main__":
 
     tfi.image_mask = 'CORON075'
     tfi.pupil_mask = 'MASKC21N'
-    tfi.calcPSF(nlambda=1)
+    #tfi.calcPSF(nlambda=1)
