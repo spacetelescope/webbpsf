@@ -7,10 +7,14 @@ Add real use of stellar spectral type
 debug circular occulter masks
 
 
+
 Add detector QE and germanium filter features. 
 
 Overall:
- ** debug broad band calculations ??
+ ** improve oversampled calculations 
+	Pay attention to source centration very carefully, particularly when changing oversampling factor.
+	Should arrange so that pixels directly map one to the other...
+
 
  ** better rasterization of pupils - perhaps use GTKAgg or one of the other Agg ones, in a special ipython session, and then dump the output to png
 
@@ -22,7 +26,7 @@ poppy:
  - add interpolation for size-mismatched pupil files using 'ndimage.interpolate.zoom' and then round back to integer pixels.
 
 popjw: 
- - offset sources for coronagraphy. Lyot mask offsets. 
+ - offset sources for coronagraphy. 
 
 
 GUI:

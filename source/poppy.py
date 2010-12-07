@@ -292,7 +292,7 @@ class Wavefront(object):
         outFITS[0].header.update('WAVELEN', self.wavelength, 'Wavelength in meters')
         outFITS[0].header.update('DIFFLMT', self.wavelength/self.diam*206265., 'Diffraction limit lambda/D in arcsec')
         outFITS[0].header.update('OVERSAMP', self.oversample, 'Oversampling factor for FFTs in computation')
-        outFITS[0].header.update('OUT_SAMP', self.oversample, 'Oversampling factor for MFT to output file')
+        outFITS[0].header.update('DET_SAMP', self.oversample, 'Oversampling factor for MFT to detector plane')
         if self.planetype ==IMAGE:
             outFITS[0].header.update('PIXELSCL', self.pixelscale, 'Pixel scale in arcsec/pixel')
             outFITS[0].header.update('FOV', self.fov, 'Field of view in arcsec (full array)')
@@ -674,15 +674,13 @@ class OpticalElement():
                 if isinstance(opd, basestring):
                     self.opd_file = opd
                     self.opd_slice = 0
-                    datacube = False
                 else:
                     self.opd_file = opd[0]
                     self.opd_slice = opd[1]
-                    datacube = True
 
                 self.opd, self.opd_header = pyfits.getdata(self.opd_file, header=True)
 
-                if datacube:
+                if len(self.opd.shape) ==3: # we were given a datacube, so grab just one slice.
                     self.opd = self.opd[self.opd_slice, :,:]
 
                 if len (self.opd.shape) != 2 or self.opd.shape[0] != self.opd.shape[1]:
@@ -1687,6 +1685,7 @@ class OpticalSystem():
             p.imshow(outFITS[0].data, extent=extent, norm=norm, cmap=cmap)
 
 
+        # TODO update FITS header for oversampling here if detector is different from regular? 
         waves = N.asarray(source['wavelengths'])
         wts = N.asarray(source['weights'])
         mnwave = (waves*wts).sum() / wts.sum()

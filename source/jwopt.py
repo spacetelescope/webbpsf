@@ -19,7 +19,7 @@ Classes:
 
 
 
-    Code by Marshall Perrin <mperrin@stsci.edu>
+Code by Marshall Perrin <mperrin@stsci.edu>
 
 """
 
@@ -32,6 +32,8 @@ import atpy
 import types
 import utils
 import time
+from matplotlib.colors import LogNorm  # for log scaling of images, with automatic colorbar support
+import pylab as P
 
 
 try:
@@ -45,29 +47,21 @@ except:
 
 class JWInstrument(object):
     """ A generic JWST Instrument class.
-    
-    *Note*: Do not use this class directly - instead use one of the instrument subclasses!
-    
+
+    *Note*: Do not use this class directly - instead use one of the :ref:`specific_instrument` subclasses!
+
     This class provides a simple interface for modeling PSF formation through the JWST instruments, 
     with configuration options and software interface loosely resembling the configuration of the instrument 
-    mechanisms.   For instance, one can create an instance of MIRI and configure it for coronagraphic observations, 
-    and then compute a PSF:
-
-    >>> miri = MIRI()
-    >>> miri.filter = 'F1065C'
-    >>> miri.image_mask = 'FQPM1065'
-    >>> miri.pupil_mask = 'MASKFQPM'
-    >>> miri.calcPSF('outfile.fits')
-
-    Note that the interface currently only provides a modicum of error checking, and relies on the user
+    mechanisms.   
+    
+    This module currently only provides a modicum of error checking, and relies on the user
     being knowledgable enough to avoid trying to simulate some physically impossible or just plain silly
     configuration (such as trying to use a FQPM with the wrong filter).
 
-
     The instrument constructors do not take any arguments. Instead, create an instrument object and then
-    configure the filter or other attributes as desired. 
-
-
+    configure the `filter` or other attributes as desired. The most commonly accessed parameters are 
+    available as object attributes: `filter`, `image_mask`, `pupil_mask`, `pupilopd`. More advanced
+    configuration can be done by editing the :ref:`JWInstrument.options` dictionary, either by passing options to __init__ or by directly editing the dict afterwards.
     """
 
     def __init__(self, name=None):
@@ -76,10 +70,16 @@ class JWInstrument(object):
         self._JWPSF_basepath = os.path.dirname(os.path.dirname(os.path.abspath(poppy.__file__))) +os.sep+"data"
 
         self._datapath = self._JWPSF_basepath + os.sep + self.name + os.sep
+        self._filter = None
+        self._image_mask = None
+        self._pupil_mask = None
         self.pupil = os.path.abspath(self._datapath+"../pupil_RevV.fits")
         "Filename for JWST pupil mask. Usually there is no need to change this."
         self.pupilopd = None   # This can optionally be set to a tuple indicating (filename, slice in datacube)
-        "Filename for JWST pupil OPD. If the file contains a datacube, set this to a tuple (filename, slice) "
+        """Filename for JWST pupil OPD. This can be either a full absolute filename, or a relative name in which case it is
+        assumed to be within the instrument's `data/OPDs/` directory.
+        If the file contains a datacube, you may set this to a tuple (filename, slice) to select a given slice, or else
+        the first slice will be used."""
 
         self.options = {} # dict for storing other arbitrary options. 
         """ A dictionary capable of storing other arbitrary options, for extensibility. The following are all optional, and
@@ -95,11 +95,15 @@ class JWInstrument(object):
             Relative shift of a coronagraphic pupil in X and Y, expressed as a decimal between 0.0-1.0
             Note that shifting an array too much will wrap around to the other side unphysically, but
             for reasonable values of shift this is a non-issue.
-        downsample : bool
+        rebin: bool
             For output files, write an additional FITS extension including a version of the output array 
             rebinned down to the actual detector pixel scale?
         jitter : string
             Type of jitter model to apply.
+        force_parity : string "even" or "odd"
+            You may wish to ensure that the output PSF grid has either an odd or even number of pixels.
+            Setting this option will force that to be the case by increasing npix by one if necessary.
+
         """
 
         #create private instance variables. These will be
@@ -123,8 +127,9 @@ class JWInstrument(object):
 
         #self.opd_list = [os.path.basename(os.path.abspath(f)) for f in glob.glob(self._datapath+os.sep+'OPD/*.fits')]
         self.opd_list = [os.path.basename(os.path.abspath(f)) for f in glob.glob(self._datapath+os.sep+'OPD/OPD*.fits')]
+        self.pupilopd = self.opd_list[len(self.opd_list)/2]
         #self.opd_list.insert(0,"Zero OPD (Perfect)")
-        
+
         self._image_mask=None
         self.image_mask_list=[]
         "List of available image_masks"
@@ -149,7 +154,7 @@ class JWInstrument(object):
         if value not in self.filter_list:
             raise ValueError("Instrument %s doesn't have a filter called %s." % (self.name, value))
         self._filter = value
-        #self._validate_config()
+        self._validate_config()
     @property
     def image_mask(self):
         'Currently selected coronagraphic image plane mask, or None for direct imaging'
@@ -179,13 +184,14 @@ class JWInstrument(object):
         return "JWInstrument name="+self.name
 
     #----- actual optical calculations follow here -----
-    def calcPSF(self, filter=None, outfile=None, oversample=None, detector_oversample=None, calc_oversample=None, fov_arcsec=5., display=True, clobber=True, nlambda=5 ):
+    def calcPSF(self, outfile=None, filter=None,  nlambda=None,  fov_arcsec=5., fov_pixels=None,  clobber=True, oversample=None, detector_oversample=None, calc_oversample=None, rebin=False, display=False ):
         """ Compute a PSF.
         The result can either be written to disk (set outfile="filename") or else will be returned as
         a pyfits HDUlist object.
 
 
         Output sampling may be specified in one of two ways: 
+
         1) Set `oversample=<number>`. This will use that oversampling factor beyond detector pixels
            for output images, and beyond Nyquist sampling for any FFTs to prior optical planes. 
         2) set `detector_oversample=<number>` and `calc_oversample=<other_number>`. This syntax lets
@@ -193,34 +199,56 @@ class JWInstrument(object):
 
         By default, both oversampling factors are set equal to 2.
 
+        Note
+        ----
+        More advanced PSF computation options (pupil shifts, source positions, jitter, ...)
+        may be set by configuring the `.options` dictionary attribute of this class.
+
         Parameters
         ----------
-        outfile : string
-            Filename to write. If None, then result is returned as an HDUList
-        oversample : int
-            How much to oversample. Default=2.
-        fov_arcsec: float
-            field of view in arcsec. Default=5
-        clobber: bool
-            overwrite output FITS file if it already exists?
-        nlambda : int
-            How many wavelengths to model for broadband? Default=5
-        display : bool
-            Whether to display the PSF when done or not.
         filter : string, optional
             Filter name. Setting this is just a shortcut for setting the object's filter first, then
             calling calcPSF afterwards.
+        nlambda : int
+            How many wavelengths to model for broadband? 
+            The default depends on how wide the filter is: (5,3,1) for types (W,M,N) respectively
+        fov_arcsec : float
+            field of view in arcsec. Default=5
+        fov_pixels : int
+            field of view in pixels. This is an alternative to fov_arcsec.
+        outfile : string
+            Filename to write. If None, then result is returned as an HDUList
+        oversample, detector_oversample, calc_oversample : int
+            How much to oversample. Default=2. By default the same factor is used for final output 
+            pixels and intermediate optical planes, but you may optionally use different factors 
+            if so desired.
+        rebin: bool, optional
+            If set, the output file will contain a FITS image extension containing the PSF rebinned
+            onto the actual detector pixel scale. Thus, setting oversample=<N> and rebin=True is
+            the proper way to obtain high-fidelity PSFs computed on the detector scale. 
+
+        clobber : bool
+            overwrite output FITS file if it already exists?
+        display : bool
+            Whether to display the PSF when done or not.
 
         Returns
         -------
         outfits : pyfits.HDUList
-            If `outfile` is set, the output is written to that file. Otherwise it is
-            returned as a pyfits.HDUList object.
+            The output PSF is returned as a pyfits.HDUlist object.
+            If `outfile` is set to a valid filename, the output is also written to that file.
 
 
         """
         if filter is not None:
             self.filter = filter
+        if nlambda is None:
+            filt_width = self.filter[4]
+            try:
+                nlambda = {'W':5,'M':3,'N':1}[filt_width]
+            except:
+                nlambda=1
+                print "unrecognized filter %s. setting default nlambda=%d" % (self.filter, nlambda)
 
 
         #if outfile is None: 
@@ -254,16 +282,17 @@ class JWInstrument(object):
         lambd = N.linspace(N.min(lrange), N.max(lrange), nlambda)
         weights = N.ones(nlambda)
         source = {'wavelengths': lambd, 'weights': weights}
-        result = self.optsys.calcPSF(source, display_intermediates=True, save_intermediates=False, display=display)
+        result = self.optsys.calcPSF(source, display_intermediates=display, save_intermediates=False, display=display)
 
-        f = p.gcf()
-        #p.text( 0.1, 0.95, "%s, filter= %s" % (self.name, self.filter), transform=f.transFigure, size='xx-large')
-        p.suptitle( "%s, filter= %s" % (self.name, self.filter), size='xx-large')
-        p.text( 0.7, 0.95, "Calculation with %d wavelengths (%g - %g um)" % (nlambda, lambd[0]*1e6, lambd[-1]*1e6), transform=f.transFigure)
+        if display:
+            f = p.gcf()
+            #p.text( 0.1, 0.95, "%s, filter= %s" % (self.name, self.filter), transform=f.transFigure, size='xx-large')
+            p.suptitle( "%s, filter= %s" % (self.name, self.filter), size='xx-large')
+            p.text( 0.7, 0.95, "Calculation with %d wavelengths (%g - %g um)" % (nlambda, lambd[0]*1e6, lambd[-1]*1e6), transform=f.transFigure)
 
 
 
-        # TODO update FITS header here
+        # update FITS header
         result[0].header.update('PUPIL', os.path.basename(self.pupil))
         if self.pupilopd is None:
             result[0].header.update('PUPILOPD', "NONE - perfect telescope! ")
@@ -281,6 +310,8 @@ class JWInstrument(object):
             result[0].header.update('LYOTMASK', self.pupil_mask)
         result[0].header.update('EXTNAME', 'OVERSAMP')
         result[0].header.add_history('Created by JWPSF v4 ')
+        result[0].header.update('OVERSAMP', calc_oversample, 'Oversampling factor for FFTs in computation')
+        result[0].header.update('DET_SAMP', detector_oversample, 'Oversampling factor for MFT to detector plane')
 
         (year, month, day, hour, minute, second, weekday, DOY, DST) =  time.gmtime()
         result[0].header.update ("DATE", "%4d-%02d-%02dT%02d:%02d:%02d" % (year, month, day, hour, minute, second), "Date of calculation")
@@ -288,15 +319,16 @@ class JWInstrument(object):
 
 
         # Should we downsample? 
-        if 'downsample' in self.options.keys() and self.options['downsample'] == True:
+        #if 'downsample' in self.options.keys() and self.options['downsample'] == True:
+        if rebin:
             print "** Downsampling to detector pixel scale."
-            downsampled_result = result[0].copy()
-            downsampled_result.data = utils.rebin(downsampled_result.data, rc=(detector_oversample, detector_oversample))
-            downsampled_result.header.update('OVERSAMP', 1, 'These data are rebinned to detector pixels')
-            downsampled_result.header.update('CALCSAMP', detector_oversample, 'This much oversampling used in calculation')
-            downsampled_result.header.update('EXTNAME', 'DET_SAMP')
-            downsampled_result.header['PIXELSCL'] *= detector_oversample
-            result.append(downsampled_result)
+            rebinned_result = result[0].copy()
+            rebinned_result.data = utils.rebin(rebinned_result.data, rc=(detector_oversample, detector_oversample))
+            rebinned_result.header.update('OVERSAMP', 1, 'These data are rebinned to detector pixels')
+            rebinned_result.header.update('CALCSAMP', detector_oversample, 'This much oversampling used in calculation')
+            rebinned_result.header.update('EXTNAME', 'DET_SAMP')
+            rebinned_result.header['PIXELSCL'] *= detector_oversample
+            result.append(rebinned_result)
 
 
 
@@ -306,12 +338,11 @@ class JWInstrument(object):
                            comment="Name of this file")
             result.writeto(outfile, clobber=clobber)
             print "Saved result to "+outfile
-        else:
-            return result
+        return result
 
 
 
-    def getOpticalSystem(self,calc_oversample=2, detector_oversample = None, fov_arcsec=2):
+    def getOpticalSystem(self,calc_oversample=2, detector_oversample = None, fov_arcsec=2, fov_pixels=None):
         """ Return an OpticalSystem instance corresponding to the instrument as currently configured.
 
         When creating such an OpticalSystem, you must specify the parameters needed to define the 
@@ -344,12 +375,25 @@ class JWInstrument(object):
 
         print calc_oversample, detector_oversample
         optsys = OpticalSystem(name='JWST+'+self.name, oversample=calc_oversample)
-        optsys.addPupil(name='JWST Pupil', transmission= self.pupil, opd=self.pupilopd, opdunits='micron', rotation=self._rotation)
+
+
+        if isinstance(self.pupilopd, str):
+            full_opd_path = self.pupilopd if os.path.exists( self.pupilopd) else os.path.join(self._datapath, "OPD",self.pupilopd)
+        else:
+            full_opd_path =  (self.pupilopd[0] if os.path.exists( self.pupilopd[0]) else os.path.join(self._datapath, "OPD",self.pupilopd[0]), self.pupilopd[1])
+
+        full_pupil_path = self.pupil if os.path.exists( self.pupil) else os.path.join(self._datapath, "OPD",self.pupil)
+        optsys.addPupil(name='JWST Pupil', transmission=full_pupil_path, opd=full_opd_path, opdunits='micron', rotation=self._rotation)
 
         if self.image_mask is not None:
             optsys = self.addCoronagraphOptics(optsys)
 
-        optsys.addDetector(self.pixelscale, fov_npix = fov_arcsec/self.pixelscale, oversample = detector_oversample, name=self.name+" detector")
+        fov_pixels = N.round(fov_arcsec/self.pixelscale)
+        if 'force_parity' in self.options.keys():
+            if self.options['force_parity'] == 'odd'  and remainder(fov_pixels,2)==0: fov_pixels +=1
+            if self.options['force_parity'] == 'even' and remainder(fov_pixels,2)==1: fov_pixels +=1
+
+        optsys.addDetector(self.pixelscale, fov_npix = fov_pixels, oversample = detector_oversample, name=self.name+" detector")
         return optsys
 
 
@@ -378,17 +422,35 @@ class JWInstrument(object):
         t.WAVELENGTH /= 1e4 # convert from angstroms to microns
         return t
 
+###########
 
 class MIRI(JWInstrument):
-    """ A class modeling the optics of MIRI, the Mid-InfraRed Instrument"""
+    """ A class modeling the optics of MIRI, the Mid-InfraRed Instrument.
+    
+    Relevant attributes include `filter`, `image_mask`, and `pupil_mask`.
+
+
+    In addition to the actual filters, you may select 'MRS-IFU Ch1' to
+    indicate use of the MIRI IFU in Channel 1, and so forth. In this case, the `ifu_wavelength` attribute controls the simulated wavelength.
+    Note that the pixel scale varies with channel, which is why they are implemented separately. 
+    **Note: IFU to be implemented later**
+
+    
+    """
     def __init__(self):
         JWInstrument.__init__(self, "MIRI")
         self.pixelscale = 0.11
         self._rotation = 5
 
-        self.pupilopd = None
         self.image_mask_list = ['FQPM1065', 'FQPM1140', 'FQPM1550', 'LYOT2300']
         self.pupil_mask_list = ['MASKFQPM', 'MASKLYOT']
+
+        for i in range(4):
+            self.filter_list.append('MRS-IFU Ch%d'% (i+1) )
+        self.ifu_wavelength= 8.0
+        self._IFU_pixelscale = {'Ch1':(0.18, 0.19), 'Ch2':(0.28, 0.19), 'Ch3': (0.39, 0.24), 'Ch4': (0.64, 0.27) }
+            # The above tuples give the pixel resolution (perpendicular to the slice, along the slice). 
+            # The pixels are not square.
 
         self.apertures =  [ {'name': 'Imager', 'size': (768,1024), 'avail_filt': [f for f in self.filter_list if 'C' in f]},
                 {'name': 'Cor-1065', 'size': (256,256), 'avail_filt': ['F1065C']},
@@ -399,6 +461,8 @@ class MIRI(JWInstrument):
 
 
     def _validate_config(self):
+        if self.filter.startswith("MRS-IFU"): raise NotImplementedError("The MIRI MRS is not yet implemented.")
+
         if self.image_mask is not None or self.pupil_mask is not None:
             if self.filter == 'F1065C':
                 assert self.image_mask == 'FQPM1065', 'Invalid configuration'
@@ -458,14 +522,25 @@ class MIRI(JWInstrument):
         return optsys
 
 
-
 class NIRCam(JWInstrument):
-    """ A class modeling the optics of NIRCam"""
-    def __init__(self):
-        JWInstrument.__init__(self, "NIRCam")
-        self.pixelscale = 0.0317 # for short-wavelen channels
+    """ A class modeling the optics of NIRCam. 
+    
+    Relevant attributes include `filter`, `image_mask`, and `pupil_mask`.
 
-        self.image_mask_list = ['BLC2100','BLC3350','BLC4300','WEDGESW','WEDGELW']
+    The NIRCam class is smart enough to select the appropriate pixel scale automatically depending on whether
+    you request a short or long wavelength filter.
+ 
+    """
+    def __init__(self):
+        self.pixelscale = 0.0317 # for short-wavelen channels
+        self._pixelscale_short = 0.0317 # for short-wavelen channels
+        self._pixelscale_long = 0.0648 # for short-wavelen channels
+        JWInstrument.__init__(self, "NIRCam") # do this after setting the long & short scales.
+        self.pixelscale = 0.0317 # need to redo 'cause the __init__ call will reset it to zero.
+
+        #self.image_mask_list = ['BLC2100','BLC3350','BLC4300','WEDGESW','WEDGELW']
+        self.image_mask_list = ['MASKLWB','MASKSWB','MASK210R','MASK335R','MASK210R']
+
         self.pupil_mask_list = ['CIRCLYOT','WEDGELYOT']
 
         self.filter = 'F200W' # default
@@ -480,21 +555,27 @@ class NIRCam(JWInstrument):
 
 
     def _validate_config(self):
-        pass
+        """For NIRCam, this checks whenever you change a filter and updates the pixelscale appropriately"""
+        filtwave = float(self.filter[1:4])/100
+        newscale = self._pixelscale_short if filtwave < 2.4 else self._pixelscale_long
+        if newscale != self.pixelscale:
+            self.pixelscale = newscale
+            print "NIRCam pixel scale updated to %f arcsec/pixel to match channel for the selected filter." % self.pixelscale
+
 
     def addCoronagraphOptics(self,optsys):
         """Add coronagraphic optics for NIRCam
         """
 
-        if self.image_mask is 'BLC2100':
+        if self.image_mask is 'MASK210R':
             optsys.addImage(function='BandLimitedCoron', kind='circular', sigma=1, name=self.image_mask)
-        if self.image_mask is 'BLC3350':
+        if self.image_mask is 'MASK335R':
             optsys.addImage(function='BandLimitedCoron', kind='circular', sigma=1, name=self.image_mask)
-        if self.image_mask is 'BLC4300':
+        if self.image_mask is 'MASK430R':
             optsys.addImage(function='BandLimitedCoron', kind='circular', sigma=1, name=self.image_mask)
-        elif self.image_mask is 'WEDGESW':
+        elif self.image_mask is 'MASKSWB':
             optsys.addImage(function='BandLimitedCoron', kind='linear', sigma=1, name=self.image_mask)
-        elif self.image_mask is 'WEDGELW':
+        elif self.image_mask is 'MASKLWB':
             optsys.addImage(function='BandLimitedCoron', kind='linear', sigma=1, name=self.image_mask)
 
         # add pupil plane mask
@@ -513,12 +594,24 @@ class NIRCam(JWInstrument):
 
 
 class NIRSpec(JWInstrument):
-    """ A class modeling the optics of NIRSpec"""
+    """ A class modeling the optics of NIRSpec, in **imaging** mode. 
+
+    This is not a substitute for a spectrograph model, but rather a way of simulating a PSF as it
+    would appear with NIRSpec in imaging mode.
+    
+    Relevant attributes include `filter`. In addition to the actual filters, you may select 'IFU' to
+    indicate use of the NIRSpec IFU, in which case the `ifu_wavelength` attribute controls the simulated wavelength.
+    **Note: IFU to be implemented later**
+
+   """
     def __init__(self):
         JWInstrument.__init__(self, "NIRSpec")
         self.pixelscale = 0.0317 # for NIRCAM short-wavelen channels
         self._rotation = None
         self._rotation = 45.0
+        self.filter_list.append("IFU")
+        self._IFU_pixelscale = 0.1 # check this!
+        self.ifu_wavelength= 3.0
         self.filter = 'F140W'
 
     def _validate_config(self):
@@ -530,14 +623,24 @@ class NIRSpec(JWInstrument):
         raise NotImplementedError("No Coronagraph in NIRSpec!")
 
 
+    def _validate_config(self):
+        if self.filter.startswith("IFU"): raise NotImplementedError("The NIRSpec IFU is not yet implemented.")
+
+
 class TFI(JWInstrument):
-    """ A class modeling the optics of the Tunable Filter Imager """
+    """ A class modeling the optics of the Tunable Filter Imager
+    
+    Relevant attributes include `filter`, `image_mask`, and `pupil_mask`.
+
+    Right now there are a bunch of pretend filters with different wavelengths. Actual modeling of the tunable filter TBD later.
+    """
     def __init__(self):
         JWInstrument.__init__(self, "TFI")
         self.pixelscale = 0.064 # for TFI
 
         self.image_mask_list = ['CORON058', 'CORON075','CORON150','CORON200']
         self.pupil_mask_list = ['MASKC21N','MASKC66N','MASKC71N','MASK_NRM','CLEAR']
+        self.ifu_wavelength = 2.0 
 
     def _validate_config(self):
         pass
@@ -574,7 +677,10 @@ class TFI(JWInstrument):
 
 
 class FGS(JWInstrument):
-    """ A class modeling the optics of the FGS """
+    """ A class modeling the optics of the FGS.
+    
+    Not a lot to see here, folks: There are no selectable options, just a great big detector-wide bandpass.
+    """
     def __init__(self):
         JWInstrument.__init__(self, "FGS")
         self.pixelscale = 0.069 # for FGS
@@ -612,7 +718,51 @@ def Instrument(name):
     else: raise ValueError("Incorrect instrument name "+name)
 
 
+#########################3
+def display_PSF(arg, HDUlist=None, filename=None, ext=0, vmin=1e-8,vmax=1e-1, title=None, imagecrop=5.0, adjust_for_oversample=False):
+    """Display nicely a PSF from a HDUlist or filename 
+    
+    
+    Parameters
+    ----------
+    filename : string
+    HDUlist : pyfits.HDUlist
+    ext : int
+        FITS extension. default = 0
+    vmin, vmax : float
+        for the log scaling
+    title : string, optional
+    imagecrop : float
+        size of region to display
+    adjust_for_oversample : bool
+        rescale to conserve surface brightness for oversampled PSFs? 
+        (making this True conserves surface brightness but not total flux)
+        default is False, to conserve total flux.
+    """
+    if isinstance(arg, str) and filename is None: filename=arg
+    if filename is not None:
+        HDUlist = pyfits.open(filename)
+    norm=LogNorm(vmin=vmin, vmax=vmax)
+    cmap = matplotlib.cm.jet
+    halffov = HDUlist[ext].header['PIXELSCL']*HDUlist[ext].data.shape[0]/2
+    unit="arcsec"
+    extent = [-halffov, halffov, -halffov, halffov]
 
+    if adjust_for_oversample:
+        scalefactor = HDUlist[ext].header['OVERSAMP']**2
+        im = HDUlist[ext].data *scalefactor
+    else: im = HDUlist[ext].data
+
+    P.imshow( im   ,extent=extent,cmap=cmap, norm=norm)
+    imsize = min( (imagecrop/2, halffov))
+    ax = P.gca()
+    ax.set_xbound(-imsize, imsize)
+    ax.set_ybound(-imsize, imsize)
+
+    if title is not None:
+        P.title(title)
+
+ 
 
 #########################3
 
@@ -851,7 +1001,7 @@ if __name__ == "__main__":
     miri.filter='F1000W'
     #miri.image_mask = 'FQPM1065'
     #miri.pupil_mask = 'MASKFQPM'
-    #nircam=NIRCam()
+    nircam=NIRCam()
     tfi = TFI()
     nirspec = NIRSpec()
 
@@ -860,6 +1010,7 @@ if __name__ == "__main__":
         miri.calcPSF(nlambda=1)
 
 
-    tfi.image_mask = 'CORON075'
-    tfi.pupil_mask = 'MASKC21N'
-    #tfi.calcPSF(nlambda=1)
+    if 0: 
+        tfi.image_mask = 'CORON075'
+        tfi.pupil_mask = 'MASKC21N'
+        tfi.calcPSF(nlambda=1)

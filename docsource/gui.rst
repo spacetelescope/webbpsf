@@ -11,5 +11,10 @@ Graphical User Interface
 .. autoclass:: newgui.JWPSF_GUI
    :members:
 
+
+
+--------------
+
 Documentation last updated on |today|
+
 

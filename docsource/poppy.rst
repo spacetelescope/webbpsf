@@ -76,6 +76,7 @@ Optical Elements
 .. autoclass:: poppy.Detector
    :show-inheritance:
 
+--------------
 
 Documentation last updated on |today|
 

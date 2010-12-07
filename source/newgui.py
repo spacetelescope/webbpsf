@@ -108,6 +108,18 @@ class JWPSF_GUI(object):
             ttk.Label(page, text='    Filter: ' ).grid(row=1, column=0)
             self.widgets[iname+"_filter"].grid(row=1, column=1)
 
+
+            if hasattr(self.instrument[iname], 'ifu_wavelength'):
+                fr2 = ttk.Frame(page)
+                label = 'IFU' if iname !='TFI' else 'TFI'
+                ttk.Label(fr2, text='   %s wavelen: '%label , state='disabled').grid(row=0, column=0)
+                self.widgets[iname+"_ifu_wavelen"] = ttk.Entry(fr2, width=5) #, disabledforeground="#A0A0A0")
+                self.widgets[iname+"_ifu_wavelen"].insert(0, str(self.instrument[iname].ifu_wavelength))
+                self.widgets[iname+"_ifu_wavelen"].grid(row=0, column=1)
+                self.widgets[iname+"_ifu_wavelen"].state(['disabled'])
+                ttk.Label(fr2, text=' um' , state='disabled').grid(row=0, column=2)
+                fr2.grid(row=1,column=2, columnspan=6, sticky='E')
+
             if len(self.instrument[iname].image_mask_list) >0 :
                 self.vars[iname+"_coron"] = tk.StringVar()
                 self.widgets[iname+"_coron"] = ttk.Combobox(page,textvariable =self.vars[iname+"_coron"], width=10, state='readonly')
@@ -167,7 +179,11 @@ class JWPSF_GUI(object):
             opd_list =  self.instrument[iname].opd_list
             opd_list.insert(0,"Zero OPD (perfect)")
             self.widgets[iname+"_opd"]['values'] = opd_list
-            self.widgets[iname+"_opd"].set(self.widgets[iname+"_opd"]['values'][0])
+            #print iname
+            #print self.widgets[iname+"_opd"]['values'][0]
+            #print self.instrument[iname].pupilopd
+            #print "-----"
+            self.widgets[iname+"_opd"].set( self.instrument[iname].pupilopd )
             self.widgets[iname+"_opd"].grid(column=1,row=0)
 
             ttk.Label(fr2, text=' # ' ).grid(column=2,row=0)
@@ -177,7 +193,7 @@ class JWPSF_GUI(object):
             self.widgets[iname+"_opd_i"].set(self.widgets[iname+"_opd_i"]['values'][0])
             self.widgets[iname+"_opd_i"].grid(column=3,row=0)
 
-            self.widgets[iname+"_opd_label"] = ttk.Label(fr2, text=' 0 nm RMS            ', width=25)
+            self.widgets[iname+"_opd_label"] = ttk.Label(fr2, text=' 0 nm RMS            ', width=30)
             self.widgets[iname+"_opd_label"].grid( column=4,sticky='W', row=0)
 
 
@@ -193,6 +209,7 @@ class JWPSF_GUI(object):
 
 
 
+        self.ev_update_OPD_labels()
         lf.grid(row=2, sticky='E,W', padx=10, pady=5)
         notebook.select(0)
         #print notebook.tabs()
@@ -384,7 +401,7 @@ class JWPSF_GUI(object):
             header_summary = " 0 nm RMS"
             self.widgets[iname+"_opd_i"]['state'] = 'disabled'
 
-        widget_label.configure(text=header_summary, width=25)
+        widget_label.configure(text=header_summary, width=30)
 
     def _updateFromGUI(self):
         # get GUI values

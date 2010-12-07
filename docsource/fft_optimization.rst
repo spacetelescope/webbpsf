@@ -1,7 +1,7 @@
 
 
-Optimizing FFT Performance for JWST Optical Modeling
-====================================================
+Appendix: Optimizing FFT Performance for JWST Optical Modeling
+================================================================
 
 
 It turns out that optimizing numerical performance of FFTs is a very complicated subject. 
@@ -250,3 +250,11 @@ This leads to substantial savings in total computation time::
 
 Users are encouraged to try different approaches to optimizing performance on their own machines. 
 Set `__timetests__=True` in `poppy.py` to enable some rudimentary benchmarking for the FFT section of the code.
+
+
+
+
+--------------
+
+Documentation last updated on |today|
+
