@@ -1803,6 +1803,34 @@ def test_fftw3():
 
 
 
+def test_speed():
+
+    npix = 111
+    offset = (0.0, 0)
+    osys = OpticalSystem("Circle JW", oversample=1)
+    #osys.addPupil(function='Square', name = "6.5m square", size=6.5)
+    osys.addPupil(function='Circle', name = "6.5m circle", radius=6.5/2)
+    #osys.addImage()
+    #osys.addDetector(0.032, name="Detector", fov_npix=128)
+    osys.addDetector(0.032/2, name="Detector", fov_npix=npix)
+
+    osys.planes[-1].det_offset = offset
+
+    #_USE_FFTW3 = True
+    #_USE_FFTW3 = False
+    #_TIMETESTS= True
+
+    #res = osys.propagate_mono(2e-6,display_intermediates=False)
+
+    src = {'wavelengths': [2e-6], 'weights': [1.0]}
+    res = osys.calcPSF(src, display=True)
+
+
+    #P.clf()
+    #P.imshow(res[0].data) 
+    res.writeto('test_ci_np%d_off%s.fits' %(npix, offset), clobber=True)
+
+
 
 
 if __name__ == "__main__":
@@ -1838,5 +1866,4 @@ if __name__ == "__main__":
                 #P.imshow(res[0].data) 
                 res.writeto('test_ci_np%d_off%s.fits' %(npix, offset), clobber=True)
 
-
-
+    #test_speed()

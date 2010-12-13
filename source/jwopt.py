@@ -115,7 +115,8 @@ class JWInstrument(object):
 
         def sort_filters(filtname):
             try:
-                return int(filtname[1:4])
+                if name =='MIRI': return int(filtname[1:-1])
+                else: return int(filtname[1:4])
             except:
                 return filtname
         self.filter_list.sort(key=sort_filters)
@@ -440,7 +441,7 @@ class MIRI(JWInstrument):
     def __init__(self):
         JWInstrument.__init__(self, "MIRI")
         self.pixelscale = 0.11
-        self._rotation = 5
+        self._rotation = 4.561 # Source: MIRI OBA DD, page 3-16
 
         self.image_mask_list = ['FQPM1065', 'FQPM1140', 'FQPM1550', 'LYOT2300']
         self.pupil_mask_list = ['MASKFQPM', 'MASKLYOT']
@@ -502,9 +503,13 @@ class MIRI(JWInstrument):
         elif self.image_mask == 'FQPM1550':
             optsys.addImage(function='FQPM',wavelength=15.50e-6, name=self.image_mask)
             optsys.addImage(function='fieldstop',size=24)
-        elif self.image_mask == 'FQPM1550':
-            optsys.addImage(function='CircularOcculter',radius =1., name=self.image_mask) 
+        elif self.image_mask =='LYOT2300':
+            #diameter is 4.25 (measured) 4.32 (spec) supposedly 6 lambda/D
+            optsys.addImage(function='CircularOcculter',radius =4.25/2, name=self.image_mask) 
+            # Add bar occulter: width = 0.72 arcsec (or perhaps 0.74, Dean says there is ambiguity)
+            # position angle of strut mask is 355.5 degrees  (no = =360 -2.76 degrees
             optsys.addImage(function='fieldstop',size=30)
+
 
 
         # add pupil plane mask
