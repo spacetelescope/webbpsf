@@ -128,7 +128,8 @@ class JWInstrument(object):
 
         #self.opd_list = [os.path.basename(os.path.abspath(f)) for f in glob.glob(self._datapath+os.sep+'OPD/*.fits')]
         self.opd_list = [os.path.basename(os.path.abspath(f)) for f in glob.glob(self._datapath+os.sep+'OPD/OPD*.fits')]
-        self.pupilopd = self.opd_list[len(self.opd_list)/2]
+        if len(self.opd_list) > 0:
+            self.pupilopd = self.opd_list[len(self.opd_list)/2]
         #self.opd_list.insert(0,"Zero OPD (Perfect)")
 
         self._image_mask=None
@@ -185,7 +186,7 @@ class JWInstrument(object):
         return "JWInstrument name="+self.name
 
     #----- actual optical calculations follow here -----
-    def calcPSF(self, outfile=None, filter=None,  nlambda=None,  fov_arcsec=5., fov_pixels=None,  clobber=True, oversample=None, detector_oversample=None, calc_oversample=None, rebin=False, display=False ):
+    def calcPSF(self, outfile=None, filter=None,  nlambda=None,  fov_arcsec=None, fov_pixels=None,  clobber=True, oversample=None, detector_oversample=None, calc_oversample=None, rebin=False, display=False ):
         """ Compute a PSF.
         The result can either be written to disk (set outfile="filename") or else will be returned as
         a pyfits HDUlist object.
@@ -243,6 +244,10 @@ class JWInstrument(object):
         """
         if filter is not None:
             self.filter = filter
+        if fov_arcsec is None:
+            if self.name =='MIRI': fov_arcsec=12.
+            else: fov_arcsec=5.
+            print "using fov_arcsec = %f" % fov_arcsec
         if nlambda is None:
             filt_width = self.filter[4]
             try:
@@ -462,6 +467,7 @@ class MIRI(JWInstrument):
 
 
     def _validate_config(self):
+        #print "MIRI validating:    %s, %s, %s " % (self.filter, self.image_mask, self.pupil_mask)
         if self.filter.startswith("MRS-IFU"): raise NotImplementedError("The MIRI MRS is not yet implemented.")
 
         if self.image_mask is not None or self.pupil_mask is not None:
@@ -481,12 +487,28 @@ class MIRI(JWInstrument):
                 assert self.image_mask == 'LYOT2300', 'Invalid configuration'
                 assert self.pupil_mask == 'MASKLYOT', 'Invalid configuration'
             else:
-                raise ValueError("Invalid configuration selected!")
+                #raise ValueError("Invalid configuration selected!")
+                print "*"*80
+                print "WARNING: you appear to have selected an invalid/nonphysical configuration of that instrument!"
+                print ""
+                print "I'm going to continue trying the calculation, but YOU are responsible for interpreting"
+                print "any results in a meaningful fashion or discarding them.."
+                print "*"*80
 
 
     def addCoronagraphOptics(self,optsys):
         """Add coronagraphic optics for MIRI 
         """
+
+        # For MIRI coronagraphy, all the coronagraphic optics are rotated the same
+        # angle as the instrument is, relative to the primary. So they see the unrotated
+        # telescope pupil.
+        # We model this by just not rotating till after the coronagraph. Thus we need to
+        # un-rotated the primary that was created in getOpticalSystem.
+
+        defaultpupil = optsys.planes.pop()
+        optsys.addPupil(name='JWST Pupil', transmission=defaultpupil.amplitude_file, opd=defaultpupil.opd_file, opdunits='micron', rotation=None)
+
 
         # Add image plane mask
         # For the MIRI FQPMs, we require the star to be centered not on the middle pixel, but
@@ -494,22 +516,42 @@ class MIRI(JWInstrument):
         # This is with respect to the intermediate calculation pixel scale, of course, not the
         # final detector pixel scale. 
         if self.image_mask == 'FQPM1065':
-            optsys.addImage(function='FQPM',wavelength=10.65e-6, name=self.image_mask)
-            optsys.addImage(function='fieldstop',size=24)
+
+            container = poppy.CompoundAnalyticOptic(name = "MIRI FQPM 1065",
+                opticslist = [  poppy.IdealFQPM(wavelength=10.65e-6, name=self.image_mask),
+                                poppy.IdealFieldStop(size=24, angle=-4.56)])
+            optsys.addImage(container)
             optsys.source_position = N.array([0.5, 0.5]) * intermediate_pixel_scale
         elif self.image_mask == 'FQPM1140':
-            optsys.addImage(function='FQPM',wavelength=11.40e-6, name=self.image_mask)
-            optsys.addImage(function='fieldstop',size=24)
+            container = poppy.CompoundAnalyticOptic(name = "MIRI FQPM 1065",
+                opticslist = [  poppy.IdealFQPM(wavelength=11.40e-6, name=self.image_mask),
+                                poppy.IdealFieldStop(size=24, angle=-4.56)])
+            optsys.addImage(container)
+ 
+            #optsys.addImage(function='FQPM',wavelength=11.40e-6, name=self.image_mask)
+            #optsys.addImage(function='fieldstop',size=24)
         elif self.image_mask == 'FQPM1550':
-            optsys.addImage(function='FQPM',wavelength=15.50e-6, name=self.image_mask)
-            optsys.addImage(function='fieldstop',size=24)
+            container = poppy.CompoundAnalyticOptic(name = "MIRI FQPM 1065",
+                opticslist = [  poppy.IdealFQPM(wavelength=15.50e-6, name=self.image_mask),
+                                poppy.IdealFieldStop(size=24, angle=-4.56)])
+            optsys.addImage(container)
+ 
+            #optsys.addImage(function='FQPM',wavelength=15.50e-6, name=self.image_mask)
+            #optsys.addImage(function='fieldstop',size=24)
         elif self.image_mask =='LYOT2300':
-            #diameter is 4.25 (measured) 4.32 (spec) supposedly 6 lambda/D
-            optsys.addImage(function='CircularOcculter',radius =4.25/2, name=self.image_mask) 
-            # Add bar occulter: width = 0.72 arcsec (or perhaps 0.74, Dean says there is ambiguity)
-            # position angle of strut mask is 355.5 degrees  (no = =360 -2.76 degrees
-            optsys.addImage(function='fieldstop',size=30)
 
+            container = poppy.CompoundAnalyticOptic(name = "MIRI Lyot Occulter",
+                opticslist = [poppy.IdealCircularOcculter(radius =4.25/2, name=self.image_mask),
+                              poppy.IdealBarOcculter(width=0.722), 
+                              poppy.IdealFieldStop(size=30, angle=-4.56)] )
+            optsys.addImage(container)
+                    
+            #diameter is 4.25 (measured) 4.32 (spec) supposedly 6 lambda/D
+            #optsys.addImage(function='CircularOcculter',radius =4.25/2, name=self.image_mask) 
+            # Add bar occulter: width = 0.722 arcsec (or perhaps 0.74, Dean says there is ambiguity)
+            #optsys.addImage(function='BarOcculter', width=0.722, angle=(360-4.76))
+            # position angle of strut mask is 355.5 degrees  (no = =360 -2.76 degrees
+            #optsys.addImage(function='fieldstop',size=30)
 
 
         # add pupil plane mask
@@ -523,6 +565,7 @@ class MIRI(JWInstrument):
         elif self.pupil_mask == 'MASKLYOT':
             optsys.addPupil(transmission=self._datapath+"/coronagraph/MIRI_LyotLyotStop.fits", name=self.pupil_mask, shift=shift)
 
+        optsys.addRotation(self._rotation)
 
         return optsys
 
@@ -607,8 +650,7 @@ class NIRSpec(JWInstrument):
     Relevant attributes include `filter`. In addition to the actual filters, you may select 'IFU' to
     indicate use of the NIRSpec IFU, in which case the `ifu_wavelength` attribute controls the simulated wavelength.
     **Note: IFU to be implemented later**
-
-   """
+    """
     def __init__(self):
         JWInstrument.__init__(self, "NIRSpec")
         self.pixelscale = 0.0317 # for NIRCAM short-wavelen channels
@@ -723,8 +765,36 @@ def Instrument(name):
     else: raise ValueError("Incorrect instrument name "+name)
 
 
+def MakePSF(self, instrument=None, pupil_file=None, phase_file=None, output=None,
+                  diameter=None, oversample=4, type=N.float64,
+                  filter=((1.,),(1.,)),
+                  output_size=512, pixel_size=None, verbose=False):
+    """This is a wrapper function to provide back-compatibility with the
+    interface of the original JWPSF. New code should probably make use of the
+    object-oriented interface instead. 
+    """
+    instr = Instrument(name)
+    raise NotImplementedError("finish me!")
+
+    if diameter is not None or float(diameter) != 6.5:
+        raise NotImplementedError("Changing diameters is not supported by this version of JWPSF. Nor by JWST itself, for that matter!")
+
+    if pixel_size is not None:
+        instr.pixelscale = pixel_size
+    # set pupil files
+    instr.pupil = pupil_file
+    instr.pupilopd = phase_file
+
+    # deal with filter? 
+    # pick the mean wavelen and use the closest filter to that?
+
+    return instr.calcPSF(oversample=oversample, )
+
+
+
+
 #########################3
-def display_PSF(arg, HDUlist=None, filename=None, ext=0, vmin=1e-8,vmax=1e-1, title=None, imagecrop=5.0, adjust_for_oversample=False):
+def display_PSF(HDUlist_or_filename=None, ext=0, vmin=1e-8,vmax=1e-1, title=None, imagecrop=None, adjust_for_oversample=False):
     """Display nicely a PSF from a HDUlist or filename 
     
     
@@ -738,15 +808,19 @@ def display_PSF(arg, HDUlist=None, filename=None, ext=0, vmin=1e-8,vmax=1e-1, ti
         for the log scaling
     title : string, optional
     imagecrop : float
-        size of region to display
+        size of region to display (default is whole image)
     adjust_for_oversample : bool
         rescale to conserve surface brightness for oversampled PSFs? 
         (making this True conserves surface brightness but not total flux)
         default is False, to conserve total flux.
     """
-    if isinstance(arg, str) and filename is None: filename=arg
-    if filename is not None:
+    #if isinstance(arg, str) and filename is None: filename=arg
+    if isinstance(HDUlist_or_filename, str):
         HDUlist = pyfits.open(filename)
+    elif isinstance(HDUlist_or_filename, pyfits.HDUList):
+        HDUlist = HDUlist_or_filename
+    else: raise ValueError("input must be a filename or HDUlist")
+
     norm=LogNorm(vmin=vmin, vmax=vmax)
     cmap = matplotlib.cm.jet
     halffov = HDUlist[ext].header['PIXELSCL']*HDUlist[ext].data.shape[0]/2
@@ -759,13 +833,18 @@ def display_PSF(arg, HDUlist=None, filename=None, ext=0, vmin=1e-8,vmax=1e-1, ti
     else: im = HDUlist[ext].data
 
     P.imshow( im   ,extent=extent,cmap=cmap, norm=norm)
-    imsize = min( (imagecrop/2, halffov))
+    if imagecrop is not None:
+        halffov = min( (imagecrop/2, halffov))
     ax = P.gca()
-    ax.set_xbound(-imsize, imsize)
-    ax.set_ybound(-imsize, imsize)
+    ax.set_xbound(-halffov, halffov)
+    ax.set_ybound(-halffov, halffov)
 
     if title is not None:
         P.title(title)
+
+    P.colorbar(orientation='vertical')
+
+    P.draw()
 
  
 
@@ -1002,10 +1081,16 @@ if __name__ == "__main__":
     #nc.calcPSF('test_nircam.fits', mono=False)
 
     miri=MIRI()
+    #miri.filter='F2300C'
+    #miri.filter='F1000W'
+    #miri.image_mask = 'LYOT2300'
+    #miri.pupil_mask = 'MASKLYOT'
+    miri.image_mask = 'FQPM1065'
+    miri.pupil_mask = 'MASKFQPM'
     miri.filter='F1065C'
-    miri.filter='F1000W'
-    #miri.image_mask = 'FQPM1065'
-    #miri.pupil_mask = 'MASKFQPM'
+
+    P.clf()
+    #miri.display()
     nircam=NIRCam()
     tfi = TFI()
     nirspec = NIRSpec()

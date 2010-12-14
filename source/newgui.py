@@ -4,11 +4,17 @@ import numpy as N
 import pylab as P
 import matplotlib
 import pyfits
-import ttk
 import Tkinter as tk
 import tkMessageBox
 import tkFileDialog
 #from Tkinter import N,E,S,W
+
+try:
+    import ttk
+    _use_ttk = True
+except:
+    _use_ttk = False
+
 
 try:
     __IPYTHON__
@@ -36,8 +42,260 @@ class JWPSF_GUI(object):
         for i in insts:
             self.instrument[i] = jwopt.Instrument(i)
 
+        if _use_ttk:
+            self._create_widgets_py27()
+        else:
+            self._create_widgets_py26()
+        self.root.update()
 
 
+    def _add_labeled_dropdown(self, name, root,label="Entry:", values=None, default=None, width=5, position=(0,0), **kwargs):
+        "convenient wrapper for adding a Combobox"
+
+        ttk.Label(root, text=label).grid(row=position[0],  column=position[1], sticky='W')
+
+        self.vars[name] = tk.StringVar()
+        self.widgets[name] = ttk.Combobox(root, textvariable=self.vars[name], width=width, state='readonly')
+        self.widgets[name].grid(row=position[0], column=position[1]+1, **kwargs)
+        self.widgets[name]['values'] = values
+
+        if default is None: default=values[0]
+        self.widgets[name].set(default)
+ 
+
+    def _add_labeled_entry(self, name, root,label="Entry:", value="", width=5, position=(0,0), postlabel=None, **kwargs):
+        "convenient wrapper for adding an Entry"
+        ttk.Label(root, text=label).grid(row=position[0],  column=position[1], sticky='W')
+
+        self.vars[name] = tk.StringVar()
+        self.widgets[name] = ttk.Entry(root, textvariable=self.vars[name], width=width)
+        self.widgets[name].insert(0,value)
+        self.widgets[name].grid(row=position[0], column=position[1]+1, **kwargs)
+
+        if postlabel is not None:
+            ttk.Label(root, text=postlabel).grid(row=position[0],  column=position[1]+2, sticky='W')
+
+
+    def _create_widgets_py27(self):
+        """Create a nice GUI using the enhanced widget set provided by 
+        the ttk extension to Tkinter, available in Python 2.7 or newer
+        """
+        #---- create the GUIs
+        insts = ['NIRCam', 'NIRSpec','MIRI', 'TFI', 'FGS']
+        self.root = tk.Tk()
+        self.root.geometry('+50+50')
+        self.root.title("JWPSF GUI 4alpha")
+
+        frame = ttk.Frame(self.root)
+        #frame = ttk.Frame(self.root, padx=10,pady=10)
+
+        ttk.Label(frame, text='JWPSF new GUI' ).grid(row=0)
+
+        #-- star
+        lf = ttk.LabelFrame(frame, text='Source Properties')
+
+        self._add_labeled_dropdown("SpType", lf, label='    Spectral Type:', values=self.stars.sptype_list, default='G0V', width=5, position=(0,0), sticky='W')
+        ttk.Button(lf, text='Plot spectrum', command=self.ev_plotspectrum).grid(row=0,column=2,sticky='E',columnspan=4)
+
+        r = 1
+        fr2 = ttk.Frame(lf)
+
+        self._add_labeled_entry("source_off_r", fr2, label='    Source Position: r=', value='0.0', width=5, position=(r,0), sticky='W')
+        self._add_labeled_entry("source_off_theta", fr2, label='arcsec,  PA=', value='0', width=3, position=(r,2), sticky='W')
+
+        self.vars["source_off_centerpos"] = tk.StringVar()
+        self.vars["source_off_centerpos"].set('corner')
+
+        ttk.Label(fr2, text='deg, centered on ' ).grid(row=r, column=4)
+        pixel = ttk.Radiobutton(fr2, text='pixel', variable=self.vars["source_off_centerpos"], value='pixel')
+        pixel.grid(row=r, column=5)
+        corner = ttk.Radiobutton(fr2, text='corner', variable=self.vars["source_off_centerpos"], value='corner')
+        corner.grid(row=r, column=6)
+        fr2.grid(row=r, column=0, columnspan=5, sticky='W')
+
+
+
+        lf.columnconfigure(2, weight=1)
+        lf.grid(row=1, sticky='E,W', padx=10,pady=5)
+
+        #-- instruments
+        lf = ttk.LabelFrame(frame, text='Instrument Config')
+        notebook = ttk.Notebook(lf)
+        self.widgets['tabset'] = notebook
+        notebook.pack(fill='both')
+        for iname,i in zip(insts, range(len(insts))):
+            page = ttk.Frame(notebook)
+            notebook.add(page,text=iname) 
+            notebook.select(i)  # make it active
+            self.widgets[notebook.select()] = iname # save reverse lookup from meaningless widget "name" to string name
+            ttk.Label(page, text='Configuration Options for '+iname+"                      ").grid(row=0, columnspan=2, sticky='W')
+
+
+            self._add_labeled_dropdown(iname+"_filter", page, label='    Filter:', values=self.instrument[iname].filter_list, default=self.instrument[iname].filter, width=10, position=(1,0), sticky='W')
+            #self.vars[iname+"_filter"] = tk.StringVar()
+            #self.widgets[iname+"_filter"] = ttk.Combobox(page,textvariable =self.vars[iname+"_filter"], width=10, state='readonly')
+            #self.widgets[iname+"_filter"]['values'] = self.instrument[iname].filter_list
+            #self.widgets[iname+"_filter"].set(self.instrument[iname].filter)
+            #self.widgets[iname+"_filter"]['readonly'] = True
+            #ttk.Label(page, text='    Filter: ' ).grid(row=1, column=0)
+            #self.widgets[iname+"_filter"].grid(row=1, column=1)
+
+
+            if hasattr(self.instrument[iname], 'ifu_wavelength'):
+                fr2 = ttk.Frame(page)
+                label = 'IFU' if iname !='TFI' else 'TFI'
+                ttk.Label(fr2, text='   %s wavelen: '%label , state='disabled').grid(row=0, column=0)
+                self.widgets[iname+"_ifu_wavelen"] = ttk.Entry(fr2, width=5) #, disabledforeground="#A0A0A0")
+                self.widgets[iname+"_ifu_wavelen"].insert(0, str(self.instrument[iname].ifu_wavelength))
+                self.widgets[iname+"_ifu_wavelen"].grid(row=0, column=1)
+                self.widgets[iname+"_ifu_wavelen"].state(['disabled'])
+                ttk.Label(fr2, text=' um' , state='disabled').grid(row=0, column=2)
+                fr2.grid(row=1,column=2, columnspan=6, sticky='E')
+
+            if len(self.instrument[iname].image_mask_list) >0 :
+                masks = self.instrument[iname].image_mask_list
+                masks.insert(0, "")
+ 
+                self._add_labeled_dropdown(iname+"_coron", page, label='    Coron:', values=masks,  width=10, position=(2,0), sticky='W')
+                #self.vars[iname+"_coron"] = tk.StringVar()
+                #self.widgets[iname+"_coron"] = ttk.Combobox(page,textvariable =self.vars[iname+"_coron"], width=10, state='readonly')
+                #self.widgets[iname+"_coron"]['values'] = masks
+                #ttk.Label(page, text='    Coron: ' ).grid(row=2, column=0)
+                #self.widgets[iname+"_coron"].set(self.widgets[iname+"_coron"]['values'][0])
+                #self.widgets[iname+"_coron"].grid(row=2, column=1)
+
+                #fr2 = ttk.Frame(page)
+                #self.vars[iname+"_cor_off_r"] = tk.StringVar()
+                #self.vars[iname+"_cor_off_theta"] = tk.StringVar()
+                #ttk.Label(fr2, text='target offset:  r=' ).grid(row=2, column=4)
+                #self.widgets[iname+"_cor_off_r"] = ttk.Entry(fr2,textvariable =self.vars[iname+"_cor_off_r"], width=5)
+                #self.widgets[iname+"_cor_off_r"].insert(0,"0.0")
+                #self.widgets[iname+"_cor_off_r"].grid(row=2, column=5)
+                #ttk.Label(fr2, text='arcsec,  PA=' ).grid(row=2, column=6)
+                #self.widgets[iname+"_cor_off_theta"] = ttk.Entry(fr2,textvariable =self.vars[iname+"_cor_off_theta"], width=3)
+                #self.widgets[iname+"_cor_off_theta"].insert(0,"0")
+                #self.widgets[iname+"_cor_off_theta"].grid(row=2, column=7)
+                #ttk.Label(fr2, text='deg' ).grid(row=2, column=8)
+                #fr2.grid(row=2,column=3, sticky='W')
+
+
+            if len(self.instrument[iname].image_mask_list) >0 :
+                masks = self.instrument[iname].pupil_mask_list
+                masks.insert(0, "")
+                self._add_labeled_dropdown(iname+"_pupil", page, label='    Pupil:', values=masks,  width=10, position=(3,0), sticky='W')
+
+                fr2 = ttk.Frame(page)
+                self._add_labeled_entry(iname+"_pupilshift_x", fr2, label='  pupil shift in X:', value='0', width=3, position=(3,4), sticky='W')
+                self._add_labeled_entry(iname+"_pupilshift_y", fr2, label=' Y:', value='0', width=3, position=(3,6), sticky='W')
+
+                ttk.Label(fr2, text='% of pupil' ).grid(row=3, column=8)
+                fr2.grid(row=3,column=3, sticky='W')
+
+
+            ttk.Label(page, text='Configuration Options for the OTE').grid(row=4, columnspan=2, sticky='W')
+            fr2 = ttk.Frame(page)
+
+            opd_list =  self.instrument[iname].opd_list
+            opd_list.insert(0,"Zero OPD (perfect)")
+            default_opd = self.instrument[iname].pupilopd if self.instrument[iname].pupilopd is not None else "Zero OPD (perfect)"
+            self._add_labeled_dropdown(iname+"_opd", fr2, label='    OPD File:', values=opd_list, default=default_opd, width=21, position=(0,0), sticky='W')
+
+            self._add_labeled_dropdown(iname+"_opd_i", fr2, label=' # ', values= [str(i+1) for i in range(10)], width=3, position=(0,2), sticky='W')
+
+            self.widgets[iname+"_opd_label"] = ttk.Label(fr2, text=' 0 nm RMS            ', width=30)
+            self.widgets[iname+"_opd_label"].grid( column=4,sticky='W', row=0)
+
+            self.widgets[iname+"_opd"].bind('<<ComboboxSelected>>', 
+                    lambda e: self.ev_update_OPD_labels() )
+                    # The below code does not work, and I can't tell why. This only ever has iname = 'FGS' no matter which instrument.
+                    # So instead brute-force it with the above to just update all 5. 
+                    #lambda e: self.ev_update_OPD_label(self.widgets[iname+"_opd"], self.widgets[iname+"_opd_label"], iname) )
+            ttk.Button(fr2, text='Display', command=self.ev_displayOPD).grid(column=5,sticky='E',row=0)
+
+            fr2.grid(row=5, column=0, columnspan=4,sticky='S')
+
+
+        self.ev_update_OPD_labels()
+        lf.grid(row=2, sticky='E,W', padx=10, pady=5)
+        notebook.select(0)
+
+        lf = ttk.LabelFrame(frame, text='Calculation Options')
+        r =0
+        self._add_labeled_entry('FOV', lf, label='Field of View:',  width=3, value='5', postlabel='arcsec/side', position=(r,0))
+        r+=1
+        self._add_labeled_entry('detector_oversampling', lf, label='Output Oversampling:',  width=3, value='2', postlabel='x finer than instrument pixels       ', position=(r,0))
+
+        self.vars['downsamp'] = tk.BooleanVar()
+        self.vars['downsamp'].set(True)
+        self.widgets['downsamp'] = ttk.Checkbutton(lf, text='Save in instr. pixel scale, too?', onvalue=True, offvalue=False,variable=self.vars['downsamp'])
+        self.widgets['downsamp'].grid(row=r, column=4, sticky='E')
+
+
+        r+=1
+        self._add_labeled_entry('calc_oversampling', lf, label='Coronagraph Oversampling:',  width=3, value='2', postlabel='x finer than Nyquist', position=(r,0))
+        r+=1
+        self._add_labeled_entry('nlambda', lf, label='# of wavelengths:',  width=3, value='1', position=(r,0))
+        r+=1
+
+        self._add_labeled_dropdown("jitter", lf, label='Jitter model:', values=  ['Just use OPDs', 'Gaussian blur', 'Accurate yet SLOW grid'], width=20, position=(r,0), sticky='W', columnspan=2)
+        #ttk.Label(lf, text='Jitter model:').grid(row=r, sticky='W')
+        #self.widgets['jitter'] = ttk.Combobox(lf, width=20, state='readonly')
+        #self.widgets['jitter']['values'] = ['Just use OPDs', 'Gaussian blur', 'Accurate yet SLOW grid']
+        #self.widgets['jitter'].set('Just use OPDs')
+        #self.widgets['jitter'].grid(row=r,column=1, columnspan=2, sticky='E')
+ 
+        #ttk.Label(lf, text='x finer than instrument pixels' ).grid(row=r, column=2, sticky='W', columnspan=2)
+ 
+        #r=r+1
+        #ttk.Label(lf, text='Output filename:',  ).grid(row=r, sticky='W')
+        #self.widgets['outfile'] = ttk.Entry(lf, width=40)
+        #self.widgets['outfile'].grid(row=r,column=1, sticky='E', columnspan=2)
+        #ttk.Label(lf, text='.fits' ).grid(row=r, column=3, sticky='W')
+
+
+        lf.grid(row=4, sticky='E,W', padx=10, pady=5)
+
+        lf = ttk.Frame(frame)
+
+        def addbutton(self,lf, text, command, pos):
+            self.widgets[text] = ttk.Button(lf, text=text, command=command )
+            self.widgets[text].grid(column=pos, row=0, sticky='E')
+ 
+        self.addbutton(lf,'Compute PSF', self.ev_calcPSF, 0)
+        self.addbutton(lf,'Display PSF', self.ev_displayPSF, 1)
+        self.addbutton(lf,'Display profiles', self.ev_displayProfiles, 2)
+        self.addbutton(lf,'Save As...', self.ev_SaveAs, 3)
+
+        #ttk.Button(lf, text='Compute PSF', command=self.ev_calcPSF ).grid(column=0, row=0)
+        #ttk.Button(lf, text='Display PSF', command=self.ev_dispPSF ).grid(column=1, row=0)
+        #ttk.Button(lf, text='Display profiles', command=self.ev_dispProfiles ).grid(column=2, row=0)
+        #self.widgets['SaveAs'] = ttk.Button(lf, text='Save PSF...', command=self.ev_SaveAs )
+        #self.widgets['SaveAs'].grid(column=1, row=0, sticky='E')
+        #self.widgets['SaveAs'].state(['disabled'])
+        #ttk.Button(lf, text='Display PSF', command=self.ev_displayPSF).grid(column=1, row=0)
+        ttk.Button(lf, text='Display Optics', command=self.ev_displayOptics ).grid(column=4, row=0)
+        ttk.Button(lf, text='Quit', command=self.quit).grid(column=5, row=0)
+        lf.columnconfigure(2, weight=1)
+        lf.columnconfigure(4, weight=1)
+        lf.grid(row=5, sticky='E,W', padx=10, pady=15)
+
+
+
+        #frame.pack(padx=10, pady=10)
+        #frame.grid(row=0, sticky=N+E+S+W, padx=10, pady=10)
+        frame.grid(row=0, sticky='N,E,S,W')
+        frame.columnconfigure(0, weight=1)
+        frame.rowconfigure(0, weight=1)
+        self.root.columnconfigure(0, weight=1)
+        self.root.rowconfigure(0, weight=1)
+
+    def _create_widgets_py26(self):
+        """Create a mediocre GUI using the unimpressive widget set 
+        available in Python 2.6
+        """
+
+        # Query the user what instrument is selected, using
+        # a modal dialog widget.
 
         #---- create the GUIs
         self.root = tk.Tk()
@@ -45,7 +303,6 @@ class JWPSF_GUI(object):
         self.root.title("JWPSF GUI 4alpha")
 
         frame = ttk.Frame(self.root)
-        #frame = ttk.Frame(self.root, padx=10,pady=10)
 
         ttk.Label(frame, text='JWPSF new GUI' ).grid(row=0)
 
@@ -129,21 +386,6 @@ class JWPSF_GUI(object):
                 ttk.Label(page, text='    Coron: ' ).grid(row=2, column=0)
                 self.widgets[iname+"_coron"].set(self.widgets[iname+"_coron"]['values'][0])
                 self.widgets[iname+"_coron"].grid(row=2, column=1)
-
-                #fr2 = ttk.Frame(page)
-                #self.vars[iname+"_cor_off_r"] = tk.StringVar()
-                #self.vars[iname+"_cor_off_theta"] = tk.StringVar()
-                #ttk.Label(fr2, text='target offset:  r=' ).grid(row=2, column=4)
-                #self.widgets[iname+"_cor_off_r"] = ttk.Entry(fr2,textvariable =self.vars[iname+"_cor_off_r"], width=5)
-                #self.widgets[iname+"_cor_off_r"].insert(0,"0.0")
-                #self.widgets[iname+"_cor_off_r"].grid(row=2, column=5)
-                #ttk.Label(fr2, text='arcsec,  PA=' ).grid(row=2, column=6)
-                #self.widgets[iname+"_cor_off_theta"] = ttk.Entry(fr2,textvariable =self.vars[iname+"_cor_off_theta"], width=3)
-                #self.widgets[iname+"_cor_off_theta"].insert(0,"0")
-                #self.widgets[iname+"_cor_off_theta"].grid(row=2, column=7)
-                #ttk.Label(fr2, text='deg' ).grid(row=2, column=8)
-                #fr2.grid(row=2,column=3, sticky='W')
-
 
             if len(self.instrument[iname].image_mask_list) >0 :
                 self.vars[iname+"_pupil"] = tk.StringVar()
@@ -300,7 +542,7 @@ class JWPSF_GUI(object):
 
 
 
-        self.root.update()
+
 
     def quit(self):
         " Quit the GUI"
@@ -349,12 +591,25 @@ class JWPSF_GUI(object):
         self._updateFromGUI()
         self.PSF_HDUlist = self.inst.calcPSF(detector_oversample= self.detector_oversampling,
                 calc_oversample=self.calc_oversampling,
-                fov_arcsec = self.FOV,  nlambda = self.nlambda)
-        self.widgets['SaveAs'].state(['!disabled'])
+                fov_arcsec = self.FOV,  nlambda = self.nlambda, display=True)
+        #self.PSF_HDUlist.display()
+        for w in ['Display PSF', 'Display profiles', 'Save As...']:
+           self.widgets[w].state(['!disabled'])
 
     def ev_displayPSF(self):
         "Event handler for Displaying the PSF"
-        self._updateFromGUI()
+        #self._updateFromGUI()
+        #if self.PSF_HDUlist is not None:
+        self.PSF_HDUlist.display()
+
+    def ev_displayProfiles(self):
+        "Event handler for Displaying the PSF"
+        #self._updateFromGUI()
+        #if self.PSF_HDUlist is not None:
+        self.PSF_HDUlist.display()
+
+
+
 
     def ev_displayOptics(self):
         "Event handler for Displaying the optical system"
@@ -446,7 +701,6 @@ class JWPSF_GUI(object):
 
     def mainloop(self):
         self.root.mainloop()
-
 
 if __name__ == "__main__":
 
