@@ -257,14 +257,17 @@ class JWPSF_GUI(object):
 
         lf = ttk.Frame(frame)
 
-        def addbutton(self,lf, text, command, pos):
+        def addbutton(self,lf, text, command, pos, disabled=False):
             self.widgets[text] = ttk.Button(lf, text=text, command=command )
             self.widgets[text].grid(column=pos, row=0, sticky='E')
+            if disabled:
+                self.widgets[text].state(['disabled'])
+
  
-        self.addbutton(lf,'Compute PSF', self.ev_calcPSF, 0)
-        self.addbutton(lf,'Display PSF', self.ev_displayPSF, 1)
-        self.addbutton(lf,'Display profiles', self.ev_displayProfiles, 2)
-        self.addbutton(lf,'Save As...', self.ev_SaveAs, 3)
+        addbutton(self,lf,'Compute PSF', self.ev_calcPSF, 0)
+        addbutton(self,lf,'Display PSF', self.ev_displayPSF, 1, disabled=True)
+        addbutton(self,lf,'Display profiles', self.ev_displayProfiles, 2, disabled=True)
+        addbutton(self,lf,'Save PSF As...', self.ev_SaveAs, 3, disabled=True)
 
         #ttk.Button(lf, text='Compute PSF', command=self.ev_calcPSF ).grid(column=0, row=0)
         #ttk.Button(lf, text='Display PSF', command=self.ev_dispPSF ).grid(column=1, row=0)
@@ -555,7 +558,6 @@ class JWPSF_GUI(object):
                 initialfile='PSF_%s_%s.fits' %(self.iname, self.filter), 
                 filetypes=[('FITS', '.fits')],
                 defaultextension='.fits',
-                mustexist=True,  # directory chosen must exist.
                 parent=self.root)
         if len(filename) > 0:
             self.PSF_HDUlist.writeto(filename) 
@@ -593,20 +595,44 @@ class JWPSF_GUI(object):
                 calc_oversample=self.calc_oversampling,
                 fov_arcsec = self.FOV,  nlambda = self.nlambda, display=True)
         #self.PSF_HDUlist.display()
-        for w in ['Display PSF', 'Display profiles', 'Save As...']:
+        for w in ['Display PSF', 'Display profiles', 'Save PSF As...']:
            self.widgets[w].state(['!disabled'])
 
     def ev_displayPSF(self):
         "Event handler for Displaying the PSF"
         #self._updateFromGUI()
         #if self.PSF_HDUlist is not None:
-        self.PSF_HDUlist.display()
+        P.clf()
+        jwopt.display_PSF(self.PSF_HDUlist)
 
     def ev_displayProfiles(self):
         "Event handler for Displaying the PSF"
         #self._updateFromGUI()
         #if self.PSF_HDUlist is not None:
-        self.PSF_HDUlist.display()
+
+        radius, profile, EE = jwopt.radial_profile(self.PSF_HDUlist, EE=True)
+
+        P.clf()
+        P.subplot(2,1,1)
+        P.semilogy(radius, profile)
+        P.xlabel("Radius [arcsec]")
+        P.ylabel("PSF radial profile")
+
+        fwhm = 2*radius[N.where(profile < profile[0]*0.5)[0][0]]
+        P.text(fwhm, profile[0]*0.5, 'FWHM = %.3f"' % fwhm)
+
+        P.subplot(2,1,2)
+        #P.semilogy(radius, EE, nonposy='clip')
+        P.plot(radius, EE, color='r') #, nonposy='clip')
+        P.xlabel("Radius [arcsec]")
+        P.ylabel("Encircled Energy")
+
+        for level in [0.5, 0.8, 0.95]:
+            EElev = radius[N.where(EE > level)[0][0]]
+            yoffset = 0 if level < 0.9 else -0.05 
+            P.text(EElev+0.1, level+yoffset, 'EE=%2d%% at r=%.3f"' % (level*100, EElev))
+
+        
 
 
 

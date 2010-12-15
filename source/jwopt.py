@@ -846,6 +846,83 @@ def display_PSF(HDUlist_or_filename=None, ext=0, vmin=1e-8,vmax=1e-1, title=None
 
     P.draw()
 
+
+def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, binsize=None):
+    """ Compute a radial profile of the image
+
+    Code taken pretty much directly from pydatatut.pdf
+
+    Parameters
+    ----------
+    HDUlist_or_filename: string
+        what it sounds like.
+    ext : int
+        Extension in FITS file
+    EE : bool
+        Also return encircled energy (EE) curve in addition to radial profile?
+    center : tuple of floats
+        Coordinates (x,y) of PSF center. Default is image center. 
+    binsize: 
+        size of step for profile. Default is pixel size.
+
+
+    Returns
+    --------
+    results : tuple
+        Tuple containing (radius, profile) or (radius, profile, EE) depending on what is requested.
+    """
+    if isinstance(HDUlist_or_filename, str):
+        HDUlist = pyfits.open(filename)
+    elif isinstance(HDUlist_or_filename, pyfits.HDUList):
+        HDUlist = HDUlist_or_filename
+    else: raise ValueError("input must be a filename or HDUlist")
+
+    image = HDUlist[ext].data
+    pixelscale = HDUlist[ext].header['PIXELSCL']
+
+    if binsize is None:
+        binsize=pixelscale
+
+    y,x = N.indices(image.shape)
+    if center is None:
+        # get center pixel for
+        center = (image.shape[1]/2, image.shape[0]/2)
+
+    r = N.sqrt( (x-center[0])**2 + (y-center[1])**2) *pixelscale / binsize # radius in bin size steps
+    ind = N.argsort(r.flat)
+
+    sr = r.flat[ind]
+    sim = image.flat[ind]
+    ri = sr.astype(int)
+    deltar = ri[1:]-ri[:-1] # assume all radii represented (more work if not)
+    rind = N.where(deltar)[0]
+    nr = rind[1:] - rind[:-1] # number in radius bin
+    csim = N.cumsum(sim, dtype=float) # cumulative sum to figure out sums for each bin
+    tbin = csim[rind[1:]] - csim[rind[:-1]] # sum for image values in radius bins
+    radialprofile=tbin/nr
+
+    #pre-pend the initial element that the above code misses.
+    radialprofile2 = N.empty(len(radialprofile)+1)
+    #radialprofile2[0] =  csim[rind[0]] / rind[0]
+    radialprofile2[0] = csim[0]
+    radialprofile2[1:] = radialprofile
+    rr = N.arange(len(radialprofile2))*pixelscale
+
+
+    if not EE:
+        return (rr, radialprofile2)
+    else:
+        #weighted_profile = radialprofile2*2*N.pi*(rr/rr[1])
+        #EE = N.cumsum(weighted_profile)
+        EE = csim[rind]
+        #stop()
+        return (rr, radialprofile2, EE) 
+
+
+
+
+
+
  
 
 #########################3
