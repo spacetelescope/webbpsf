@@ -35,6 +35,14 @@ import time
 from matplotlib.colors import LogNorm  # for log scaling of images, with automatic colorbar support
 import pylab as P
 
+import logging
+_log = logging.getLogger('jwopt')
+_log.setLevel(logging.DEBUG)
+_log.setLevel(logging.INFO)
+_log.addHandler(logging.NullHandler())
+
+
+
 
 try:
     __IPYTHON__
@@ -186,7 +194,7 @@ class JWInstrument(object):
         return "JWInstrument name="+self.name
 
     #----- actual optical calculations follow here -----
-    def calcPSF(self, outfile=None, filter=None,  nlambda=None,  fov_arcsec=None, fov_pixels=None,  clobber=True, oversample=None, detector_oversample=None, calc_oversample=None, rebin=False, display=False ):
+    def calcPSF(self, outfile=None, filter=None,  nlambda=None,  fov_arcsec=None, fov_pixels=None,  clobber=True, oversample=None, detector_oversample=None, calc_oversample=None, rebin=False, display=False, monochromatic=None ):
         """ Compute a PSF.
         The result can either be written to disk (set outfile="filename") or else will be returned as
         a pyfits HDUlist object.
@@ -214,6 +222,9 @@ class JWInstrument(object):
         nlambda : int
             How many wavelengths to model for broadband? 
             The default depends on how wide the filter is: (5,3,1) for types (W,M,N) respectively
+        monochromatic : float, optional
+            Setting this to a wavelength value (in meters) will compute a monochromatic PSF at that 
+            wavelength, overriding filter and nlambda settings.
         fov_arcsec : float
             field of view in arcsec. Default=5
         fov_pixels : int
@@ -247,19 +258,14 @@ class JWInstrument(object):
         if fov_arcsec is None:
             if self.name =='MIRI': fov_arcsec=12.
             else: fov_arcsec=5.
-            print "using fov_arcsec = %f" % fov_arcsec
         if nlambda is None:
-            filt_width = self.filter[4]
+            #filt_width = self.filter[4]
+            filt_width = self.filter[-1]
             try:
-                nlambda = {'W':5,'M':3,'N':1}[filt_width]
+                nlambda = {'2': 10, 'W':5,'M':3,'N':1}[filt_width]
             except:
                 nlambda=1
-                print "unrecognized filter %s. setting default nlambda=%d" % (self.filter, nlambda)
-
-
-        #if outfile is None: 
-            #outfile = "PSF_%s_%s.fits" % (self.name, self.filter)
-            #raise ValueError("You must specify an output file name.")
+                _log.warn("unrecognized filter %s. setting default nlambda=%d" % (self.filter, nlambda))
 
 
         # Implement the semi-convoluted logic for the oversampling options. See docstring above
@@ -272,22 +278,30 @@ class JWInstrument(object):
         if detector_oversample is None: detector_oversample = oversample
         if calc_oversample is None: calc_oversample = oversample
 
+        _log.info("PSF calc using fov_arcsec = %f, oversample = %d, nlambda = %d" % (fov_arcsec, detector_oversample, nlambda) )
+
         # instantiate an optical system using the current parameters
         self.optsys = self.getOpticalSystem(fov_arcsec=fov_arcsec, calc_oversample=calc_oversample, detector_oversample=detector_oversample)
 
+        # compute source spectrum
+        if monochromatic is None:
+            _log.info("Computing source spectrum & instrument spectral transmission")
+            # compute a source spectrum weighted by the desired filter curves.
+            # TBD this will eventually use pysynphot, so don't write anything fancy for now!
+            wf = N.where(self.filter_list == self.filter)
+            wf = N.where(self.filter == N.asarray(self.filter_list))[0]
+            filterdata = atpy.Table(self._filter_files[wf], type='fits')
 
-        # compute a source spectrum weighted by the desired filter curves.
-        # TBD this will eventually use pysynphot, so don't write anything fancy for now!
-        wf = N.where(self.filter_list == self.filter)
-        wf = N.where(self.filter == N.asarray(self.filter_list))[0]
-        filterdata = atpy.Table(self._filter_files[wf])
+            _log.warn("CAUTION: Really basic top-hat function for filter profile, with %d steps" % nlambda)
+            wtrans = N.where(filterdata.THROUGHPUT > 0.5)
+            lrange = filterdata.WAVELENGTH[wtrans] *1e-10
+            lambd = N.linspace(N.min(lrange), N.max(lrange), nlambda)
+            weights = N.ones(nlambda)
+            source = {'wavelengths': lambd, 'weights': weights}
+        else:
+            _log.info(" monochromatic calculation requested.")
+            source = {'wavelengths': N.asarray([monochromatic]), 'weights': N.ones((1))}
 
-        print "CAUTION: Really basic top-hat function for filter profile, with %d steps" % nlambda
-        wtrans = N.where(filterdata.THROUGHPUT > 0.5)
-        lrange = filterdata.WAVELENGTH[wtrans] *1e-10
-        lambd = N.linspace(N.min(lrange), N.max(lrange), nlambda)
-        weights = N.ones(nlambda)
-        source = {'wavelengths': lambd, 'weights': weights}
         result = self.optsys.calcPSF(source, display_intermediates=display, save_intermediates=False, display=display)
 
         if display:
@@ -327,7 +341,7 @@ class JWInstrument(object):
         # Should we downsample? 
         #if 'downsample' in self.options.keys() and self.options['downsample'] == True:
         if rebin:
-            print "** Downsampling to detector pixel scale."
+            _log.info(" Downsampling to detector pixel scale.")
             rebinned_result = result[0].copy()
             rebinned_result.data = utils.rebin(rebinned_result.data, rc=(detector_oversample, detector_oversample))
             rebinned_result.header.update('OVERSAMP', 1, 'These data are rebinned to detector pixels')
@@ -343,7 +357,7 @@ class JWInstrument(object):
             result[0].header.update ("FILENAME", os.path.basename (outfile),
                            comment="Name of this file")
             result.writeto(outfile, clobber=clobber)
-            print "Saved result to "+outfile
+            _log.info("Saved result to "+outfile)
         return result
 
 
@@ -379,14 +393,17 @@ class JWInstrument(object):
 
         self._validate_config()
 
-        print calc_oversample, detector_oversample
+        _log.info("Creating optical system model:")
+
+        _log.debug("Oversample: %d  %d " % (calc_oversample, detector_oversample))
         optsys = OpticalSystem(name='JWST+'+self.name, oversample=calc_oversample)
 
 
         if isinstance(self.pupilopd, str):
             full_opd_path = self.pupilopd if os.path.exists( self.pupilopd) else os.path.join(self._datapath, "OPD",self.pupilopd)
-        else:
+        elif hasattr(self.pupilopd, '__getitem__'):
             full_opd_path =  (self.pupilopd[0] if os.path.exists( self.pupilopd[0]) else os.path.join(self._datapath, "OPD",self.pupilopd[0]), self.pupilopd[1])
+        elif self.pupilopd is None: full_opd_path = None
 
         full_pupil_path = self.pupil if os.path.exists( self.pupil) else os.path.join(self._datapath, "OPD",self.pupil)
         optsys.addPupil(name='JWST Pupil', transmission=full_pupil_path, opd=full_opd_path, opdunits='micron', rotation=self._rotation)
@@ -422,7 +439,7 @@ class JWInstrument(object):
 
         wm = N.where(N.asarray(self.filter_list) == filtername)
         filtfile = self._filter_files[wm[0]]
-        print "Loading filter %s from %s" % (filtername, filtfile)
+        _log.info("Loading filter %s from %s" % (filtername, filtfile))
         t = atpy.Table(filtfile)
 
         t.WAVELENGTH /= 1e4 # convert from angstroms to microns
@@ -467,7 +484,7 @@ class MIRI(JWInstrument):
 
 
     def _validate_config(self):
-        #print "MIRI validating:    %s, %s, %s " % (self.filter, self.image_mask, self.pupil_mask)
+        #_log.debug("MIRI validating:    %s, %s, %s " % (self.filter, self.image_mask, self.pupil_mask))
         if self.filter.startswith("MRS-IFU"): raise NotImplementedError("The MIRI MRS is not yet implemented.")
 
         if self.image_mask is not None or self.pupil_mask is not None:
@@ -488,12 +505,12 @@ class MIRI(JWInstrument):
                 assert self.pupil_mask == 'MASKLYOT', 'Invalid configuration'
             else:
                 #raise ValueError("Invalid configuration selected!")
-                print "*"*80
-                print "WARNING: you appear to have selected an invalid/nonphysical configuration of that instrument!"
-                print ""
-                print "I'm going to continue trying the calculation, but YOU are responsible for interpreting"
-                print "any results in a meaningful fashion or discarding them.."
-                print "*"*80
+                _log.warn("*"*80)
+                _log.warn("WARNING: you appear to have selected an invalid/nonphysical configuration of that instrument!")
+                _log.warn("")
+                _log.warn("I'm going to continue trying the calculation, but YOU are responsible for interpreting")
+                _log.warn("any results in a meaningful fashion or discarding them..")
+                _log.warn("*"*80)
 
 
     def addCoronagraphOptics(self,optsys):
@@ -608,7 +625,7 @@ class NIRCam(JWInstrument):
         newscale = self._pixelscale_short if filtwave < 2.4 else self._pixelscale_long
         if newscale != self.pixelscale:
             self.pixelscale = newscale
-            print "NIRCam pixel scale updated to %f arcsec/pixel to match channel for the selected filter." % self.pixelscale
+            _log.info("NIRCam pixel scale updated to %f arcsec/pixel to match channel for the selected filter." % self.pixelscale)
 
 
     def addCoronagraphOptics(self,optsys):
@@ -919,6 +936,22 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, binsi
         return (rr, radialprofile2, EE) 
 
 
+def measure_EE(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
+    """ Returns a function object which when called returns the Encircled Energy at a given radius.
+
+    Example
+    -------
+    >>> EE = measure_EE("someimage.fits")
+    >>> print "The EE at 0.5 arcsec is ", EE(0.5)
+
+    """
+
+    rr, radialprofile2, EE = radial_profile(HDUlist_or_filename, ext, EE=True, center=center, binsize=binsize)
+
+    EE_fn = scipy.interpolate.interp1d(rr, EE,kind='cubic')
+
+    return EE_fn
+    
 
 
 
@@ -1020,7 +1053,7 @@ class kurucz_stars(object):
                     found = True
                     break
             if not found:
-                print "warning:  can't find %s column" % column
+                _log.warn("warning:  can't find %s column" % column)
                 return ANGSTROMStoMICRONS
 
         if column_units is None:
@@ -1036,8 +1069,8 @@ class kurucz_stars(object):
         elif units == "m" or units == "meter" or units == "meters":
             factor = METERStoMICRONS
         else:
-            print " wavelength units '%s' not given; " \
-                  "Angstroms assumed" % column_units
+            _log.warn(" wavelength units '%s' not given; " \
+                  "Angstroms assumed" % column_units)
             factor = ANGSTROMStoMICRONS
 
         return factor
@@ -1085,9 +1118,9 @@ def makeFakeFilter(filename, lcenter, dlam, clobber=False):
 
     nlambda = 40
 
-    print "Filter from %f - %f " % (lstart, lstop)
+    _log.info("Filter from %f - %f " % (lstart, lstop))
     wavelength = N.linspace( lstart-dlam*0.1, lstop+dlam*0.1, nlambda)
-    print wavelength
+    _log.debug(wavelength)
     transmission = N.zeros_like(wavelength)
     transmission[N.where( (wavelength > lstart) & (wavelength < lstop) )] = 1.0
 
@@ -1100,7 +1133,7 @@ def makeFakeFilter(filename, lcenter, dlam, clobber=False):
     t.add_keyword("DELTALAM",dlam)
 
     t.write(filename, overwrite=clobber)
-    print("Created fake filter profile in "+filename)
+    _log.info("Created fake filter profile in "+filename)
 
 
     return t
@@ -1148,6 +1181,9 @@ def makeNIRCamFilters():
 
 
 if __name__ == "__main__":
+
+    logging.basicConfig(level=logging.INFO,format='%(name)-10s: %(levelname)-8s %(message)s')
+
 
     if 0: 
         m = MIRI()
