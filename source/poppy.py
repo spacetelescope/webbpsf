@@ -114,7 +114,6 @@ def removePadding(array,oversample):
     n1 = n0+npix
     return array[n0:n1,n0:n1].copy()
 
-
 def _wrap_propagate_for_multiprocessing(args):
     """ This is an internal helper routine for parallelizing computations across multiple processors.
     
@@ -576,7 +575,7 @@ class Wavefront(object):
         #print "lam/D = %f arcsec" % lamD
 
         det_fov_lamD = det.fov_arcsec / lamD
-        det_calc_size_pixels = det.fov_npix * det.oversample
+        det_calc_size_pixels = det.fov_pixels * det.oversample
 
         mft = SFT.SlowFourierTransform(choice='ADJUSTIBLE', verbose=False)
         msg= '    Propagating w/ MFT: %.4f"/pix     fov=%.3f lam/D    npix=%d' % \
@@ -1347,7 +1346,7 @@ class Detector(OpticalElement):
         Descriptive name
     pixelscale : float
         Pixel scale in arcsec/pixel
-    fov_npix, fov_arcsec : float
+    fov_pixels, fov_arcsec : float
         The field of view may be specified either in arcseconds or by a number of pixels. Either is acceptable
         and the pixel scale is used to convert as needed. 
     oversample : int
@@ -1355,30 +1354,30 @@ class Detector(OpticalElement):
 
 
     """
-    def __init__(self, pixelscale, fov_npix=None, fov_arcsec=None, oversample=1, name="Unnamed"):
+    def __init__(self, pixelscale, fov_pixels=None, fov_arcsec=None, oversample=1, name="Unnamed"):
         self.name=name
         self.planetype = DETECTOR
         self.pixelscale = float(pixelscale)
         self.oversample = oversample
 
-        if fov_npix is None and fov_arcsec is None:
-            raise ValueError("Either fov_npix or fov_arcsec must be specified!")
-        elif fov_npix is not None:
-            self.fov_npix = int(fov_npix)
-            self.fov_arcsec = self.fov_npix * self.pixelscale
+        if fov_pixels is None and fov_arcsec is None:
+            raise ValueError("Either fov_pixels or fov_arcsec must be specified!")
+        elif fov_pixels is not None:
+            self.fov_pixels = int(fov_pixels)
+            self.fov_arcsec = self.fov_pixels * self.pixelscale
         else:
             # set field of view to closest value possible to requested,
             # consistent with having an integer number of pixels
-            self.fov_npix = round(fov_arcsec / self.pixelscale)
-            self.fov_arcsec = self.fov_npix * self.pixelscale
+            self.fov_pixels = round(fov_arcsec / self.pixelscale)
+            self.fov_arcsec = self.fov_pixels * self.pixelscale
 
-        self.shape = (self.fov_npix, self.fov_npix)
+        self.shape = (self.fov_pixels, self.fov_pixels)
 
         self.amplitude = 1
         self.opd = 0
 
     def __str__(self):
-        return "Detector plane: %s (%dx%d, %f arcsec/pixel)" % (self.name, self.fov_npix, self.fov_npix, self.pixelscale)
+        return "Detector plane: %s (%dx%d, %f arcsec/pixel)" % (self.name, self.fov_pixels, self.fov_pixels, self.pixelscale)
 
 #------
 class OpticalSystem():
@@ -1416,7 +1415,7 @@ class OpticalSystem():
         self.planes = []                    # List of OpticalElements
         self.oversample = oversample
 
-        self.source_tilt = N.zeros((2))     # off-axis tilt of the source, in ANGULAR units.
+        self.source_tilt = N.zeros((2))     # off-axis tilt of the source, in ARCSEC
 
         self.intermediate_wfs = None        #
         if self.verbose:
@@ -1553,7 +1552,7 @@ class OpticalSystem():
         return self.planes[num]
 
     # methods for dealing with wavefronts:
-    def inputWavefront(self, wavelength=2e-6):
+    def inputWavefront(self, wavelength=2e-6, source_offset_r=None, source_offset_theta=None):
         """Create a Wavefront object suitable for sending through a given optical system, based on
         the size of the first optical plane, assumed to be a pupil.
 
@@ -1846,7 +1845,7 @@ class OpticalSystem():
 def test_MFT():
     osys = OpticalSystem("Perfect JW", oversample=2)
     osys.addPupil(transmission="/Users/mperrin/software/newJWPSF/data/pupil.fits", name='JW Pupil')
-    osys.addDetector(0.032, fov_npix=128)
+    osys.addDetector(0.032, fov_pixels=128)
 
 
     out = osys.propagate_mono(wavelength=2e-6)
@@ -1869,7 +1868,7 @@ def test_poppy():
     osys.addImage(function='fieldstop', name='20 arcsec stop', size=20)
     osys.addImage(function='FQPM',wavelength=10.65e-6)
     osys.addPupil(transmission="/Users/mperrin/software/newJWPSF/data/MIRI/coronagraph/MIRI_FQPMLyotStop.fits", name='MIRI FQPM Lyot')
-    osys.addDetector(0.032, name="Detector", fov_npix=128)
+    osys.addDetector(0.032, name="Detector", fov_pixels=128)
 
     out = osys.propagate_mono(wavelength=10.65e-6, display_intermediates=True, save_intermediates=True)
     out.writeto('test_fft.fits',clobber=True)
@@ -1883,7 +1882,7 @@ def test_fftw3():
     osys.addImage(function='fieldstop', name='20 arcsec stop', size=20)
     osys.addImage(function='FQPM',wavelength=10.65e-6)
     osys.addPupil(transmission="/Users/mperrin/software/newJWPSF/data/MIRI/coronagraph/MIRI_FQPMLyotStop.fits", name='MIRI FQPM Lyot')
-    osys.addDetector(0.032, name="Detector", fov_npix=128)
+    osys.addDetector(0.032, name="Detector", fov_pixels=128)
 
 
 
@@ -1938,8 +1937,8 @@ def test_speed():
     #osys.addPupil(function='Square', name = "6.5m square", size=6.5)
     osys.addPupil(function='Circle', name = "6.5m circle", radius=6.5/2)
     #osys.addImage()
-    #osys.addDetector(0.032, name="Detector", fov_npix=128)
-    osys.addDetector(0.032/2, name="Detector", fov_npix=npix)
+    #osys.addDetector(0.032, name="Detector", fov_pixels=128)
+    osys.addDetector(0.032/2, name="Detector", fov_pixels=npix)
 
     osys.planes[-1].det_offset = offset
 
@@ -1975,8 +1974,8 @@ if __name__ == "__main__":
                 #osys.addPupil(function='Square', name = "6.5m square", size=6.5)
                 osys.addPupil(function='Circle', name = "6.5m circle", radius=6.5/2)
                 #osys.addImage()
-                #osys.addDetector(0.032, name="Detector", fov_npix=128)
-                osys.addDetector(0.032/2, name="Detector", fov_npix=npix)
+                #osys.addDetector(0.032, name="Detector", fov_pixels=128)
+                osys.addDetector(0.032/2, name="Detector", fov_pixels=npix)
 
                 osys.planes[-1].det_offset = offset
 

@@ -256,8 +256,14 @@ class JWInstrument(object):
         if filter is not None:
             self.filter = filter
         if fov_arcsec is None:
-            if self.name =='MIRI': fov_arcsec=12.
-            else: fov_arcsec=5.
+            if fov_pixels is not None:
+                fov_type='pixels'
+                fov_arcsec = self.pixelscale* fov_pixels
+            else: # fov_pixels is None:
+                fov_type = 'fov_arcsec'
+                if self.name =='MIRI': fov_arcsec=12.
+                else: fov_arcsec=5.
+
         if nlambda is None:
             #filt_width = self.filter[4]
             filt_width = self.filter[-1]
@@ -278,7 +284,7 @@ class JWInstrument(object):
         if detector_oversample is None: detector_oversample = oversample
         if calc_oversample is None: calc_oversample = oversample
 
-        _log.info("PSF calc using fov_arcsec = %f, oversample = %d, nlambda = %d" % (fov_arcsec, detector_oversample, nlambda) )
+        _log.info("PSF calc using fov_%s = %f, oversample = %d, nlambda = %d" % (fov_type, fov_arcsec, detector_oversample, nlambda) )
 
         # instantiate an optical system using the current parameters
         self.optsys = self.getOpticalSystem(fov_arcsec=fov_arcsec, calc_oversample=calc_oversample, detector_oversample=detector_oversample)
@@ -416,7 +422,7 @@ class JWInstrument(object):
             if self.options['force_parity'] == 'odd'  and remainder(fov_pixels,2)==0: fov_pixels +=1
             if self.options['force_parity'] == 'even' and remainder(fov_pixels,2)==1: fov_pixels +=1
 
-        optsys.addDetector(self.pixelscale, fov_npix = fov_pixels, oversample = detector_oversample, name=self.name+" detector")
+        optsys.addDetector(self.pixelscale, fov_pixels = fov_pixels, oversample = detector_oversample, name=self.name+" detector")
         return optsys
 
 
@@ -538,7 +544,8 @@ class MIRI(JWInstrument):
                 opticslist = [  poppy.IdealFQPM(wavelength=10.65e-6, name=self.image_mask),
                                 poppy.IdealFieldStop(size=24, angle=-4.56)])
             optsys.addImage(container)
-            optsys.source_position = N.array([0.5, 0.5]) * intermediate_pixel_scale
+            #optsys.source_position = N.array([0.5, 0.5]) * intermediate_pixel_scale
+            #optsys.source_halfpix_offset = True
         elif self.image_mask == 'FQPM1140':
             container = poppy.CompoundAnalyticOptic(name = "MIRI FQPM 1065",
                 opticslist = [  poppy.IdealFQPM(wavelength=11.40e-6, name=self.image_mask),
@@ -592,8 +599,8 @@ class NIRCam(JWInstrument):
     
     Relevant attributes include `filter`, `image_mask`, and `pupil_mask`.
 
-    The NIRCam class is smart enough to select the appropriate pixel scale automatically depending on whether
-    you request a short or long wavelength filter.
+    The NIRCam class is smart enough to select the appropriate pixel scale for the short or long wavelength channel automatically 
+    depending on whether you request a short or long wavelength filter.
  
     """
     def __init__(self):
@@ -696,7 +703,9 @@ class TFI(JWInstrument):
     
     Relevant attributes include `filter`, `image_mask`, and `pupil_mask`.
 
-    Right now there are a bunch of pretend filters with different wavelengths. Actual modeling of the tunable filter TBD later.
+    Right now there are a bunch of pretend filters with different wavelengths. 
+    You may use the `monochromatic=` option to calcPSF to calculate a PSF at an arbitrary wavelength.
+    Actual modeling of the tunable filter transmission bandwidth TBD later.
     """
     def __init__(self):
         JWInstrument.__init__(self, "TFI")
@@ -811,14 +820,13 @@ def MakePSF(self, instrument=None, pupil_file=None, phase_file=None, output=None
 
 
 #########################3
-def display_PSF(HDUlist_or_filename=None, ext=0, vmin=1e-8,vmax=1e-1, title=None, imagecrop=None, adjust_for_oversample=False):
-    """Display nicely a PSF from a HDUlist or filename 
-    
+def display_PSF(HDUlist_or_filename=None, ext=0, vmin=1e-8,vmax=1e-1, title=None, imagecrop=None, adjust_for_oversampling=False):
+    """Display nicely a PSF from a given HDUlist or filename 
     
     Parameters
     ----------
-    filename : string
-    HDUlist : pyfits.HDUlist
+    HDUlist_or_filename : pyfits.HDUlist or string
+        FITS file containing image to display.
     ext : int
         FITS extension. default = 0
     vmin, vmax : float
@@ -826,7 +834,7 @@ def display_PSF(HDUlist_or_filename=None, ext=0, vmin=1e-8,vmax=1e-1, title=None
     title : string, optional
     imagecrop : float
         size of region to display (default is whole image)
-    adjust_for_oversample : bool
+    adjust_for_oversampling : bool
         rescale to conserve surface brightness for oversampled PSFs? 
         (making this True conserves surface brightness but not total flux)
         default is False, to conserve total flux.
@@ -844,7 +852,7 @@ def display_PSF(HDUlist_or_filename=None, ext=0, vmin=1e-8,vmax=1e-1, title=None
     unit="arcsec"
     extent = [-halffov, halffov, -halffov, halffov]
 
-    if adjust_for_oversample:
+    if adjust_for_oversampling:
         scalefactor = HDUlist[ext].header['OVERSAMP']**2
         im = HDUlist[ext].data *scalefactor
     else: im = HDUlist[ext].data
@@ -938,6 +946,25 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, binsi
 
 def measure_EE(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
     """ Returns a function object which when called returns the Encircled Energy at a given radius.
+
+
+
+    Parameters
+    ----------
+    HDUlist_or_filename: string
+        what it sounds like.
+    ext : int
+        Extension in FITS file
+    center : tuple of floats
+        Coordinates (x,y) of PSF center. Default is image center. 
+    binsize: 
+        size of step for profile. Default is pixel size.
+
+    Returns
+    --------
+    encircled_energy: function
+        A function which will return the encircled energy interpolated to any desired radius.
+
 
     Example
     -------
