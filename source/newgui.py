@@ -143,7 +143,7 @@ class JWPSF_GUI(object):
 
             if hasattr(self.instrument[iname], 'ifu_wavelength'):
                 fr2 = ttk.Frame(page)
-                label = 'IFU' if iname !='TFI' else 'TFI'
+                label = 'IFU' if iname !='TFI' else 'TF'
                 ttk.Label(fr2, text='   %s wavelen: '%label , state='disabled').grid(row=0, column=0)
                 self.widgets[iname+"_ifu_wavelen"] = ttk.Entry(fr2, width=5) #, disabledforeground="#A0A0A0")
                 self.widgets[iname+"_ifu_wavelen"].insert(0, str(self.instrument[iname].ifu_wavelength))
@@ -151,6 +151,11 @@ class JWPSF_GUI(object):
                 self.widgets[iname+"_ifu_wavelen"].state(['disabled'])
                 ttk.Label(fr2, text=' um' , state='disabled').grid(row=0, column=2)
                 fr2.grid(row=1,column=2, columnspan=6, sticky='E')
+
+                self.widgets[iname+"_filter"].bind('<<ComboboxSelected>>', lambda e: self.ev_update_ifu_label(iname))
+
+
+
 
             if len(self.instrument[iname].image_mask_list) >0 :
                 masks = self.instrument[iname].image_mask_list
@@ -238,20 +243,6 @@ class JWPSF_GUI(object):
         r+=1
 
         self._add_labeled_dropdown("jitter", lf, label='Jitter model:', values=  ['Just use OPDs', 'Gaussian blur', 'Accurate yet SLOW grid'], width=20, position=(r,0), sticky='W', columnspan=2)
-        #ttk.Label(lf, text='Jitter model:').grid(row=r, sticky='W')
-        #self.widgets['jitter'] = ttk.Combobox(lf, width=20, state='readonly')
-        #self.widgets['jitter']['values'] = ['Just use OPDs', 'Gaussian blur', 'Accurate yet SLOW grid']
-        #self.widgets['jitter'].set('Just use OPDs')
-        #self.widgets['jitter'].grid(row=r,column=1, columnspan=2, sticky='E')
- 
-        #ttk.Label(lf, text='x finer than instrument pixels' ).grid(row=r, column=2, sticky='W', columnspan=2)
- 
-        #r=r+1
-        #ttk.Label(lf, text='Output filename:',  ).grid(row=r, sticky='W')
-        #self.widgets['outfile'] = ttk.Entry(lf, width=40)
-        #self.widgets['outfile'].grid(row=r,column=1, sticky='E', columnspan=2)
-        #ttk.Label(lf, text='.fits' ).grid(row=r, column=3, sticky='W')
-
 
         lf.grid(row=4, sticky='E,W', padx=10, pady=5)
 
@@ -269,23 +260,12 @@ class JWPSF_GUI(object):
         addbutton(self,lf,'Display profiles', self.ev_displayProfiles, 2, disabled=True)
         addbutton(self,lf,'Save PSF As...', self.ev_SaveAs, 3, disabled=True)
 
-        #ttk.Button(lf, text='Compute PSF', command=self.ev_calcPSF ).grid(column=0, row=0)
-        #ttk.Button(lf, text='Display PSF', command=self.ev_dispPSF ).grid(column=1, row=0)
-        #ttk.Button(lf, text='Display profiles', command=self.ev_dispProfiles ).grid(column=2, row=0)
-        #self.widgets['SaveAs'] = ttk.Button(lf, text='Save PSF...', command=self.ev_SaveAs )
-        #self.widgets['SaveAs'].grid(column=1, row=0, sticky='E')
-        #self.widgets['SaveAs'].state(['disabled'])
-        #ttk.Button(lf, text='Display PSF', command=self.ev_displayPSF).grid(column=1, row=0)
         ttk.Button(lf, text='Display Optics', command=self.ev_displayOptics ).grid(column=4, row=0)
         ttk.Button(lf, text='Quit', command=self.quit).grid(column=5, row=0)
         lf.columnconfigure(2, weight=1)
         lf.columnconfigure(4, weight=1)
         lf.grid(row=5, sticky='E,W', padx=10, pady=15)
 
-
-
-        #frame.pack(padx=10, pady=10)
-        #frame.grid(row=0, sticky=N+E+S+W, padx=10, pady=10)
         frame.grid(row=0, sticky='N,E,S,W')
         frame.columnconfigure(0, weight=1)
         frame.rowconfigure(0, weight=1)
@@ -603,7 +583,7 @@ class JWPSF_GUI(object):
         #self._updateFromGUI()
         #if self.PSF_HDUlist is not None:
         P.clf()
-        jwopt.display_PSF(self.PSF_HDUlist)
+        jwopt.display_psf(self.PSF_HDUlist)
 
     def ev_displayProfiles(self):
         "Event handler for Displaying the PSF"
@@ -636,7 +616,6 @@ class JWPSF_GUI(object):
 
 
 
-
     def ev_displayOptics(self):
         "Event handler for Displaying the optical system"
         self._updateFromGUI()
@@ -663,6 +642,12 @@ class JWPSF_GUI(object):
 
             f = P.gcf()
             P.text(0.4, 0.02, "OPD WFE = %6.2f nm RMS" % (masked_opd.std()*1000.), transform=f.transFigure)
+
+    def ev_update_ifu_label(self, iname):
+        newfilt = self.widgets[iname+"_filter"].get()
+        print "Updating IFU label for "+iname+", filt="+newfilt
+
+
 
     def ev_update_OPD_labels(self):
         "Update the descriptive text for all OPD files"

@@ -24,7 +24,6 @@
 
 
 import numpy as np
-import utils
 import pyfits
 #import SimpleFits as SF
 
@@ -334,6 +333,28 @@ class SlowFourierTransform:
         return newHDUlist
 
 
+#---------------------------------------------------------------------
+#  Test functions 
+
+def euclid2(s, c=None):
+
+	if c is None:
+		c = (0.5*float(s[0]),  0.5*float(s[1]))
+
+	y, x = N.indices(s)
+	r2 = (x - c[0])**2 + (y - c[1])**2
+
+	return r2
+
+def makedisk(s=None, c=None, r=None, inside=1.0, outside=0.0, grey=None, t=None):
+	
+	# fft style or sft asymmetric style - center = nx/2, ny/2
+	# see ellipseDriver.py for details on symm...
+
+	disk = N.where(euclid2(s, c=c) <= r*r, inside, outside)
+	return disk
+
+
 
 def test_SFT(choice='FFTSTYLE', outdir='.', outname='SFT1'):
     import os
@@ -363,7 +384,7 @@ def test_SFT(choice='FFTSTYLE', outdir='.', outname='SFT1'):
 
     ctr = (float(npupil)/2.0 + sft1.offset(), float(npupil)/2.0 + sft1.offset())
     #print ctr
-    pupil = utils.makedisk(s=s, c=ctr, r=float(npupil)/2.0001, t=np.float64, grey=0)
+    pupil = makedisk(s=s, c=ctr, r=float(npupil)/2.0001, t=np.float64, grey=0)
 
     pupil /= np.sqrt(pupil.sum())
 
@@ -410,7 +431,7 @@ def test_SFT_center( npix=100, outdir='.', outname='SFT1'):
 
     ctr = (float(npupil)/2.0 + sft1.offset(), float(npupil)/2.0 + sft1.offset())
     #print ctr
-    pupil = utils.makedisk(s=s, c=ctr, r=float(npupil)/2.0001, t=np.float64, grey=0)
+    pupil = makedisk(s=s, c=ctr, r=float(npupil)/2.0001, t=np.float64, grey=0)
 
     pupil /= np.sqrt(pupil.sum())
 

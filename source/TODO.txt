@@ -1,11 +1,9 @@
 
-
 Add object
 Add real use of stellar spectral type
 	- pysynphot next week!
 
 debug circular occulter masks
-
 
 
 Add detector QE and germanium filter features. 
@@ -20,10 +18,8 @@ Overall:
 
 -----
 SFT:
- - rotated/diagonal SFTs
 
 poppy:
- - add interpolation for size-mismatched pupil files using 'ndimage.interpolate.zoom' and then round back to integer pixels.
 
 popjw: 
  - offset sources for coronagraphy. 
