@@ -1,6 +1,11 @@
+.. JWST-PSFs documentation master file, created by
+   sphinx-quickstart on Mon Nov 29 15:57:01 2010.
+   You can adapt this file completely to your liking, but it should at least
+   contain the root `toctree` directive.
 
 
-Appendix: Optimizing FFT Performance for JWST Optical Modeling
+
+Appendix: Optimizing FFT Performance for PSF Computations
 ================================================================
 
 
@@ -12,16 +17,10 @@ This is probably fairly sensitive to hardware details. The following benchmarks 
 
 
 
-* Unlike many of the array operations in numpy, the fft operation
- is not threaded for execution across multiple processors. It is thus
- slow and inefficient.
+ * Unlike many of the array operations in numpy, the fft operation is not threaded for execution across multiple processors. It is thus slow and inefficient.
+ * Numpy and Scipy no longer include FFTW, but luckily there is an independently maintained pyfftw3 module.  See https://launchpad.net/pyfftw/
+ * Using pyfftw3 can result in a 3-4x speedup for moderately large arrays.  However, there are two significant gotchas to be aware of:
 
-* Numpy and Scipy no longer include FFTW, but luckily there is an independently
- maintained pyfftw3 module.  See https://launchpad.net/pyfftw/
-
-
-* Using pyfftw3 can result in a 3-4x speedup for moderately large arrays.
- However, there are two significant gotchas to be aware of:
   1) the pyfftw3.Plan() function has a default parameter of nthreads=1. You have to
      explicitly tell it to use multiple threads if you wish to reap the
      rewards of multiple processors.  By default with nthreads=1 it is in fact a
@@ -63,6 +62,7 @@ there are discrepant values for how long an optimized FFT of a given size takes.
 
 
 Test results::
+
     Doing complex FFT with array size = 1024 x 1024
        for         numpy fft, elapsed time is: 0.094331 s
        for             fftw3, elapsed time is: 0.073848 s
@@ -96,6 +96,7 @@ A test comparing all four planning methods
 
 This test involves creating one single input array (specifically, a large circle in the central half of the array)
 and then repeatedly FFTing that same array. Thus it is pretty much the best possible case and the speeds are very fast.  ::
+
     For arrays of size 512x512
     Building input circular aperture
             that took 0.024070 s
@@ -124,6 +125,7 @@ A comparison of 'estimate' and 'measure' for different sizes
 
 This test involves creating one single input array (specifically, a large circle in the central half of the array)
 and then repeatedly FFTing that same array. Thus it is pretty much the best possible case and the speeds are very fast.  ::
+
     For arrays of size 1024x1024
     Building input circular aperture
             that took 0.120378 s
@@ -177,9 +179,8 @@ Caching of plans means that irunning the same script a second time is much faste
 -----------------------------------------------------------------------------------
 Immediately after executing the above, I ran the same script again. Now the planning times all become essentially negligible. 
 
-Oddly, the exection time for the largest array gets longer. I suspect this has something to do with memory or system load.
+Oddly, the exection time for the largest array gets longer. I suspect this has something to do with memory or system load.  ::
 
-::
     For arrays of size 1024x1024
     Building input circular aperture
             that took 0.115704 s
@@ -241,6 +242,7 @@ using FFTW results in about a 3x increase in performance. ::
 
 
 This leads to substantial savings in total computation time::
+
         Using FFTW:          TIME 1.218268 s for propagating one wavelength
         Using Numpy.fft:     TIME 3.396681 s for propagating one wavelength
 

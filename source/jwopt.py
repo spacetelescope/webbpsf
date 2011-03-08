@@ -29,11 +29,20 @@ import poppy
 import os
 import glob
 import atpy
+import pyfits
 import types
 import time
 from matplotlib.colors import LogNorm  # for log scaling of images, with automatic colorbar support
+import matplotlib
 import pylab as P
 
+
+try: 
+    import pysynphot
+    _HAS_PYSYNPHOT = True
+except:
+    _HAS_PYSYNPHOT = False
+ 
 #from fwcentroid import fwcentroid
 import jwcentroid
 
@@ -152,6 +161,7 @@ class JWInstrument(object):
 
         self.pixelscale = 0.0
         "Detector pixel scale, in arcsec/pixel"
+        self._spectra_cache = {}  # for caching pysynphot results.
 
     def _validate_config(self):
         pass
@@ -194,8 +204,8 @@ class JWInstrument(object):
     def __str__(self):
         return "JWInstrument name="+self.name
 
-    #----- actual optical calculations follow here -----
-    def calcPSF(self, filter=None,  nlambda=None, monochromatic=None ,
+     #----- actual optical calculations follow here -----
+    def calcPSF(self, source=None, filter=None,  nlambda=None, monochromatic=None ,
             fov_arcsec=None, fov_pixels=None,  oversample=None, detector_oversample=None, calc_oversample=None, rebin=False,
             outfile=None, clobber=True, display=False, save_intermediates=False):
         """ Compute a PSF.
@@ -259,19 +269,8 @@ class JWInstrument(object):
         if filter is not None:
             self.filter = filter
 
-        # calculate field of view depending on supplied parameters
-        if fov_arcsec is None and fov_pixels is None:  #pick decent defaults.
-            if self.name =='MIRI': fov_arcsec=12.
-            else: fov_arcsec=5.
-            fov_spec = 'arcsec = %f' % fov_arcsec
-        elif fov_pixels is not None:
-            #fov_arcsec = self.pixelscale* fov_pixels
-            fov_spec = 'pixels = %d' % fov_pixels
-        elif fov_arcsec is not None:
-            fov_spec = 'arcsec = %f' % fov_arcsec
-
-
-
+    
+        #----- choose # of wavelengths intelligently. Do this first before generating the source spectrum weighting.
         if nlambda is None or nlambda==0:
             # Automatically determine number of appropriate wavelengths.
 
@@ -291,23 +290,16 @@ class JWInstrument(object):
                 _log.warn("unrecognized filter %s. setting default nlambda=%d" % (self.filter, nlambda))
 
 
-        # Implement the semi-convoluted logic for the oversampling options. See docstring above
-        if oversample is not None and detector_oversample is not None and calc_oversample is not None:
-            # all set -> complain!
-            raise ValueError("You cannot specify simultaneously the oversample= option with the detector_oversample and calc_oversample options. Pick one or the other!")
-        elif oversample is None and detector_oversample is None and calc_oversample is None:
-            # nothing set -> set oversample = 2
-            oversample = 2
-        if detector_oversample is None: detector_oversample = oversample
-        if calc_oversample is None: calc_oversample = oversample
+        #----- compute weights for each wavelength based on source spectrum
+        if monochromatic is not None:
+            _log.info(" monochromatic calculation requested.")
+            source = {'wavelengths': N.asarray([monochromatic]), 'weights': N.ones((1))}
+            lambd = [monochromatic]
 
-        _log.info("PSF calc using fov_%s, oversample = %d, nlambda = %d" % (fov_spec, detector_oversample, nlambda) )
+        elif _HAS_PYSYNPHOT and source is not None and isinstance(source, pysynphot.spectrum.SourceSpectrum):
+            source = self._getWeightsFromSynphot(source, nlambda)
 
-        # instantiate an optical system using the current parameters
-        self.optsys = self._getOpticalSystem(fov_arcsec=fov_arcsec, fov_pixels=fov_pixels, calc_oversample=calc_oversample, detector_oversample=detector_oversample)
-
-        # compute source spectrum
-        if monochromatic is None:
+        else:  #Fallback simple code for if we don't have pysynphot.
             _log.info("Computing source spectrum & instrument spectral transmission")
             # compute a source spectrum weighted by the desired filter curves.
             # TBD this will eventually use pysynphot, so don't write anything fancy for now!
@@ -321,14 +313,40 @@ class JWInstrument(object):
             lambd = N.linspace(N.min(lrange), N.max(lrange), nlambda)
             weights = N.ones(nlambda)
             source = {'wavelengths': lambd, 'weights': weights}
-        else:
-            _log.info(" monochromatic calculation requested.")
-            source = {'wavelengths': N.asarray([monochromatic]), 'weights': N.ones((1))}
-            lambd = [monochromatic]
 
+
+
+        #----- calculate field of view depending on supplied parameters
+        if fov_arcsec is None and fov_pixels is None:  #pick decent defaults.
+            if self.name =='MIRI': fov_arcsec=12.
+            else: fov_arcsec=5.
+            fov_spec = 'arcsec = %f' % fov_arcsec
+        elif fov_pixels is not None:
+            fov_spec = 'pixels = %d' % fov_pixels
+        elif fov_arcsec is not None:
+            fov_spec = 'arcsec = %f' % fov_arcsec
+
+
+        #---- Implement the semi-convoluted logic for the oversampling options. See docstring above
+        if oversample is not None and detector_oversample is not None and calc_oversample is not None:
+            # all options set, contradictorily -> complain!
+            raise ValueError("You cannot specify simultaneously the oversample= option with the detector_oversample and calc_oversample options. Pick one or the other!")
+        elif oversample is None and detector_oversample is None and calc_oversample is None:
+            # nothing set -> set oversample = 2
+            oversample = 2
+        if detector_oversample is None: detector_oversample = oversample
+        if calc_oversample is None: calc_oversample = oversample
+
+        _log.info("PSF calc using fov_%s, oversample = %d, nlambda = %d" % (fov_spec, detector_oversample, nlambda) )
+
+        #---- now at last, actually do the PSF calc:
+        #  instantiate an optical system using the current parameters
+        self.optsys = self._getOpticalSystem(fov_arcsec=fov_arcsec, fov_pixels=fov_pixels,
+            calc_oversample=calc_oversample, detector_oversample=detector_oversample)
+        # and use it to compute the PSF (the real work happens here, in code in poppy.py)
         result = self.optsys.calcPSF(source, display_intermediates=display, save_intermediates=save_intermediates, display=display)
 
-        # update FITS header
+        #---  update FITS header, display, and output.
         result[0].header.update('PUPIL', os.path.basename(self.pupil))
         if self.pupilopd is None:
             result[0].header.update('PUPILOPD', "NONE - perfect telescope! ")
@@ -376,6 +394,49 @@ class JWInstrument(object):
             result.writeto(outfile, clobber=clobber)
             _log.info("Saved result to "+outfile)
         return result
+
+
+    def _getWeightsFromSynphot(self, sourcespectrum, nlambda):
+        """ Given a pysynphot.SourceSpectrum object, perform synthetic photometry for
+        nlambda bins spanning the wavelength range of interest.
+
+        Because this calculation is kind of slow, cache results for reuse in the frequent
+        case where one is computing many PSFs for the same spectral source.
+        """
+        
+        try:
+            if (self.filter, sourcespectrum.name, nlambda) in self._spectra_cache.keys(): 
+                return self._spectra_cache[ (self.filter, sourcespectrum.name, nlambda)]
+        except:
+            pass  # in case sourcespectrum lacks a name element - just do the below calc.
+
+        _log.info("Computing wavelength weights using synthetic photometry...")
+        band = pysynphot.ObsBandpass( ('%s,im,%s'%(self.name, self.filter)).lower())
+
+        # choose reasonable min and max wavelengths
+        w_above10 = N.where(band.throughput > 0.25*band.throughput.max())
+        minwave = band.wave[w_above10].min()
+        maxwave = band.wave[w_above10].max()
+
+        wavesteps =  N.linspace(minwave,maxwave,nlambda)
+        deltawave = wavesteps[1]-wavesteps[0]
+        effstims = []
+
+        #t0= time.time()
+        for wave in wavesteps:
+            box = pysynphot.Box(wave, deltawave)
+            obs = pysynphot.Observation(star, band*box)
+            effstims.append(obs.effstim('counts'))
+        #t1 = time.time()
+        #print "  that took %f seconds for %d wavelengths" % (t1-t0, nlambda)
+       
+        effstims = N.array(effstims)
+        effstims /= effstims.sum()
+        wave_um =  band.waveunits.Convert(wavesteps,'micron')
+
+        newsource = {'wavelengths': wave_um, 'weights':effstims}
+        self._spectra_cache[ (self.filter, sourcespectrum.name, nlambda)] = newsource
+        return newsource
 
 
 
@@ -443,7 +504,6 @@ class JWInstrument(object):
         optsys.addDetector(self.pixelscale, fov_pixels = fov_pixels, oversample = detector_oversample, name=self.name+" detector")
         return optsys
 
-
     def display(self):
         """Display the currently configured optical system on screen """
         optsys = self._getOpticalSystem()
@@ -454,20 +514,6 @@ class JWInstrument(object):
         This method must be provided by derived instrument classes. 
         """
         raise NotImplementedError("needs to be subclassed.")
-
-
-    def getFilter(self,filtername):
-        """ Given a filter name, load the actual response curve and return it.  (depreciated??)"""
-        if filtername not in self.filter_list:
-            raise ValueError("Unknown/incorrect filter name for %s: %s" % (self.name, filtername))
-
-        wm = N.where(N.asarray(self.filter_list) == filtername)
-        filtfile = self._filter_files[wm[0]]
-        _log.info("Loading filter %s from %s" % (filtername, filtfile))
-        t = atpy.Table(filtfile)
-
-        t.WAVELENGTH /= 1e4 # convert from angstroms to microns
-        return t
 
 ###########
 

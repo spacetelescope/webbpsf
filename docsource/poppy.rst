@@ -3,11 +3,14 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
+.. module:: poppy
+
 =============================================
 Physical Optics Propagation in PYthon (POPPY)
 =============================================
 
-.. module:: poppy
+
+**Introduction:**
 
 This module implements an object-oriented system for modeling physical optics
 propagation with diffraction, particularly for telescopic and coronagraphic
@@ -20,22 +23,67 @@ printed at level logging.DEBUG. See the Python logging documentation for an expl
 logger to the screen, a textfile, or any other log destination of your choice.
 
 
+**Key Concepts:**
+
+To model optical propagation, Poppy implements an object-oriented system for
+representing an optical train. There are a variety of :py:class:`OpticalElement` classes
+representing both physical elements as apertures, mirrors, and apodizers, and
+also implicit operations on wavefronts, such as rotations or tilts. Each
+:py:class:`OpticalElement`  may be defined either via analytic functions (e.g. a simple
+circular aperture) or by numerical input FITS files (e.g. the complex JWST
+aperture with appropriate per-segment WFE). A series of such :py:class:`OpticalElements <OpticalElement>` is
+chained together in order in an :py:class:`OpticalSystem` class. That class is capable of generating
+:py:class:`Wavefronts <Wavefront>`  (another class) suitable for propagation through the desired elemeents 
+(with correct array size and sampling), and then performing the optical propagation onto
+the final image plane. 
+
+Poppy presently assumes that these propagation steps can be modeled using Fraunhofer diffraction (far-field), such that
+the relationship between pupil and image plane optics is given by two-dimensional Fourier transforms. Fresnel propagation is
+not currently supported. 
+
+Two different algorithmic flavors of Fourier transforms are used in Poppy. The
+familiar FFT algorithm is used for transformations between pupil and image
+planes in the general case. This algorithm is relatively fast (*O(N log(N))*)
+but imposes strict constraints on the relative sizes and samplings of pupil and
+image plane arrays. Obtaining fine sampling in the image plane requires very
+large oversized pupil plane arrays and vice versa, and image plane pixel
+sampling becomes wavelength dependent. To avoid these constraints, for
+transforms onto the final :py:class:`Detector` plane, instead a Matrix Fourier Transform
+(MFT) algorithm is used (See `Soummer et al. 2007 Optics Express <http://adsabs.harvard.edu/abs/2007OExpr..1515935S>`_).  This allows
+computation of the PSF directly on the desired detector pixel scale or an
+arbitrarily finely subsampled version therof. For equivalent array sizes *N*,
+the MFT is slower than the FFT(*O(N^3)*), but in practice the ability to freely
+choose a more appropriate *N* (and to avoid the need for post-FFT interpolation
+onto a common pixel scale) more than makes up for this and the MFT is faster.
+
+
+
+
 List of Classes
 --------
- * :ref:`Wavefront`
- * OpticalElement
+ * :py:class:`Wavefront`
+ * :py:class:`OpticalSystem`
+ * :py:class:`OpticalElement`
 
-   * AnalyticOpticalElement
+   * :py:class:`Rotation`
+   * :py:class:`AnalyticOpticalElement`
 
-     * BandLimitedCoron
-     * IdealMonoFQPM
-     * IdealFieldStop
-     * IdealCircularOcculter
-   * Detector
- * OpticalSystem
+     * :py:class:`CircularAperture`
+     * :py:class:`HexagonAperture`
+     * :py:class:`SquareAperture`
+     * :py:class:`IdealFieldStop`
+     * :py:class:`IdealCircularOcculter`
+     * :py:class:`IdealBarOcculter`
+     * :py:class:`BandLimitedCoron`
+     * :py:class:`IdealFQPM`
+     * :py:class:`FQPM_FFT_aligner`
+     * :py:class:`CompoundAnalyticOptic`
+   * :py:class:`Detector`
 
 
-.. Wavefront:
+
+
+.. _Wavefront:
 
 Wavefront
 ---------
@@ -61,9 +109,16 @@ Optical Elements
 
 ------
 
+.. autoclass:: poppy.Rotation
+   :show-inheritance:
+
 .. autoclass:: poppy.AnalyticOpticalElement
    :show-inheritance:
 .. autoclass:: poppy.CircularAperture
+   :show-inheritance:
+.. autoclass:: poppy.HexagonAperture
+   :show-inheritance:
+.. autoclass:: poppy.SquareAperture
    :show-inheritance:
 .. autoclass:: poppy.IdealFieldStop
    :show-inheritance:
@@ -73,7 +128,11 @@ Optical Elements
    :show-inheritance:
 .. autoclass:: poppy.BandLimitedCoron
    :show-inheritance:
-.. autoclass:: poppy.IdealMonoFQPM
+.. autoclass:: poppy.IdealFQPM
+   :show-inheritance:
+.. autoclass:: poppy.FQPM_FFT_aligner
+   :show-inheritance:
+.. autoclass:: poppy.CompoundAnalyticOptic
    :show-inheritance:
 
 

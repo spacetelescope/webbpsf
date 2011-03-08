@@ -62,7 +62,7 @@ import logging
 _log = logging.getLogger('poppy')
 _log.addHandler(logging.NullHandler())
 
-
+   
 
 try:
     import fftw3
@@ -2041,7 +2041,7 @@ class OpticalSystem():
         if self.verbose: _log.info(" PSF Calculation completed.")
         return outFITS
 
-    def calcPSF(self, source=None, wavelen=None, 
+    def calcPSF(self, source=None, nlambda=5, wavelen=None, 
         save_intermediates=False, save_intermediates_what='all', display= False, **kwargs):
         """Calculate a PSF, either 
         - multi-wavelength PSF over some weighted sum of wavelengths (if you provide a source parameter)
