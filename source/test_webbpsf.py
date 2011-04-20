@@ -1,4 +1,4 @@
-import jwopt as jw
+import webbpsf as jw
 import poppy
 import unittest
 import numpy as N
@@ -81,7 +81,7 @@ class Test_Source_Offset(unittest.TestCase):
 
         jw.display_psf(psfs[0])
 
-        cent0 = N.asarray(jw.measure_center(psfs[0]))
+        cent0 = N.asarray(jw.measure_centroid(psfs[0]))
         center_pix = (psfs[0][0].data.shape[0]-1)/2.0
         self.assertAlmostEqual(cent0[0], center_pix, 3)
         self.assertAlmostEqual(cent0[1], center_pix, 3)
@@ -90,7 +90,7 @@ class Test_Source_Offset(unittest.TestCase):
 
         for i in range(1, nsteps+1):
             jw.display_psf(psfs[i])
-            cent = jw.measure_center(psfs[i])
+            cent = jw.measure_centroid(psfs[i])
             rx = shift_req[i] * (-N.sin(theta*N.pi/180))
             ry = shift_req[i] * (N.cos(theta*N.pi/180))
             _log.info("   Shift_requested:\t(%10.3f, %10.3f)" % (rx, ry))
@@ -132,31 +132,44 @@ class Test_MIRI_FQPM(unittest.TestCase):
                 psf.writeto('test_miri_fqpm_t45_r%.2f.fits' % offset, clobber=clobber)
  
 class Test_nircam_coron(unittest.TestCase):
-    def test_blc_circ(self, theta=0.0, clobber=True):
+    " Test NIRCam coronagraph by computing a whole bunch of models "
+
+    def test_blc_circ(self):
+        self.do_test_blc(kind='circular')
+    def test_blc_wedge(self):
+        self.do_test_blc(kind='linear')
+
+
+    def do_test_blc(self, clobber=False, kind='circular'):
         poppy._FLUXCHECK=True
         nc = jw.NIRCam()
         nc.pupilopd = None
         nc.filter='F210M'
-        nc.image_mask = 'MASK210R'
-        nc.pupil_mask = 'CIRCLYOT'
-        
+        if kind =='circular':
+            nc.image_mask = 'MASK210R'
+            nc.pupil_mask = 'CIRCLYOT'
+            fn = 'm210r'
+        else:
+            nc.image_mask = 'MASKSWB'
+            nc.pupil_mask = 'WEDGELYOT'
+            fn ='mswb'
+ 
         nlam = 1 #20
         oversample=2
 
 
-        for offset in [0]:
-        #for offset in N.linspace(0.0, 1.0, 100):
-            nc.options['source_offset_theta'] = 0.0
-            nc.options['source_offset_r'] = offset
+        #for offset in [0]:
+        for offset in N.linspace(0.0, 0.5, 20):
+            for angle in [0, 45]:
+                nc.options['source_offset_theta'] = angle
+                nc.options['source_offset_r'] = offset
 
-            if not os.path.exists('test_nircam_m210r_t0_r%.2f.fits' % offset) or clobber:
-                psf = nc.calcPSF(oversample=oversample, nlambda=nlam, save_intermediates=False, display=True)#, monochromatic=10.65e-6)
-                psf.writeto('test_nircam_m210r_t0_r%.2f.fits' % offset, clobber=clobber)
-            if not os.path.exists('test_nircam_m210r_t45_r%.2f.fits' % offset) or clobber:
-                nc.options['source_offset_theta'] = 45#N.pi/4
-                psf = nc.calcPSF(oversample=oversample, nlambda=nlam, save_intermediates=False, display=True)#, monochromatic=10.65e-6)
-                psf.writeto('test_nircam_m210r_t45_r%.2f.fits' % offset, clobber=clobber)
+                fnout = 'test_nircam_%s_t%d_r%.2f.fits' % (fn, angle, offset)
+                if not os.path.exists(fnout) or clobber:
+                    psf = nc.calcPSF(oversample=oversample, nlambda=nlam, save_intermediates=False, display=True)#, monochromatic=10.65e-6)
+                    psf.writeto(fnout, clobber=clobber)
  
+        _log.info("Lots of test files output as test_nircam_*.fits")
 
 
 def test_run(index=None, wavelength=2e-6):

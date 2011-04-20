@@ -1,5 +1,5 @@
-from jwopt import *
-import jwopt
+from webbpsf import *
+import webbpsf
 import poppy
 import numpy as N
 import pyfits
@@ -44,10 +44,16 @@ def basic_test():
     corPSF = miri.psf('lyot', filter='F2550W', decenter=0.01, oversample=4)
 
 
-def check_wavefront(filename, slice=0, test='nearzero', comment=""):
+def check_wavefront(filename_or_hdulist, slice=0, ext=0, test='nearzero', comment=""):
     """ A helper routine to verify certain properties of a wavefront FITS file, 
     as requested by some test routine. """
-    imstack = pyfits.getdata(filename)
+    if isinstance(filename_or_hdulist, str):
+        hdulist = pyfits.open(filename_or_hdulist)
+        filename = filename_or_hdulist
+    elif isinstance(filename_or_hdulist, pyfits.HDUList):
+        hdulist = filename_or_hdulist
+        filename = 'input HDUlist'
+    imstack = hdulist[ext].data
     im = imstack[slice,:,:]
 
     try:
@@ -108,15 +114,74 @@ class TestPoppy(unittest.TestCase):
 
 class Test_FOV_size(TestPoppy):
     def test_0_fov_size(self):
-        """ Test the PSF normalization """
+        """ Test the PSF field of view size"""
 
         osys = poppy.OpticalSystem("test", oversample=self.oversample)
         osys.addPupil(function='Circle', radius=6.5/2)
         osys.addDetector(pixelscale=self.pixelscale, fov_pixels=100, oversample=1)
         
-        psf = osys.calcPSF(wavelen=self.wavelength, normalize=norm)
+        psf = osys.calcPSF(wavelength=self.wavelength, normalize=norm)
 
         self.assertEqual(psf[0].data.shape[0], 100)
+
+
+
+class TestPupils(TestPoppy):
+    """ Test circular, square, hexagonal pupils and their PSFs """
+    def test_pupils(self):
+
+        def image_cut_1d(image, angle=0):
+            """ Make a quick 1D cut through an image starting at the center """
+            #y, x = N.indices(image)
+            #y-= (image.shape[0]-1)/2
+            #x-= (image.shape[1]-1)/2
+
+            t = N.arange(image.shape[0])
+            cx = N.cos(angle*N.pi/180)*t +  (image.shape[0]-1)/2
+            cy = N.sin(angle*N.pi/180)*t +  (image.shape[1]-1)/2
+            cx = N.asarray(N.round(cx), dtype=int)
+            cy = N.asarray(N.round(cy), dtype=int)
+
+            wg = N.where( (cx >=0) & (cy >=0) & (cx < image.shape[1]) & (cy < image.shape[0]))
+            return image[cy[wg],cx[wg]]
+
+
+        pupils = ['Circle', 'Hexagon', 'Square']
+        angles = [[0], [0, 30], [0, 45]]
+        effective_diams = [[2], [2,N.sqrt(3)], [2,2*N.sqrt(2)]]
+
+        P.clf()
+        cuts = []
+        for i in range(3):
+            P.subplot(2,3, i+1)
+            osys = poppy.OpticalSystem("test", oversample=self.oversample)
+            osys.addPupil(pupils[i])
+            osys.addDetector(pixelscale=self.pixelscale, fov_arcsec=3.0)
+
+            psf = osys.calcPSF(wavelength=self.wavelength)
+
+            webbpsf.display_psf(psf)
+            P.title(pupils[i])
+
+            P.subplot(2,3, i+4)
+            for ang, diam in zip(angles[i], effective_diams[i]):
+                cut = image_cut_1d(psf[0].data, ang)
+                r = N.arange(cut.size) * 0.010
+                cut /= cut.max() # normalize to peak=1
+                P.semilogy(r, cut, label='$\\theta = %d^o$' % ang )
+                if i == 0:
+                    radius, airyfn = optics.airy_1d(diam, self.wavelength, pixelscale=self.pixelscale)
+                    P.plot(radius, airyfn, "k--", label='analytic')
+            P.gca().set_xbound(0,3)
+            P.gca().set_ybound(1e-13,1.5)
+
+            
+            # TODO - overplot perfect analytical PSFs.
+            P.legend(loc='upper right', frameon=False)
+
+        self.assertTrue(True)
+        #FIXME - compare cuts to airy function etc.
+
 
 
 class Test1(TestPoppy):
@@ -129,8 +194,8 @@ class Test1(TestPoppy):
         
         for norm in ['first', 'last']:
             P.clf()
-            psf = osys.calcPSF(wavelen=self.wavelength, normalize=norm)
-            jwopt.display_psf(psf)
+            psf = osys.calcPSF(wavelength=self.wavelength, normalize=norm)
+            webbpsf.display_psf(psf)
             tot = psf[0].data.sum()
             _log.info("Using normalization method=%s, the PSF total is\t%f" % (norm, tot))
             if norm =='last':
@@ -141,29 +206,49 @@ class Test1(TestPoppy):
         results = [res for res in self.iter_wavelengths(self.do_test_1_normalization)]
 
 class Test2(TestPoppy):
-    def test_2_lyotreal(self):
+    """ Is the wave in the Lyot plane essentially all real? i.e. negligible imaginary part """
+    def test_2_lyotreal_numpyfft(self):
+        poppy._USE_FFTW3 = False
+        self.do_test_2_lyotreal()
+    def test_2_lyotreal_fftw(self):
+        poppy._USE_FFTW3 = True
+        self.do_test_2_lyotreal()
+    def do_test_2_lyotreal(self):
         """ Test  no FQPM, no field mask. Verify proper behavior in Lyot plane"""
-
         osys = poppy.OpticalSystem("test", oversample=self.oversample)
         osys.addPupil('Circle', radius=6.5/2)
         osys.addImage()  # perfect image plane
         osys.addPupil('Circle', radius=6.5/2)
         osys.addDetector(pixelscale=self.pixelscale, fov_arcsec=3.0)
-        
         P.clf()
         poppy._FLUXCHECK=True
-        poppy._USE_FFTW3 = False
         poppy._USE_FFTW3 = True
-        psf = osys.calcPSF(wavelen=self.wavelength, save_intermediates=True, display_intermediates=True)
+        psf = osys.calcPSF(wavelength=self.wavelength, save_intermediates=True, display_intermediates=True)
         psf.writeto('test2_psf.fits', clobber=True)
 
         # after the Lyot plane, the wavefront should be all real. 
         self.assertTrue(check_wavefront('wavefront_plane_002.fits', test='is_real', comment='(Lyot Plane)'))
     def test_multiwave(self):
-        self.iter_wavelengths(self.test_2_lyotreal)
+        self.iter_wavelengths(self.test_2_lyotreal_fftw)
 
 class Test3(TestPoppy):
-    def test_3_fqpm_tilt(self):
+    """ First, verify the FQPM tilt behavior works as desired. 
+        Then, test an ideal FQPM  """
+
+    def test_3_fqpm_tilt_numpyfft(self):
+        poppy._USE_FFTW3 = False
+        self.do_test_3_fqpm_tilt()
+    def test_3_fqpm_tilt_fftw(self):
+        poppy._USE_FFTW3 = True
+        self.do_test_3_fqpm_tilt()
+    def test_3_ideal_fqpm_numpyfft(self):
+        poppy._USE_FFTW3 = False
+        self.do_test_3_ideal_fqpm()
+    def test_3_ideal_fqpm_fftw(self):
+        poppy._USE_FFTW3 = True
+        self.do_test_3_ideal_fqpm()
+         
+    def do_test_3_fqpm_tilt(self):
         """ Test FQPM tilting (no FQPM yet), no field mask. Verify proper behavior in Lyot plane"""
 
         osys = poppy.OpticalSystem("test", oversample=self.oversample)
@@ -177,14 +262,13 @@ class Test3(TestPoppy):
         
         P.clf()
         poppy._FLUXCHECK=True
-        poppy._USE_FFTW3 = False
-        psf = osys.calcPSF(wavelen=self.wavelength, save_intermediates=True, display_intermediates=True)
+        psf = osys.calcPSF(wavelength=self.wavelength, save_intermediates=True, display_intermediates=True)
         psf.writeto('test3a_psf.fits', clobber=True)
 
         # after the Lyot plane, the wavefront should be all real. 
         check_wavefront('wavefront_plane_004.fits', test='is_real', comment='(Lyot Plane)')
 
-        cen = jwopt.measure_center('wavefront_plane_002.fits', boxsize=50)
+        cen = webbpsf.measure_centroid('wavefront_plane_002.fits', boxsize=50)
         head = pyfits.getheader('wavefront_plane_002.fits')
         desired_pos = (head['NAXIS1']-1)/2.0
         self.assertAlmostEqual( cen[0], desired_pos, delta=0.025) #within 1/50th of a pixel of desired pos?
@@ -193,16 +277,19 @@ class Test3(TestPoppy):
 
         _log.info("FQPM FFT half-pixel tilting is working properly in intermediate image plane")
 
-        cen2 = jwopt.measure_center('wavefront_plane_005.fits', boxsize=50)
+        cen2 = webbpsf.measure_centroid('wavefront_plane_005.fits', boxsize=50)
         head2 = pyfits.getheader('wavefront_plane_005.fits')
         desired_pos2 = (head2['NAXIS1']-1)/2.0
         self.assertAlmostEqual( cen2[0], desired_pos2, delta=0.05) #within 1/20th of a pixel of desired pos?
                                     
+        _log.info("FQPM FFT half-pixel tilting is working properly in final image plane")
 
 
     def do_test_3_ideal_fqpm(self):
         """ Test  ideal FQPM, no field mask. Verify proper behavior in Lyot plane"""
 
+
+        #self.wavelength = 8e-6 # for ease of seeing details on screen make it bigger
         osys = poppy.OpticalSystem("test", oversample=self.oversample)
         osys.addPupil('Circle', radius=6.5/2)
         osys.addPupil('FQPM_FFT_aligner')
@@ -216,13 +303,17 @@ class Test3(TestPoppy):
         poppy._USE_FFTW3 = False
         #poppy._USE_FFTW3 = True
         #logging.basicConfig(level=logging.DEBUG,format='%(name)-10s: %(levelname)-8s %(message)s')
-        psf = osys.calcPSF(wavelen=self.wavelength, save_intermediates=True, display_intermediates=True)
-        psf.writeto('test3_psf.fits', clobber=True)
+        psf, int_wfs = osys.calcPSF(wavelength=self.wavelength, save_intermediates=False, display_intermediates=True, return_intermediates=True)
+        #psf.writeto('test3_psf.fits', clobber=True)
+        lyot_wf = int_wfs[-2]
+        lyot_wf.writeto("wavefront_plane_004.fits", what='all', clobber=True) # need to save this for the multiwave comparison in test_3_multiwave()
 
         # after the Lyot plane, the wavefront should be all real. 
-        check_wavefront('wavefront_plane_004.fits', test='is_real', comment='(Lyot Plane)')
+        self.assertTrue(check_wavefront(lyot_wf.asFITS(what='all'), test='is_real', comment='(Lyot Plane)'))
+        self.assertLess(psf[0].data.sum(), 0.002) 
+        _log.info("post-FQPM flux is appropriately low.")
 
-    def test_3_multiwave_multiwave(self):
+    def test_3_multiwave(self):
         """ Verify that the fluxes at the lyot planes are small and independent of wavelength"""
         lyot_fluxes = []
         for result in self.iter_wavelengths(self.do_test_3_ideal_fqpm):
@@ -237,15 +328,19 @@ class Test3(TestPoppy):
         _log.info("Lyot plane is independent of wavelength. ")
 
 class Test4(TestPoppy):
-    def do_test_4_source_offset_0(self):
-        do_4_source_offset(angle=.00)
-    #def do_test_4_source_offset_45(self):
-        #do_4_source_offset(angle=45.0)
+    """ Verify ability to shift point sources.
+    The Lyot plane should still be all real. """
+    def test_offsets_numpyfft(self):
+        poppy._USE_FFTW3 = False
+        self.do_4_source_offsets()
+    def test_offsets_fftw(self):
+        poppy._USE_FFTW3 = True
+        self.do_4_source_offsets()
 
-    def do_4_source_offset(self, angle=0):
-        #oversample=2, verbose=True, wavelen=2e-6, angle=0):
+    def do_4_source_offsets(self, angle=0):
+        #oversample=2, verbose=True, wavelength=2e-6, angle=0):
         """ Perfect circular case  no FQPM no field mask, off-axis PSF location
-        
+
         Test point source shifting. no FQPM, no field mask. Verify proper behavior in Lyot plane"""
 
         osys = poppy.OpticalSystem("test", oversample=self.oversample)
@@ -253,26 +348,29 @@ class Test4(TestPoppy):
         osys.addImage()
         osys.addPupil('Circle', radius=6.5/2)
         osys.addDetector(pixelscale=self.pixelscale, fov_arcsec=3.0)
-        
+
         P.clf()
         poppy._FLUXCHECK=True
-        poppy._USE_FFTW3 = False
 
         osys.source_offset_theta = angle
         for i in range(15):
             osys.source_offset_r = i * 0.1
-            psf = osys.calcPSF(wavelen=self.wavelength, display_intermediates=True)
-            #psf.writeto('test3_psf.fits', clobber=True)
-            # TODO check position
+            psf = osys.calcPSF(wavelength=self.wavelength, display_intermediates=True)
 
-        # after the Lyot plane, the wavefront should be all real. 
-        #check_wavefront('wavefront_plane_004.fits', test='is_real')
+            pos = webbpsf.fwcentroid(psf[0].data, halfwidth=10, threshhold=1e-2)
+            # pos is the pixel coords in y,x in pixel units.
+            cenx = (psf[0].data.shape[0]-1)/2.0
+            offset = N.sqrt( (pos[0]-cenx)**2 + (pos[1]-cenx)**2)* self.pixelscale/self.oversample
+            _log.info("Desired offset is %f, measured is %f " % (osys.source_offset_r, offset))
+            self.assertAlmostEqual(osys.source_offset_r, offset, 3)
+
 
     def test_multiwave_offsets(self):
         self.iter_wavelengths(self.do_4_source_offsets, angle=0.0)
         self.iter_wavelengths(self.do_4_source_offsets, angle=45.0)
 
 class Test5(TestPoppy):
+    """ Test the Field Mask works properly """
     def test_5(self):
         """ Perfect circular case  no FQPM with fieldMask
         
@@ -284,99 +382,274 @@ class Test5(TestPoppy):
         osys.addPupil('Circle', radius=6.5/2)
         osys.addPupil('FQPM_FFT_aligner')
         osys.addImage() 
-        osys.addImage('fieldstop', size=20.0) # do we need to worry about the half-pixel offset here?
+        osys.addImage('fieldstop', size=10.0)  # do we need to worry about the half-pixel offset here  A: no, now handed in wavefront.coordinates
         osys.addPupil('FQPM_FFT_aligner', direction='backward')
         osys.addPupil('Circle', radius=6.5/2)
-        osys.addDetector(pixelscale=self.pixelscale, fov_arcsec=3.0)
+        osys.addDetector(pixelscale=self.pixelscale, fov_arcsec=12)
         
         P.clf()
         poppy._FLUXCHECK=True
-        poppy._USE_FFTW3 = False
+        #poppy._USE_FFTW3 = False
         #poppy._USE_FFTW3 = True
         #logging.basicConfig(level=logging.DEBUG,format='%(name)-10s: %(levelname)-8s %(message)s')
-        psf = osys.calcPSF(wavelen=self.wavelength, display_intermediates=True)
+        psf = osys.calcPSF(wavelength=self.wavelength, display_intermediates=True)
+
+        # TODO need to do some kind of evaluation here!
 
 class Test6(TestPoppy):
-    def test_6(self): #oversample=2, verbose=True, wavelen=2e-6):
+    """ Test FQPM plus field mask together """
+    #def test
+
+    def test_6(self): #oversample=2, verbose=True, wavelength=2e-6):
         """ Perfect circular case  with FQPM with fieldMask
-        
         Test  ideal FQPM, with field mask. Verify proper behavior in Lyot plane"""
 
-        poppy._IMAGECROP = 30 # plot images w/out zooming in on just the center.
+        poppy._IMAGECROP = 5 # plot images w/out zooming in on just the center.
 
         osys = poppy.OpticalSystem("test", oversample=self.oversample)
         osys.addPupil('Circle', radius=6.5/2)
         osys.addPupil('FQPM_FFT_aligner')
-        osys.addImage('FQPM', wavelength=wavelen)  # perfect FQPM for this wavelength
-        osys.addImage('fieldstop', size=20.0)  
+        osys.addImage('FQPM', wavelength=self.wavelength)  # perfect FQPM for this wavelength
+        osys.addImage('fieldstop', size=6.0)  
         osys.addPupil('FQPM_FFT_aligner', direction='backward')
         osys.addPupil('Circle', radius=6.5/2)
-        osys.addDetector(pixelscale=self.pixelscale, fov_arcsec=3.0)
-        
+        osys.addDetector(pixelscale=self.pixelscale, fov_arcsec=10.0)
+
         P.clf()
         poppy._FLUXCHECK=True
         poppy._USE_FFTW3 = False
         #poppy._USE_FFTW3 = True
         #logging.basicConfig(level=logging.DEBUG,format='%(name)-10s: %(levelname)-8s %(message)s')
-        psf = osys.calcPSF(wavelen=self.wavelength, display_intermediates=True)
+        psf = osys.calcPSF(wavelength=self.wavelength, display_intermediates=True)
+        self.assertLess(psf[0].data.sum(), 0.002) 
+        _log.info("post-FQPM flux is appropriately low.")
 
-def test_7(oversample=2, verbose=True, wavelen=10.65e-6, radius=0.0):
-    """ Perfect circular case  with FQPM with fieldMask off-axis
+
+class Test7(TestPoppy):
+    """ Test the FQPM with field mask, off axis 
     
-    Test  ideal FQPM, with field mask. Verify proper behavior in Lyot plane"""
+    When you are off axis the FQPM should not appreciably mess with the PSF.
 
-    poppy._IMAGECROP = 5 # plot images w/out zooming in on just the center.
-    oversample = 2
-    pixelscale = 0.1
-
-    osys = poppy.OpticalSystem("test", oversample=oversample)
-
-    osys.addPupil('Circle', radius=6.5/2)
-    osys.addPupil('FQPM_FFT_aligner')
-    osys.addImage('FQPM', wavelength=wavelen)  # perfect FQPM for this wavelength
-    osys.addImage('fieldstop', size=20.0)  
-    osys.addPupil('FQPM_FFT_aligner', direction='backward')
-    osys.addPupil('Circle', radius=6.5/2)
-    osys.addDetector(pixelscale=pixelscale, fov_arcsec=3.0)
-
-
-    osys.source_offset_r = radius
-    osys.source_offset_theta = 45.
-    
-    P.clf()
-    poppy._FLUXCHECK=True
-    poppy._USE_FFTW3 = False
-    #poppy._USE_FFTW3 = True
-    #logging.basicConfig(level=logging.DEBUG,format='%(name)-10s: %(levelname)-8s %(message)s')
-    psf = osys.calcPSF(wavelen=wavelen, display_intermediates=True, save_intermediates=True)
-
-    return osys
-
-def test_8(oversample=2, verbose=True, wavelen=2e-6, angle=0):
-    """ Test point source shifting, given variable pupil array padding. """
-
-    for pad_factor in [1.0, 1.1, 1.5, 2.0]: 
-        osys = poppy.OpticalSystem("test", oversample=self.oversample)
-        osys.addPupil('Circle', radius=6.5/2, pad_factor = pad_factor)
-        osys.addImage()
-        osys.addPupil('Circle', radius=6.5/2)
-        osys.addDetector(pixelscale=self.pixelscale, fov_arcsec=3.0)
+    """
+    def test_7(self): #oversample=2, verbose=True, wavelength=2e-6):
+ 
+    #def test_7(oversample=2, verbose=True, wavelength=10.65e-6, radius=0.0):
+        """ Perfect circular case  with FQPM with fieldMask off-axis
         
-        P.clf()
+        Test  ideal FQPM, with field mask. Verify proper behavior in Lyot plane"""
+
+        poppy._IMAGECROP = 5 # plot images w/out zooming in on just the center.
+        #oversample = 2
+        #pixelscale = 0.1
+
+        fov = 6
+
+        osys1 = poppy.OpticalSystem(" no FQPM, offset", oversample=self.oversample)
+        osys1.addPupil('Circle', radius=6.5/2)
+        osys1.addPupil('FQPM_FFT_aligner')
+        osys1.addImage('fieldstop', size=20.0)  
+        osys1.addPupil('FQPM_FFT_aligner', direction='backward')
+        osys1.addPupil('Circle', radius=6.5/2)
+        osys1.addDetector(pixelscale=self.pixelscale, fov_arcsec=fov)
+
+        osys2 = poppy.OpticalSystem("FQPM offset", oversample=self.oversample)
+        osys2.addPupil('Circle', radius=6.5/2)
+        osys2.addPupil('FQPM_FFT_aligner')
+        osys2.addImage('FQPM', wavelength=self.wavelength)  # perfect FQPM for this wavelength
+        osys2.addImage('fieldstop', size=20.0)  
+        osys2.addPupil('FQPM_FFT_aligner', direction='backward')
+        osys2.addPupil('Circle', radius=6.5/2)
+        osys2.addDetector(pixelscale=self.pixelscale, fov_arcsec=fov)
+
+        myoffset = 3.0
+        osys1.source_offset_r = myoffset
+        osys1.source_offset_theta = 45.
+        osys2.source_offset_r = myoffset
+        osys2.source_offset_theta = 45.
+ 
         poppy._FLUXCHECK=True
-        poppy._USE_FFTW3 = False
+        P.figure(1)
+        P.clf()
+        psf1 = osys1.calcPSF(wavelength=self.wavelength, display_intermediates=True, save_intermediates=False)
+        P.figure(2)
+        P.clf()
+        psf2 = osys2.calcPSF(wavelength=self.wavelength, display_intermediates=True, save_intermediates=False)
+
+        P.figure(3)
+        P.subplot(211)
+        webbpsf.display_psf(psf1, title=osys1.name)
+        P.subplot(212)
+        webbpsf.display_psf(psf2, title=osys2.name)
+
+        pos1 = webbpsf.fwcentroid(psf1[0].data, halfwidth=10, threshhold=1e-2)
+        pos2 = webbpsf.fwcentroid(psf2[0].data, halfwidth=10, threshhold=1e-2)
+
+        rel_offset = N.sqrt(((N.array(pos1) - N.array(pos2))**2).sum())
+        self.assertTrue(rel_offset < 1e-3 ) 
+        _log.info("Source position does not appear to be affected by FQPMs for far off-axis sources")
 
 
-        osys.source_offset_theta = angle
-        osys.source_offset_r =  0.5
-        psf = osys.calcPSF(wavelen=self.wavelength, display_intermediates=True)
+
+class Test8(TestPoppy):
+    "Verify that extra padding around the aperture makes no difference "
+    def test_padding_numpyfft(self):
+        poppy._USE_FFTW=False
+        self.do_test_8()
+    def test_padding_fftw(self):
+        poppy._USE_FFTW=True
+        self.do_test_8()
+
+    def do_test_8(self):
+        """ Test point source shifting, given variable pupil array padding. """
+
+        angle = 36.
+        for pad_factor in [1.0, 1.1, 1.5, 2.0]: 
+            osys = poppy.OpticalSystem("test", oversample=self.oversample)
+            osys.addPupil('Circle', radius=6.5/2, pad_factor = pad_factor)
+            osys.addImage()
+            osys.addPupil('Circle', radius=6.5/2)
+            osys.addDetector(pixelscale=self.pixelscale, fov_arcsec=3.0)
+            
+            P.clf()
+            poppy._FLUXCHECK=True
+            poppy._USE_FFTW3 = False
+
+
+            osys.source_offset_theta = angle
+            osys.source_offset_r =  0.5
+            psf = osys.calcPSF(wavelength=self.wavelength, display_intermediates=True)
             #psf.writeto('test3_psf.fits', clobber=True)
             # TODO check position
-
+            pos = webbpsf.fwcentroid(psf[0].data, halfwidth=10, threshhold=1e-2)
+            # pos is the pixel coords in y,x in pixel units.
+            cenx = (psf[0].data.shape[0]-1)/2.0
+            offset = N.sqrt( (pos[0]-cenx)**2 + (pos[1]-cenx)**2)* self.pixelscale/self.oversample
+            _log.info("Desired offset is %f, measured is %f " % (osys.source_offset_r, offset))
+            self.assertAlmostEqual(osys.source_offset_r, offset, 3)
+ 
         # after the Lyot plane, the wavefront should be all real. 
         #check_wavefront('wavefront_plane_004.fits', test='is_real')
 
-def test_blc2(oversample=2, verbose=True, wavelen=2e-6, angle=0, kind='circular', sigma=1.0, loc = 0.3998):
+class Test9(TestPoppy):
+    "Test BLC corons. Verify reasonable on- and off- axis behavior. "
+    def test_9_circ(self):
+        self.do_test_9(kind='circular')
+    def test_9_linear(self):
+        self.do_test_9(kind='linear')
+    def test_9_circ_offset(self):
+        self.do_test_9(kind='circular', offset=True)
+    def test_9_linear_offset(self):
+        self.do_test_9(kind='linear', offset=True)
+  
+    def do_test_9(self, kind='circular', offset=False):
+        _log.info("Testing BLC kind = "+kind)
+        
+        radius = 6.5/2
+        lyot_radius = 6.5/2.5
+        osys = poppy.OpticalSystem("test", oversample=self.oversample)
+        osys.addPupil('Circle', radius=radius)
+        osys.addImage()
+        osys.addImage('BandLimitedCoron', kind=kind, sigma=5.0)
+        osys.addPupil()
+        osys.addPupil('Circle', radius=lyot_radius)
+        osys.addDetector(pixelscale=self.pixelscale, fov_arcsec=5.0)
+        poppy._FLUXCHECK=True
+
+
+        if offset: 
+            osys.source_offset_r =  2.0
+        else: 
+            osys.source_offset_r =  0.0
+        poppy._FLUXCHECK= True
+        P.clf()
+        psf, int_wfs = osys.calcPSF(wavelength=self.wavelength, display_intermediates=True, return_intermediates=True)
+
+        if offset:
+            # the flux should be relatively high
+            # with the vast majority of the loss due just to the undersized Lyot stop
+            self.assertGreater(psf[0].data.sum(), (lyot_radius/radius)**2 *0.95 ) 
+            _log.info("For offset source, post-BLC flux is appropriately high")
+        else:
+            # after the Lyot plane, the wavefront should be all real. 
+            lyot_wf = int_wfs[-2]
+            lyot_wf_fits = lyot_wf.asFITS(what='all') # need to save this for the multiwave comparison in test_3_multiwave()
+            self.assertTrue(check_wavefront(lyot_wf_fits, test='is_real', comment='(Lyot Plane)'))
+
+            # and the flux should be low.
+            self.assertLess(psf[0].data.sum(), 1e-4) 
+            _log.info("post-BLC flux is appropriately low.")
+
+ 
+
+class Test10(TestPoppy):
+    "Test multiwavelength multiprocessor propagation "
+
+    def test_10_multiproc_numpyfft(self):
+        poppy._USE_FFTW3 = False
+        # multiprocessor and FFTW not sure if they play nicely all the time?
+        self.do_test_10_multiproc()
+
+
+    #def test_10_multiproc_fftw3(self):
+        #poppy._USE_FFTW3 = True
+        ## multiprocessor and FFTW not sure if they play nicely all the time?
+        #self.do_test_10_multiproc()
+ 
+    def do_test_10_multiproc(self):
+
+        # for the sake of a reasonably realistic usage case, we use the BLC setup from Test 9
+        kind = 'circular'
+        radius = 6.5/2
+        lyot_radius = 6.5/2.5
+        osys = poppy.OpticalSystem("test", oversample=self.oversample)
+        osys.addPupil('Circle', radius=radius)
+        osys.addImage()
+        osys.addImage('BandLimitedCoron', kind=kind, sigma=5.0)
+        osys.addPupil()
+        osys.addPupil('Circle', radius=lyot_radius)
+        osys.addDetector(pixelscale=self.pixelscale, fov_arcsec=5.0)
+        osys.source_offset_r =  1.5 # make the PSF easy to see...
+ 
+
+        nlam= 6
+        source = {'weights': [0.1]*nlam, 'wavelengths': N.linspace(2.0e-6, 3.0e-6, nlam)}
+
+        _log.info("Calculating multiprocessor PSF")
+        times = []
+        times.append(time.time())
+        psf2 = osys.calcPSFmultiproc(source)
+        times.append(time.time())
+        tmulti =  times[-1]-times[-2]
+        _log.info(" Time for multiprocessor: %f s " % (tmulti))
+
+        _log.info("Calculating single processor PSF")
+        times.append(time.time())
+        psf1 = osys.calcPSF(source)
+        times.append(time.time())
+        tsing =  times[-1]-times[-2]
+        _log.info(" Time for single processor: %f s " % (tsing))
+
+
+        _log.info(" Speedup factor: %f " % (tsing/tmulti))
+        P.clf()
+        ax = P.subplot(1,3,1)
+        webbpsf.display_psf(psf1)
+        ax = P.subplot(1,3,2)
+        webbpsf.display_psf(psf2)
+        ax = P.subplot(1,3,3)
+
+        poppy.imshow_with_mouseover(psf1[0].data - psf2[0].data, ax=ax)
+
+        self.assertTrue(  (psf1[0].data == psf2[0].data).all()  )
+        _log.info("Exact same result achieved both ways.")
+
+
+
+        
+
+#################################################################################
+
+def test_blc2(oversample=2, verbose=True, wavelength=2e-6, angle=0, kind='circular', sigma=1.0, loc = 0.3998):
     import scipy
     x = N.linspace(-5, 5, 401)
     sigmar = sigma*x
@@ -435,7 +708,7 @@ def width_blc(desired_width, approx=None, plot=False):
     return sig_ans
 
 
-def calc_blc_wedge(deg=4, wavelen=2.1e-6):
+def calc_blc_wedge(deg=4, wavelength=2.1e-6):
     """ This function determines the desired sigma coefficients required to 
     achieve a wedge from 2 to 6 lam/D.
 
@@ -476,17 +749,20 @@ def test_blc(oversample=2, verbose=True, wavelength=2.1e-6, angle=0, kind='nirca
     #stop()
 
 
-def test_nc_corons(oversample=2, verbose=True, wavelen=2e-6, angle=0):
+def test_blc_corons(oversample=2, verbose=True, wavelength=2e-6, angle=0, kind='circular'):
     """ Test point source shifting, given variable pupil array padding. """
 
     oversample=2
     pixelscale = 0.010
+    wavelength = 4.6e-6
+    poppy._IMAGECROP = 5
 
     osys = poppy.OpticalSystem("test", oversample=oversample)
     osys.addPupil('Circle', radius=6.5/2)
     osys.addImage()
-    osys.addImage('BandLimitedCoron', 'circular',  sigma=1.0)
-    osys.addPupil('Circle', radius=6.5/2)
+    osys.addImage('BandLimitedCoron', kind=kind,  sigma=5.0)
+    osys.addPupil()
+    osys.addPupil('Circle', radius=6.5/2.5)
     osys.addDetector(pixelscale=pixelscale, fov_arcsec=3.0)
     
     P.clf()
@@ -496,7 +772,7 @@ def test_nc_corons(oversample=2, verbose=True, wavelen=2e-6, angle=0):
 
     osys.source_offset_theta = angle
     osys.source_offset_r =  0.0
-    psf = osys.calcPSF(wavelen=wavelen, display_intermediates=True)
+    psf = osys.calcPSF(wavelength=wavelength, display_intermediates=True)
             #psf.writeto('test3_psf.fits', clobber=True)
             # TODO check position
 
@@ -504,64 +780,7 @@ def test_nc_corons(oversample=2, verbose=True, wavelen=2e-6, angle=0):
         #check_wavefront('wavefront_plane_004.fits', test='is_real')
 
 
-
-
-class TestPupils(TestPoppy):
-    """ Test circular, square, hexagonal pupils and their PSFs """
-    def test_pupils(self):
-
-        def image_cut_1d(image, angle=0):
-            """ Make a quick 1D cut through an image starting at the center """
-            #y, x = N.indices(image)
-            #y-= (image.shape[0]-1)/2
-            #x-= (image.shape[1]-1)/2
-
-            t = N.arange(image.shape[0])
-            cx = N.cos(angle*N.pi/180)*t +  (image.shape[0]-1)/2
-            cy = N.sin(angle*N.pi/180)*t +  (image.shape[1]-1)/2
-            cx = N.asarray(N.round(cx), dtype=int)
-            cy = N.asarray(N.round(cy), dtype=int)
-
-            wg = N.where( (cx >=0) & (cy >=0) & (cx < image.shape[1]) & (cy < image.shape[0]))
-            return image[cy[wg],cx[wg]]
-
-
-        pupils = ['Circle', 'Hexagon', 'Square']
-        angles = [[0], [0, 30], [0, 45]]
-        effective_diams = [[2], [2,N.sqrt(3)], [2,2*N.sqrt(2)]]
-
-        P.clf()
-        cuts = []
-        for i in range(3):
-            P.subplot(2,3, i+1)
-            osys = poppy.OpticalSystem("test", oversample=self.oversample)
-            osys.addPupil(pupils[i])
-            osys.addDetector(pixelscale=self.pixelscale, fov_arcsec=3.0)
-
-            psf = osys.calcPSF(wavelen=self.wavelength)
-
-            jwopt.display_psf(psf)
-            P.title(pupils[i])
-
-            P.subplot(2,3, i+4)
-            for ang, diam in zip(angles[i], effective_diams[i]):
-                cut = image_cut_1d(psf[0].data, ang)
-                r = N.arange(cut.size) * 0.010
-                cut /= cut.max() # normalize to peak=1
-                P.semilogy(r, cut, label='$\\theta = %d^o$' % ang )
-                if i == 0:
-                    radius, airyfn = optics.airy_1d(diam, self.wavelength, pixelscale=self.pixelscale)
-                    P.plot(radius, airyfn, "k--", label='analytic')
-            P.gca().set_xbound(0,3)
-            P.gca().set_ybound(1e-13,1.5)
-
-            
-            # TODO - overplot perfect analytical PSFs.
-            P.legend(loc='upper right', frameon=False)
-
-        self.assertTrue(True)
-        #FIXME - compare cuts to airy function etc.
-
+#################################################################################
 
 
 def test_run(index=None, wavelength=2e-6):
@@ -569,10 +788,10 @@ def test_run(index=None, wavelength=2e-6):
     #tests = [Test1]
     global _TEST_WAVELENGTH
     _TEST_WAVELENGTH = wavelength
-    tests = [TestPupils, TestPoppy, Test1, Test2, Test3, Test4, Test5]
+    tests = [TestPupils, Test1, Test2, Test3, Test4, Test5, Test6, Test7, Test8, Test9, Test10]
 
     if index is not None:
-        if not hasattr(index, '__iter__') : index=[index]
+        if not hasattr(index, '__iter__') : index = [index]
         tests = [tests[i] for i in index]
 
     suite = unittest.TestSuite()
@@ -596,8 +815,8 @@ if __name__== "__main__":
     logging.basicConfig(level=logging.DEBUG,format='%(name)-10s: %(levelname)-8s %(message)s')
 
     #reload poppy
-    #reload jwopt
-    #nc = jwopt.NIRCam()
+    #reload webbpsf
+    #nc = webbpsf.NIRCam()
     #nc.pupilopd=None
     #osys = nc.getOpticalSystem()
     pass

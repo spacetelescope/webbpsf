@@ -23,10 +23,10 @@ except:
     pass
 
 
-import jwopt
+import webbpsf
 
 
-class JWPSF_GUI(object):
+class WebbPSF_GUI(object):
     """ A GUI for the PSF Simulator 
 
     Documentation TBD!
@@ -38,9 +38,9 @@ class JWPSF_GUI(object):
         self.widgets = {}
         self.vars = {}
         insts = ['NIRCam', 'NIRSpec','MIRI', 'TFI', 'FGS']
-        self.stars = jwopt.kurucz_stars()
+        self.stars = webbpsf.kurucz_stars()
         for i in insts:
-            self.instrument[i] = jwopt.Instrument(i)
+            self.instrument[i] = webbpsf.Instrument(i)
 
         if _use_ttk:
             self._create_widgets_py27()
@@ -84,12 +84,12 @@ class JWPSF_GUI(object):
         insts = ['NIRCam', 'NIRSpec','MIRI', 'TFI', 'FGS']
         self.root = tk.Tk()
         self.root.geometry('+50+50')
-        self.root.title("JWPSF GUI 4alpha")
+        self.root.title("Webb PSF GUI")
 
         frame = ttk.Frame(self.root)
         #frame = ttk.Frame(self.root, padx=10,pady=10)
 
-        ttk.Label(frame, text='JWPSF new GUI' ).grid(row=0)
+        ttk.Label(frame, text='James Webb PSF Calculator' ).grid(row=0)
 
         #-- star
         lf = ttk.LabelFrame(frame, text='Source Properties')
@@ -239,7 +239,7 @@ class JWPSF_GUI(object):
         r+=1
         self._add_labeled_entry('calc_oversampling', lf, label='Coronagraph Oversampling:',  width=3, value='2', postlabel='x finer than Nyquist', position=(r,0))
         r+=1
-        self._add_labeled_entry('nlambda', lf, label='# of wavelengths:',  width=3, value='1', position=(r,0))
+        self._add_labeled_entry('nlambda', lf, label='# of wavelengths:',  width=3, value='', position=(r,0), postlabel='Leave blank for autoselect')
         r+=1
 
         self._add_labeled_dropdown("jitter", lf, label='Jitter model:', values=  ['Just use OPDs', 'Gaussian blur', 'Accurate yet SLOW grid'], width=20, position=(r,0), sticky='W', columnspan=2)
@@ -482,7 +482,7 @@ class JWPSF_GUI(object):
         ttk.Label(lf, text='# of wavelengths:').grid(row=r, sticky='W')
         self.widgets['nlambda'] = ttk.Entry(lf, width=3)
         self.widgets['nlambda'].grid(row=r,column=1, sticky='E')
-        self.widgets['nlambda'].insert(0,'1')
+        #self.widgets['nlambda'].insert(0,'1')
         r+=1
         ttk.Label(lf, text='Jitter model:').grid(row=r, sticky='W')
         self.widgets['jitter'] = ttk.Combobox(lf, width=20, state='readonly')
@@ -556,7 +556,7 @@ class JWPSF_GUI(object):
 
         P.clf()
 
-        speclib = jwopt.kurucz_stars()
+        speclib = webbpsf.kurucz_stars()
 
         spectrum = speclib.specFromSpectralType(sptype)
         P.loglog(spectrum['wavelength_um'],spectrum['flux']/spectrum['flux'].max(),label=sptype+" star")
@@ -583,38 +583,12 @@ class JWPSF_GUI(object):
         #self._updateFromGUI()
         #if self.PSF_HDUlist is not None:
         P.clf()
-        jwopt.display_psf(self.PSF_HDUlist)
+        webbpsf.display_psf(self.PSF_HDUlist)
 
     def ev_displayProfiles(self):
         "Event handler for Displaying the PSF"
         #self._updateFromGUI()
-        #if self.PSF_HDUlist is not None:
-
-        radius, profile, EE = jwopt.radial_profile(self.PSF_HDUlist, EE=True)
-
-        P.clf()
-        P.subplot(2,1,1)
-        P.semilogy(radius, profile)
-        P.xlabel("Radius [arcsec]")
-        P.ylabel("PSF radial profile")
-
-        fwhm = 2*radius[N.where(profile < profile[0]*0.5)[0][0]]
-        P.text(fwhm, profile[0]*0.5, 'FWHM = %.3f"' % fwhm)
-
-        P.subplot(2,1,2)
-        #P.semilogy(radius, EE, nonposy='clip')
-        P.plot(radius, EE, color='r') #, nonposy='clip')
-        P.xlabel("Radius [arcsec]")
-        P.ylabel("Encircled Energy")
-
-        for level in [0.5, 0.8, 0.95]:
-            EElev = radius[N.where(EE > level)[0][0]]
-            yoffset = 0 if level < 0.9 else -0.05 
-            P.text(EElev+0.1, level+yoffset, 'EE=%2d%% at r=%.3f"' % (level*100, EElev))
-
-        
-
-
+        webbpsf.display_profiles(self.PSF_HDUlist)        
 
     def ev_displayOptics(self):
         "Event handler for Displaying the optical system"
@@ -676,7 +650,10 @@ class JWPSF_GUI(object):
         self.filter = self.widgets[self.iname+"_filter"].get()
         self.opd= self.widgets[self.iname+"_opd"].get()
         self.opd_i= int(self.widgets[self.iname+"_opd_i"].get())
-        self.nlambda= int(self.widgets['nlambda'].get())
+        try:
+            self.nlambda= int(self.widgets['nlambda'].get())
+        except:
+            self.nlambda = None # invoke autoselect for nlambda
         self.FOV= float(self.widgets['FOV'].get())
         self.calc_oversampling= int(self.widgets['calc_oversampling'].get())
         self.detector_oversampling= int(self.widgets['detector_oversampling'].get())
@@ -715,7 +692,7 @@ class JWPSF_GUI(object):
 
 if __name__ == "__main__":
 
-    gui = JWPSF_GUI()
+    gui = WebbPSF_GUI()
     gui.mainloop()
 
 

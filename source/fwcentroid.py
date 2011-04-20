@@ -1,13 +1,26 @@
 #!/usr/bin/env python
+
+"""
+
+Implements the floating-window centroid box algorithm
+adopted for JWST target acquisitions.
+
+See JWST-STScI-001117 and JWST-STScI-001134 for details.
+
+M. Perrin, 2011-02-17
+
+"""
+
 import numpy as N
-#import matplotlib.pyplot as P
-import unittest
-from IPython.Debugger import Tracer; stop = Tracer()
+#try:
+    #from IPython.Debugger import Tracer; stop = Tracer()
+#except: 
+    #pass
 
 def fwcentroid(image, checkbox=1, maxiterations=20, threshhold=1e-4, halfwidth=5, verbose=False):
     """ Implement the Floating-window first moment centroid algorithm
         chosen for JWST target acquisition.
-       
+
         See JWST-STScI-001117 and JWST-STScI-001134 for details.
 
         This code makes no attempt to vectorize or optimize for speed;
@@ -215,7 +228,6 @@ def test_fwcentroid(n=1000, width=5, halfwidth=5, **kwargs):
 
 
 if __name__ == "__main__":
-       
 
     pass
 

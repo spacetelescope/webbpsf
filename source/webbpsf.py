@@ -22,20 +22,19 @@ Classes:
 Code by Marshall Perrin <mperrin@stsci.edu>
 
 """
-
-import numpy as N
-import poppy
-#from poppy import *
 import os
+import types
 import glob
+import time
+import numpy as N
+import pylab as P
+import matplotlib
 import atpy
 import pyfits
-import types
-import time
 from matplotlib.colors import LogNorm  # for log scaling of images, with automatic colorbar support
-import matplotlib
-import pylab as P
 
+import poppy
+from fwcentroid import fwcentroid
 
 try: 
     import pysynphot
@@ -43,22 +42,24 @@ try:
 except:
     _HAS_PYSYNPHOT = False
  
-#from fwcentroid import fwcentroid
-import jwcentroid
 
 import logging
-_log = logging.getLogger('jwopt')
+_log = logging.getLogger('webbpsf')
 _log.setLevel(logging.DEBUG)
 _log.setLevel(logging.INFO)
 _log.addHandler(logging.NullHandler())
 
 
+_USE_MULTIPROC = False # auto set this cleverly?
+_MULTIPROC_NPROCESS = 4
 
 
 try:
     __IPYTHON__
     from IPython.Debugger import Tracer; stop = Tracer()
 except:
+    def stop(): 
+        pass
     pass
 
 
@@ -122,6 +123,10 @@ class JWInstrument(object):
         parity : string "even" or "odd"
             You may wish to ensure that the output PSF grid has either an odd or even number of pixels.
             Setting this option will force that to be the case by increasing npix by one if necessary.
+        force_coron : bool
+            Set this to force full coronagraphic optical propagation when it might not otherwise take place
+            (e.g. calculate the non-coronagraphic images in the same way as coronagraphy is done, rather than
+            taking the straight-to-MFT shortcut)
 
         """
 
@@ -204,7 +209,7 @@ class JWInstrument(object):
     def __str__(self):
         return "JWInstrument name="+self.name
 
-     #----- actual optical calculations follow here -----
+    #----- actual optical calculations follow here -----
     def calcPSF(self, source=None, filter=None,  nlambda=None, monochromatic=None ,
             fov_arcsec=None, fov_pixels=None,  oversample=None, detector_oversample=None, calc_oversample=None, rebin=False,
             outfile=None, clobber=True, display=False, save_intermediates=False):
@@ -305,11 +310,14 @@ class JWInstrument(object):
             # TBD this will eventually use pysynphot, so don't write anything fancy for now!
             wf = N.where(self.filter_list == self.filter)
             wf = N.where(self.filter == N.asarray(self.filter_list))[0]
-            filterdata = atpy.Table(self._filter_files[wf], type='fits')
 
+            # The existing FITS files all have wavelength in ANGSTROMS since that is the pysynphot convention...
+            filterdata = atpy.Table(self._filter_files[wf], type='fits')
             _log.warn("CAUTION: Really basic top-hat function for filter profile, with %d steps" % nlambda)
             wtrans = N.where(filterdata.THROUGHPUT > 0.5)
-            lrange = filterdata.WAVELENGTH[wtrans] *1e-10
+            if self.filter == 'FND':  # special case MIRI's ND filter since it is < 0.1% everywhere...
+                wtrans = N.where(  ( filterdata.THROUGHPUT > 0.0005)  & (filterdata.WAVELENGTH > 7e-6*1e10) & (filterdata.WAVELENGTH < 26e-6*1e10 ))
+            lrange = filterdata.WAVELENGTH[wtrans] *1e-10  # convert from Angstroms to Meters
             lambd = N.linspace(N.min(lrange), N.max(lrange), nlambda)
             weights = N.ones(nlambda)
             source = {'wavelengths': lambd, 'weights': weights}
@@ -344,7 +352,12 @@ class JWInstrument(object):
         self.optsys = self._getOpticalSystem(fov_arcsec=fov_arcsec, fov_pixels=fov_pixels,
             calc_oversample=calc_oversample, detector_oversample=detector_oversample)
         # and use it to compute the PSF (the real work happens here, in code in poppy.py)
-        result = self.optsys.calcPSF(source, display_intermediates=display, save_intermediates=save_intermediates, display=display)
+        #result = self.optsys.calcPSF(source, display_intermediates=display, save_intermediates=save_intermediates, display=display)
+        if _USE_MULTIPROC and monochromatic is None :
+            result = self.optsys.calcPSFmultiproc(source, nprocesses=_MULTIPROC_NPROCESS) # no fancy display args for multiproc.
+        else:
+            result = self.optsys.calcPSF(source, display_intermediates=display, save_intermediates=save_intermediates, display=display)
+
 
         #---  update FITS header, display, and output.
         result[0].header.update('PUPIL', os.path.basename(self.pupil))
@@ -492,7 +505,7 @@ class JWInstrument(object):
         full_pupil_path = self.pupil if os.path.exists( self.pupil) else os.path.join(self._datapath, "OPD",self.pupil)
         optsys.addPupil(name='JWST Pupil', transmission=full_pupil_path, opd=full_opd_path, opdunits='micron', rotation=self._rotation)
 
-        if self.image_mask is not None:
+        if self.image_mask is not None or self.pupil_mask is not None or 'force_coron' in self.options.keys():
             optsys = self._addCoronagraphOptics(optsys)
 
         if fov_pixels is None:
@@ -503,6 +516,7 @@ class JWInstrument(object):
 
         optsys.addDetector(self.pixelscale, fov_pixels = fov_pixels, oversample = detector_oversample, name=self.name+" detector")
         return optsys
+
 
     def display(self):
         """Display the currently configured optical system on screen """
@@ -557,15 +571,15 @@ class MIRI(JWInstrument):
         #_log.debug("MIRI validating:    %s, %s, %s " % (self.filter, self.image_mask, self.pupil_mask))
         if self.filter.startswith("MRS-IFU"): raise NotImplementedError("The MIRI MRS is not yet implemented.")
 
+        _log.warn("MIRI config validation disabled for now - TBD rewrite ")
+        return
+
         if self.image_mask is not None or self.pupil_mask is not None:
             if self.filter == 'F1065C':
                 assert self.image_mask == 'FQPM1065', 'Invalid configuration'
                 assert self.pupil_mask == 'MASKFQPM', 'Invalid configuration'
             elif self.filter == 'F1140C':
                 assert self.image_mask == 'FQPM1140', 'Invalid configuration'
-                assert self.pupil_mask == 'MASKFQPM', 'Invalid configuration'
-            elif self.filter == 'F1550C':
-                assert self.image_mask == 'FQPM1550', 'Invalid configuration'
                 assert self.pupil_mask == 'MASKFQPM', 'Invalid configuration'
             elif self.filter == 'F1550C':
                 assert self.image_mask == 'FQPM1550', 'Invalid configuration'
@@ -603,7 +617,7 @@ class MIRI(JWInstrument):
         # on the cross-hairs between four pixels. (Since that is where the FQPM itself is centered)
         # This is with respect to the intermediate calculation pixel scale, of course, not the
         # final detector pixel scale. 
-        if 'FQPM' in self.image_mask : optsys.addPupil("FQPM FFT aligner")
+        if (self.image_mask is not None and 'FQPM' in self.image_mask) or 'force_fqpm_shift' in self.options.keys() : optsys.addPupil("FQPM FFT aligner")
 
         if self.image_mask == 'FQPM1065':
             #optsys.addImage() # null debugging image plane FIXME
@@ -624,7 +638,6 @@ class MIRI(JWInstrument):
                                 poppy.IdealFieldStop(size=24, angle=-4.56)])
             optsys.addImage(container)
         elif self.image_mask =='LYOT2300':
-                    
             #diameter is 4.25 (measured) 4.32 (spec) supposedly 6 lambda/D
             #optsys.addImage(function='CircularOcculter',radius =4.25/2, name=self.image_mask) 
             # Add bar occulter: width = 0.722 arcsec (or perhaps 0.74, Dean says there is ambiguity)
@@ -637,8 +650,10 @@ class MIRI(JWInstrument):
                               poppy.IdealBarOcculter(width=0.722), 
                               poppy.IdealFieldStop(size=30, angle=-4.56)] )
             optsys.addImage(container)
+        else: 
+            optsys.addImage()
 
-        if 'FQPM' in self.image_mask : optsys.addPupil("FQPM FFT aligner", direction='backward')
+        if (self.image_mask is not None and 'FQPM' in self.image_mask)  or 'force_fqpm_shift' in self.options.keys() : optsys.addPupil("FQPM FFT aligner", direction='backward')
 
         # add pupil plane mask
         if ('pupil_shift_x' in self.options.keys() and self.options['pupil_shift_x'] != 0) or \
@@ -652,6 +667,8 @@ class MIRI(JWInstrument):
             optsys.addPupil(transmission=self._datapath+"/coronagraph/MIRI_FQPMLyotStop.fits", name=self.pupil_mask, shift=shift)
         elif self.pupil_mask == 'MASKLYOT':
             optsys.addPupil(transmission=self._datapath+"/coronagraph/MIRI_LyotLyotStop.fits", name=self.pupil_mask, shift=shift)
+        else: # all the MIRI filters have a tricontagon outline, even the non-coron ones.
+            optsys.addPupil(transmission=self._JWPSF_basepath+"/tricontagon.fits", name = 'filter cold stop', shift=shift)
 
         optsys.addRotation(self._rotation)
 
@@ -917,7 +934,7 @@ def MakePSF(self, instrument=None, pupil_file=None, phase_file=None, output=None
 #
 #    Display and PSF evaluation functions follow..
 #
-def display_psf(HDUlist_or_filename=None, ext=0, vmin=1e-8,vmax=1e-1, title=None, imagecrop=None, adjust_for_oversampling=False):
+def display_psf(HDUlist_or_filename=None, ext=0, vmin=1e-8,vmax=1e-1, title=None, imagecrop=None, adjust_for_oversampling=False, normalize=None, crosshairs=False, markcentroid=False):
     """Display nicely a PSF from a given HDUlist or filename 
     
     Parameters
@@ -943,30 +960,84 @@ def display_psf(HDUlist_or_filename=None, ext=0, vmin=1e-8,vmax=1e-1, title=None
         HDUlist = HDUlist_or_filename
     else: raise ValueError("input must be a filename or HDUlist")
 
+    if adjust_for_oversampling:
+        scalefactor = HDUlist[ext].header['OVERSAMP']**2
+        im = HDUlist[ext].data *scalefactor
+    else: im = HDUlist[ext].data
+
+    if normalize == 'peak':
+        _log.debug("Displaying image normalized to peak = 1")
+        im /= im.max()
+        vmax = 1.0
+
     norm=LogNorm(vmin=vmin, vmax=vmax)
     cmap = matplotlib.cm.jet
     halffov = HDUlist[ext].header['PIXELSCL']*HDUlist[ext].data.shape[0]/2
     unit="arcsec"
     extent = [-halffov, halffov, -halffov, halffov]
 
-    if adjust_for_oversampling:
-        scalefactor = HDUlist[ext].header['OVERSAMP']**2
-        im = HDUlist[ext].data *scalefactor
-    else: im = HDUlist[ext].data
 
-    P.imshow( im   ,extent=extent,cmap=cmap, norm=norm)
+    ax = poppy.imshow_with_mouseover( im   ,extent=extent,cmap=cmap, norm=norm)
     if imagecrop is not None:
         halffov = min( (imagecrop/2, halffov))
-    ax = P.gca()
     ax.set_xbound(-halffov, halffov)
     ax.set_ybound(-halffov, halffov)
+    if crosshairs: 
+        ax.axhline(0,ls=":", color='k')
+        ax.axvline(0,ls=":", color='k')
 
-    if title is not None:
-        P.title(title)
+    #print HDUlist[ext].header['INSTRUME']
+    #print HDUlist[ext].header['FILTER']
 
-    P.colorbar(orientation='vertical')
+    if title is None:
+        try:
+            fspec = "%s, %s" % (HDUlist[ext].header['INSTRUME'], HDUlist[ext].header['FILTER'])
+        except: 
+            fspec= str(HDUlist_or_filename)
+        P.title("PSF sim for "+fspec)
+    P.title(title)
+
+    P.colorbar(ax.images[0], orientation='vertical')
 
     P.draw()
+    if markcentroid:
+        _log.info("measuring centroid to mark on plot...")
+        ceny, cenx = measure_centroid(HDUlist, ext=ext, units='arcsec', relativeto='center', boxsize=20, threshhold=0.1)
+        ax.plot(cenx, ceny, 'k+', markersize=15, markeredgewidth=1)
+        _log.info("centroid: (%f, %f) " % (cenx, ceny))
+        P.draw()
+
+def display_profiles(HDUlist_or_filename=None,ext=0 ):
+    if isinstance(HDUlist_or_filename, str):
+        HDUlist = pyfits.open(filename,ext=ext)
+    elif isinstance(HDUlist_or_filename, pyfits.HDUList):
+        HDUlist = HDUlist_or_filename
+    else: raise ValueError("input must be a filename or HDUlist")
+
+
+    radius, profile, EE = radial_profile(HDUlist, EE=True)
+
+    P.clf()
+    P.subplot(2,1,1)
+    P.semilogy(radius, profile)
+    P.xlabel("Radius [arcsec]")
+    P.ylabel("PSF radial profile")
+    #stop()
+    P.title("PSF sim for %s, %s" % (HDUlist[ext].header['INSTRUME'], HDUlist[ext].header['FILTER']))
+
+    fwhm = 2*radius[N.where(profile < profile[0]*0.5)[0][0]]
+    P.text(fwhm, profile[0]*0.5, 'FWHM = %.3f"' % fwhm)
+
+    P.subplot(2,1,2)
+    #P.semilogy(radius, EE, nonposy='clip')
+    P.plot(radius, EE, color='r') #, nonposy='clip')
+    P.xlabel("Radius [arcsec]")
+    P.ylabel("Encircled Energy")
+
+    for level in [0.5, 0.8, 0.95]:
+        EElev = radius[N.where(EE > level)[0][0]]
+        yoffset = 0 if level < 0.9 else -0.05 
+        P.text(EElev+0.1, level+yoffset, 'EE=%2d%% at r=%.3f"' % (level*100, EElev))
 
 
 def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, binsize=None):
@@ -1160,7 +1231,7 @@ def measure_sharpness(HDUlist_or_filename=None, ext=0):
     sharpness =  (detpixels.data**2).sum()
     return sharpness
 
-def measure_center(HDUlist_or_filename=None, ext=0, slice=0, boxsize=50, print_=False):
+def measure_centroid(HDUlist_or_filename=None, ext=0, slice=0, boxsize=50, print_=False, units='pixels', relativeto='origin', **kwargs):
     """ Measure the center of an image via center-of-mass
 
     Parameters
@@ -1169,6 +1240,12 @@ def measure_center(HDUlist_or_filename=None, ext=0, slice=0, boxsize=50, print_=
         Same as above
     boxsize : int
         Half box size for centroid
+
+    relativeto : string
+        either 'origin' for relative to pixel (0,0) or 'center' for relative to image center. Default is 'origin'
+    units : string
+        either 'pixels' for position in pixels or 'arcsec' for arcseconds. 
+        Relative to the relativeto parameter point in either case.
  
 
     Returns
@@ -1188,7 +1265,6 @@ def measure_center(HDUlist_or_filename=None, ext=0, slice=0, boxsize=50, print_=
     if image.ndim >=3:  # handle datacubes gracefully
         image = image[slice,:,:]
 
-    pixelscale = HDUlist[ext].header['PIXELSCL']
 
     if 0: 
         y, x= N.indices(image.shape)
@@ -1201,9 +1277,18 @@ def measure_center(HDUlist_or_filename=None, ext=0, slice=0, boxsize=50, print_=
         cent_of_mass_cutout = N.asarray(scipy.ndimage.center_of_mass(cutout))
         cent_of_mass =  cent_of_mass_cutout + N.array([cy-boxsize, cx-boxsize])
     else:
-        cent_of_mass = jwcentroid.fwcentroid(image, halfwidth=boxsize, threshhold=1e-3)
+        cent_of_mass = fwcentroid(image, halfwidth=boxsize, **kwargs)
 
     if print_: print("Center of mass: (%.4f, %.4f)" % (cent_of_mass[1], cent_of_mass[0]))
+
+    if relativeto == 'center':
+        imcen = N.array([ (image.shape[0]-1)/2., (image.shape[1]-1)/2. ])
+        cent_of_mass  = tuple( N.array(cent_of_mass) -  imcen)
+
+
+    if units == 'arcsec':
+        pixelscale = HDUlist[ext].header['PIXELSCL']
+        cent_of_mass = tuple( N.array(cent_of_mass) *pixelscale)
 
     return cent_of_mass
 
@@ -1468,8 +1553,10 @@ if __name__ == "__main__":
         m = MIRI()
         m.filter = 'F1000W'
         m.calcPSF('test1.fits', clobber=True)
-    #nc = NIRCam()
-    #nc.filter = 'F200W'
+    nc = NIRCam()
+    nc.filter = 'F200W'
+    nc.image_mask = 'MASK210R'
+    nc.pupil_mask = 'CIRCLYOT'
     #nc.calcPSF('test_nircam.fits', mono=False)
 
     miri=MIRI()

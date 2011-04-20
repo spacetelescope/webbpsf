@@ -38,9 +38,10 @@ Contents
 
    intro.rst
    relnotes.rst
-   jwopt.rst
+   webbpsf.rst
    gui.rst  
    poppy.rst
+   sampling.rst
    fft_optimization.rst
 
 
