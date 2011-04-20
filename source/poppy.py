@@ -563,12 +563,13 @@ class Wavefront(object):
 
         if optic.planetype == ROTATION:
             self.rotate(optic.angle)
+            self.location='after '+optic.name
         elif optic.planetype == DETECTOR:
             self._propagateMFT(optic)
+            self.location='before '+optic.name
         else:
             self._propagateFFT(optic)
-
-        self.location='before '+optic.name
+            self.location='before '+optic.name
 
     def _propagateFFT(self, optic):
         """ Propagate from pupil to image or vice versa using a padded FFT """

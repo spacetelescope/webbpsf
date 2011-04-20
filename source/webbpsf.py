@@ -15,8 +15,6 @@ Classes:
     * TFI
     * FGS
 
-  * kurucz_stars  (a wrapper for the Kurucz spectra library)
-
 
 
 Code by Marshall Perrin <mperrin@stsci.edu>
@@ -210,9 +208,9 @@ class JWInstrument(object):
         return "JWInstrument name="+self.name
 
     #----- actual optical calculations follow here -----
-    def calcPSF(self, source=None, filter=None,  nlambda=None, monochromatic=None ,
-            fov_arcsec=None, fov_pixels=None,  oversample=None, detector_oversample=None, calc_oversample=None, rebin=False,
-            outfile=None, clobber=True, display=False, save_intermediates=False):
+    def calcPSF(self, outfile=None, source=None, filter=None,  nlambda=None, monochromatic=None ,
+            fov_arcsec=None, fov_pixels=None,  oversample=None, detector_oversample=None, calc_oversample=None, rebin=True,
+            clobber=True, display=False, save_intermediates=False):
         """ Compute a PSF.
         The result can either be written to disk (set outfile="filename") or else will be returned as
         a pyfits HDUlist object.
@@ -237,6 +235,8 @@ class JWInstrument(object):
         filter : string, optional
             Filter name. Setting this is just a shortcut for setting the object's filter first, then
             calling calcPSF afterwards.
+        source : pysynphot.SourceSpectrum or dict
+            specification of source input spectrum. Default is a 5700 K sunlike star.
         nlambda : int
             How many wavelengths to model for broadband? 
             The default depends on how wide the filter is: (5,3,1) for types (W,M,N) respectively
@@ -256,7 +256,7 @@ class JWInstrument(object):
         rebin : bool, optional
             If set, the output file will contain a FITS image extension containing the PSF rebinned
             onto the actual detector pixel scale. Thus, setting oversample=<N> and rebin=True is
-            the proper way to obtain high-fidelity PSFs computed on the detector scale. 
+            the proper way to obtain high-fidelity PSFs computed on the detector scale. Default is True.
 
         clobber : bool
             overwrite output FITS file if it already exists?
@@ -282,13 +282,13 @@ class JWInstrument(object):
             # Make selection based on filter width letter code. 
             filt_width = self.filter[-1]
             try:
-                lookup_table = {'nircam': {'2': 10, 'W':5,'M':3,'N':1}, 
+                lookup_table = {'nircam': {'2': 10, 'W':20,'M':3,'N':1}, 
                                 'nirspec':{'W':5,'M':3,'N':1}, 
                                 'miri':{'W':5,'M':3,'N':1}, 
                                 'tfi':{'W':5,'M':3,'N':1}, 
                                 'fgs':{'W':5,'M':3,'N':1}}
 
-                nlambda = lookup_table[instrument.name][filt_width]
+                nlambda = lookup_table[self.name][filt_width]
                 self._debug("Automatically selecting # of wavelengths: %d" % nlambda)
             except:
                 nlambda=1
@@ -301,7 +301,9 @@ class JWInstrument(object):
             source = {'wavelengths': N.asarray([monochromatic]), 'weights': N.ones((1))}
             lambd = [monochromatic]
 
-        elif _HAS_PYSYNPHOT and source is not None and isinstance(source, pysynphot.spectrum.SourceSpectrum):
+        elif _HAS_PYSYNPHOT and (isinstance(source, pysynphot.spectrum.SourceSpectrum)  or source is None):
+            if source is None:
+                pysynphot.Icat('ck04models',5700,0.0,2.0)
             source = self._getWeightsFromSynphot(source, nlambda)
 
         else:  #Fallback simple code for if we don't have pysynphot.
@@ -384,7 +386,7 @@ class JWInstrument(object):
 
 
         # Should we downsample? 
-        if rebin:
+        if rebin and detector_oversample > 1:
             _log.info(" Downsampling to detector pixel scale.")
             rebinned_result = result[0].copy()
             rebinned_result.data = rebin_array(rebinned_result.data, rc=(detector_oversample, detector_oversample))
@@ -399,7 +401,7 @@ class JWInstrument(object):
             f = P.gcf()
             #p.text( 0.1, 0.95, "%s, filter= %s" % (self.name, self.filter), transform=f.transFigure, size='xx-large')
             P.suptitle( "%s, filter= %s" % (self.name, self.filter), size='xx-large')
-            P.text( 0.7, 0.95, "Calculation with %d wavelengths (%g - %g um)" % (nlambda, lambd[0]*1e6, lambd[-1]*1e6), transform=f.transFigure)
+            P.text( 0.99, 0.04, "Calculation with %d wavelengths (%g - %g um)" % (nlambda, lambd[0]*1e6, lambd[-1]*1e6), transform=f.transFigure, horizontalalignment='right')
 
         if outfile is not None:
             result[0].header.update ("FILENAME", os.path.basename (outfile),
@@ -538,9 +540,13 @@ class MIRI(JWInstrument):
 
 
     In addition to the actual filters, you may select 'MRS-IFU Ch1' to
-    indicate use of the MIRI IFU in Channel 1, and so forth. In this case, the `ifu_wavelength` attribute controls the simulated wavelength.
+    indicate use of the MIRI IFU in Channel 1, and so forth. In this case, the `monochromatic` attribute controls the simulated wavelength.
     Note that the pixel scale varies with channel, which is why they are implemented separately. 
     **Note: IFU to be implemented later**
+
+
+    Note: Currently the coronagraphic filter curves are ideal top-hat filters based on the notional 
+    filter bandwidth, not real filter curves. However, realistic transmissions are available for regular imaging filters. 
 
     
     """
@@ -554,7 +560,7 @@ class MIRI(JWInstrument):
 
         for i in range(4):
             self.filter_list.append('MRS-IFU Ch%d'% (i+1) )
-        self.ifu_wavelength= 8.0
+        self.monochromatic= 8.0
         self._IFU_pixelscale = {'Ch1':(0.18, 0.19), 'Ch2':(0.28, 0.19), 'Ch3': (0.39, 0.24), 'Ch4': (0.64, 0.27) }
             # The above tuples give the pixel resolution (perpendicular to the slice, along the slice). 
             # The pixels are not square.
@@ -571,7 +577,7 @@ class MIRI(JWInstrument):
         #_log.debug("MIRI validating:    %s, %s, %s " % (self.filter, self.image_mask, self.pupil_mask))
         if self.filter.startswith("MRS-IFU"): raise NotImplementedError("The MIRI MRS is not yet implemented.")
 
-        _log.warn("MIRI config validation disabled for now - TBD rewrite ")
+        #_log.warn("MIRI config validation disabled for now - TBD rewrite ")
         return
 
         if self.image_mask is not None or self.pupil_mask is not None:
@@ -680,8 +686,8 @@ class NIRCam(JWInstrument):
     
     Relevant attributes include `filter`, `image_mask`, and `pupil_mask`.
 
-    The NIRCam class is smart enough to select the appropriate pixel scale for the short or long wavelength channel automatically 
-    depending on whether you request a short or long wavelength filter.
+    The NIRCam class is smart enough to automatically select the appropriate pixel scale for the short or long wavelength channel 
+    based on whether you request a short or long wavelength filter.
  
     """
     def __init__(self):
@@ -783,7 +789,7 @@ class NIRSpec(JWInstrument):
     would appear with NIRSpec in imaging mode.
     
     Relevant attributes include `filter`. In addition to the actual filters, you may select 'IFU' to
-    indicate use of the NIRSpec IFU, in which case the `ifu_wavelength` attribute controls the simulated wavelength.
+    indicate use of the NIRSpec IFU, in which case use the `monochromatic` attribute to set the simulated wavelength.
     **Note: IFU to be implemented later**
     """
     def __init__(self):
@@ -793,7 +799,7 @@ class NIRSpec(JWInstrument):
         self._rotation = 45.0
         self.filter_list.append("IFU")
         self._IFU_pixelscale = 0.1 # check this!
-        self.ifu_wavelength= 3.0
+        self.monochromatic= 3.0
         self.filter = 'F140W'
 
     def _validate_config(self):
@@ -824,7 +830,7 @@ class TFI(JWInstrument):
 
         self.image_mask_list = ['CORON058', 'CORON075','CORON150','CORON200']
         self.pupil_mask_list = ['MASKC21N','MASKC66N','MASKC71N','MASK_NRM','CLEAR']
-        self.ifu_wavelength = 2.0 
+        self.monochromatic = 2.0 
 
     def _validate_config(self):
         pass
@@ -994,7 +1000,7 @@ def display_psf(HDUlist_or_filename=None, ext=0, vmin=1e-8,vmax=1e-1, title=None
             fspec = "%s, %s" % (HDUlist[ext].header['INSTRUME'], HDUlist[ext].header['FILTER'])
         except: 
             fspec= str(HDUlist_or_filename)
-        P.title("PSF sim for "+fspec)
+        title="PSF sim for "+fspec
     P.title(title)
 
     P.colorbar(ax.images[0], orientation='vertical')
@@ -1188,9 +1194,20 @@ def measure_radial(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
 
 def measure_fwhm(HDUlist_or_filename=None, ext=0, center=None, level=0.5):
     """ Measure FWHM* by interpolation of the radial profile 
-    
-    can also measure widths at other levels e.g. FW at 10% max
-    by setting the level keyword.
+    (* or full width at some other fraction of max.)
+
+    Parameters
+    ----------
+    HDUlist_or_filename, ext : string, int
+        Same as above
+    center : tuple
+        center to compute around.  Default is image center.
+    level : float
+        Fraction of max to compute for; default is 0.5 for Half Max. 
+        You can also measure widths at other levels e.g. FW at 10% max
+        by setting level=0.1
+
+
     """
 
     rr, radialprofile, EE = radial_profile(HDUlist_or_filename, ext, EE=True, center=center)
@@ -1214,6 +1231,11 @@ def measure_sharpness(HDUlist_or_filename=None, ext=0):
     See Makidon et al. JWST-STScI-001157 for a discussion of this image metric
     and its relationship to noise equivalent pixels.
 
+    Parameters
+    ----------
+    HDUlist_or_filename, ext : string, int
+        Same as above
+ 
     """
     if isinstance(HDUlist_or_filename, str):
         HDUlist = pyfits.open(HDUlist_or_filename)
@@ -1302,152 +1324,23 @@ def measure_anisotropy(HDUlist_or_filename=None, ext=0, slice=0, boxsize=50):
 
 #########################3
 
-class kurucz_stars(object):
-    "A simple access object for a library of stellar spectra from the Kurucz models"
-    def __init__(self):
-        # The keys are spectral types; the values are tuples of the
-        # table name and column name.
-        self.Kurucz_filenames = {
-            "O3V":   ("kp00_50000.fits", "g50"),
-            "O5V":   ("kp00_45000.fits", "g50"),
-            "O6V":   ("kp00_40000.fits", "g45"),
-            "O8V":   ("kp00_35000.fits", "g40"),
-            "O5I":   ("kp00_40000.fits", "g45"),
-            "O6I":   ("kp00_40000.fits", "g45"),
-            "O8I":   ("kp00_34000.fits", "g40"),
-            "B0V":   ("kp00_30000.fits", "g40"),
-            "B3V":   ("kp00_19000.fits", "g40"),
-            "B5V":   ("kp00_15000.fits", "g40"),
-            "B8V":   ("kp00_12000.fits", "g40"),
-            "B0III": ("kp00_29000.fits", "g35"),
-            "B5III": ("kp00_15000.fits", "g35"),
-            "B0I":   ("kp00_26000.fits", "g30"),
-            "B5I":   ("kp00_14000.fits", "g25"),
-            "A0V":   ("kp00_9500.fits", "g40"),
-            "A5V":   ("kp00_8250.fits", "g45"),
-            "A0I":   ("kp00_9750.fits", "g20"),
-            "A5I":   ("kp00_8500.fits", "g20"),
-            "F0V":   ("kp00_7250.fits", "g45"),
-            "F5V":   ("kp00_6500.fits", "g45"),
-            "F0I":   ("kp00_7750.fits", "g20"),
-            "F5I":   ("kp00_7000.fits", "g15"),
-            "G0V":   ("kp00_6000.fits", "g45"),
-            "G5V":   ("kp00_5750.fits", "g45"),
-            "G0III": ("kp00_5750.fits", "g30"),
-            "G5III": ("kp00_5250.fits", "g25"),
-            "G0I":   ("kp00_5500.fits", "g15"),
-            "G5I":   ("kp00_4750.fits", "g10"),
-            "K0V":   ("kp00_5250.fits", "g45"),
-            "K5V":   ("kp00_4250.fits", "g45"),
-            "K0III": ("kp00_4750.fits", "g20"),
-            "K5III": ("kp00_4000.fits", "g15"),
-            "K0I":   ("kp00_4500.fits", "g10"),
-            "K5I":   ("kp00_3750.fits", "g05"),
-            "M0V":   ("kp00_3750.fits", "g45"),
-            "M2V":   ("kp00_3500.fits", "g45"),
-            "M5V":   ("kp00_3500.fits", "g50"),
-            "M0III": ("kp00_3750.fits", "g15"),
-            "M0I":   ("kp00_3750.fits", "g00"),
-            "M2I":   ("kp00_3500.fits", "g00")}
-
-        self.sptype_list = self.Kurucz_filenames.keys()
-
-        def sort_sptype(typestr):
-            letter = typestr[0]
-            lettervals = {'O':0, 'B': 10, 'A': 20,'F': 30, 'G':40, 'K': 50, 'M':60}
-            value = lettervals[letter]*1.0
-            value += int(typestr[1])
-            if "III" in typestr: value += .3
-            elif "I" in typestr: value += .1
-            elif "V" in typestr: value += .5
-            return value
-        
-        self.sptype_list.sort(key=sort_sptype)
-
-        self._JWPSF_basepath = os.path.dirname(os.path.dirname(os.path.abspath(poppy.__file__))) +os.sep+"data"
-
-
-
-
-    def wavelengthUnits (self, hdu, column):
-        """Interpret the units string in the table header.
-
-        The function value will be the multiplicative factor needed
-        to convert the wavelengths to microns.  If no units are
-        specified (or can't be interpreted) for the wavelength column,
-        the units will be assumed to be Angstroms.
-        """
-
-        ANGSTROMStoMICRONS = 0.0001
-        NANOMETERStoMICRONS = 0.001
-        METERStoMICRONS = 1.e6
-
-        coldefs = hdu.get_coldefs()
-        if isinstance (column, types.IntType):
-            column_units = coldefs.units[column]
-        else:
-            column = column.lower()
-            found = False
-            for i in range (len (coldefs.names)):
-                column_name = coldefs.names[i].lower()
-                if column_name == column:
-                    column_units = coldefs.units[i]
-                    found = True
-                    break
-            if not found:
-                _log.warn("warning:  can't find %s column" % column)
-                return ANGSTROMStoMICRONS
-
-        if column_units is None:
-            units = "angstrom"          # default
-        else:
-            units = column_units.lower()
-        if units == "a" or units == "angstrom" or units == "angstroms":
-            factor = ANGSTROMStoMICRONS
-        elif units == "nm" or units == "nanometer" or units == "nanometers":
-            factor = NANOMETERStoMICRONS
-        elif units == "micron" or units == "microns":
-            factor = 1.
-        elif units == "m" or units == "meter" or units == "meters":
-            factor = METERStoMICRONS
-        else:
-            _log.warn(" wavelength units '%s' not given; " \
-                  "Angstroms assumed" % column_units)
-            factor = ANGSTROMStoMICRONS
-
-        return factor
-
-
-    def specFromSpectralType (self, spectral_type):
-        """Get spectrum specified by spectral type."""
-
-        startype = spectral_type.upper()
-        (fname, gcol) = self.Kurucz_filenames[startype]
-        fullname = os.path.join (self._JWPSF_basepath, 'k93models', fname[0:4], fname)
-        self.spectrum_file = fullname
-        fd = pyfits.open (fullname)
-        hdu = fd[1]
-        data = hdu.data
-        fd.close()
-        factor = self.wavelengthUnits (hdu, "WAVELENGTH")
-        wave = data.field('WAVELENGTH') * factor
-        flux = data.field(gcol)
-        self.spectrum = (wave, flux)
-        self.spectral_type = startype
-
-        spectrum = N.rec.fromarrays([wave,flux], names='wavelength_um, flux')
-
-        return spectrum
-
-
-#########################3
-
-
 def rebin_array(a = None, rc=(2,2), verbose=False):
 	"""  
-	anand@stsci.edu
 	Perform simple-minded flux-conserving binning... clip trailing
 	size mismatch: eg a 10x3 array binned by 3 results in a 3x1 array
+
+    Parameters
+    ----------
+    a : array_like
+        input array
+    rc : two-element tuple 
+        (nrows, ncolumns) desired for rebinned array
+    verbose : bool
+        print additional status text?
+
+
+	anand@stsci.edu
+
 	"""
 
 	r, c = rc
@@ -1549,10 +1442,6 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO,format='%(name)-10s: %(levelname)-8s %(message)s')
 
 
-    if 0: 
-        m = MIRI()
-        m.filter = 'F1000W'
-        m.calcPSF('test1.fits', clobber=True)
     nc = NIRCam()
     nc.filter = 'F200W'
     nc.image_mask = 'MASK210R'
@@ -1560,26 +1449,11 @@ if __name__ == "__main__":
     #nc.calcPSF('test_nircam.fits', mono=False)
 
     miri=MIRI()
-    #miri.filter='F2300C'
-    #miri.filter='F1000W'
-    #miri.image_mask = 'LYOT2300'
-    #miri.pupil_mask = 'MASKLYOT'
     miri.image_mask = 'FQPM1065'
     miri.pupil_mask = 'MASKFQPM'
     miri.filter='F1065C'
 
-    P.clf()
     #miri.display()
     nircam=NIRCam()
     tfi = TFI()
     nirspec = NIRSpec()
-
-    if 0:
-        miri.options = {'pupil_shift_y': 0.2, 'pupil_shift_x': 0}
-        miri.calcPSF(nlambda=1)
-
-
-    if 0: 
-        tfi.image_mask = 'CORON075'
-        tfi.pupil_mask = 'MASKC21N'
-        tfi.calcPSF(nlambda=1)

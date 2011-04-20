@@ -1,10 +1,4 @@
-
-Add object
-Add real use of stellar spectral type
-	- pysynphot next week!
-
 debug circular occulter masks
-
 
 Add detector QE and germanium filter features. 
 
