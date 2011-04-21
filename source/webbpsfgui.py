@@ -23,6 +23,13 @@ except:
     pass
 
 
+try:
+    import pysynphot
+    _HAS_PYSYNPHOT=True
+except:
+    _HAS_PYSYNPHOT=False
+
+
 import webbpsf
 
 
@@ -38,7 +45,6 @@ class WebbPSF_GUI(object):
         self.widgets = {}
         self.vars = {}
         insts = ['NIRCam', 'NIRSpec','MIRI', 'TFI', 'FGS']
-        self.stars = webbpsf.kurucz_stars()
         for i in insts:
             self.instrument[i] = webbpsf.Instrument(i)
 
@@ -94,8 +100,9 @@ class WebbPSF_GUI(object):
         #-- star
         lf = ttk.LabelFrame(frame, text='Source Properties')
 
-        self._add_labeled_dropdown("SpType", lf, label='    Spectral Type:', values=self.stars.sptype_list, default='G0V', width=5, position=(0,0), sticky='W')
-        ttk.Button(lf, text='Plot spectrum', command=self.ev_plotspectrum).grid(row=0,column=2,sticky='E',columnspan=4)
+        if _HAS_PYSYNPHOT:
+            self._add_labeled_dropdown("SpType", lf, label='    Spectral Type:', values=specFromSpectralType("",return_list=True), default='G0V', width=5, position=(0,0), sticky='W')
+            ttk.Button(lf, text='Plot spectrum', command=self.ev_plotspectrum).grid(row=0,column=2,sticky='E',columnspan=4)
 
         r = 1
         fr2 = ttk.Frame(lf)
@@ -131,7 +138,15 @@ class WebbPSF_GUI(object):
             ttk.Label(page, text='Configuration Options for '+iname+"                      ").grid(row=0, columnspan=2, sticky='W')
 
 
-            self._add_labeled_dropdown(iname+"_filter", page, label='    Filter:', values=self.instrument[iname].filter_list, default=self.instrument[iname].filter, width=10, position=(1,0), sticky='W')
+            if  iname != 'TFI':
+                self._add_labeled_dropdown(iname+"_filter", page, label='    Filter:', values=self.instrument[iname].filter_list, default=self.instrument[iname].filter, width=10, position=(1,0), sticky='W')
+            else:
+                ttk.Label(page, text='Etalon wavelength: ' , state='disabled').grid(row=1, column=0, sticky='W')
+                self.widgets[iname+"_wavelen"] = ttk.Entry(page, width=7) #, disabledforeground="#A0A0A0")
+                self.widgets[iname+"_wavelen"].insert(0, str(self.instrument[iname].etalon_wavelength))
+                self.widgets[iname+"_wavelen"].grid(row=1, column=1, sticky='W')
+                ttk.Label(page, text=' um' ).grid(row=1, column=2, sticky='W')
+ 
             #self.vars[iname+"_filter"] = tk.StringVar()
             #self.widgets[iname+"_filter"] = ttk.Combobox(page,textvariable =self.vars[iname+"_filter"], width=10, state='readonly')
             #self.widgets[iname+"_filter"]['values'] = self.instrument[iname].filter_list
@@ -141,20 +156,20 @@ class WebbPSF_GUI(object):
             #self.widgets[iname+"_filter"].grid(row=1, column=1)
 
 
-            if hasattr(self.instrument[iname], 'ifu_wavelength'):
+            #if hasattr(self.instrument[iname], 'ifu_wavelength'):
+            if iname == 'NIRSpec' or iname =='MIRI':
                 fr2 = ttk.Frame(page)
                 label = 'IFU' if iname !='TFI' else 'TF'
                 ttk.Label(fr2, text='   %s wavelen: '%label , state='disabled').grid(row=0, column=0)
                 self.widgets[iname+"_ifu_wavelen"] = ttk.Entry(fr2, width=5) #, disabledforeground="#A0A0A0")
-                self.widgets[iname+"_ifu_wavelen"].insert(0, str(self.instrument[iname].ifu_wavelength))
+                self.widgets[iname+"_ifu_wavelen"].insert(0, str(self.instrument[iname].monochromatic))
                 self.widgets[iname+"_ifu_wavelen"].grid(row=0, column=1)
                 self.widgets[iname+"_ifu_wavelen"].state(['disabled'])
                 ttk.Label(fr2, text=' um' , state='disabled').grid(row=0, column=2)
                 fr2.grid(row=1,column=2, columnspan=6, sticky='E')
 
-                self.widgets[iname+"_filter"].bind('<<ComboboxSelected>>', lambda e: self.ev_update_ifu_label(iname))
-
-
+                iname2 = iname+"" # need to make a copy so the following lambda function works right:
+                self.widgets[iname+"_filter"].bind('<<ComboboxSelected>>', lambda e: self.ev_update_ifu_label(iname2))
 
 
             if len(self.instrument[iname].image_mask_list) >0 :
@@ -556,22 +571,32 @@ class WebbPSF_GUI(object):
 
         P.clf()
 
-        speclib = webbpsf.kurucz_stars()
+        #speclib = webbpsf.kurucz_stars()
 
-        spectrum = speclib.specFromSpectralType(sptype)
-        P.loglog(spectrum['wavelength_um'],spectrum['flux']/spectrum['flux'].max(),label=sptype+" star")
-        P.xlabel("Wavelength [$\mu$m]")
-        P.ylabel("Flux [$erg s^{-1} cm^{-2} \AA^{-1} \\times$ arbitrary scale factor ]")
+        spectrum = specFromSpectralType(sptype)
+        synplot(spectrum)
 
-        filt = self.instrument[iname].getFilter(filter)
-        P.plot(filt.WAVELENGTH, filt.THROUGHPUT+1e-9, "--" ,label=filter+" filter")
-        P.gca().set_ybound(1e-6,10)
-        P.legend(loc="upper left")
+        #speclib.specFromSpectralType(sptype)
+        #P.loglog(spectrum['wavelength_um'],spectrum['flux']/spectrum['flux'].max(),label=sptype+" star")
+        #P.xlabel("Wavelength [$\mu$m]")
+        #P.ylabel("Flux [$erg s^{-1} cm^{-2} \AA^{-1} \\times$ arbitrary scale factor ]")
+
+        #filt = self.instrument[iname].getFilter(filter)
+        #P.plot(filt.WAVELENGTH, filt.THROUGHPUT+1e-9, "--" ,label=filter+" filter")
+        #P.gca().set_ybound(1e-6,10)
+        #P.legend(loc="upper left")
 
     def ev_calcPSF(self):
         "Event handler for PSF Calculations"
         self._updateFromGUI()
-        self.PSF_HDUlist = self.inst.calcPSF(detector_oversample= self.detector_oversampling,
+
+        if _HAS_PYSYNPHOT:
+            source = specFromSpectralType(self.sptype)
+        else:
+            source=None # generic flat spectrum
+
+        self.PSF_HDUlist = self.inst.calcPSF(source=source, 
+                detector_oversample= self.detector_oversampling,
                 calc_oversample=self.calc_oversampling,
                 fov_arcsec = self.FOV,  nlambda = self.nlambda, display=True)
         #self.PSF_HDUlist.display()
@@ -645,9 +670,9 @@ class WebbPSF_GUI(object):
 
     def _updateFromGUI(self):
         # get GUI values
-        self.sptype = self.widgets['SpType'].get()
+        if _HAS_PYSYNPHOT:
+            self.sptype = self.widgets['SpType'].get()
         self.iname = self.widgets[self.widgets['tabset'].select()]
-        self.filter = self.widgets[self.iname+"_filter"].get()
         self.opd= self.widgets[self.iname+"_opd"].get()
         self.opd_i= int(self.widgets[self.iname+"_opd_i"].get())
         try:
@@ -667,7 +692,14 @@ class WebbPSF_GUI(object):
 
         # configure the relevant instrument object
         self.inst = self.instrument[self.iname]
-        self.inst.filter = self.filter
+        if self.iname != 'TFI':
+            self.filter = self.widgets[self.iname+"_filter"].get()
+            self.inst.filter = self.filter
+        else:
+            self.wavelen = float(self.widgets[self.iname+"_wavelen"].get())
+            self.inst.etalon_wavelength = self.wavelen
+
+            
         if self.opd == "Zero OPD (perfect)": 
             self.opd = None
             self.inst.pupilopd = None
@@ -689,6 +721,111 @@ class WebbPSF_GUI(object):
 
     def mainloop(self):
         self.root.mainloop()
+
+
+
+#-------------------------------------------------------------------------
+
+def synplot(thing, waveunit='micron'):
+    """ Plot a single PySynPhot object (either SpectralElement or SourceSpectrum)
+    versus wavelength, with nice axes labels.
+
+    Really just a simple convenience function.
+    """
+
+    # convert to requested display unit.
+    wave = thing.waveunits.Convert(thing.wave,waveunit)
+
+
+    if isinstance(thing, pysynphot.spectrum.SourceSpectrum):
+        P.loglog(wave, thing.flux, label=thing.name)
+        P.xlabel("Wavelength [%s]" % waveunit)
+        if str(thing.fluxunits) == 'flam':
+            P.ylabel("Flux [%s]" % ' erg cm$^{-2}$ s$^{-1}$ Ang$^{-1}$' )
+        else:
+            P.ylabel("Flux [%s]" % thing.fluxunits)
+    elif isinstance(thing, pysynphot.spectrum.SpectralElement):
+        P.plot(wave, thing.throughput,label=thing.name)
+        P.xlabel("Wavelength [%s]" % waveunit)
+        P.ylabel("Throughput")
+        P.gca().set_ylim(0,1)
+    else:
+        print "Don't know how to plot that object..."
+
+
+
+def specFromSpectralType(sptype, return_list=False):
+    """Get Pysynphot Spectrum object from a spectral type string.
+
+    """
+    lookuptable = {
+        "O3V":   (50000, 0.0, 5.0),
+        "O5V":   (45000, 0.0, 5.0),
+        "O6V":   (40000, 0.0, 4.5),
+        "O8V":   (35000, 0.0, 4.0),
+        "O5I":   (40000, 0.0, 4.5),
+        "O6I":   (40000, 0.0, 4.5),
+        "O8I":   (34000, 0.0, 4.0),
+        "B0V":   (30000, 0.0, 4.0),
+        "B3V":   (19000, 0.0, 4.0),
+        "B5V":   (15000, 0.0, 4.0),
+        "B8V":   (12000, 0.0, 4.0),
+        "B0III": (29000, 0.0, 3.5),
+        "B5III": (15000, 0.0, 3.5),
+        "B0I":   (26000, 0.0, 3.0),
+        "B5I":   (14000, 0.0, 2.5),
+        "A0V":   (9500, 0.0, 4.0),
+        "A5V":   (8250, 0.0, 4.5),
+        "A0I":   (9750, 0.0, 2.0),
+        "A5I":   (8500, 0.0, 2.0),
+        "F0V":   (7250, 0.0, 4.5),
+        "F5V":   (6500, 0.0, 4.5),
+        "F0I":   (7750, 0.0, 2.0),
+        "F5I":   (7000, 0.0, 1.5),
+        "G0V":   (6000, 0.0, 4.5),
+        "G5V":   (5750, 0.0, 4.5),
+        "G0III": (5750, 0.0, 3.0),
+        "G5III": (5250, 0.0, 2.5),
+        "G0I":   (5500, 0.0, 1.5),
+        "G5I":   (4750, 0.0, 1.0),
+        "K0V":   (5250, 0.0, 4.5),
+        "K5V":   (4250, 0.0, 4.5),
+        "K0III": (4750, 0.0, 2.0),
+        "K5III": (4000, 0.0, 1.5),
+        "K0I":   (4500, 0.0, 1.0),
+        "K5I":   (3750, 0.0, 0.5),
+        "M0V":   (3750, 0.0, 4.5),
+        "M2V":   (3500, 0.0, 4.5),
+        "M5V":   (3500, 0.0, 5.0),
+        "M0III": (3750, 0.0, 1.5),
+        "M0I":   (3750, 0.0, 0.0),
+        "M2I":   (3500, 0.0, 0.0)}
+
+
+    if return_list:
+        sptype_list = lookuptable.keys()
+        def sort_sptype(typestr):
+            letter = typestr[0]
+            lettervals = {'O':0, 'B': 10, 'A': 20,'F': 30, 'G':40, 'K': 50, 'M':60}
+            value = lettervals[letter]*1.0
+            value += int(typestr[1])
+            if "III" in typestr: value += .3
+            elif "I" in typestr: value += .1
+            elif "V" in typestr: value += .5
+            return value
+        sptype_list.sort(key=sort_sptype)
+        return sptype_list
+
+    try:
+        keys = lookuptable[sptype]
+    except:
+        raise LookupError("Lookup table does not include spectral type %s" % sptype)
+
+    return pysynphot.Icat('ck04models',keys[0], keys[1], keys[2])
+
+
+
+
 
 if __name__ == "__main__":
 

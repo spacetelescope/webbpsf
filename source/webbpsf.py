@@ -280,18 +280,20 @@ class JWInstrument(object):
             # Automatically determine number of appropriate wavelengths.
 
             # Make selection based on filter width letter code. 
-            filt_width = self.filter[-1]
             try:
-                lookup_table = {'nircam': {'2': 10, 'W':20,'M':3,'N':1}, 
-                                'nirspec':{'W':5,'M':3,'N':1}, 
-                                'miri':{'W':5,'M':3,'N':1}, 
-                                'tfi':{'W':5,'M':3,'N':1}, 
-                                'fgs':{'W':5,'M':3,'N':1}}
+                if self.name=='TFI':    # filter codes are irrelevant for TFI.
+                    nlambda=5
+                else:
+                    filt_width = self.filter[-1]
+                    lookup_table = {'NIRCam': {'2': 10, 'W':20,'M':3,'N':1}, 
+                                    'NIRSpec':{'W':5,'M':3,'N':1}, 
+                                    'MIRI':{'W':5,'M':3,'N':1}, 
+                                    'FGS':{'W':5,'M':3,'N':1}}
 
-                nlambda = lookup_table[self.name][filt_width]
-                self._debug("Automatically selecting # of wavelengths: %d" % nlambda)
+                    nlambda = lookup_table[self.name][filt_width]
+                _log.debug("Automatically selecting # of wavelengths: %d" % nlambda)
             except:
-                nlambda=1
+                nlambda=10
                 _log.warn("unrecognized filter %s. setting default nlambda=%d" % (self.filter, nlambda))
 
 
@@ -384,13 +386,65 @@ class JWInstrument(object):
             _log.info("Saved result to "+outfile)
         return result
 
-    def _getWeights(self, source=None, nlambda=5, monochromatic=False):
+    def _getSpecCacheKey(self, source, nlambda):
+        """ return key for the cache of precomputed spectral weightings.
+        This is a separate function so the TFI subclass can override it.
+        """
+        return (self.filter, source.name, nlambda)
+
+
+    def _getWeights(self, source=None, nlambda=5, monochromatic=None, verbose=False):
         if monochromatic is not None:
             _log.info(" monochromatic calculation requested.")
             return (N.asarray([monochromatic]),  N.asarray([1]) )
 
         elif _HAS_PYSYNPHOT and (isinstance(source, pysynphot.spectrum.SourceSpectrum)  or source is None):
-            return self._getWeightsFromSynphot(source, nlambda)
+            """ Given a pysynphot.SourceSpectrum object, perform synthetic photometry for
+            nlambda bins spanning the wavelength range of interest.
+
+            Because this calculation is kind of slow, cache results for reuse in the frequent
+            case where one is computing many PSFs for the same spectral source.
+            """
+            if source is None:
+                source = pysynphot.Icat('ck04models',5700,0.0,2.0)
+
+            try:
+                key = self._getSpecCacheKey(source, nlambda)
+                if key in self._spectra_cache.keys(): 
+                    return self._spectra_cache[keys]
+            except:
+                pass  # in case sourcespectrum lacks a name element - just do the below calc.
+
+            _log.info("Computing wavelength weights using synthetic photometry for %s..." % self.filter)
+            band = self._getSynphotBandpass()
+            # choose reasonable min and max wavelengths
+            w_above10 = N.where(band.throughput > 0.10*band.throughput.max())
+            minwave = band.wave[w_above10].min()
+            maxwave = band.wave[w_above10].max()
+
+            wave_bin_edges =  N.linspace(minwave,maxwave,nlambda+1)
+            wavesteps = (wave_bin_edges[:-1] +  wave_bin_edges[1:])/2
+            deltawave = wave_bin_edges[1]-wave_bin_edges[0]
+            effstims = []
+
+            #t0= time.time()
+            for wave in wavesteps:
+                if verbose: _log.info("using band centered at %f with width %f" % (wave,deltawave))
+                box = pysynphot.Box(wave, deltawave)
+                obs = pysynphot.Observation(source, band*box)
+                effstims.append(obs.effstim('counts'))
+            #t1 = time.time()
+            #print "  that took %f seconds for %d wavelengths" % (t1-t0, nlambda)
+
+            effstims = N.array(effstims)
+            effstims /= effstims.sum()
+            wave_m =  band.waveunits.Convert(wavesteps,'m') # convert to meters
+
+            #newsource = {'wavelengths': wave_m, 'weights':effstims}
+            newsource = (wave_m, effstims)
+            if verbose: print newsource
+            self._spectra_cache[ self._getSpecCacheKey(source,nlambda)] = newsource
+            return newsource
 
         else:  #Fallback simple code for if we don't have pysynphot.
             _log.info("Computing source spectrum & instrument spectral transmission")
@@ -410,23 +464,12 @@ class JWInstrument(object):
             #source = {'wavelengths': lambd, 'weights': weights}
 
 
-    def _getWeightsFromSynphot(self, sourcespectrum=None, nlambda=5, verbose=False):
-        """ Given a pysynphot.SourceSpectrum object, perform synthetic photometry for
-        nlambda bins spanning the wavelength range of interest.
 
-        Because this calculation is kind of slow, cache results for reuse in the frequent
-        case where one is computing many PSFs for the same spectral source.
+    def _getSynphotBandpass(self):
+        """ Return a pysynphot.ObsBandpass object for the given desired band
+        This is split out as its own function so that the TFI subclass can override
+        it with an etalon-aware version.
         """
-        if sourcespectrum is None:
-            sourcespectrum = pysynphot.Icat('ck04models',5700,0.0,2.0)
-       
-        try:
-            if (self.filter, sourcespectrum.name, nlambda) in self._spectra_cache.keys(): 
-                return self._spectra_cache[ (self.filter, sourcespectrum.name, nlambda)]
-        except:
-            pass  # in case sourcespectrum lacks a name element - just do the below calc.
-
-        _log.info("Computing wavelength weights using synthetic photometry for %s..." % self.filter)
         try:
             band = pysynphot.ObsBandpass( ('%s,im,%s'%(self.name, self.filter)).lower())
         except:
@@ -441,34 +484,7 @@ class JWInstrument(object):
             _log.warn("These may be less accurate.")
             band = pysynphot.spectrum.ArraySpectralElement(throughput=filterdata.THROUGHPUT,
                                 wave=filterdata.WAVELENGTH, waveunits='angstrom',name=self.filter)
-
-        # choose reasonable min and max wavelengths
-        w_above15 = N.where(band.throughput > 0.15*band.throughput.max())
-        minwave = band.wave[w_above15].min()
-        maxwave = band.wave[w_above15].max()
-
-        wave_bin_edges =  N.linspace(minwave,maxwave,nlambda+1)
-        wavesteps = (wave_bin_edges[:-1] +  wave_bin_edges[1:])/2
-        deltawave = wave_bin_edges[1]-wave_bin_edges[0]
-        effstims = []
-
-        #t0= time.time()
-        for wave in wavesteps:
-            if verbose: _log.info("using band centered at %f with width %f" % (wave,deltawave))
-            box = pysynphot.Box(wave, deltawave)
-            obs = pysynphot.Observation(sourcespectrum, band*box)
-            effstims.append(obs.effstim('counts'))
-        #t1 = time.time()
-        #print "  that took %f seconds for %d wavelengths" % (t1-t0, nlambda)
-       
-        effstims = N.array(effstims)
-        effstims /= effstims.sum()
-        wave_m =  band.waveunits.Convert(wavesteps,'m') # convert to meters
-
-        #newsource = {'wavelengths': wave_m, 'weights':effstims}
-        newsource = (wave_m, effstims)
-        self._spectra_cache[ (self.filter, sourcespectrum.name, nlambda)] = newsource
-        return newsource
+        return band
 
 
 
@@ -575,7 +591,6 @@ class MIRI(JWInstrument):
         self.image_mask_list = ['FQPM1065', 'FQPM1140', 'FQPM1550', 'LYOT2300']
         self.pupil_mask_list = ['MASKFQPM', 'MASKLYOT']
 
-        self.filter_list.append("FND")
         for i in range(4):
             self.filter_list.append('MRS-IFU Ch%d'% (i+1) )
         self.monochromatic= 8.0
@@ -812,11 +827,11 @@ class NIRSpec(JWInstrument):
     """
     def __init__(self):
         JWInstrument.__init__(self, "NIRSpec")
-        self.pixelscale = 0.0317 # for NIRCAM short-wavelen channels
+        self.pixelscale = 0.100 #  100 mas pixels. Microshutters are 0.2x0.46 but we ignore that here. 
         self._rotation = None
         self._rotation = 45.0
         self.filter_list.append("IFU")
-        self._IFU_pixelscale = 0.1 # check this!
+        self._IFU_pixelscale = 0.1 # same.
         self.monochromatic= 3.0
         self.filter = 'F140W'
 
@@ -836,19 +851,31 @@ class NIRSpec(JWInstrument):
 class TFI(JWInstrument):
     """ A class modeling the optics of the Tunable Filter Imager
     
-    Relevant attributes include `filter`, `image_mask`, and `pupil_mask`.
+    Relevant attributes include `image_mask`, and `pupil_mask`.
 
-    Right now there are a bunch of pretend filters with different wavelengths. 
-    You may use the `monochromatic=` option to calcPSF to calculate a PSF at an arbitrary wavelength.
-    Actual modeling of the tunable filter transmission bandwidth TBD later.
+    Because of its tunable etalon, wavelength selection for TFI is handled a bit differently than
+    for the other SIs.  The `filter` attribute, while present, is not used. Instead, there is an
+    `etalon_wavelength` attribute, which is the wavelength in microns that the etalon is tuned to.
+    Acceptable values are between 1.5 - 2.7 and 3.0 - 5.0 microns. The effective resolution for the TFI
+    at any given resolution is obtained from a lookup table and used to calculate the PSF across the
+    resulting bandpass.
+
+    You may also use the `monochromatic=` option to `calcPSF()` to calculate a PSF at a single wavelength.
     """
     def __init__(self):
         JWInstrument.__init__(self, "TFI")
         self.pixelscale = 0.064 # for TFI
 
+        self.filter_list = [""]
+        self.filter=""
+
         self.image_mask_list = ['CORON058', 'CORON075','CORON150','CORON200']
         self.pupil_mask_list = ['MASKC21N','MASKC66N','MASKC71N','MASK_NRM','CLEAR']
-        self.monochromatic = 2.0 
+        self.etalon_wavelength = 2.0
+        """ Tunable filter etalon wavelength setting """
+        self.resolution_table = atpy.Table(self._datapath+os.sep+"filters/TFI_resolution.txt", type='ascii',names=('wavelength','resolution'))
+
+
 
     def _validate_config(self):
         pass
@@ -883,6 +910,47 @@ class TFI(JWInstrument):
 
         return optsys
 
+    def _getSynphotBandpass(self):
+        """ Return a pysynphot.ObsBandpass object for the given desired band.
+        This uses a lookup table to predict the properties of the TFI tunable filter etalon.
+        """
+
+        
+        if (self.etalon_wavelength < 1.5 or self.etalon_wavelength > 5.0 or
+            (self.etalon_wavelength > 2.7 and self.etalon_wavelength < 3.0)):
+            raise ValueError("Invalid value for etalon wavelength: %f. Please set a value in 1.5-2.7 or 3.0-5.0 microns." % self.etalon_wavelength)
+
+
+        match_index = N.abs(self.resolution_table.wavelength - self.etalon_wavelength).argmin()
+        resolution = self.resolution_table.resolution[match_index]
+        _log.info("Etalon wavelength %.3f has resolution %.2f" % (self.etalon_wavelength, resolution))
+        wavelen = N.linspace(1.0, 5.0, 1000)
+
+        fwhm = self.etalon_wavelength/resolution
+        sigma = fwhm / 2.35482
+
+        transmission = N.exp(- (wavelen - self.etalon_wavelength)**2/ (2*sigma**2))
+
+        #P.plot(wavelen, transmission)
+        band = pysynphot.ArrayBandpass(wave=wavelen*1e4, throughput=transmission, waveunits='angstrom',name='TFI-etalon-%.3d' % self.etalon_wavelength)
+
+        self.filter = '%.3f um' % self.etalon_wavelength # update this. used for display and FITS header info
+
+        return band
+
+
+    def _getSpecCacheKey(self, source, nlambda):
+        """ return key for the cache of precomputed spectral weightings.
+        This is a separate function so the TFI subclass can override it.
+        """
+        return ("%.3f" %self.etalon_wavelength, source.name, nlambda)
+
+
+    def filter(self, value): # we just store a string here for the wavelength... don't worry about validation.
+        self._filter = value
+ 
+
+ 
 
 class FGS(JWInstrument):
     """ A class modeling the optics of the FGS.
