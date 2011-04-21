@@ -493,10 +493,10 @@ class Test7(TestPoppy):
 class Test8(TestPoppy):
     "Verify that extra padding around the aperture makes no difference "
     def test_padding_numpyfft(self):
-        poppy._USE_FFTW=False
+        poppy._USE_FFTW3=False
         self.do_test_8()
     def test_padding_fftw(self):
-        poppy._USE_FFTW=True
+        poppy._USE_FFTW3=True
         self.do_test_8()
 
     def do_test_8(self):
@@ -614,7 +614,7 @@ class Test10(TestPoppy):
         nlam= 6
         source = {'weights': [0.1]*nlam, 'wavelengths': N.linspace(2.0e-6, 3.0e-6, nlam)}
 
-        _log.info("Calculating multiprocessor PSF")
+        _log.info("Calculating multiprocess PSF")
         times = []
         times.append(time.time())
         psf2 = osys.calcPSFmultiproc(source)
@@ -622,9 +622,9 @@ class Test10(TestPoppy):
         tmulti =  times[-1]-times[-2]
         _log.info(" Time for multiprocessor: %f s " % (tmulti))
 
-        _log.info("Calculating single processor PSF")
+        _log.info("Calculating single process PSF")
         times.append(time.time())
-        psf1 = osys.calcPSF(source)
+        psf1 = osys.calcPSF(source['wavelengths'], source['weights'])
         times.append(time.time())
         tsing =  times[-1]-times[-2]
         _log.info(" Time for single processor: %f s " % (tsing))

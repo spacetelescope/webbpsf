@@ -48,9 +48,6 @@ _log.setLevel(logging.INFO)
 _log.addHandler(logging.NullHandler())
 
 
-_USE_MULTIPROC = False # auto set this cleverly?
-_MULTIPROC_NPROCESS = 4
-
 
 try:
     __IPYTHON__
@@ -176,6 +173,7 @@ class JWInstrument(object):
         return self._filter
     @filter.setter
     def filter(self, value):
+        value = value.upper() # force to uppercase
         if value not in self.filter_list:
             raise ValueError("Instrument %s doesn't have a filter called %s." % (self.name, value))
         self._filter = value
@@ -188,6 +186,7 @@ class JWInstrument(object):
     def image_mask(self, name):
         if name is "": name = None
         if name is not None:
+            name = name.upper() # force to uppercase
             if name not in self.image_mask_list:
                 raise ValueError("Instrument %s doesn't have an image mask called %s." % (self.name, value))
         self._image_mask = name
@@ -199,6 +198,7 @@ class JWInstrument(object):
     def pupil_mask(self,name):
         if name is "": name = None
         if name is not None:
+            name = name.upper() # force to uppercase
             if name not in self.pupil_mask_list:
                 raise ValueError("Instrument %s doesn't have an pupil mask called %s." % (self.name, name))
 
@@ -295,36 +295,6 @@ class JWInstrument(object):
                 _log.warn("unrecognized filter %s. setting default nlambda=%d" % (self.filter, nlambda))
 
 
-        #----- compute weights for each wavelength based on source spectrum
-        if monochromatic is not None:
-            _log.info(" monochromatic calculation requested.")
-            source = {'wavelengths': N.asarray([monochromatic]), 'weights': N.ones((1))}
-            lambd = [monochromatic]
-
-        elif _HAS_PYSYNPHOT and (isinstance(source, pysynphot.spectrum.SourceSpectrum)  or source is None):
-            if source is None:
-                pysynphot.Icat('ck04models',5700,0.0,2.0)
-            source = self._getWeightsFromSynphot(source, nlambda)
-
-        else:  #Fallback simple code for if we don't have pysynphot.
-            _log.info("Computing source spectrum & instrument spectral transmission")
-            # compute a source spectrum weighted by the desired filter curves.
-            # TBD this will eventually use pysynphot, so don't write anything fancy for now!
-            wf = N.where(self.filter_list == self.filter)
-            wf = N.where(self.filter == N.asarray(self.filter_list))[0]
-
-            # The existing FITS files all have wavelength in ANGSTROMS since that is the pysynphot convention...
-            filterdata = atpy.Table(self._filter_files[wf], type='fits')
-            _log.warn("CAUTION: Really basic top-hat function for filter profile, with %d steps" % nlambda)
-            wtrans = N.where(filterdata.THROUGHPUT > 0.5)
-            if self.filter == 'FND':  # special case MIRI's ND filter since it is < 0.1% everywhere...
-                wtrans = N.where(  ( filterdata.THROUGHPUT > 0.0005)  & (filterdata.WAVELENGTH > 7e-6*1e10) & (filterdata.WAVELENGTH < 26e-6*1e10 ))
-            lrange = filterdata.WAVELENGTH[wtrans] *1e-10  # convert from Angstroms to Meters
-            lambd = N.linspace(N.min(lrange), N.max(lrange), nlambda)
-            weights = N.ones(nlambda)
-            source = {'wavelengths': lambd, 'weights': weights}
-
-
 
         #----- calculate field of view depending on supplied parameters
         if fov_arcsec is None and fov_pixels is None:  #pick decent defaults.
@@ -349,16 +319,20 @@ class JWInstrument(object):
 
         _log.info("PSF calc using fov_%s, oversample = %d, nlambda = %d" % (fov_spec, detector_oversample, nlambda) )
 
+        #----- compute weights for each wavelength based on source spectrum
+        wavelens, weights = self._getWeights(source=source, nlambda=nlambda, monochromatic=monochromatic)
+
+
         #---- now at last, actually do the PSF calc:
         #  instantiate an optical system using the current parameters
         self.optsys = self._getOpticalSystem(fov_arcsec=fov_arcsec, fov_pixels=fov_pixels,
             calc_oversample=calc_oversample, detector_oversample=detector_oversample)
         # and use it to compute the PSF (the real work happens here, in code in poppy.py)
         #result = self.optsys.calcPSF(source, display_intermediates=display, save_intermediates=save_intermediates, display=display)
-        if _USE_MULTIPROC and monochromatic is None :
-            result = self.optsys.calcPSFmultiproc(source, nprocesses=_MULTIPROC_NPROCESS) # no fancy display args for multiproc.
-        else:
-            result = self.optsys.calcPSF(source, display_intermediates=display, save_intermediates=save_intermediates, display=display)
+        #if _USE_MULTIPROC and monochromatic is None :
+            #result = self.optsys.calcPSFmultiproc(source, nprocesses=_MULTIPROC_NPROCESS) # no fancy display args for multiproc.
+        #else:
+        result = self.optsys.calcPSF(wavelens, weights, display_intermediates=display, save_intermediates=save_intermediates, display=display)
 
 
         #---  update FITS header, display, and output.
@@ -401,7 +375,7 @@ class JWInstrument(object):
             f = P.gcf()
             #p.text( 0.1, 0.95, "%s, filter= %s" % (self.name, self.filter), transform=f.transFigure, size='xx-large')
             P.suptitle( "%s, filter= %s" % (self.name, self.filter), size='xx-large')
-            P.text( 0.99, 0.04, "Calculation with %d wavelengths (%g - %g um)" % (nlambda, lambd[0]*1e6, lambd[-1]*1e6), transform=f.transFigure, horizontalalignment='right')
+            P.text( 0.99, 0.04, "Calculation with %d wavelengths (%g - %g um)" % (nlambda, wavelens[0]*1e6, wavelens[-1]*1e6), transform=f.transFigure, horizontalalignment='right')
 
         if outfile is not None:
             result[0].header.update ("FILENAME", os.path.basename (outfile),
@@ -410,46 +384,89 @@ class JWInstrument(object):
             _log.info("Saved result to "+outfile)
         return result
 
+    def _getWeights(self, source=None, nlambda=5, monochromatic=False):
+        if monochromatic is not None:
+            _log.info(" monochromatic calculation requested.")
+            return (N.asarray([monochromatic]),  N.asarray([1]) )
 
-    def _getWeightsFromSynphot(self, sourcespectrum, nlambda):
+        elif _HAS_PYSYNPHOT and (isinstance(source, pysynphot.spectrum.SourceSpectrum)  or source is None):
+            return self._getWeightsFromSynphot(source, nlambda)
+
+        else:  #Fallback simple code for if we don't have pysynphot.
+            _log.info("Computing source spectrum & instrument spectral transmission")
+            # compute a source spectrum weighted by the desired filter curves.
+            # TBD this will eventually use pysynphot, so don't write anything fancy for now!
+            wf = N.where(self.filter == N.asarray(self.filter_list))[0]
+            # The existing FITS files all have wavelength in ANGSTROMS since that is the pysynphot convention...
+            filterdata = atpy.Table(self._filter_files[wf], type='fits')
+            _log.warn("CAUTION: Really basic top-hat function for filter profile, with %d steps" % nlambda)
+            wtrans = N.where(filterdata.THROUGHPUT > 0.5)
+            if self.filter == 'FND':  # special case MIRI's ND filter since it is < 0.1% everywhere...
+                wtrans = N.where(  ( filterdata.THROUGHPUT > 0.0005)  & (filterdata.WAVELENGTH > 7e-6*1e10) & (filterdata.WAVELENGTH < 26e-6*1e10 ))
+            lrange = filterdata.WAVELENGTH[wtrans] *1e-10  # convert from Angstroms to Meters
+            lambd = N.linspace(N.min(lrange), N.max(lrange), nlambda)
+            weights = N.ones(nlambda)
+            return (lambd,weights)
+            #source = {'wavelengths': lambd, 'weights': weights}
+
+
+    def _getWeightsFromSynphot(self, sourcespectrum=None, nlambda=5, verbose=False):
         """ Given a pysynphot.SourceSpectrum object, perform synthetic photometry for
         nlambda bins spanning the wavelength range of interest.
 
         Because this calculation is kind of slow, cache results for reuse in the frequent
         case where one is computing many PSFs for the same spectral source.
         """
-        
+        if sourcespectrum is None:
+            sourcespectrum = pysynphot.Icat('ck04models',5700,0.0,2.0)
+       
         try:
             if (self.filter, sourcespectrum.name, nlambda) in self._spectra_cache.keys(): 
                 return self._spectra_cache[ (self.filter, sourcespectrum.name, nlambda)]
         except:
             pass  # in case sourcespectrum lacks a name element - just do the below calc.
 
-        _log.info("Computing wavelength weights using synthetic photometry...")
-        band = pysynphot.ObsBandpass( ('%s,im,%s'%(self.name, self.filter)).lower())
+        _log.info("Computing wavelength weights using synthetic photometry for %s..." % self.filter)
+        try:
+            band = pysynphot.ObsBandpass( ('%s,im,%s'%(self.name, self.filter)).lower())
+        except:
+            # the requested band is not yet supported in synphot/CDBS. (those files are still a
+            # work in progress...). Therefore, use our local throughput files and create a synphot
+            # transmission object.
+            wf = N.where(self.filter == N.asarray(self.filter_list))[0]
+            # The existing FITS files all have wavelength in ANGSTROMS since that is the pysynphot convention...
+            filterdata = atpy.Table(self._filter_files[wf], type='fits')
+
+            _log.warn("Filter %s not supported in pysynphot/CDBS yet. Falling back to local filter transmission files" % self.filter)
+            _log.warn("These may be less accurate.")
+            band = pysynphot.spectrum.ArraySpectralElement(throughput=filterdata.THROUGHPUT,
+                                wave=filterdata.WAVELENGTH, waveunits='angstrom',name=self.filter)
 
         # choose reasonable min and max wavelengths
-        w_above10 = N.where(band.throughput > 0.25*band.throughput.max())
-        minwave = band.wave[w_above10].min()
-        maxwave = band.wave[w_above10].max()
+        w_above15 = N.where(band.throughput > 0.15*band.throughput.max())
+        minwave = band.wave[w_above15].min()
+        maxwave = band.wave[w_above15].max()
 
-        wavesteps =  N.linspace(minwave,maxwave,nlambda)
-        deltawave = wavesteps[1]-wavesteps[0]
+        wave_bin_edges =  N.linspace(minwave,maxwave,nlambda+1)
+        wavesteps = (wave_bin_edges[:-1] +  wave_bin_edges[1:])/2
+        deltawave = wave_bin_edges[1]-wave_bin_edges[0]
         effstims = []
 
         #t0= time.time()
         for wave in wavesteps:
+            if verbose: _log.info("using band centered at %f with width %f" % (wave,deltawave))
             box = pysynphot.Box(wave, deltawave)
-            obs = pysynphot.Observation(star, band*box)
+            obs = pysynphot.Observation(sourcespectrum, band*box)
             effstims.append(obs.effstim('counts'))
         #t1 = time.time()
         #print "  that took %f seconds for %d wavelengths" % (t1-t0, nlambda)
        
         effstims = N.array(effstims)
         effstims /= effstims.sum()
-        wave_um =  band.waveunits.Convert(wavesteps,'micron')
+        wave_m =  band.waveunits.Convert(wavesteps,'m') # convert to meters
 
-        newsource = {'wavelengths': wave_um, 'weights':effstims}
+        #newsource = {'wavelengths': wave_m, 'weights':effstims}
+        newsource = (wave_m, effstims)
         self._spectra_cache[ (self.filter, sourcespectrum.name, nlambda)] = newsource
         return newsource
 
@@ -558,6 +575,7 @@ class MIRI(JWInstrument):
         self.image_mask_list = ['FQPM1065', 'FQPM1140', 'FQPM1550', 'LYOT2300']
         self.pupil_mask_list = ['MASKFQPM', 'MASKLYOT']
 
+        self.filter_list.append("FND")
         for i in range(4):
             self.filter_list.append('MRS-IFU Ch%d'% (i+1) )
         self.monochromatic= 8.0

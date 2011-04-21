@@ -3,8 +3,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Documentation for JWST PSF Simulation
-=====================================
+Documentation for WebbPSF Simulation Code
+=========================================
 
 This software computes simulated PSFs for the JWST instruments, taking into account detector pixel scales, rotations, filter profiles, and point source spectra. 
 It is *not* a full optical model of JWST, but rather a tool for transforming optical path difference (OPD) maps, created with some other tool, into the resulting
@@ -26,7 +26,7 @@ PSFs as observed with JWST's instruments.
 
 There are three main Python modules in this distribution: a lower-level
 optical propagation library (:py:mod:`POPPY <poppy>`), an implementation of the
-JWST instruments using that library (JWOPT), and a graphical user interface.
+JWST instruments using that library (:py:mod:`WebbPSF <webbpsf>`), and a graphical user interface (:py:mod:`WebbPSFgui <webbpsfgui>`).
 
 
 
@@ -41,8 +41,8 @@ Contents
    webbpsf.rst
    gui.rst  
    poppy.rst
-   sampling.rst
    fft_optimization.rst
+   sampling.rst
 
 
 Indices and tables

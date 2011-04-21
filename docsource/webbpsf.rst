@@ -4,10 +4,11 @@
    contain the root `toctree` directive.
 
 
+.. module:: webbpsf
 
-==========================
-The JWInstrument interface
-==========================
+=============================
+The WebbPSF module
+=============================
 
 
 This module provides the primary interface, both for programmers and for interactive non-GUI use. It provides 
@@ -16,8 +17,8 @@ five classes corresponding to the JWST instruments, with consistent interfaces.
 
 
 
-Examples
---------
+Usage and Examples
+-------------------
 
 Simple PSFs are easily obtained: 
 
@@ -36,6 +37,12 @@ For interactive use, you can have the PSF displayed as it is computed:
 
 >>> nc.calcPSF(display=True)                          # will make nice plots with matplotlib.
 
+.. image:: ./fig1_nircam_f200w.png
+   :scale: 75%
+   :align: center
+   :alt: Sample PSF image
+
+
 More complicated instrumental configurations are available by setting the instrument's attributes. For instance,
 one can create an instance of MIRI and configure it for coronagraphic observations, thus:
 
@@ -48,7 +55,11 @@ one can create an instance of MIRI and configure it for coronagraphic observatio
 
 **Input Source Spectra:**
 
-The spectrum of the observed source can be specified by giving a `source` parameter in the call to `calcPSF()`. The following are valid sources:
+To calculate a monochromatic PSF, just use the `monochromatic` parameter. Wavelengths are always specified in meters.
+   >>> miri.calcPSF(monochromatic=9.876e-6)
+
+
+A more realistic weighted broadband PSF may be computed by specifying a `source` parameter in the call to `calcPSF()`. The following are valid sources:
 
 1. A dictionary with elements `source["wavelengths"]` and `source["weights"]` giving the wavelengths in meters and the relative weights for each. These should be numpy arrays or lists.
 
@@ -133,8 +144,8 @@ The JWInstrument generic class
 
 .. specific_instrument:
 
-Specific Instruments
---------------------
+Notes on Specific Instruments
+-------------------------------
 .. autoclass:: webbpsf.NIRCam
 .. autoclass:: webbpsf.NIRSpec
 .. autoclass:: webbpsf.MIRI
@@ -142,9 +153,17 @@ Specific Instruments
 .. autoclass:: webbpsf.FGS
 
 
---------------
+Helpful Utility Functions
+---------------------------
 
 .. autofunction:: webbpsf.Instrument
+.. autofunction:: display_psf
+.. autofunction:: radial_profile
+.. autofunction:: measure_EE
+.. autofunction:: measure_fwhm
+.. autofunction:: measure_sharpness
+.. autofunction:: measure_centroid
+.. autofunction:: display_profiles
 
 --------------
 

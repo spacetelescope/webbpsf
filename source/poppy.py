@@ -72,6 +72,12 @@ try:
 except:
     _USE_FFTW3 = False
 
+_USE_MULTIPROC = False # auto set this cleverly?
+_MULTIPROC_NPROCESS = min(4,multiprocessing.cpu_count())  # Caution: Do not make this too large on high-CPU-count machines
+                                                          # because this is a memory-intensive calculation and you will 
+                                                          # just end up thrashing IO and swapping out a ton, so everything
+                                                          # becomes super slow.
+
 _TIMETESTS=False #set to true for benchmarking
 _FLUXCHECK= False
 _IMAGECROP = 5.0 # default image display is 5 arcsec
@@ -219,7 +225,7 @@ class Wavefront(object):
     def __init__(self,wavelength=2e-6, npix=1024, dtype=N.complex128, diam=8.0, oversample=2, pixelscale=None):
 
         if wavelength > 1e-4:
-            raise ValueError("The specified wavelength is implausibly large. Remember to specify the desired wavelength in *meters*.")
+            raise ValueError("The specified wavelength %f is implausibly large. Remember to specify the desired wavelength in *meters*." % wavelength)
 
         self.oversample = oversample
 
@@ -2178,7 +2184,7 @@ class OpticalSystem():
             #print 'reset intermediates in calcPSF'
 
         # loop over wavelengths
-        if self.verbose: _log.info("Calculating PSF with %d wavelengths, using multiprocessing" % (len(source['wavelengths'])))
+        if self.verbose: _log.info("Calculating PSF with %d wavelengths, using multiprocessing across %d processes" % (len(source['wavelengths']), _MULTIPROC_NPROCESS  ))
         outFITS = None
 
         normwts =  N.asarray(source['weights'], dtype=float)
@@ -2219,7 +2225,7 @@ class OpticalSystem():
         if self.verbose: _log.info(" PSF Calculation completed.")
         return outFITS
 
-    def calcPSF(self, source=None, nlambda=5, wavelength=None,
+    def calcPSF(self, wavelength=1e-6, weight=None,  
         save_intermediates=False, save_intermediates_what='all', display= False, return_intermediates=False, **kwargs):
         """Calculate a PSF, either 
         - multi-wavelength PSF over some weighted sum of wavelengths (if you provide a source parameter)
@@ -2250,12 +2256,18 @@ class OpticalSystem():
             a pyfits.HDUList
         """
 
-        if source is None and wavelength is None:
-            wavelength = 1e-6
-        if source is None and wavelength is not None:
-            source = {'weights': [1], 'wavelengths': [wavelength]}
-            
+        #if source is None and wavelength is None:
+            #wavelength = 1e-6
+        #if source is None and wavelength is not None:
+            #source = {'weights': [1], 'wavelengths': [wavelength]}
+        if not hasattr(wavelength,'__iter__'):
+            wavelength = [wavelength]
+        if weight is None:
+            weight = [1.0] * len(wavelength)
 
+        if len(tuple(wavelength)) != len(tuple(weight)):
+            raise ValueError("Input source has different number of weights and wavelengths...")
+      
         if display: p.clf()
 
         if save_intermediates or return_intermediates:
@@ -2264,25 +2276,63 @@ class OpticalSystem():
             #raise ValueError("Saving intermediates for multi-wavelen not yet implemented!!")
 
         # loop over wavelengths
-        if self.verbose: _log.info("Calculating PSF with %d wavelengths" % (len(source['wavelengths'])))
+        if self.verbose: _log.info("Calculating PSF with %d wavelengths" % (len(wavelength)))
         outFITS = None
 
-        normwts =  N.asarray(source['weights'], dtype=float)
+        normwts =  N.asarray(weight, dtype=float)
         normwts /= normwts.sum()
 
-        for wavelen, weight in zip(source['wavelengths'], normwts):
-            mono_psf = self.propagate_mono(wavelen, poly_weight=weight, save_intermediates=save_intermediates or return_intermediates, **kwargs)
-            # add mono_psf into the output array
+        if _USE_MULTIPROC and monochromatic is None : ######### Parallellized computation ############
+            if _USE_FFTW3: 
+                _log.warn('IMPORTANT WARNING: Python multiprocessing and fftw3 do not appear to play well together. This is likely to crash intermittently')
+                _log.warn('   We suggest you set   poppy._USE_FFTW3 = False   if you want to use calcPSFmultiproc().')
 
-            if outFITS is None:
-                outFITS = mono_psf
-                outFITS[0].data = mono_psf[0].data*weight
-            else:
-                outFITS[0].data += mono_psf[0].data *weight
+            if save_intermediates:
+                raise NotImplementedError("Can't save intermediate steps if using parallelized code")
+            self.intermediate_wfs = []
+     
+            # do *NOT* just blindly try to create as many processes as one has CPUs, or one per wavelength either
+            # This is a memory-intensive task so that can end up swapping to disk and thrashing IO
+            pool = multiprocessing.Pool(nprocesses ) 
 
-        if save_intermediates:
-            for i in range(len(self.intermediate_wfs)):
-                self.intermediate_wfs[i].writeto('wavefront_plane_%03d.fits' % i, what=save_intermediates_what )
+            # build a single iterable containing the required function arguments
+            _log.info("Beginning multiprocessor job")
+            iterable = [(self, wavelen, wt, kwargs, _USE_FFTW3) for wavelen, wt in zip(wavelength, normwts)]
+            results = pool.map(_wrap_propagate_for_multiprocessing, iterable)
+            _log.info("Finished multiprocessor job")
+            pool.close()
+
+            # Sum all the results up into one array, using the weights
+            outFITS = results[0]
+            outFITS[0].data *= normwts[0]
+            _log.info("got results for wavelength channel %d / %d" % (0, len(tuple(wavelength))) )
+            for i in range(1, len(normwts)):
+                _log.info("got results for wavelength channel %d / %d" % (i, len(tuple(wavelength))) )
+                outFITS[0].data += results[i][0].data * normwts[i]
+            outFITS[0].header.add_history("Multiwavelength PSF calc on %d processors completed." % nprocesses)
+
+
+
+
+
+        else:  ########## single-threaded computations (may still use multi cores if FFTW3 enabled ######
+
+
+            for wavelen, wave_weight in zip(wavelength, normwts):
+            #for wavelen, weight in zip(source['wavelengths'], normwts):
+                mono_psf = self.propagate_mono(wavelen, poly_weight=wave_weight, save_intermediates=save_intermediates or return_intermediates, **kwargs)
+                # add mono_psf into the output array:
+
+                if outFITS is None:
+                    outFITS = mono_psf
+                    outFITS[0].data = mono_psf[0].data*wave_weight
+                else:
+                    outFITS[0].data += mono_psf[0].data *wave_weight
+
+            if save_intermediates:
+                for i in range(len(self.intermediate_wfs)):
+                    self.intermediate_wfs[i].writeto('wavefront_plane_%03d.fits' % i, what=save_intermediates_what )
+
         if display:
             cmap = matplotlib.cm.jet
             cmap.set_bad('0.3')
@@ -2297,8 +2347,8 @@ class OpticalSystem():
 
 
         # TODO update FITS header for oversampling here if detector is different from regular? 
-        waves = N.asarray(source['wavelengths'])
-        wts = N.asarray(source['weights'])
+        waves = N.asarray(wavelength)
+        wts = N.asarray(weight)
         mnwave = (waves*wts).sum() / wts.sum()
         outFITS[0].header.update('WAVELEN', mnwave, 'Weighted mean wavelength in meters')
         outFITS[0].header.update('NWAVES',waves.size, 'Number of wavelengths used in calculation')

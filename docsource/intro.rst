@@ -1,15 +1,20 @@
+.. JWST-PSFs documentation master file, created by
+   sphinx-quickstart on Mon Nov 29 15:57:01 2010.
+   You can adapt this file completely to your liking, but it should at least
+   contain the root `toctree` directive.
+
 
 Introduction
 ============
 
 
-Conceptually, the new JWST PSF simulation code relies on several layers of abstraction: 
- * A base layer implementing wavefront propagation through generic optical systems (provided by the Python module `poppy`).
- * An implementation of the specific details of JWST instruments using that base system (provided by `webbpsf`)
- * And a graphical user interface (provided by `webbpsfgui`).
+Conceptually, the new JWST PSF simulation code has three layers of abstraction: 
+ * A base package implements wavefront propagation through generic optical systems (provided by the Python module :py:mod:`POPPY <poppy>`).
+ * An implementation of the specific details of JWST instruments using that base system (provided by :py:mod:`WebbPSF <webbpsf>`)
+ * And a graphical user interface (provided by  :py:mod:`WebbPSFgui <webbpsfgui>`).
 
-It is entirely possible (and indeed recommended for scripting) to just use the `webbpsf` interface without the GUI, but the
-GUI will provide a quicker method for simple interactive or exploratory calculations.
+It is entirely possible (and indeed recommended for scripting) to just use the :py:mod:`WebbPSF <webbpsf>` interface without the GUI, but the
+GUI will provide a quicker method for simple interactive exploratory calculations.
 
 
 Why a new JWST PSF Simulator?
@@ -23,7 +28,7 @@ From a user's perspective this new code provides the following enhancements:
 * Updated lists of available filters.
 * Ability to simulate coronagraphic observations with MIRI, NIRCam, and TFI. (Note that MIRI coronagraphy models were
   already available using the JWcorPSF code split from JWPSF, but with substantial limitations on computation such as
-  a fixed oversampling factor.)
+  a fixed oversampling factor. NIRCam and TFI coronagraphy were not supported)
 * Includes the detector rotations, particularly for MIRI and NIRSpec
 * Adds ability to set output image FOV size and pixel sampling, separate from the oversampling factor used for the optical propagation.
 * Improved graphical user interface
@@ -46,9 +51,12 @@ Beyond the usual numpy/scipy/matplotlib core modules, the following are required
 
 * `pyfits`
 * `ATPy`
-* `pyFFTW3` is optional, but highly recommended. The code will work fine without it, but will be significantly slower.
-* `pysynphot` (The updated, prerelease version for JWST!) is optional, but highly recommended. It is required in order to 
-   simulated PSFs with realistic source spectra.  
+
+These are optional but highly recommended:
+
+* `pyFFTW3`. The code will work fine without it, but will be significantly slower.
+* `pysynphot` (The updated, prerelease version for JWST!) enabled the 
+   simulation of PSFs with proper spectral response to realistic source spectra.  
 
 **Additional Requirements for the GUI**: 
 
