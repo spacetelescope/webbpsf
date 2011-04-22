@@ -15,6 +15,7 @@ Version 0.2
 * Reworked calling conventions for calcPSF() routine source parameters.
 * poppy.calcPSFmultiprocessor merged in to regular poppy.calcPSF
 * Minor bug fixes to selection of which wavelengths to compute for more even sampling
+* Default OPDs are now the ones including SI WFE as well as OTE+ISIM.
 
 
 
@@ -27,10 +28,12 @@ Initial Release. Questions, comments, criticism all welcome!
 
 **Included:**
  
-* Revision V OPD files for OTE and SIs
+* Revision V OPD files for OTE and SIs. Produced by Kong Ha at NASA GSFC, provided by Mark Clampin.
 * Support for imaging mode in all SIs and FGS
-* Basic support for coronagraphy with MIRI, NIRCam, and TFI. Further enhancements in fidelity to come later.  Coronagraphic calculations are done using the direct FFT method, not Remi's semi-analytic method.
+* Basic support for coronagraphy with MIRI, NIRCam, and TFI. Further enhancements in fidelity to come later.  Coronagraphic calculations are done using the direct FFT method, not Soummer's semi-analytic method (though that may be implemented in the future?).
 * Up-to-date science frame axes convention, including detector rotations for MIRI and NIRSpec.
+* Tunable wavelengths and appropriate bandwidths for TFI.
+* Partial support for modeling IFU PSFs through use of the 'monochromatic' parameter.
 
 
 **The following factors are NOT included in these simulations:**
@@ -46,8 +49,7 @@ Initial Release. Questions, comments, criticism all welcome!
 
 Plans for Future Releases
 --------------------------
-* The NIRSpec and MIRI IFUs will be added in a future release
-* Adjustible wavelengths and wavelength-dependent bandpass will be added to the TFI model.
+* Full support for the NIRSpec and MIRI IFUs will be added in a future release
 * Realistic (but time consuming) jitter models
 * Possibly: separate handling of pre- and post- coronagraphic WFE in instruments, if it appears likely to be significant. 
 

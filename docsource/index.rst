@@ -3,10 +3,10 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Documentation for WebbPSF Simulation Code
-=========================================
+Documentation for WebbPSF 
+===============================
 
-This software computes simulated PSFs for the JWST instruments, taking into account detector pixel scales, rotations, filter profiles, and point source spectra. 
+WebbPSF is a Python package that computes simulated PSFs for the JWST instruments, taking into account detector pixel scales, rotations, filter profiles, and point source spectra. 
 It is *not* a full optical model of JWST, but rather a tool for transforming optical path difference (OPD) maps, created with some other tool, into the resulting
 PSFs as observed with JWST's instruments.
 
@@ -41,6 +41,7 @@ Contents
    webbpsf.rst
    gui.rst  
    poppy.rst
+   available_opds.rst
    fft_optimization.rst
    sampling.rst
 

@@ -61,25 +61,8 @@ onto a common pixel scale) more than makes up for this and the MFT is faster.
 
 List of Classes
 --------
- * :py:class:`Wavefront`
- * :py:class:`OpticalSystem`
- * :py:class:`OpticalElement`
 
-   * :py:class:`Rotation`
-   * :py:class:`AnalyticOpticalElement`
-
-     * :py:class:`CircularAperture`
-     * :py:class:`HexagonAperture`
-     * :py:class:`SquareAperture`
-     * :py:class:`IdealFieldStop`
-     * :py:class:`IdealCircularOcculter`
-     * :py:class:`IdealBarOcculter`
-     * :py:class:`BandLimitedCoron`
-     * :py:class:`IdealFQPM`
-     * :py:class:`FQPM_FFT_aligner`
-     * :py:class:`CompoundAnalyticOptic`
-   * :py:class:`Detector`
-
+.. inheritance-diagram:: poppy.Detector poppy.Wavefront poppy.OpticalSystem poppy.Rotation poppy.CircularAperture poppy.HexagonAperture poppy.SquareAperture poppy.IdealFieldStop poppy.IdealCircularOcculter poppy.IdealBarOcculter poppy.BandLimitedCoron poppy.IdealFQPM poppy.FQPM_FFT_aligner poppy.CompoundAnalyticOptic
 
 
 

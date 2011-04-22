@@ -137,6 +137,8 @@ class WebbPSF_GUI(object):
             self.widgets[notebook.select()] = iname # save reverse lookup from meaningless widget "name" to string name
             ttk.Label(page, text='Configuration Options for '+iname+"                      ").grid(row=0, columnspan=2, sticky='W')
 
+            ttk.Button(page, text='Display Optics', command=self.ev_displayOptics ).grid(column=2, row=0, sticky='E', columnspan=3)
+
 
             if  iname != 'TFI':
                 self._add_labeled_dropdown(iname+"_filter", page, label='    Filter:', values=self.instrument[iname].filter_list, default=self.instrument[iname].filter, width=10, position=(1,0), sticky='W')
@@ -257,7 +259,8 @@ class WebbPSF_GUI(object):
         self._add_labeled_entry('nlambda', lf, label='# of wavelengths:',  width=3, value='', position=(r,0), postlabel='Leave blank for autoselect')
         r+=1
 
-        self._add_labeled_dropdown("jitter", lf, label='Jitter model:', values=  ['Just use OPDs', 'Gaussian blur', 'Accurate yet SLOW grid'], width=20, position=(r,0), sticky='W', columnspan=2)
+        self._add_labeled_dropdown("jitter", lf, label='Jitter model:', values=  ['Just use OPDs' ], width=20, position=(r,0), sticky='W', columnspan=2)
+        #self._add_labeled_dropdown("jitter", lf, label='Jitter model:', values=  ['Just use OPDs', 'Gaussian blur', 'Accurate yet SLOW grid'], width=20, position=(r,0), sticky='W', columnspan=2)
 
         lf.grid(row=4, sticky='E,W', padx=10, pady=5)
 
@@ -275,7 +278,7 @@ class WebbPSF_GUI(object):
         addbutton(self,lf,'Display profiles', self.ev_displayProfiles, 2, disabled=True)
         addbutton(self,lf,'Save PSF As...', self.ev_SaveAs, 3, disabled=True)
 
-        ttk.Button(lf, text='Display Optics', command=self.ev_displayOptics ).grid(column=4, row=0)
+        #ttk.Button(lf, text='Display Optics', command=self.ev_displayOptics ).grid(column=4, row=0)
         ttk.Button(lf, text='Quit', command=self.quit).grid(column=5, row=0)
         lf.columnconfigure(2, weight=1)
         lf.columnconfigure(4, weight=1)
@@ -562,11 +565,11 @@ class WebbPSF_GUI(object):
         "Event handler for Plot Spectrum "
         sptype = self.widgets['SpType'].get()
         iname = self.widgets[self.widgets['tabset'].select()]
-        filter = self.widgets[iname+"_filter"].get()
-
         print "Spectral type is "+sptype
         print "Selected instrument tab is "+iname
-        print "Selected instrument filter is "+filter
+        if iname != 'TFI':
+            filter = self.widgets[iname+"_filter"].get()
+            print "Selected instrument filter is "+filter
 
 
         P.clf()
@@ -698,6 +701,7 @@ class WebbPSF_GUI(object):
         else:
             self.wavelen = float(self.widgets[self.iname+"_wavelen"].get())
             self.inst.etalon_wavelength = self.wavelen
+            self.filter = '%.3fum' % self.wavelen # save for use in save as filename
 
             
         if self.opd == "Zero OPD (perfect)": 

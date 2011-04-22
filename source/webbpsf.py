@@ -130,6 +130,7 @@ class JWInstrument(object):
         self._filter=None
         self._filter_files= [os.path.abspath(f) for f in glob.glob(self._datapath+os.sep+'filters/*_thru.fits')]
         self.filter_list=[os.path.basename(f).split("_")[0] for f in self._filter_files]
+        if len(self.filter_list) ==0: self.filter_list=[''] # don't crash for TFI which lacks filters
         "List of available filters"
 
         def sort_filters(filtname):
@@ -148,7 +149,8 @@ class JWInstrument(object):
         #self.opd_list = [os.path.basename(os.path.abspath(f)) for f in glob.glob(self._datapath+os.sep+'OPD/*.fits')]
         self.opd_list = [os.path.basename(os.path.abspath(f)) for f in glob.glob(self._datapath+os.sep+'OPD/OPD*.fits')]
         if len(self.opd_list) > 0:
-            self.pupilopd = self.opd_list[len(self.opd_list)/2]
+            self.pupilopd = self.opd_list[-1]
+            #self.pupilopd = self.opd_list[len(self.opd_list)/2]
         #self.opd_list.insert(0,"Zero OPD (Perfect)")
 
         self._image_mask=None
@@ -731,7 +733,7 @@ class NIRCam(JWInstrument):
         self.pixelscale = 0.0317 # need to redo 'cause the __init__ call will reset it to zero.
 
         #self.image_mask_list = ['BLC2100','BLC3350','BLC4300','WEDGESW','WEDGELW']
-        self.image_mask_list = ['MASKLWB','MASKSWB','MASK210R','MASK335R','MASK210R']
+        self.image_mask_list = ['MASKLWB','MASKSWB','MASK210R','MASK335R','MASK430R']
 
         self.pupil_mask_list = ['CIRCLYOT','WEDGELYOT']
 
@@ -786,17 +788,17 @@ class NIRCam(JWInstrument):
 
         """
 
-        optsys.addImage() # for debugging
+        #optsys.addImage(name='null for debugging NIRcam _addCoron') # for debugging
 
-        if self.image_mask is 'MASK210R':
+        if self.image_mask == 'MASK210R':
             optsys.addImage(function='BandLimitedCoron', kind='nircamcircular', sigma=5.253 , name=self.image_mask)
-        if self.image_mask is 'MASK335R':
+        elif self.image_mask == 'MASK335R':
             optsys.addImage(function='BandLimitedCoron', kind='nircamcircular', sigma=3.2927866 , name=self.image_mask)
-        if self.image_mask is 'MASK430R':
+        elif self.image_mask == 'MASK430R':
             optsys.addImage(function='BandLimitedCoron', kind='nircamcircular', sigma=2.5652 , name=self.image_mask)
-        elif self.image_mask is 'MASKSWB':
+        elif self.image_mask == 'MASKSWB':
             optsys.addImage(function='BandLimitedCoron', kind='nircamwedge', wavelength=2.1e-6, name=self.image_mask)
-        elif self.image_mask is 'MASKLWB':
+        elif self.image_mask == 'MASKLWB':
             optsys.addImage(function='BandLimitedCoron', kind='nircamwedge', wavelength=4.6e-6, name=self.image_mask)
 
         # add pupil plane mask
@@ -806,11 +808,13 @@ class NIRCam(JWInstrument):
         else: shift = None
 
 
-        optsys.addPupil() # debugging
+        #optsys.addPupil( name='null for debugging NIRcam _addCoron') # debugging
         if self.pupil_mask == 'CIRCLYOT':
             optsys.addPupil(transmission=self._datapath+"/coronagraph/NIRCam_Lyot_Somb.fits", name=self.pupil_mask, shift=shift)
         elif self.pupil_mask == 'WEDGELYOT':
             optsys.addPupil(transmission=self._datapath+"/coronagraph/NIRCam_Lyot_Sinc.fits", name=self.pupil_mask, shift=shift)
+        elif (self.pupil_mask is None and self.image_mask is not None):
+            optsys.addPupil(name='No Lyot Mask Selected!')
 
         return optsys
 
@@ -883,13 +887,13 @@ class TFI(JWInstrument):
     def _addCoronagraphOptics(self,optsys):
         """Add coronagraphic optics for TFI
         """
-        if self.image_mask is 'CORON058':
+        if self.image_mask == 'CORON058':
             optsys.addImage(function='CircularOcculter', radius=0.58/2, name=self.image_mask)
-        if self.image_mask is 'CORON075':
+        elif self.image_mask == 'CORON075':
             optsys.addImage(function='CircularOcculter', radius=0.75/2, name=self.image_mask)
-        if self.image_mask is 'CORON150':
+        elif self.image_mask == 'CORON150':
             optsys.addImage(function='CircularOcculter', radius=1.5/2, name=self.image_mask)
-        if self.image_mask is 'CORON200':
+        elif self.image_mask == 'CORON200':
             optsys.addImage(function='CircularOcculter', radius=2.0/2, name=self.image_mask)
 
         # add pupil plane mask
@@ -900,12 +904,14 @@ class TFI(JWInstrument):
 
         if self.pupil_mask == 'MASKC21N':
             optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKC21N.fits", name=self.pupil_mask, shift=shift)
-        if self.pupil_mask == 'MASKC66N':
+        elif self.pupil_mask == 'MASKC66N':
             optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKC66N.fits", name=self.pupil_mask, shift=shift)
-        if self.pupil_mask == 'MASKC71N':
+        elif self.pupil_mask == 'MASKC71N':
             optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKC71N.fits", name=self.pupil_mask, shift=shift)
-        if self.pupil_mask == 'CLEAR':
+        elif self.pupil_mask == 'CLEAR':
             optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKCLEAR.fits", name=self.pupil_mask, shift=shift)
+        elif (self.pupil_mask  is None and self.image_mask is not None):
+            optsys.addPupil(name='No Lyot Mask Selected!')
 
 
         return optsys
@@ -948,9 +954,6 @@ class TFI(JWInstrument):
 
     def filter(self, value): # we just store a string here for the wavelength... don't worry about validation.
         self._filter = value
- 
-
- 
 
 class FGS(JWInstrument):
     """ A class modeling the optics of the FGS.

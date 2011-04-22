@@ -55,20 +55,21 @@ one can create an instance of MIRI and configure it for coronagraphic observatio
 
 **Input Source Spectra:**
 
-To calculate a monochromatic PSF, just use the `monochromatic` parameter. Wavelengths are always specified in meters.
+To calculate a monochromatic PSF, just use the ``monochromatic`` parameter. Wavelengths are always specified in meters.
    >>> miri.calcPSF(monochromatic=9.876e-6)
 
 
-A more realistic weighted broadband PSF may be computed by specifying a `source` parameter in the call to `calcPSF()`. The following are valid sources:
+A more realistic weighted broadband PSF may be computed by specifying a ``source`` parameter in the call to ``calcPSF()``. The following are valid sources:
 
-1. A dictionary with elements `source["wavelengths"]` and `source["weights"]` giving the wavelengths in meters and the relative weights for each. These should be numpy arrays or lists.
+1. A ``pysynphot.Spectrum`` object. This is the best option, providing maximum flexibility, but requires the user to have a development version of ``pysynphot`` and CDBS including JWST support.
+2. A dictionary with elements ``source["wavelengths"]`` and ``source["weights"]`` giving the wavelengths in meters and the relative weights for each. These should be numpy arrays or lists.
 
    >>> src = {'wavelengths': [2.0e-6, 2.1e-6, 2.2e-6], 'weights': [0.3, 0.5, 0.2]}
    >>> nc.calcPSF(source=src, outfile='psf_for_src.fits')
 
-2. A tuple or list containing the numpy arrays `(wavelength, weights)` instead.
-3. A `pysynphot.Spectrum` object. This is the best option.  **but not yet fully implemented - will be in version 0.2**
+3. A tuple or list containing the numpy arrays ``(wavelength, weights)`` instead.
 
+If no source spectrum is specified, the default is as follows. If ``pysynphot`` is installed, the default is a G2V star spectrum from Castelli & Kurucz 2004. Without ``pysynphot``, the default is a flat spectrum in :math:`F_\nu` such that the same number of photons are detected at each wavelength.
 
 **Array sizes, star positions, and centering:**
 
@@ -76,9 +77,10 @@ Output array sizes may be specified either in units of arcseconds or pixels.  Fo
 
 >>> mynircam = NIRCam()
 >>> result = mynircam.calcPSF(fov_arcsec=7, oversample=2, filter='F250M')
+>>> result2= mynircam.calcPSF(fov_pixels=512, oversample=2, filter='F250M')
 
 
-By default, the PSF will be located at the exact center of the output array. This means that if the PSF is computed on an array with an odd number of pixels, the
+By default, the PSF will be centered at the exact center of the output array. This means that if the PSF is computed on an array with an odd number of pixels, the
 PSF will be centered exactly on the central pixel. If the PSF is computed on an array with even size, it will be centered on the "crosshairs" at the intersection of the central four pixels.
 If one of these is particularly desirable to you, set the parity option appropriately:
 
@@ -107,10 +109,10 @@ For coronagraphic modes, the coronagraph occulter is always assumed to be at the
 **Pixel scales, sampling, and oversampling:**
 
 The derived instrument classes all known their own instrumental pixel scales. You can change the output 
-pixel scale in a variety of ways, as follows. See the :ref:`JWInstrument.calcPSF` documentation for more details.
+pixel scale in a variety of ways, as follows. See the :py:class:`JWInstrument.calcPSF` documentation for more details.
 
-1. set the `oversample` parameter to calcPSF. This will produce a PSF with a pixel grid this many times more finely sampled. 
-   `oversample=1` is the native detector scale, `oversample=2` means divide each pixel into 2x2 finer pixels, and so forth.
+1. set the ``oversample`` parameter to calcPSF(). This will produce a PSF with a pixel grid this many times more finely sampled. 
+   ``oversample=1`` is the native detector scale, ``oversample=2`` means divide each pixel into 2x2 finer pixels, and so forth.
    You can automatically obtain both the oversampled PSF and a version rebinned down onto the detector pixel scale by setting `rebin=True` 
    in the call to calcPSF:
 
@@ -120,13 +122,13 @@ pixel scale in a variety of ways, as follows. See the :ref:`JWInstrument.calcPSF
 
    
 
-2. For coronagraphic calculations, it is possible to set different oversampling factors at different parts of the calculation. See the `calc_oversample` and `detector_oversample` parameters. This
-   is of no use for regular imaging calculations (in which case `oversample` is a synonym for `detector_oversample`).
+2. For coronagraphic calculations, it is possible to set different oversampling factors at different parts of the calculation. See the ``calc_oversample`` and ``detector_oversample`` parameters. This
+   is of no use for regular imaging calculations (in which case ``oversample`` is a synonym for ``detector_oversample``).
 
    >>> tfi.calcPSF(calc_oversample=8, detector_oversample= 2)    # model the occulter with very fine pixels, then save the 
    >>>                                                           # data on a coarser (but still oversampled) scale
 
-3. Or, if you need even more flexibility, just change the `instrument.pixelscale` attribute to be whatever arbitrary scale you require. 
+3. Or, if you need even more flexibility, just change the ``instrument.pixelscale`` attribute to be whatever arbitrary scale you require. 
 
    >>> instrument.pixelscale = 0.0314159
 
@@ -137,6 +139,9 @@ pixel scale in a variety of ways, as follows. See the :ref:`JWInstrument.calcPSF
 
 The JWInstrument generic class
 --------------------------------
+
+.. inheritance-diagram:: webbpsf.NIRCam webbpsf.NIRSpec webbpsf.MIRI webbpsf.TFI webbpsf.FGS
+
 
 .. autoclass:: webbpsf.JWInstrument
    :members:
@@ -149,6 +154,25 @@ Notes on Specific Instruments
 .. autoclass:: webbpsf.NIRCam
 .. autoclass:: webbpsf.NIRSpec
 .. autoclass:: webbpsf.MIRI
+
+.. figure:: ./fig_miri_f1000w.png
+   :scale: 75%
+   :align: center
+   :alt: Sample PSF image for MIRI
+
+   An example MIRI PSF in F1000W. 
+
+   Note that the MIRI imager field of view is rotated by 4.56 degrees relative to the JWST pupil; the coronagraph optics are
+   correspondingly counterrotated to align them with the pupil.  For direct imaging PSF calculations, this is most simply handled by
+   rotating the pupil mask and OPD file prior to the Fourier propagation. For MIRI coronagraphy on the other hand, the rotation is performed as the 
+   last step prior to the detector. 
+   
+   Technical aside: Note that for computational reasons having to do with accurately simulating PSF centering on an FQPM, MIRI corongraphic
+   simulations will include two 'virtual optics' called 'FQPM FFT aligners' that  will show up in the display window for such calculations. These 
+   can be ignored by most end users of this software; interested readers should consult the  :py:mod:`POPPY <poppy>` documentation for more detail.
+
+
+
 .. autoclass:: webbpsf.TFI
 .. autoclass:: webbpsf.FGS
 

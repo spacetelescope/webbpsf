@@ -38,7 +38,7 @@ html:
 
 htmlstsci:
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) ../Documentation/html
-	rsync -av ../Documentation/html/ nemesis.stsci.edu:web/software/newjwpsf/
+	rsync -av ../Documentation/html/ nemesis.stsci.edu:web/software/webbpsf/
 	@echo "Software built and copied to STScI"
 	@echo "try :"
 	@echo "   open http://www.stsci.edu/~mperrin/software/newjwpsf/"

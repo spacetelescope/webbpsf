@@ -227,6 +227,7 @@ class Wavefront(object):
         if wavelength > 1e-4:
             raise ValueError("The specified wavelength %f is implausibly large. Remember to specify the desired wavelength in *meters*." % wavelength)
 
+        self._last_transform_type=None # later used to track MFT vs FFT pixel coord centering in coordinates()
         self.oversample = oversample
 
         self.wavelength = float(wavelength)                 # wavelen in meters, obviously
@@ -789,7 +790,7 @@ class Wavefront(object):
         """
         y, x = N.indices(self.shape, dtype=float)
 
-        # in most cases, the x and y are centered at the exact center of the array.
+        # in most cases, the x and y values are centered around the exact center of the array.
         # This is not true in general for FFT-produced image planes where the center is in the 
         # middle of one single pixel (the 0th-order term of the FFT), even though that means that the
         # PSF center is slightly offset from the array center.
