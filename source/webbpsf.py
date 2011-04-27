@@ -25,6 +25,7 @@ import types
 import glob
 import time
 import numpy as N
+import scipy.interpolate, scipy.ndimage
 import pylab as P
 import matplotlib
 import atpy
@@ -82,7 +83,7 @@ class JWInstrument(object):
     def __init__(self, name=None):
         self.name=name
 
-        self._JWPSF_basepath = os.path.dirname(os.path.dirname(os.path.abspath(poppy.__file__))) +os.sep+"data"
+        self._JWPSF_basepath = os.getenv('WEBBPSF_PATH', default= os.path.dirname(os.path.dirname(os.path.abspath(poppy.__file__))) +os.sep+"data" )
 
         self._datapath = self._JWPSF_basepath + os.sep + self.name + os.sep
         self._filter = None
@@ -432,9 +433,12 @@ class JWInstrument(object):
             #t0= time.time()
             for wave in wavesteps:
                 if verbose: _log.info("using band centered at %f with width %f" % (wave,deltawave))
-                box = pysynphot.Box(wave, deltawave)
-                obs = pysynphot.Observation(source, band*box)
-                effstims.append(obs.effstim('counts'))
+                box = pysynphot.Box(wave, deltawave) * band
+                if box.throughput.max() == 0:  # watch out for pathological cases with no overlap (happens with MIRI FND at high nlambda)
+                    result = 0.0
+                else:
+                    result = pysynphot.Observation(source, box).effstim('counts')
+                effstims.append(result)
             #t1 = time.time()
             #print "  that took %f seconds for %d wavelengths" % (t1-t0, nlambda)
 
@@ -1023,13 +1027,97 @@ def MakePSF(self, instrument=None, pupil_file=None, phase_file=None, output=None
     return instr.calcPSF(oversample=oversample, fov_pixels=output_size)
 
 
+###########################################################################
+#
+#
+
+class CompanionScene(object):
+    """ This class allows the user to specify some scene consisting of a central star
+    plus one or more companions at specified separation, spectral type, etc. It automates the
+    necessary calculations to perform a simulated JWST observation of that target. 
+
+    pysynphot is required for this.
+
+    """
+
+
+    def __init__(self, sptype):
+
+        self.companions = []
+        self.sptype = sptype
+        # store pysynphot.spectrum object too?
+        pass
+
+    def addCompanion(self, sptype_or_spectrum, separation, PA, normalization):
+
+        self.companions.append(sptype_or_spectrum, separation, PA, normalization)
+
+    def calcImage(self, instrument, outfile=None, noise=False, rebin=True, **kwargs):
+        """ Calculate an image of a scene through some instrument
+
+
+        Parameters
+        -----------
+        instrument : webbpsf.jwinstrument instance
+            A configured instance of an instrument class
+
+        It may also be useful to pass arguments to the calcPSF() call, which is supported through the **kwargs 
+        mechanism. Such arguments might include fov_arcsec, fov_pixels, oversample, etc.
+        """
+
+        star_psf = instrument.calcPSF(source = self.sourcespectrum, outfile=None, save_intermediates=False, rebin=rebin, **kwargs)
+
+        for comp in companion:
+            # set  companion spectrum and position
+            comp_spectrum = None
+            comp_psf =  instrument.calcPSF(source = comp_spectrum, outfile=None, save_intermediates=False, rebin=rebin, **kwargs)
+
+            # figure out the flux ratio
+
+            # add the scaled companion PSF to the stellar PSF:
+            star_psf[0].data += comp_psf[0].data * comp_flux_ratio
+            #update FITS header history
+        if noise:
+            pass
+            #add noise in image - photon and read noise, mainly.
+       
+        # downsample? 
+        if rebin and detector_oversample > 1:
+            # throw away the existing rebinned extension
+
+            # and generate a new one from the summed image
+            _log.info(" Downsampling to detector pixel scale.")
+            rebinned_result = result[0].copy()
+            rebinned_result.data = rebin_array(rebinned_result.data, rc=(detector_oversample, detector_oversample))
+            rebinned_result.header.update('OVERSAMP', 1, 'These data are rebinned to detector pixels')
+            rebinned_result.header.update('CALCSAMP', detector_oversample, 'This much oversampling used in calculation')
+            rebinned_result.header.update('EXTNAME', 'DET_SAMP')
+            rebinned_result.header['PIXELSCL'] *= detector_oversample
+            result.append(rebinned_result)
+
+
+
+        if outfile is not None:
+            result[0].header.update ("FILENAME", os.path.basename (outfile),
+                           comment="Name of this file")
+            result.writeto(outfile, clobber=clobber)
+            _log.info("Saved result to "+outfile)
+        return result
+
+
+
+
+
+
+
+
 
 
 ###########################################################################
 #
 #    Display and PSF evaluation functions follow..
 #
-def display_psf(HDUlist_or_filename=None, ext=0, vmin=1e-8,vmax=1e-1, title=None, imagecrop=None, adjust_for_oversampling=False, normalize=None, crosshairs=False, markcentroid=False):
+def display_psf(HDUlist_or_filename=None, ext=0, vmin=1e-8,vmax=1e-1, title=None, imagecrop=None, adjust_for_oversampling=False, normalize=None, crosshairs=False, markcentroid=False, colorbar=True):
     """Display nicely a PSF from a given HDUlist or filename 
     
     Parameters
@@ -1092,9 +1180,10 @@ def display_psf(HDUlist_or_filename=None, ext=0, vmin=1e-8,vmax=1e-1, title=None
         title="PSF sim for "+fspec
     P.title(title)
 
-    P.colorbar(ax.images[0], orientation='vertical')
+    if colorbar:
+        P.colorbar(ax.images[0], orientation='vertical')
 
-    P.draw()
+    #P.draw()
     if markcentroid:
         _log.info("measuring centroid to mark on plot...")
         ceny, cenx = measure_centroid(HDUlist, ext=ext, units='arcsec', relativeto='center', boxsize=20, threshhold=0.1)
@@ -1241,7 +1330,7 @@ def measure_EE(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
 
     rr, radialprofile2, EE = radial_profile(HDUlist_or_filename, ext, EE=True, center=center, binsize=binsize)
 
-    EE_fn = scipy.interpolate.interp1d(rr, EE,kind='cubic')
+    EE_fn = scipy.interpolate.interp1d(rr, EE,kind='cubic', bounds_error=False)
 
     return EE_fn
     
@@ -1276,7 +1365,7 @@ def measure_radial(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
 
     rr, radialprofile, EE = radial_profile(HDUlist_or_filename, ext, EE=True, center=center, binsize=binsize)
 
-    radial_fn = scipy.interpolate.interp1d(rr, radialprofile,kind='cubic')
+    radial_fn = scipy.interpolate.interp1d(rr, radialprofile,kind='cubic', bounds_error=False)
 
     return radial_fn
     
