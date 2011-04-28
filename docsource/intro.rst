@@ -44,30 +44,6 @@ significant additions from a programmer's perspective include:
 * Matrix Fourier Transform algorithm from Soummer et al. implemented for arbitrary detector sampling
 * Uses FFTW3 library for improved speed and efficient use of multiple processor cores. 
 
-Software Requirements
------------------------
-
-Beyond the usual numpy/scipy/matplotlib core modules, the following are required:
-
-* `pyfits`
-* `ATPy`
-
-These are optional but highly recommended:
-
-* `pyFFTW3`. The code will work fine without it, but will be significantly slower.
-* `pysynphot` (The updated, prerelease version for JWST!) enabled the 
-   simulation of PSFs with proper spectral response to realistic source spectra.  
-
-**Additional Requirements for the GUI**: 
-
-* The graphical user interface requires the `ttk` enhanced version of the `Tkinter` widget library. 
-
-`ttk` is not included by default on some installations of Python, for instance the default Mac OS Python 2.6 install. 
-You may wish to either upgrade to a more current Python, or else compile and install `ttk` for your platform. This code
-was developed using Python 2.7, which includes `ttk` by default, but it ought to work fine on any installations of
-Python 2.5 or 2.6 provided `ttk` is available. Alternatively, you can just skip using the GUI; the optical modeling classes
-themselves have no dependency on these widgets.
-
 --------------
 
 

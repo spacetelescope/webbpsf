@@ -34,9 +34,10 @@ Contents
 --------
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    intro.rst
+   installation.rst
    relnotes.rst
    webbpsf.rst
    gui.rst  

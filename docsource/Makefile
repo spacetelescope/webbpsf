@@ -41,7 +41,7 @@ htmlstsci:
 	rsync -av ../Documentation/html/ nemesis.stsci.edu:web/software/webbpsf/
 	@echo "Software built and copied to STScI"
 	@echo "try :"
-	@echo "   open http://www.stsci.edu/~mperrin/software/newjwpsf/"
+	@echo "   open http://www.stsci.edu/~mperrin/software/webbpsf/"
 
 
 

@@ -16,6 +16,7 @@ Version 0.2
 * poppy.calcPSFmultiprocessor merged in to regular poppy.calcPSF
 * Minor bug fixes to selection of which wavelengths to compute for more even sampling
 * Default OPDs are now the ones including SI WFE as well as OTE+ISIM.
+* Improved fidelity for NIRCam coronagraphic occulter models including ND squares and substrate border.
 
 
 

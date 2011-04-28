@@ -1269,7 +1269,7 @@ class BandLimitedCoron(AnalyticOpticalElement):
         self.sigma = float(sigma)              # size parameter. See section 2.1 of Krist et al. SPIE 2007, 2009
         if wavelength is not None:
             self.wavelength = float(wavelength)    # wavelength, for selecting the linear wedge option only
-        self._default_display_size= 20.        # default size for onscreen display, sized for NIRCam
+        self._default_display_size= 30.        # default size for onscreen display, sized for NIRCam
 
     def getPhasor(self,wave):
         """ Compute the amplitude transmission appropriate for a BLC for some given pixel spacing
@@ -1301,11 +1301,16 @@ class BandLimitedCoron(AnalyticOpticalElement):
 
             # add in the ND squares. Note the positions are not exactly the same in the two wedges. 
             # See the figures  in Krist et al. of how the 6 ND squares are spaced among the 5 corongraph regions
+            # Also add in the opaque border of the coronagraph mask holder.
             if self.sigma > 4:
-                wnd = N.where((y > 5) & ((x < -5) | (x > 7.5)) )
+                wnd = N.where((y > 5) & (((x < -5)&(x>-10)) | ((x > 7.5)&(x<12.5))) ) # MASK210R has one in the corner and one half in the other corner
+                wborder  = N.where((N.abs(y) > 10) | (x < -10) )                        #left end of mask holder
             else:
-                wnd = N.where((y > 5) & (N.abs(x) > 7.5))
+                wnd = N.where((y > 5) & (N.abs(x) > 7.5) & (N.abs(x) < 12.5))        # the others have two halves on in each corner.
+                wborder  = N.where(N.abs(y) > 10) 
+
             self.transmission[wnd] = 1e-3
+            self.transmission[wborder] = 0
 
 
         elif self.kind == 'linear':
@@ -1345,19 +1350,26 @@ class BandLimitedCoron(AnalyticOpticalElement):
 
             sigmas = scipy.poly1d(polyfitcoeffs)(scalefact)
 
-            
             sigmar = sigmas * N.abs(y)
             sigmar.clip( N.finfo(sigmar.dtype).tiny)  # avoid divide by zero -> NaNs
             self.transmission = (1-  (N.sin(sigmar)/sigmar)**2)**2
+            # the bar should truncate at +- 10 arcsec:
+            woutside = N.where(N.abs(x) > 10)
+            self.transmission[woutside] = 1.0 
 
 
             # add in the ND squares. Note the positions are not exactly the same in the two wedges. 
             # See the figures  in Krist et al. of how the 6 ND squares are spaced among the 5 corongraph regions
+            # Also add in the opaque border of the coronagraph mask holder.
             if N.abs(self.wavelength - 2.1e-6) < 0.1e-6:
-                wnd = N.where((y > 5) & (N.abs(x) > 7.5))
+                wnd = N.where((y > 5) & (((x < -5)&(x>-10)) | ((x > 7.5)&(x<12.5))) ) # half ND square on each side
+                wborder  = N.where(N.abs(y) > 10) 
             elif N.abs(self.wavelength - 4.6e-6) < 0.1e-6:
-                wnd = N.where((y > 5) & ((x < -7.5) | (x > 5)) )
+                wnd = N.where((y > 5) & (((x < -7.5)&(x>-12.5)) | (x > 5)) )
+                wborder  = N.where((N.abs(y) > 10) | (x > 10) )     # right end of mask holder
+
             self.transmission[wnd] = 1e-3
+            self.transmission[wborder] = 0
 
 
 
@@ -2283,7 +2295,7 @@ class OpticalSystem():
         normwts =  N.asarray(weight, dtype=float)
         normwts /= normwts.sum()
 
-        if _USE_MULTIPROC and monochromatic is None : ######### Parallellized computation ############
+        if _USE_MULTIPROC and len(wavelength) > 1 : ######### Parallellized computation ############
             if _USE_FFTW3: 
                 _log.warn('IMPORTANT WARNING: Python multiprocessing and fftw3 do not appear to play well together. This is likely to crash intermittently')
                 _log.warn('   We suggest you set   poppy._USE_FFTW3 = False   if you want to use calcPSFmultiproc().')
@@ -2294,7 +2306,7 @@ class OpticalSystem():
      
             # do *NOT* just blindly try to create as many processes as one has CPUs, or one per wavelength either
             # This is a memory-intensive task so that can end up swapping to disk and thrashing IO
-            pool = multiprocessing.Pool(nprocesses ) 
+            pool = multiprocessing.Pool(_MULTIPROC_NPROCESS) 
 
             # build a single iterable containing the required function arguments
             _log.info("Beginning multiprocessor job")

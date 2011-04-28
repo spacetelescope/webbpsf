@@ -159,7 +159,7 @@ html_static_path = ['_static']
 #html_file_suffix = ''
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'JWST-PSFsdoc'
+htmlhelp_basename = 'WebbPSFdoc'
 
 
 # -- Options for LaTeX output --------------------------------------------------
@@ -173,7 +173,7 @@ latex_paper_size = 'letter'
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-  ('index', 'JWST-PSFs.tex', u'JWST-PSFs Documentation',
+  ('index', 'WebbPSF.tex', u'WebbPSF Documentation',
    u'Marshall Perrin', 'manual'),
 ]
 
