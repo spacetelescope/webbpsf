@@ -8,8 +8,28 @@ Release Notes
 ================
 
 
+Known Issues
+--------------
+* You may see various warning messages while running computations, like thus::
+
+    ((<pysynphot.spectrum.Box object at 0x1047132d0> * nircam,im,f200w)) does not have a defined 
+    binset in the wavecat table. The waveset of the spectrum will be used instead.
+
+    Warning: invalid value encountered in absolute
+
+  These can safely be ignored. 
+* The current development version of pysynphot prints the following when it starts up. This, too, can just be ignored. ::
+
+    GRAPHTABLE:  /Users/mperrin/data/CDBS/mtab/z999999zz_tmg.fits
+    COMPTABLE:  /Users/mperrin/data/CDBS/mtab/z999999zz_tmc.fits
+    NOT DEFAULT -- Primary mirror area:  253260
+
+
+
 Version 0.2
 ------------
+
+Initial Release, spring 2011. Questions, comments, criticism all welcome!
 
 * Much improved pysynphot support.
 * Reworked calling conventions for calcPSF() routine source parameters.
@@ -24,8 +44,8 @@ Version 0.2
 Version 0.1
 ------------
 
+Development, fall 2010.
 
-Initial Release. Questions, comments, criticism all welcome!
 
 **Included:**
  

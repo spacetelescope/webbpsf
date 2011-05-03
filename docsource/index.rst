@@ -10,6 +10,18 @@ WebbPSF is a Python package that computes simulated PSFs for the JWST instrument
 It is *not* a full optical model of JWST, but rather a tool for transforming optical path difference (OPD) maps, created with some other tool, into the resulting
 PSFs as observed with JWST's instruments.
 
+
+.. figure:: ./fig_instrument_comparison.png
+   :scale: 40%
+   :align: center
+   :alt: Sample PSFs for JWST's instruments. 
+
+   Sample PSFs for JWST's instrument suite, all on the same angular scale and display stretch. 
+
+
+
+
+
 **What this software does:**
 
 * Uses OPD map(s) precomputed by a detailed optical simulation of JWST
@@ -34,7 +46,7 @@ Contents
 --------
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
 
    intro.rst
    installation.rst
@@ -43,8 +55,9 @@ Contents
    gui.rst  
    poppy.rst
    available_opds.rst
-   fft_optimization.rst
+   references.rst
    sampling.rst
+   fft_optimization.rst
 
 
 Indices and tables

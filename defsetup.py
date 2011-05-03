@@ -11,7 +11,7 @@ setupargs = {
     'url'           :  		"http://www.stsci.edu/~mperrin/software/webbpsf",
     'platforms'     :      	["Linux","Solaris","Mac OS X", "Win"],
     'requires'      :       ['pyfits','numpy', 'matplotlib', 'scipy', 'atpy'],
-    'data_files'    :     	[ ( pkg+'/data', [ 'data/generic/*', 'data/wavecat/*' ] ),
+    'data_files'    :     	[ ( pkg+'/data',  ['data/*' ] ),
                                 ( pkg+'/tests', [ 'tests/*'] ),
                             ]
     }

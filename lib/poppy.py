@@ -57,7 +57,11 @@ import time
 from matplotlib.colors import LogNorm  # for log scaling of images, with automatic colorbar support
 import SFT
 
-from IPython.Debugger import Tracer; stop = Tracer()
+try:
+    from IPython.Debugger import Tracer; stop = Tracer()
+except:
+    def stop():
+        pass
 
 import logging
 _log = logging.getLogger('poppy')
@@ -1269,7 +1273,7 @@ class BandLimitedCoron(AnalyticOpticalElement):
         self.sigma = float(sigma)              # size parameter. See section 2.1 of Krist et al. SPIE 2007, 2009
         if wavelength is not None:
             self.wavelength = float(wavelength)    # wavelength, for selecting the linear wedge option only
-        self._default_display_size= 30.        # default size for onscreen display, sized for NIRCam
+        self._default_display_size= 20.        # default size for onscreen display, sized for NIRCam
 
     def getPhasor(self,wave):
         """ Compute the amplitude transmission appropriate for a BLC for some given pixel spacing

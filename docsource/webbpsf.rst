@@ -22,6 +22,7 @@ Usage and Examples
 
 Simple PSFs are easily obtained: 
 
+>>> from webbpsf import *
 >>> nc = NIRCam()
 >>> nc.filter =  'F200W'
 >>> psf = nc.calcPSF(oversample=4)      # returns a pyfits.HDUlist containing PSF and header
@@ -53,7 +54,8 @@ one can create an instance of MIRI and configure it for coronagraphic observatio
 >>> miri.calcPSF('outfile.fits')
 
 
-**Input Source Spectra:**
+Input Source Spectra:
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To calculate a monochromatic PSF, just use the ``monochromatic`` parameter. Wavelengths are always specified in meters.
    >>> miri.calcPSF(monochromatic=9.876e-6)
@@ -71,7 +73,8 @@ A more realistic weighted broadband PSF may be computed by specifying a ``source
 
 If no source spectrum is specified, the default is as follows. If ``pysynphot`` is installed, the default is a G2V star spectrum from Castelli & Kurucz 2004. Without ``pysynphot``, the default is a flat spectrum in :math:`F_\nu` such that the same number of photons are detected at each wavelength.
 
-**Array sizes, star positions, and centering:**
+Array sizes, star positions, and centering:
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Output array sizes may be specified either in units of arcseconds or pixels.  For instance, 
 
@@ -95,7 +98,8 @@ you may also just set the desired number of pixels explicitly in the call to cal
 
 
 
-**Offset sources**
+Offset sources:
+^^^^^^^^^^^^^^^^^^^
 
 The PSF may also be shifted off-center by adjusting the offset of the stellar source. This is done in polar coordinates:
 
@@ -106,7 +110,8 @@ If these options are set, the offset is applied relative to the central coordina
 
 For coronagraphic modes, the coronagraph occulter is always assumed to be at the center of the output array. Therefore, these options let you offset the source away from the coronagraph.
 
-**Pixel scales, sampling, and oversampling:**
+Pixel scales, sampling, and oversampling:
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The derived instrument classes all known their own instrumental pixel scales. You can change the output 
 pixel scale in a variety of ways, as follows. See the :py:class:`JWInstrument.calcPSF` documentation for more details.
@@ -151,9 +156,27 @@ The JWInstrument generic class
 
 Notes on Specific Instruments
 -------------------------------
+NIRCam
+^^^^^^
+
 .. autoclass:: webbpsf.NIRCam
+
+        See methods under :py:class:`JWInstrument` 
+        
+
+NIRSpec
+^^^^^^^^
+
 .. autoclass:: webbpsf.NIRSpec
+
+        See methods under :py:class:`JWInstrument` 
+
+MIRI
+^^^^^
+
 .. autoclass:: webbpsf.MIRI
+
+        See methods under :py:class:`JWInstrument` 
 
 .. figure:: ./fig_miri_f1000w.png
    :scale: 75%
@@ -172,22 +195,40 @@ Notes on Specific Instruments
    can be ignored by most end users of this software; interested readers should consult the  :py:mod:`POPPY <poppy>` documentation for more detail.
 
 
+TFI
+^^^^
 
 .. autoclass:: webbpsf.TFI
+
+        See methods under :py:class:`JWInstrument` 
+
+FGS
+^^^^
+
 .. autoclass:: webbpsf.FGS
 
+        See methods under :py:class:`JWInstrument` 
 
-Helpful Utility Functions
----------------------------
+
+Utility Functions for Display and Plotting
+-------------------------------------------
 
 .. autofunction:: webbpsf.Instrument
+
+Display Functions
+^^^^^^^^^^^^^^^^^^
+
 .. autofunction:: display_psf
+.. autofunction:: display_profiles
+
+Metrics of PSF Quality
+^^^^^^^^^^^^^^^^^^^^^^^
+
 .. autofunction:: radial_profile
 .. autofunction:: measure_EE
 .. autofunction:: measure_fwhm
 .. autofunction:: measure_sharpness
 .. autofunction:: measure_centroid
-.. autofunction:: display_profiles
 
 --------------
 

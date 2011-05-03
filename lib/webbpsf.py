@@ -56,7 +56,6 @@ try:
 except:
     def stop(): 
         pass
-    pass
 
 
 
@@ -83,9 +82,9 @@ class JWInstrument(object):
     def __init__(self, name=None):
         self.name=name
 
-        self._JWPSF_basepath = os.getenv('WEBBPSF_PATH', default= os.path.dirname(os.path.dirname(os.path.abspath(poppy.__file__))) +os.sep+"data" )
+        self._WebbPSF_basepath = os.getenv('WEBBPSF_PATH', default= os.path.dirname(os.path.dirname(os.path.abspath(poppy.__file__))) +os.sep+"data" )
 
-        self._datapath = self._JWPSF_basepath + os.sep + self.name + os.sep
+        self._datapath = self._WebbPSF_basepath + os.sep + self.name + os.sep
         self._filter = None
         self._image_mask = None
         self._pupil_mask = None
@@ -129,19 +128,25 @@ class JWInstrument(object):
         #create private instance variables. These will be
         # wrapped just below to create properties with validation.
         self._filter=None
-        self._filter_files= [os.path.abspath(f) for f in glob.glob(self._datapath+os.sep+'filters/*_thru.fits')]
-        self.filter_list=[os.path.basename(f).split("_")[0] for f in self._filter_files]
-        if len(self.filter_list) ==0: self.filter_list=[''] # don't crash for TFI which lacks filters
+
+        filter_table = atpy.Table(self._WebbPSF_basepath + os.sep+ 'filters.txt',type='ascii',delimiter='\t')
+        wmatch = N.where(filter_table.instrument == self.name)
+        self.filter_list = filter_table.filter[wmatch].tolist()
         "List of available filters"
+        self._filter_nlambda_default = dict(zip(filter_table.filter[wmatch], filter_table.nlambda[wmatch]))
+
+        #self._filter_files= [os.path.abspath(f) for f in glob.glob(self._datapath+os.sep+'filters/*_thru.fits')]
+        #self.filter_list=[os.path.basename(f).split("_")[0] for f in self._filter_files]
+        if len(self.filter_list) ==0: self.filter_list=[''] # don't crash for TFI or FGS which lack filters in the usual sense
 
         def sort_filters(filtname):
             try:
-                if name =='MIRI': return int(filtname[1:-1])
-                else: return int(filtname[1:4])
+                if name =='MIRI': return int(filtname[1:-1]) # MIRI filters have variable length number parts
+                else: return int(filtname[1:4]) # the rest do not, but have variable numbers of trailing characters
             except:
                 return filtname
         self.filter_list.sort(key=sort_filters)
-        self._filter_files = [self._datapath+os.sep+'filters/'+f+"_thru.fits" for f in self.filter_list]
+        self._filter_files = [self._datapath+os.sep+'filters/'+f+"_throughput.fits" for f in self.filter_list]
 
         self.filter = self.filter_list[0]
         self._rotation = None
@@ -584,10 +589,6 @@ class MIRI(JWInstrument):
     **Note: IFU to be implemented later**
 
 
-    Note: Currently the coronagraphic filter curves are ideal top-hat filters based on the notional 
-    filter bandwidth, not real filter curves. However, realistic transmissions are available for regular imaging filters. 
-
-    
     """
     def __init__(self):
         JWInstrument.__init__(self, "MIRI")
@@ -713,7 +714,7 @@ class MIRI(JWInstrument):
         elif self.pupil_mask == 'MASKLYOT':
             optsys.addPupil(transmission=self._datapath+"/coronagraph/MIRI_LyotLyotStop.fits", name=self.pupil_mask, shift=shift)
         else: # all the MIRI filters have a tricontagon outline, even the non-coron ones.
-            optsys.addPupil(transmission=self._JWPSF_basepath+"/tricontagon.fits", name = 'filter cold stop', shift=shift)
+            optsys.addPupil(transmission=self._WebbPSF_basepath+"/tricontagon.fits", name = 'filter cold stop', shift=shift)
 
         optsys.addRotation(self._rotation)
 
@@ -827,7 +828,8 @@ class NIRSpec(JWInstrument):
     """ A class modeling the optics of NIRSpec, in **imaging** mode. 
 
     This is not a substitute for a spectrograph model, but rather a way of simulating a PSF as it
-    would appear with NIRSpec in imaging mode.
+    would appear with NIRSpec in imaging mode (e.g. for target acquisition).  NIRSpec support is 
+    relatively simplistic compared to the other instruments at this point.
     
     Relevant attributes include `filter`. In addition to the actual filters, you may select 'IFU' to
     indicate use of the NIRSpec IFU, in which case use the `monochromatic` attribute to set the simulated wavelength.
@@ -841,7 +843,7 @@ class NIRSpec(JWInstrument):
         self.filter_list.append("IFU")
         self._IFU_pixelscale = 0.1 # same.
         self.monochromatic= 3.0
-        self.filter = 'F140W'
+        self.filter = 'F110W' # or is this called F115W to match NIRCam??
 
     def _validate_config(self):
         if (not self.image_mask is None) or (not self.pupil_mask is None):
@@ -1181,7 +1183,17 @@ def display_psf(HDUlist_or_filename=None, ext=0, vmin=1e-8,vmax=1e-1, title=None
     P.title(title)
 
     if colorbar:
-        P.colorbar(ax.images[0], orientation='vertical')
+        cb = P.colorbar(ax.images[0], orientation='vertical')
+        ticks = N.logspace(N.log10(vmin), N.log10(vmax), N.log10(vmax/vmin)+1)
+        #if vmin == 1e-8 and vmax==1e-1: 
+            #ticks = [1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1]
+        cb.set_ticks(ticks)
+        cb.set_ticklabels(ticks)
+        #stop()
+        cb.set_label('Fractional intensity per pixel')
+
+
+
 
     #P.draw()
     if markcentroid:
@@ -1545,7 +1557,7 @@ def rebin_array(a = None, rc=(2,2), verbose=False):
 	return b
 
 
-def makeFakeFilter(filename, lcenter, dlam, clobber=False):
+def makeFakeFilter(filename, lcenter, dlam, instrument='NIRCam', name='filter', source='Fake top hat filter', clobber=False):
     """ arguments in microns, but file written in angstroms """
 
     lstart = lcenter - dlam/2
@@ -1563,7 +1575,13 @@ def makeFakeFilter(filename, lcenter, dlam, clobber=False):
     t.add_column('WAVELENGTH', wavelength*1e4, unit='angstrom')
     t.add_column('THROUGHPUT', transmission)
 
+    t.add_keyword('TELESCOP','JWST')
+    t.add_keyword('INSTRUME',instrument)
+    t.add_keyword('FILTER',name)
+
+    t.add_keyword('SOURCE', source)
     t.add_comment("This is a fake filter profile, represented as a top-hat function.")
+
     t.add_keyword("LAMBDA0",lcenter)
     t.add_keyword("DELTALAM",dlam)
 
@@ -1572,14 +1590,14 @@ def makeFakeFilter(filename, lcenter, dlam, clobber=False):
 
 
     return t
-def makeMIRIfilters():
+def _makeMIRIfilters():
     makeFakeFilter('F1065C_thru.fits',10.65, 0.53,clobber=True)
     makeFakeFilter('F1140C_thru.fits',11.40, 0.57,clobber=True)
     makeFakeFilter('F1550C_thru.fits',15.50, 0.78,clobber=True)
     makeFakeFilter('F2300C_thru.fits',23.00, 4.60,clobber=True)
 
     makeFakeFilter('FGS_thru.fits', 2.8, 4.40,clobber=True)
-def makeNIRCamFilters():
+def _makeNIRCamFilters():
     "Create nircam filters based on http://ircamera.as.arizona.edu/nircam/features.html "
     makeFakeFilter('F070W_thru.fits', 0.7000, 0.1750, clobber=True)
     makeFakeFilter('F090W_thru.fits', 0.9000, 0.2250, clobber=True)
@@ -1612,6 +1630,11 @@ def makeNIRCamFilters():
     makeFakeFilter('F418N_thru.fits', 4.1813, 0.0418, clobber=True)
     makeFakeFilter('F466N_thru.fits', 4.6560, 0.0466, clobber=True)
     makeFakeFilter('F470N_thru.fits', 4.7050, 0.0471, clobber=True)
+
+def _makeNIRSpecFilters():
+    makeFakeFilter('F110W_throughput.fits', 1.4,1.2, clobber=True, source='NIRSpec Acq Filter docs',name='F110W',instrument='NIRSpec')
+    makeFakeFilter('F140X_throughput.fits', 1.1,0.2, clobber=True, source='NIRSpec Acq Filter docs',name='F110W',instrument='NIRSpec')
+
 #########################3
 
 

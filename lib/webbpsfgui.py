@@ -829,12 +829,14 @@ def specFromSpectralType(sptype, return_list=False):
 
 
 
+def gui():
+    gui = WebbPSF_GUI()
+    gui.mainloop()
+
 
 
 if __name__ == "__main__":
-
-    gui = WebbPSF_GUI()
-    gui.mainloop()
+    gui()
 
 
 
