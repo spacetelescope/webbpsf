@@ -26,7 +26,7 @@ PSFs as observed with JWST's instruments.
 
 * Uses OPD map(s) precomputed by a detailed optical simulation of JWST
 * Computes from those a PSF image with requested properties for any of JWST's instruments
-* Supports imaging & coronography modes with all of JWST's instruments. IFUs are a work in progress.
+* Supports imaging & coronagraphy modes with all of JWST's instruments. IFUs are a work in progress.
 * Provides a suite of tools for quantifying PSF properies such as FWHM, Strehl ratio, etc.
 
 **What this software does NOT do:**

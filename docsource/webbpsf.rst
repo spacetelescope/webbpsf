@@ -53,25 +53,36 @@ one can create an instance of MIRI and configure it for coronagraphic observatio
 >>> miri.pupil_mask = 'MASKFQPM'
 >>> miri.calcPSF('outfile.fits')
 
+.. image:: ./fig_miri_coron_f1065c.png
+   :scale: 75%
+   :align: center
+   :alt: Sample PSF image
+
+
 
 Input Source Spectra:
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To calculate a monochromatic PSF, just use the ``monochromatic`` parameter. Wavelengths are always specified in meters.
-   >>> miri.calcPSF(monochromatic=9.876e-6)
+WebbPSF attempts to calculate realistic weighted broadband PSFs taking into account both the source spectrum and the instrumental spectral response. 
 
+The default source spectrum is, if :py:mod:`pysynphot` is installed, a G2V star spectrum from Castelli & Kurucz 2004. Without :py:mod:`pysynphot`, the default is a flat spectrum in :math:`F_\nu` such that the same number of photons are detected at each wavelength.
 
-A more realistic weighted broadband PSF may be computed by specifying a ``source`` parameter in the call to ``calcPSF()``. The following are valid sources:
+You may choose a different illuminating source spectrum by specifying a ``source`` parameter in the call to ``calcPSF()``. The following are valid sources:
 
-1. A ``pysynphot.Spectrum`` object. This is the best option, providing maximum flexibility, but requires the user to have a development version of ``pysynphot`` and CDBS including JWST support.
-2. A dictionary with elements ``source["wavelengths"]`` and ``source["weights"]`` giving the wavelengths in meters and the relative weights for each. These should be numpy arrays or lists.
+1. A :py:class:`pysynphot.Spectrum` object. This is the best option, providing maximum flexibility, but requires the user to have ``pysynphot`` installed.  In this case, the ``Spectrum`` object is combined with a :py:class:`pysynphot.ObsBandpass` for the selected instrument and filter to derive the effective stimulus in detected photoelectrons versus wavelength. This is binned to the number of wavelengths set by the ``nlambda`` parameter. 
+2. A dictionary with elements ``source["wavelengths"]`` and ``source["weights"]`` giving the wavelengths in meters and the relative weights for each. These should be numpy arrays or lists. In this case, the wavelengths and weights are used exactly as provided, without applying the instrumental filter profile. 
 
    >>> src = {'wavelengths': [2.0e-6, 2.1e-6, 2.2e-6], 'weights': [0.3, 0.5, 0.2]}
    >>> nc.calcPSF(source=src, outfile='psf_for_src.fits')
 
 3. A tuple or list containing the numpy arrays ``(wavelength, weights)`` instead.
 
-If no source spectrum is specified, the default is as follows. If ``pysynphot`` is installed, the default is a G2V star spectrum from Castelli & Kurucz 2004. Without ``pysynphot``, the default is a flat spectrum in :math:`F_\nu` such that the same number of photons are detected at each wavelength.
+
+To calculate a monochromatic PSF, just use the ``monochromatic`` parameter. Wavelengths are always specified in meters. This is just a shorthand for a single-element ``source`` dict.
+
+   >>> miri.calcPSF(monochromatic=9.876e-6)
+
+
 
 Array sizes, star positions, and centering:
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

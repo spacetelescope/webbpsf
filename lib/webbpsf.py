@@ -286,19 +286,19 @@ class JWInstrument(object):
         #----- choose # of wavelengths intelligently. Do this first before generating the source spectrum weighting.
         if nlambda is None or nlambda==0:
             # Automatically determine number of appropriate wavelengths.
-
-            # Make selection based on filter width letter code. 
+            # Make selection based on filter configuration file
             try:
-                if self.name=='TFI':    # filter codes are irrelevant for TFI.
+                if self.name=='TFI':    # filter names are irrelevant for TFI.
                     nlambda=5
                 else:
-                    filt_width = self.filter[-1]
-                    lookup_table = {'NIRCam': {'2': 10, 'W':20,'M':3,'N':1}, 
-                                    'NIRSpec':{'W':5,'M':3,'N':1}, 
-                                    'MIRI':{'W':5,'M':3,'N':1}, 
-                                    'FGS':{'W':5,'M':3,'N':1}}
+                    #filt_width = self.filter[-1]
+                    #lookup_table = {'NIRCam': {'2': 10, 'W':20,'M':3,'N':1}, 
+                                    #'NIRSpec':{'W':5,'M':3,'N':1}, 
+                                    #'MIRI':{'W':5,'M':3,'N':1}, 
+                                    #'FGS':{'W':5,'M':3,'N':1}}
 
-                    nlambda = lookup_table[self.name][filt_width]
+                    #nlambda = lookup_table[self.name][filt_width]
+                    nlambda = self._filter_nlambda_default[self.filter]
                 _log.debug("Automatically selecting # of wavelengths: %d" % nlambda)
             except:
                 nlambda=10
@@ -839,7 +839,7 @@ class NIRSpec(JWInstrument):
         JWInstrument.__init__(self, "NIRSpec")
         self.pixelscale = 0.100 #  100 mas pixels. Microshutters are 0.2x0.46 but we ignore that here. 
         self._rotation = None
-        self._rotation = 45.0
+        self._rotation = 90+41.5  # based on SIAF docs by M. Lallo & WFS FOV doc by S. Knight
         self.filter_list.append("IFU")
         self._IFU_pixelscale = 0.1 # same.
         self.monochromatic= 3.0
