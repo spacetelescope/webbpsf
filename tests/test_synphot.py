@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-#import os, sys
+import os, sys
+sys.path.append('../lib')
 import numpy as N
 import matplotlib.pyplot as P
 import matplotlib
@@ -62,6 +63,7 @@ def barOutline(xdata, ydata, endstozero=True, *args, **kwargs):
 
 
 def get_rel_fluxes(obsname='miri,im,f560w', nlambda=10, plot=True, verbose=False):
+    raise NotImplemented("Obsolete!")
 
     star = pysynphot.Icat('ck04models',7700,0.0,2.0)
     band0 = pysynphot.ObsBandpass(obsname)
@@ -120,40 +122,105 @@ def get_rel_fluxes(obsname='miri,im,f560w', nlambda=10, plot=True, verbose=False
     return wave_um, effstims
 
 
+def plot_weights_miri():
+    inst = webbpsf.MIRI()
+    filtlist_W = [f for f in inst.filter_list if f[-1] == 'W']
+    filtlist_C = [f for f in inst.filter_list if f[-1] != 'W']
+
+    #filtlist_C = [f for f in inst.filter_list if f[-1] == 'C']
 
 
-def plotweights(instrument='miri', nlambda =10, source=None):
+    from matplotlib.backends.backend_pdf import PdfPages
+    pdf=PdfPages('weights_miri.pdf')
+
+    plotweights('miri', filtlist=filtlist_W)
+    Mstar = pysynphot.Icat('ck04models',3500,0.0,2.0)
+    plotweights('miri', filtlist=filtlist_W, overplot=True, ls='--', source=Mstar)
+    pdf.savefig()
+
+
+    plotweights('miri', filtlist=filtlist_C)
+    Mstar = pysynphot.Icat('ck04models',3500,0.0,2.0)
+    plotweights('miri', filtlist=filtlist_C, overplot=True, ls='--', source=Mstar)
+    pdf.savefig()
+
+    pdf.close()
+
+
+def plot_weights_nircam():
+    inst = webbpsf.NIRCam()
+    filtlist_W = [f for f in inst.filter_list if f[-1] == 'W']
+    filtlist_M = [f for f in inst.filter_list if f[-1] == 'M']
+    filtlist_N = [f for f in inst.filter_list if f[-1] == 'N' or f[-1] =='2']
+
+    #filtlist_C = [f for f in inst.filter_list if f[-1] == 'C']
+
+
+    from matplotlib.backends.backend_pdf import PdfPages
+    pdf=PdfPages('weights_nircam.pdf')
+
+    plotweights('nircam', filtlist=filtlist_W)
+    Mstar = pysynphot.Icat('ck04models',3500,0.0,2.0)
+    plotweights('nircam', filtlist=filtlist_W, overplot=True, ls='--', source=Mstar)
+    pdf.savefig()
+
+
+    plotweights('nircam', filtlist=filtlist_M)
+    Mstar = pysynphot.Icat('ck04models',3500,0.0,2.0)
+    plotweights('nircam', filtlist=filtlist_M, overplot=True, ls='--', source=Mstar)
+    pdf.savefig()
+
+    plotweights('nircam', filtlist=filtlist_N)
+    Mstar = pysynphot.Icat('ck04models',3500,0.0,2.0)
+    plotweights('nircam', filtlist=filtlist_N, overplot=True, ls='--', source=Mstar)
+    pdf.savefig()
+
+
+    pdf.close()
+
+
+
+
+
+def plotweights(instrument='miri', nlambda =None, filtlist = None, source=None, overplot=False, **kwargs):
 
     if source is None:
-        star = pysynphot.Icat('ck04models',5700,0.0,2.0)
+        source= pysynphot.Icat('ck04models',5700,0.0,2.0)
 
     inst = webbpsf.Instrument(instrument)
-    filters = inst.filter_list
+    if filtlist is None:
+        filters = inst.filter_list
+    else:
+        filters = filtlist
 
-    P.clf()
+    if not overplot:
+        P.clf()
+        P.subplots_adjust(hspace=0.02)
+
     ax=P.subplot(311)
-    synplot(star)
+    synplot(source, **kwargs)
     ax.set_ylim(1e-0, 1e8)
     legend_font = matplotlib.font_manager.FontProperties(size=10)
     P.legend(loc='lower left', prop=legend_font)
 
     for filt in filters:
         if filt[0].upper() != 'F': continue # skip the IFUs...
-        print "----------- %s -----------" %filt
+        nlambda = inst._filter_nlambda_default[filt]
+        print "----------- %s: %d -----------" % (filt, nlambda)
         obsname = ('%s,im,%s'%(instrument, filt)).lower()
         P.subplot(312, sharex=ax)
         inst.filter=filt
-        try:
-            band = pysynphot.ObsBandpass(obsname)
-            synplot(band)
-            ls ="-"
-        except:
-            P.plot([0,30],[0,0]) # plot something to keep color progression in sync...
-            ls ="--"
+        #try:
+        band = inst._getSynphotBandpass() #pysynphot.ObsBandpass(obsname)
+        synplot(band, **kwargs)
+            #ls ="-"
+        #except:
+            #P.plot([0,30],[0,0]) # plot something to keep color progression in sync...
+            #ls ="--"
             #continue
 
         #waves, weights = get_rel_fluxes(obsname, nlambda, plot=False)
-        waves, weights = inst._getWeightsFromSynphot(star, nlambda=nlambda)
+        waves, weights = inst._getWeights(source, nlambda=nlambda)
         #print waves
         #print weights
 
@@ -165,17 +232,22 @@ def plotweights(instrument='miri', nlambda =10, source=None):
         wave_step = waves[1]-waves[0]
         plot_waves = N.concatenate( (waves,[waves[-1]+wave_step]))-wave_step/2
         plot_weights = N.concatenate((weights, [0]))
-        barOutline(plot_waves*1e6, plot_weights, label=filt, ls=ls)
-        ax.set_xbound(0.6,30)
+        barOutline(plot_waves*1e6, plot_weights, label=filt, **kwargs)
+
         P.draw()
+        #stop()
  
     locs = {'miri': 'upper left', 'nircam': 'upper right', 'tfi': 'upper right'}
+    bounds = {'miri': (4, 30), 'nircam': (0.5, 6), 'tfi': (0.5, 6), 'nirspec': (0.5, 6), 'fgs': (0.5, 6)}
 
 
     P.legend(loc=locs[instrument], prop=legend_font)
+    if instrument =='nircam':
+        ax.set_xscale('linear')
+    ax.set_xbound(*bounds[instrument])
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format='%(name)-12s: %(levelname)-8s %(message)s',)
+    logging.basicConfig(level=logging.DEBUG, format='%(name)-12s: %(levelname)-8s %(message)s',)
 
     #get_rel_fluxes()

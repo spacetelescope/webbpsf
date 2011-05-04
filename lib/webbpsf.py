@@ -427,9 +427,18 @@ class JWInstrument(object):
             band = self._getSynphotBandpass()
             # choose reasonable min and max wavelengths
             w_above10 = N.where(band.throughput > 0.10*band.throughput.max())
+
             minwave = band.wave[w_above10].min()
             maxwave = band.wave[w_above10].max()
-
+            _log.debug("Min, max wavelengths = %f, %f" % (minwave/1e4, maxwave/1e4))
+            # special case: ignore red leak for MIRI F560W, which has a negligible effect in practice
+            if self.filter == 'F560W':
+                _log.debug("Special case: setting max wavelength to 6.38 um to ignore red leak")
+                maxwave = 63800.0
+            elif self.filter == 'F1280W':
+                _log.debug("Special case: setting max wavelength to 14.32 um to ignore red leak")
+                maxwave = 143200.0
+ 
             wave_bin_edges =  N.linspace(minwave,maxwave,nlambda+1)
             wavesteps = (wave_bin_edges[:-1] +  wave_bin_edges[1:])/2
             deltawave = wave_bin_edges[1]-wave_bin_edges[0]
