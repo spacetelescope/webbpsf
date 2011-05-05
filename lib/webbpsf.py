@@ -1286,8 +1286,9 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, binsi
 
     y,x = N.indices(image.shape)
     if center is None:
-        # get center pixel for
-        center = (image.shape[1]/2, image.shape[0]/2)
+        # get exact center of image
+        #center = (image.shape[1]/2, image.shape[0]/2)
+        center = tuple( (a-1)/2.0 for a in image.shape[::-1])
 
     r = N.sqrt( (x-center[0])**2 + (y-center[1])**2) *pixelscale / binsize # radius in bin size steps
     ind = N.argsort(r.flat)
@@ -1514,6 +1515,72 @@ def measure_centroid(HDUlist_or_filename=None, ext=0, slice=0, boxsize=50, print
     return cent_of_mass
 
 
+def measure_strehl(HDUlist_or_filename=None, ext=0, center=None, display=True):
+    """ Measure the Strehl ratio for a PSF. 
+    
+    This requires computing a simulated PSF with the same 
+    properties as the one under analysis.
+
+    Parameters
+    ----------
+    HDUlist_or_filename, ext : string, int
+        Same as above
+
+    center : tuple
+        center to compute around.  Default is image center. If the center is on the
+        crosshairs between four pixels, then the mean of those four pixels is used.
+        Otherwise, if the center is in a single pixel, then that pixel is used. 
+  
+    """
+    if isinstance(HDUlist_or_filename, str):
+        HDUlist = pyfits.open(HDUlist_or_filename)
+    elif isinstance(HDUlist_or_filename, pyfits.HDUList):
+        HDUlist = HDUlist_or_filename
+    else: raise ValueError("input must be a filename or HDUlist")
+
+    image = HDUlist[ext].data
+    header = HDUlist[ext].header
+ 
+    if center is None:
+        # get exact center of image
+        #center = (image.shape[1]/2, image.shape[0]/2)
+        center = tuple( (a-1)/2.0 for a in image.shape[::-1])
+
+
+
+    # Compute a comparison image
+    _log.info("Now computing image with zero OPD for comparison...")
+    inst = Instrument(header['INSTRUME'])
+    inst.filter = header['FILTER']
+    inst.pupilopd = None # perfect image
+    inst.pixelscale = header['PIXELSCL'] * header['OVERSAMP'] # same pixel scale pre-oversampling
+    comparison_psf = inst.calcPSF(fov_pixels = image.shape[0], oversample=header['OVERSAMP'], nlambda=header['NWAVES'])
+    comparison_image = comparison_psf[0].data
+
+    
+    if (int(center[1]) == center[1]) and (int(center[0]) == center[0]):
+        # individual pixel
+        meas_peak =           image[center[1], center[0]]
+        ref_peak = comparison_image[center[1], center[0]]
+    else:
+        # average across a group of 4
+        bot = [N.floor(f) for f in center]
+        top = [N.ceil(f)+1 for f in center]
+        meas_peak =           image[bot[1]:top[1], bot[0]:top[0]].mean()
+        ref_peak = comparison_image[bot[1]:top[1], bot[0]:top[0]].mean()
+
+    if display:
+        P.clf()
+        P.subplot(121)
+        display_PSF(HDUlist, title="Observed PSF")
+        P.subplot(122)
+        display_PSF(comparison_psf, title="Perfect PSF")
+
+
+
+    print "Measured peak:  %.3g" % meas_peak
+    print "Reference peak: %.3g" % ref_peak
+    print "  Strehl ratio = %.3f " % (meas_peak/ref_peak)
 
 def measure_anisotropy(HDUlist_or_filename=None, ext=0, slice=0, boxsize=50):
     pass
