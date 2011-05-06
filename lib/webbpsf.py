@@ -989,6 +989,9 @@ class FGS(JWInstrument):
         raise NotImplementedError("No Coronagraph in FGS!")
 
 
+###########################################################################
+# Generic utility functions
+
 def Instrument(name):
     """This is just a convenience function, allowing one to access instrument objects based on a string.
     For instance, 
@@ -1011,6 +1014,35 @@ def Instrument(name):
     if name == 'fgs': return FGS()
     else: raise ValueError("Incorrect instrument name "+name)
 Instrument.list = ['nircam', 'nirspec', 'tfi', 'miri'] # useful list for iteration
+
+
+def calc_or_load_psf(filename, inst, **kwargs):
+    """ Utility function for loading a precomputed PSF from disk, or else
+    if that files does not exist, then compute it and save to disk. 
+
+    This is useful for writing scripts that cache results - i.e. calculate the
+    PSF the first time through and save it, then just load the PSF on subsequent
+    iterations. 
+
+    Parameters
+    ------------
+    filename : str
+        Filename possibly including path
+    inst : JWInstrument 
+        configured instance of a JWInstrument class
+    **kwargs : dict
+        Parameters to pass to calcPSF() of that instrument. 
+
+    Note that no validation is performed of the PSF loaded from disk to make sure it
+    matches the desired properties.  This is just a quick-and-dirty unofficial/undocumented
+    helper function.
+
+    """
+    if os.path.exists(filename):
+        return pyfits.open(filename)
+    else: 
+        return inst.calcPSF(outfile = filename, **kwargs)
+
 
 def MakePSF(self, instrument=None, pupil_file=None, phase_file=None, output=None,
                   diameter=None, oversample=4, type=N.float64,
