@@ -11,6 +11,7 @@ from IPython.Debugger import Tracer; stop = Tracer()
 import logging
 _log = logging.getLogger('t')
 import time
+import itertools
 
 import webbpsf
 
@@ -122,6 +123,94 @@ def get_rel_fluxes(obsname='miri,im,f560w', nlambda=10, plot=True, verbose=False
     return wave_um, effstims
 
 
+def plot_miri_comparison():
+
+    inst = webbpsf.MIRI()
+    filtlist_W = [f for f in inst.filter_list if f[-1] == 'W']
+    filtlist_C = [f for f in inst.filter_list if f[-1] != 'W']
+
+    from matplotlib.backends.backend_pdf import PdfPages
+    pdf=PdfPages('weights_miri_comparison.pdf')
+
+
+    for filts in [filtlist_W, filtlist_C]:
+
+        try:
+            os.unlink('/Users/mperrin/software/webbpsf/data/MIRI/filters')
+        except: 
+            pass
+        os.symlink('/Users/mperrin/software/webbpsf/data/MIRI/real_filters', '/Users/mperrin/software/webbpsf/data/MIRI/filters')
+        plotweights('miri', filtlist=filts)
+
+        os.unlink('/Users/mperrin/software/webbpsf/data/MIRI/filters')
+        os.symlink('/Users/mperrin/software/webbpsf/data/MIRI/fake_filters', '/Users/mperrin/software/webbpsf/data/MIRI/filters')
+        plotweights('miri', filtlist=filts, overplot=True, ls='--')
+        P.draw()
+        pdf.savefig()
+
+    pdf.close()
+
+
+
+def image_miri_comparison(filter_=None, all=False):
+    inst = webbpsf.MIRI()
+
+    if all:
+        from matplotlib.backends.backend_pdf import PdfPages
+        pdf=PdfPages('images_miri_comparison.pdf')
+        for f in inst.filter_list:
+            if f[0] != 'F': continue
+            P.clf()
+            image_miri_comparison(f)
+            pdf.savefig()
+        pdf.close()
+
+
+
+
+    inst.filter = filter_
+
+    P.subplots_adjust(left=0.02, right=0.98, top=0.99, bottom=0.01)
+
+    nlambda = inst._filter_nlambda_default[filter_]*2
+    #nlambda=3
+    try:
+        os.unlink('/Users/mperrin/software/webbpsf/data/MIRI/filters')
+    except: 
+        pass
+    os.symlink('/Users/mperrin/software/webbpsf/data/MIRI/real_filters', '/Users/mperrin/software/webbpsf/data/MIRI/filters')
+    im_real = inst.calcPSF(oversample=4, fov_arcsec=15, nlambda=nlambda)
+
+    os.unlink('/Users/mperrin/software/webbpsf/data/MIRI/filters')
+    os.symlink('/Users/mperrin/software/webbpsf/data/MIRI/fake_filters', '/Users/mperrin/software/webbpsf/data/MIRI/filters')
+    im_fake = inst.calcPSF(oversample=4, fov_arcsec=15, nlambda=nlambda)
+
+    P.clf()
+    P.subplot(141)
+    webbpsf.display_PSF(im_real,  title='real filter', colorbar_orientation='horizontal')
+ 
+    fwhm = webbpsf.measure_fwhm(im_real)
+    ee_real = webbpsf.measure_EE(im_real)
+    P.gca().set_xlabel('FWHM = %.3f", EE(1.0)=%.3f' % (fwhm, ee_real(1.0)))
+
+    P.subplot(142)
+    webbpsf.display_PSF(im_real, title='box filter from specs', colorbar_orientation='horizontal')
+
+    fwhm = webbpsf.measure_fwhm(im_fake)
+    ee_fake = webbpsf.measure_EE(im_fake)
+    P.gca().set_xlabel('FWHM = %.3f", EE(1.0)=%.3f' % (fwhm, ee_fake(1.0)))
+
+ 
+    P.subplot(143)
+    webbpsf.display_PSF_difference(im_real, im_fake, title='real filters-box filters', colorbar_orientation='horizontal', print_=True, vmax=1e-5)
+
+    P.subplot(144)
+    webbpsf.display_PSF_difference(im_real, im_fake, normalize=True, title='real filters-box filters (normalized)', colorbar_orientation='horizontal', vmax=1.0, print_=True)
+   
+    P.gcf().suptitle('MIRI '+filter_, fontsize=20)
+
+
+
 def plot_weights_miri():
     inst = webbpsf.MIRI()
     filtlist_W = [f for f in inst.filter_list if f[-1] == 'W']
@@ -184,6 +273,8 @@ def plot_weights_nircam():
 
 def plotweights(instrument='miri', nlambda =None, filtlist = None, source=None, overplot=False, **kwargs):
 
+    colorcycle = itertools.cycle(['magenta', 'purple', 'blue', 'skyblue', 'green', 'gold', 'orange', 'red','black'])
+
     if source is None:
         source= pysynphot.Icat('ck04models',5700,0.0,2.0)
 
@@ -198,21 +289,26 @@ def plotweights(instrument='miri', nlambda =None, filtlist = None, source=None, 
         P.subplots_adjust(hspace=0.02)
 
     ax=P.subplot(311)
+    #ax.set_color_cycle(colorcycle)
     synplot(source, **kwargs)
     ax.set_ylim(1e-0, 1e8)
     legend_font = matplotlib.font_manager.FontProperties(size=10)
     P.legend(loc='lower left', prop=legend_font)
 
     for filt in filters:
+        color = colorcycle.next()
         if filt[0].upper() != 'F': continue # skip the IFUs...
         nlambda = inst._filter_nlambda_default[filt]
         print "----------- %s: %d -----------" % (filt, nlambda)
         obsname = ('%s,im,%s'%(instrument, filt)).lower()
-        P.subplot(312, sharex=ax)
+        ax2 = P.subplot(312, sharex=ax)
+        ax2.set_ybound(0,1.1)
         inst.filter=filt
         #try:
         band = inst._getSynphotBandpass() #pysynphot.ObsBandpass(obsname)
-        synplot(band, **kwargs)
+        synplot(band, color=color, **kwargs)
+        ax2.set_ybound(0,1.1)
+        #P.draw()
             #ls ="-"
         #except:
             #P.plot([0,30],[0,0]) # plot something to keep color progression in sync...
@@ -224,7 +320,7 @@ def plotweights(instrument='miri', nlambda =None, filtlist = None, source=None, 
         #print waves
         #print weights
 
-        P.subplot(313, sharex=ax)
+        ax3=P.subplot(313, sharex=ax)
         P.ylabel("Weight")
         P.xlabel("Wavelength [$\mu$m]")
 
@@ -232,7 +328,7 @@ def plotweights(instrument='miri', nlambda =None, filtlist = None, source=None, 
         wave_step = waves[1]-waves[0]
         plot_waves = N.concatenate( (waves,[waves[-1]+wave_step]))-wave_step/2
         plot_weights = N.concatenate((weights, [0]))
-        barOutline(plot_waves*1e6, plot_weights, label=filt, **kwargs)
+        barOutline(plot_waves*1e6, plot_weights, label=filt if not overplot else None, color=color, **kwargs)
 
         P.draw()
         #stop()
@@ -248,6 +344,6 @@ def plotweights(instrument='miri', nlambda =None, filtlist = None, source=None, 
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG, format='%(name)-12s: %(levelname)-8s %(message)s',)
+    logging.basicConfig(level=logging.INFO, format='%(name)-12s: %(levelname)-8s %(message)s',)
 
     #get_rel_fluxes()

@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 """
 
-=====
-JWOPT
-=====
+=======
+WebbPSF
+========
 
 An object-oriented modeling system for the JWST instruments.
 
@@ -258,7 +258,7 @@ class JWInstrument(object):
         outfile : string
             Filename to write. If None, then result is returned as an HDUList
         oversample, detector_oversample, calc_oversample : int
-            How much to oversample. Default=2. By default the same factor is used for final output 
+            How much to oversample. Default=4. By default the same factor is used for final output 
             pixels and intermediate optical planes, but you may optionally use different factors 
             if so desired.
         rebin : bool, optional
@@ -322,8 +322,8 @@ class JWInstrument(object):
             # all options set, contradictorily -> complain!
             raise ValueError("You cannot specify simultaneously the oversample= option with the detector_oversample and calc_oversample options. Pick one or the other!")
         elif oversample is None and detector_oversample is None and calc_oversample is None:
-            # nothing set -> set oversample = 2
-            oversample = 2
+            # nothing set -> set oversample = 4
+            oversample = 4
         if detector_oversample is None: detector_oversample = oversample
         if calc_oversample is None: calc_oversample = oversample
 
@@ -557,7 +557,7 @@ class JWInstrument(object):
             full_opd_path =  (self.pupilopd[0] if os.path.exists( self.pupilopd[0]) else os.path.join(self._datapath, "OPD",self.pupilopd[0]), self.pupilopd[1])
         elif self.pupilopd is None: full_opd_path = None
 
-        full_pupil_path = self.pupil if os.path.exists( self.pupil) else os.path.join(self._datapath, "OPD",self.pupil)
+        full_pupil_path = self.pupil if os.path.exists( self.pupil) else os.path.join(self._WebbPSF_basepath,self.pupil)
         optsys.addPupil(name='JWST Pupil', transmission=full_pupil_path, opd=full_opd_path, opdunits='micron', rotation=self._rotation)
 
         if self.image_mask is not None or self.pupil_mask is not None or 'force_coron' in self.options.keys():
@@ -903,13 +903,17 @@ class TFI(JWInstrument):
         """Add coronagraphic optics for TFI
         """
         if self.image_mask == 'CORON058':
-            optsys.addImage(function='CircularOcculter', radius=0.58/2, name=self.image_mask)
+            radius = 0.58/2
+            optsys.addImage(function='CircularOcculter', radius=radius, name=self.image_mask)
         elif self.image_mask == 'CORON075':
-            optsys.addImage(function='CircularOcculter', radius=0.75/2, name=self.image_mask)
+            radius=0.75/2
+            optsys.addImage(function='CircularOcculter', radius=radius, name=self.image_mask)
         elif self.image_mask == 'CORON150':
-            optsys.addImage(function='CircularOcculter', radius=1.5/2, name=self.image_mask)
+            radius=1.5/2
+            optsys.addImage(function='CircularOcculter', radius=radius, name=self.image_mask)
         elif self.image_mask == 'CORON200':
-            optsys.addImage(function='CircularOcculter', radius=2.0/2, name=self.image_mask)
+            radius=2.0/2
+            optsys.addImage(function='CircularOcculter', radius=radius, name=self.image_mask)
 
         # add pupil plane mask
         if ('pupil_shift_x' in self.options.keys() and self.options['pupil_shift_x'] != 0) or \
@@ -928,8 +932,12 @@ class TFI(JWInstrument):
         elif (self.pupil_mask  is None and self.image_mask is not None):
             optsys.addPupil(name='No Lyot Mask Selected!')
 
-
-        return optsys
+        # attempt to cast this to a SemiAnalyticCoronagraph
+        try: 
+            SAM_optsys = poppy.SemiAnalyticCoronagraph(optsys)
+            return optsys
+        except:
+            return optsys
 
     def _getSynphotBandpass(self):
         """ Return a pysynphot.ObsBandpass object for the given desired band.
@@ -1070,86 +1078,6 @@ def MakePSF(self, instrument=None, pupil_file=None, phase_file=None, output=None
     return instr.calcPSF(oversample=oversample, fov_pixels=output_size)
 
 
-###########################################################################
-#
-#
-
-class CompanionScene(object):
-    """ This class allows the user to specify some scene consisting of a central star
-    plus one or more companions at specified separation, spectral type, etc. It automates the
-    necessary calculations to perform a simulated JWST observation of that target. 
-
-    pysynphot is required for this.
-
-    """
-
-
-    def __init__(self, sptype):
-
-        self.companions = []
-        self.sptype = sptype
-        # store pysynphot.spectrum object too?
-        pass
-
-    def addCompanion(self, sptype_or_spectrum, separation, PA, normalization):
-
-        self.companions.append(sptype_or_spectrum, separation, PA, normalization)
-
-    def calcImage(self, instrument, outfile=None, noise=False, rebin=True, **kwargs):
-        """ Calculate an image of a scene through some instrument
-
-
-        Parameters
-        -----------
-        instrument : webbpsf.jwinstrument instance
-            A configured instance of an instrument class
-
-        It may also be useful to pass arguments to the calcPSF() call, which is supported through the **kwargs 
-        mechanism. Such arguments might include fov_arcsec, fov_pixels, oversample, etc.
-        """
-
-        star_psf = instrument.calcPSF(source = self.sourcespectrum, outfile=None, save_intermediates=False, rebin=rebin, **kwargs)
-
-        for comp in companion:
-            # set  companion spectrum and position
-            comp_spectrum = None
-            comp_psf =  instrument.calcPSF(source = comp_spectrum, outfile=None, save_intermediates=False, rebin=rebin, **kwargs)
-
-            # figure out the flux ratio
-
-            # add the scaled companion PSF to the stellar PSF:
-            star_psf[0].data += comp_psf[0].data * comp_flux_ratio
-            #update FITS header history
-        if noise:
-            pass
-            #add noise in image - photon and read noise, mainly.
-       
-        # downsample? 
-        if rebin and detector_oversample > 1:
-            # throw away the existing rebinned extension
-
-            # and generate a new one from the summed image
-            _log.info(" Downsampling to detector pixel scale.")
-            rebinned_result = result[0].copy()
-            rebinned_result.data = rebin_array(rebinned_result.data, rc=(detector_oversample, detector_oversample))
-            rebinned_result.header.update('OVERSAMP', 1, 'These data are rebinned to detector pixels')
-            rebinned_result.header.update('CALCSAMP', detector_oversample, 'This much oversampling used in calculation')
-            rebinned_result.header.update('EXTNAME', 'DET_SAMP')
-            rebinned_result.header['PIXELSCL'] *= detector_oversample
-            result.append(rebinned_result)
-
-
-
-        if outfile is not None:
-            result[0].header.update ("FILENAME", os.path.basename (outfile),
-                           comment="Name of this file")
-            result.writeto(outfile, clobber=clobber)
-            _log.info("Saved result to "+outfile)
-        return result
-
-
-
-
 
 
 
@@ -1160,7 +1088,7 @@ class CompanionScene(object):
 #
 #    Display and PSF evaluation functions follow..
 #
-def display_psf(HDUlist_or_filename=None, ext=0, vmin=1e-8,vmax=1e-1, title=None, imagecrop=None, adjust_for_oversampling=False, normalize=None, crosshairs=False, markcentroid=False, colorbar=True):
+def display_PSF(HDUlist_or_filename=None, ext=0, vmin=1e-8,vmax=1e-1, title=None, imagecrop=None, adjust_for_oversampling=False, normalize=None, crosshairs=False, markcentroid=False, colorbar=True, colorbar_orientation='vertical'):
     """Display nicely a PSF from a given HDUlist or filename 
     
     Parameters
@@ -1178,8 +1106,14 @@ def display_psf(HDUlist_or_filename=None, ext=0, vmin=1e-8,vmax=1e-1, title=None
         rescale to conserve surface brightness for oversampled PSFs? 
         (making this True conserves surface brightness but not total flux)
         default is False, to conserve total flux.
+    markcentroid : bool
+        Draw a crosshairs at the image centroid location?
+        Centroiding is computed with the JWST-standard moving box algorithm.
+    colorbar : bool
+        Draw a colorbar?
+    colorbar_orientation : str
+        either 'horizontal' or 'vertical'; default is vertical.
     """
-    #if isinstance(arg, str) and filename is None: filename=arg
     if isinstance(HDUlist_or_filename, str):
         HDUlist = pyfits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, pyfits.HDUList):
@@ -1212,8 +1146,6 @@ def display_psf(HDUlist_or_filename=None, ext=0, vmin=1e-8,vmax=1e-1, title=None
         ax.axhline(0,ls=":", color='k')
         ax.axvline(0,ls=":", color='k')
 
-    #print HDUlist[ext].header['INSTRUME']
-    #print HDUlist[ext].header['FILTER']
 
     if title is None:
         try:
@@ -1224,19 +1156,16 @@ def display_psf(HDUlist_or_filename=None, ext=0, vmin=1e-8,vmax=1e-1, title=None
     P.title(title)
 
     if colorbar:
-        cb = P.colorbar(ax.images[0], orientation='vertical')
+        cb = P.colorbar(ax.images[0], orientation=colorbar_orientation)
         ticks = N.logspace(N.log10(vmin), N.log10(vmax), N.log10(vmax/vmin)+1)
-        #if vmin == 1e-8 and vmax==1e-1: 
-            #ticks = [1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1]
+        if colorbar_orientation=='horizontal' and vmax==1e-1 and vmin==1e-8: ticks = [1e-8, 1e-6, 1e-4,  1e-2, 1e-1] # looks better
         cb.set_ticks(ticks)
         cb.set_ticklabels(ticks)
-        #stop()
-        cb.set_label('Fractional intensity per pixel')
+        if normalize =='peak':
+            cb.set_label('Intensity relative to peak pixel')
+        else: 
+            cb.set_label('Fractional intensity per pixel')
 
-
-
-
-    #P.draw()
     if markcentroid:
         _log.info("measuring centroid to mark on plot...")
         ceny, cenx = measure_centroid(HDUlist, ext=ext, units='arcsec', relativeto='center', boxsize=20, threshhold=0.1)
@@ -1244,7 +1173,103 @@ def display_psf(HDUlist_or_filename=None, ext=0, vmin=1e-8,vmax=1e-1, title=None
         _log.info("centroid: (%f, %f) " % (cenx, ceny))
         P.draw()
 
-def display_profiles(HDUlist_or_filename=None,ext=0 ):
+
+def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None, ext1=0, ext2=0, vmax=1e-4, title=None, imagecrop=None, adjust_for_oversampling=False, normalize=False, crosshairs=False, colorbar=True, colorbar_orientation='vertical', print_=False):
+    """Display nicely the difference of two PSFs from given files 
+    
+    Parameters
+    ----------
+    HDUlist_or_filename1,2 : pyfits.HDUlist or string
+        FITS files containing image to difference
+    ext1, ext2 : int
+        FITS extension. default = 0
+    vmax : float
+        for the  scaling
+    title : string, optional
+    imagecrop : float
+        size of region to display (default is whole image)
+    normalize : bool
+        Display (difference image)/(mean image) instead of just the difference image
+    adjust_for_oversampling : bool
+        rescale to conserve surface brightness for oversampled PSFs? 
+        (making this True conserves surface brightness but not total flux)
+        default is False, to conserve total flux.
+    """
+    if isinstance(HDUlist_or_filename1, str):
+        HDUlist1 = pyfits.open(HDUlist_or_filename1)
+    elif isinstance(HDUlist_or_filename1, pyfits.HDUList):
+        HDUlist1 = HDUlist_or_filename1
+    else: raise ValueError("input must be a filename or HDUlist")
+    if isinstance(HDUlist_or_filename2, str):
+        HDUlist2 = pyfits.open(HDUlist_or_filename2)
+    elif isinstance(HDUlist_or_filename2, pyfits.HDUList):
+        HDUlist2 = HDUlist_or_filename2
+    else: raise ValueError("input must be a filename or HDUlist")
+
+
+    if adjust_for_oversampling:
+        scalefactor = HDUlist1[ext1].header['OVERSAMP']**2
+        im1 = HDUlist1[ext1].data *scalefactor
+        scalefactor = HDUlist2[ext2].header['OVERSAMP']**2
+        im2 = HDUlist1[ext2].data *scalefactor
+    else: 
+        im1 = HDUlist1[ext1].data
+        im2 = HDUlist2[ext2].data
+
+    diff_im = im1-im2
+
+    if normalize:
+        avg_im = (im1+im2)/2
+        diff_im /= avg_im
+        cbtitle = 'Relative intensity difference per pixel'
+    else:
+        cbtitle = 'Fractional intensity difference per pixel'
+
+
+    if print_:
+        rms_diff = N.sqrt((diff_im**2).mean())
+        print "RMS of difference image: %f" % rms_diff
+
+    norm=matplotlib.colors.Normalize(vmin=-vmax, vmax=vmax)
+    cmap = matplotlib.cm.gray
+    halffov = HDUlist1[ext1].header['PIXELSCL']*HDUlist1[ext1].data.shape[0]/2
+    unit="arcsec"
+    extent = [-halffov, halffov, -halffov, halffov]
+
+
+    ax = poppy.imshow_with_mouseover( diff_im   ,extent=extent,cmap=cmap, norm=norm)
+    if imagecrop is not None:
+        halffov = min( (imagecrop/2, halffov))
+    ax.set_xbound(-halffov, halffov)
+    ax.set_ybound(-halffov, halffov)
+    if crosshairs: 
+        ax.axhline(0,ls=":", color='k')
+        ax.axvline(0,ls=":", color='k')
+
+
+    if title is None:
+        try:
+            fspec= str(HDUlist_or_filename1) +"-"+str(HDUlist_or_filename2)
+            #fspec = "Difference Image " # "%s, %s" % (HDUlist[ext].header['INSTRUME'], HDUlist[ext].header['FILTER'])
+        except: 
+            fspec= str(HDUlist_or_filename1) +"-"+str(HDUlist_or_filename2)
+        title="Difference of "+fspec
+    P.title(title)
+
+    if colorbar:
+        cb = P.colorbar(ax.images[0], orientation=colorbar_orientation)
+        #ticks = N.logspace(N.log10(vmin), N.log10(vmax), N.log10(vmax/vmin)+1)
+        #if vmin == 1e-8 and vmax==1e-1: 
+            #ticks = [1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1]
+        ticks = [-vmax, -0.5*vmax, 0, 0.5*vmax, vmax]
+        cb.set_ticks(ticks)
+        cb.set_ticklabels(ticks)
+        #stop()
+        cb.set_label(cbtitle)
+
+
+
+def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False ):
     if isinstance(HDUlist_or_filename, str):
         HDUlist = pyfits.open(filename,ext=ext)
     elif isinstance(HDUlist_or_filename, pyfits.HDUList):
@@ -1254,13 +1279,13 @@ def display_profiles(HDUlist_or_filename=None,ext=0 ):
 
     radius, profile, EE = radial_profile(HDUlist, EE=True)
 
-    P.clf()
+    if not overplot:
+        P.clf()
+        P.title("PSF sim for %s, %s" % (HDUlist[ext].header['INSTRUME'], HDUlist[ext].header['FILTER']))
+        P.xlabel("Radius [arcsec]")
+        P.ylabel("PSF radial profile")
     P.subplot(2,1,1)
     P.semilogy(radius, profile)
-    P.xlabel("Radius [arcsec]")
-    P.ylabel("PSF radial profile")
-    #stop()
-    P.title("PSF sim for %s, %s" % (HDUlist[ext].header['INSTRUME'], HDUlist[ext].header['FILTER']))
 
     fwhm = 2*radius[N.where(profile < profile[0]*0.5)[0][0]]
     P.text(fwhm, profile[0]*0.5, 'FWHM = %.3f"' % fwhm)
@@ -1268,8 +1293,9 @@ def display_profiles(HDUlist_or_filename=None,ext=0 ):
     P.subplot(2,1,2)
     #P.semilogy(radius, EE, nonposy='clip')
     P.plot(radius, EE, color='r') #, nonposy='clip')
-    P.xlabel("Radius [arcsec]")
-    P.ylabel("Encircled Energy")
+    if not overplot:
+        P.xlabel("Radius [arcsec]")
+        P.ylabel("Encircled Energy")
 
     for level in [0.5, 0.8, 0.95]:
         EElev = radius[N.where(EE > level)[0][0]]
@@ -1277,7 +1303,7 @@ def display_profiles(HDUlist_or_filename=None,ext=0 ):
         P.text(EElev+0.1, level+yoffset, 'EE=%2d%% at r=%.3f"' % (level*100, EElev))
 
 
-def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, binsize=None):
+def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stddev=False, binsize=None, maxradius=None):
     """ Compute a radial profile of the image. 
 
     This computes a discrete radial profile evaluated on the provided binsize. For a version
@@ -1295,14 +1321,19 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, binsi
         Also return encircled energy (EE) curve in addition to radial profile?
     center : tuple of floats
         Coordinates (x,y) of PSF center. Default is image center. 
-    binsize: 
+    binsize : float
         size of step for profile. Default is pixel size.
+    stddev : bool
+        Compute standard deviation in each radial bin, not average?
 
 
     Returns
     --------
     results : tuple
         Tuple containing (radius, profile) or (radius, profile, EE) depending on what is requested.
+        The radius gives the center radius of each bin, while the EE is given inside the whole bin
+        so you should use (radius+binsize/2) for the radius of the EE curve if you want to be
+        as precise as possible.
     """
     if isinstance(HDUlist_or_filename, str):
         HDUlist = pyfits.open(HDUlist_or_filename)
@@ -1312,6 +1343,12 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, binsi
 
     image = HDUlist[ext].data
     pixelscale = HDUlist[ext].header['PIXELSCL']
+
+
+    if maxradius is not None:
+        raise NotImplemented("add max radius")
+        stop()
+
 
     if binsize is None:
         binsize=pixelscale
@@ -1325,6 +1362,7 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, binsi
     r = N.sqrt( (x-center[0])**2 + (y-center[1])**2) *pixelscale / binsize # radius in bin size steps
     ind = N.argsort(r.flat)
 
+
     sr = r.flat[ind]
     sim = image.flat[ind]
     ri = sr.astype(int)
@@ -1337,11 +1375,25 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, binsi
 
     #pre-pend the initial element that the above code misses.
     radialprofile2 = N.empty(len(radialprofile)+1)
-    #radialprofile2[0] =  csim[rind[0]] / rind[0]
-    radialprofile2[0] = csim[0]
+    if rind[0] != 0:
+        radialprofile2[0] =  csim[rind[0]] / (rind[0]+1)  # if there are multiple elements in the center bin, average them
+    else:
+        radialprofile2[0] = csim[0]                       # otherwise if there's just one then just take it. 
     radialprofile2[1:] = radialprofile
-    rr = N.arange(len(radialprofile2))*pixelscale
+    rr = N.arange(len(radialprofile2))*binsize + binsize*0.5  # these should be centered in the bins, so add a half.
 
+    if stddev:
+        stddevs = N.zeros_like(radialprofile2)
+        r_pix = r * binsize
+        for i, radius in enumerate(rr):
+            if i == 0: wg = N.where(r < radius+ binsize/2)
+            else: 
+                wg = N.where( (r_pix >= (radius-binsize/2)) &  (r_pix < (radius+binsize/2)))
+                #print radius-binsize/2, radius+binsize/2, len(wg[0])
+                #wg = N.where( (r >= rr[i-1]) &  (r <rr[i] )))
+            stddevs[i] = image[wg].std()
+        #stop()
+        return (rr, stddevs)
 
     if not EE:
         return (rr, radialprofile2)
@@ -1349,12 +1401,11 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, binsi
         #weighted_profile = radialprofile2*2*N.pi*(rr/rr[1])
         #EE = N.cumsum(weighted_profile)
         EE = csim[rind]
-        #stop()
         return (rr, radialprofile2, EE) 
 
 
 def measure_EE(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
-    """ Returns a function object which when called returns the Encircled Energy at a given radius.
+    """ Returns a function object which when called returns the Encircled Energy inside a given radius.
 
 
 
@@ -1384,7 +1435,14 @@ def measure_EE(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
 
     rr, radialprofile2, EE = radial_profile(HDUlist_or_filename, ext, EE=True, center=center, binsize=binsize)
 
-    EE_fn = scipy.interpolate.interp1d(rr, EE,kind='cubic', bounds_error=False)
+    # append the zero at the center
+    rr_EE = rr + (rr[1]-rr[0])/1  # add half a binsize to this, because the EE is measured inside the
+                                  # outer edge of each annulus. 
+    rr0 = N.concatenate( ([0], rr_EE)) 
+    EE0 = N.concatenate( ([0], EE))
+
+
+    EE_fn = scipy.interpolate.interp1d(rr0, EE0,kind='cubic', bounds_error=False)
 
     return EE_fn
     
@@ -1547,11 +1605,16 @@ def measure_centroid(HDUlist_or_filename=None, ext=0, slice=0, boxsize=50, print
     return cent_of_mass
 
 
-def measure_strehl(HDUlist_or_filename=None, ext=0, center=None, display=True):
-    """ Measure the Strehl ratio for a PSF. 
+def measure_strehl(HDUlist_or_filename=None, ext=0, center=None, display=True, print_=True):
+    """ Estimate the Strehl ratio for a PSF.
     
-    This requires computing a simulated PSF with the same 
+    This requires computing a simulated PSF with the same
     properties as the one under analysis.
+
+    Note that this calculation will not be very accurate unless both PSFs are well sampled,
+    preferably several times better than Nyquist. See 
+    `Roberts et al. 2004 SPIE 5490 <http://adsabs.harvard.edu/abs/2004SPIE.5490..504R>`_
+    for a discussion of the various possible pitfalls when calculating Strehl ratios. 
 
     Parameters
     ----------
@@ -1562,6 +1625,15 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, center=None, display=True):
         center to compute around.  Default is image center. If the center is on the
         crosshairs between four pixels, then the mean of those four pixels is used.
         Otherwise, if the center is in a single pixel, then that pixel is used. 
+
+    print_, display : bool
+        control whether to print the results or display plots on screen. 
+
+
+    Returns
+    ---------
+    strehl : float
+        Strehl ratio as a floating point number between 0.0 - 1.0
   
     """
     if isinstance(HDUlist_or_filename, str):
@@ -1586,7 +1658,7 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, center=None, display=True):
     inst.filter = header['FILTER']
     inst.pupilopd = None # perfect image
     inst.pixelscale = header['PIXELSCL'] * header['OVERSAMP'] # same pixel scale pre-oversampling
-    comparison_psf = inst.calcPSF(fov_pixels = image.shape[0], oversample=header['OVERSAMP'], nlambda=header['NWAVES'])
+    comparison_psf = inst.calcPSF(fov_arcsec = header['FOV'], oversample=header['OVERSAMP'], nlambda=header['NWAVES'])
     comparison_image = comparison_psf[0].data
 
     
@@ -1600,6 +1672,7 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, center=None, display=True):
         top = [N.ceil(f)+1 for f in center]
         meas_peak =           image[bot[1]:top[1], bot[0]:top[0]].mean()
         ref_peak = comparison_image[bot[1]:top[1], bot[0]:top[0]].mean()
+    strehl = (meas_peak/ref_peak)
 
     if display:
         P.clf()
@@ -1607,12 +1680,17 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, center=None, display=True):
         display_PSF(HDUlist, title="Observed PSF")
         P.subplot(122)
         display_PSF(comparison_psf, title="Perfect PSF")
+        P.gcf().suptitle("Strehl ratio = %.3f" % strehl) 
 
 
+    if print_:
 
-    print "Measured peak:  %.3g" % meas_peak
-    print "Reference peak: %.3g" % ref_peak
-    print "  Strehl ratio = %.3f " % (meas_peak/ref_peak)
+        print "Measured peak:  %.3g" % meas_peak
+        print "Reference peak: %.3g" % ref_peak
+        print "  Strehl ratio = %.3f " % strehl
+
+    return strehl
+
 
 def measure_anisotropy(HDUlist_or_filename=None, ext=0, slice=0, boxsize=50):
     pass
@@ -1699,12 +1777,23 @@ def makeFakeFilter(filename, lcenter, dlam, instrument='NIRCam', name='filter', 
 
     return t
 def _makeMIRIfilters():
-    makeFakeFilter('F1065C_thru.fits',10.65, 0.53,clobber=True)
-    makeFakeFilter('F1140C_thru.fits',11.40, 0.57,clobber=True)
-    makeFakeFilter('F1550C_thru.fits',15.50, 0.78,clobber=True)
-    makeFakeFilter('F2300C_thru.fits',23.00, 4.60,clobber=True)
+    makeFakeFilter('F560W_throughput.fits', 5.6, 1.2, clobber=True)
+    makeFakeFilter('F770W_throughput.fits', 7.7, 2.2, clobber=True)
+    makeFakeFilter('F1000W_throughput.fits', 10, 2, clobber=True)
+    makeFakeFilter('F1130W_throughput.fits', 11.3, 0.7, clobber=True)
+    makeFakeFilter('F1280W_throughput.fits', 12.8, 2.4, clobber=True)
+    makeFakeFilter('F1500W_throughput.fits', 15, 3, clobber=True)
+    makeFakeFilter('F1800W_throughput.fits', 18, 3, clobber=True)
+    makeFakeFilter('F2100W_throughput.fits', 21, 5, clobber=True)
+    makeFakeFilter('F2550W_throughput.fits', 25.5, 4, clobber=True)
+    makeFakeFilter('F1065C_throughput.fits',10.65, 0.53,clobber=True)
+    makeFakeFilter('F1140C_throughput.fits',11.40, 0.57,clobber=True)
+    makeFakeFilter('F1550C_throughput.fits',15.50, 0.78,clobber=True)
+    makeFakeFilter('F2300C_throughput.fits',23.00, 4.60,clobber=True)
+    makeFakeFilter('FND_throughput.fits', 11.5, 7.0,clobber=True)
 
-    makeFakeFilter('FGS_thru.fits', 2.8, 4.40,clobber=True)
+
+
 def _makeNIRCamFilters():
     "Create nircam filters based on http://ircamera.as.arizona.edu/nircam/features.html "
     makeFakeFilter('F070W_thru.fits', 0.7000, 0.1750, clobber=True)

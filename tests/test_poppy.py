@@ -1,3 +1,6 @@
+import os,sys
+sys.path.append(os.path.abspath('../lib'))
+
 from webbpsf import *
 import webbpsf
 import poppy
@@ -5,6 +8,8 @@ import numpy as N
 import pyfits
 import unittest
 import matplotlib.pyplot as P
+import matplotlib
+import time
 
 import optics
 
@@ -73,6 +78,56 @@ def check_wavefront(filename_or_hdulist, slice=0, ext=0, test='nearzero', commen
         _log.error("Test %s failed for %s " % (test, filename))
         return False
 
+####################################################33
+# Funky aperture for FFT tests.
+
+
+class ParityTestAperture(poppy.AnalyticOpticalElement):
+    """ Defines a circular pupil aperture with boxes cut out.
+    This is mostly a test aperture
+
+    Parameters
+    ----------
+    name : string
+        Descriptive name
+    radius : float
+        Radius of the pupil, in meters. Default is 1.0
+
+    pad_factor : float, optional
+        Amount to oversize the wavefront array relative to this pupil.
+        This is in practice not very useful, but it provides a straightforward way
+        of verifying during code testing that the amount of padding (or size of the circle)
+        does not make any numerical difference in the final result.
+
+    """
+
+    def __init__(self, name=None,  radius=1.0, pad_factor = 1.5, **kwargs):
+        if name is None: name = "Circle, radius=%.2f m" % radius
+        poppy.AnalyticOpticalElement.__init__(self,name=name, **kwargs)
+        self.radius = radius
+        self.pupil_diam = pad_factor * 2* self.radius # for creating input wavefronts - let's pad a bit
+
+
+    def getPhasor(self,wave):
+        """ Compute the transmission inside/outside of the occulter.
+        """
+        if not isinstance(wave, poppy.Wavefront):
+            raise ValueError("CircularAperture getPhasor must be called with a Wavefront to define the spacing")
+        assert (wave.planetype == poppy.PUPIL)
+
+        y, x = wave.coordinates()
+        r = N.sqrt(x**2+y**2) #* wave.pixelscale
+
+        w_outside = N.where( r > self.radius)
+        self.transmission = N.ones(wave.shape)
+        self.transmission[w_outside] = 0
+
+        w_box1 = N.where( (r> self.radius*0.5) & (N.abs(x) < self.radius*0.1 ) & ( y < 0 ))
+        w_box2 = N.where( (r> self.radius*0.75) & (N.abs(y) < self.radius*0.2) & ( x < 0 ))
+        self.transmission[w_box1] = 0
+        self.transmission[w_box2] = 0
+
+        return self.transmission
 
 
 
@@ -160,7 +215,7 @@ class TestPupils(TestPoppy):
 
             psf = osys.calcPSF(wavelength=self.wavelength)
 
-            webbpsf.display_psf(psf)
+            webbpsf.display_PSF(psf)
             P.title(pupils[i])
 
             P.subplot(2,3, i+4)
@@ -183,27 +238,82 @@ class TestPupils(TestPoppy):
         #FIXME - compare cuts to airy function etc.
 
 
-
 class Test1(TestPoppy):
-    def do_test_1_normalization(self):
+    def do_generic_normalization_test(self, osys):
         """ Test the PSF normalization """
 
-        osys = poppy.OpticalSystem("test", oversample=self.oversample)
-        osys.addPupil(function='Circle', radius=6.5/2)
-        osys.addDetector(pixelscale=self.pixelscale, fov_arcsec=10.0)
-        
-        for norm in ['first', 'last']:
+        for norm in ['first', 'last', 'first=2']:
             P.clf()
-            psf = osys.calcPSF(wavelength=self.wavelength, normalize=norm)
-            webbpsf.display_psf(psf)
+            psf = osys.calcPSF(wavelength=self.wavelength, normalize=norm, display_intermediates=True)
+            webbpsf.display_PSF(psf)
             tot = psf[0].data.sum()
             _log.info("Using normalization method=%s, the PSF total is\t%f" % (norm, tot))
             if norm =='last':
                 self.assertAlmostEqual(abs(tot), 1 ) # the PSF's total on the computed array should be 1, or very close to it.
+            elif norm == 'first=2':
+                self.assertAlmostEqual(abs(tot), 2, delta=0.01 )  # this should be very roughly 1.
             else: 
                 self.assertAlmostEqual(abs(tot), 1, delta=0.01 )  # this should be very roughly 1.
-    def test_1_normalization_multiwave(self):
+    def Xdo_test_1_normalization(self):
+        """ Test the PSF normalization for MFTs """
+
+        osys = poppy.OpticalSystem("test", oversample=self.oversample)
+        osys.addPupil(function='Circle', radius=6.5/2)
+        osys.addDetector(pixelscale=self.pixelscale, fov_arcsec=20.0) # use a large FOV so we grab essentially all the light and conserve flux
+        self.do_generic_normalization_test(osys)
+
+    def Xdo_test_1_normalization_fft(self):
+        """ Test the PSF normalization for FFTs"""
+
+        osys = poppy.OpticalSystem("test", oversample=self.oversample)
+        osys.addPupil(function='Circle', radius=6.5/2)
+        osys.addImage() # null plane to force FFT
+        osys.addPupil() # null plane to force FFT
+        osys.addDetector(pixelscale=self.pixelscale, fov_arcsec=10.0) # use a large FOV so we grab essentially all the light and conserve flux
+        self.do_generic_normalization_test(osys)
+
+    def do_test_1_normalization_invMFT(self):
+        """ Test the PSF normalization for Inverse MFTs """
+
+        osys = poppy.OpticalSystem("test", oversample=self.oversample)
+        osys.addPupil(function='Circle', radius=6.5/2)
+        osys.addDetector(pixelscale=self.pixelscale, fov_arcsec=10.0) # use a large FOV so we grab essentially all the light and conserve flux
+        osys.addPupil() # this will force an inverse MFT
+        osys.addDetector(pixelscale=self.pixelscale, fov_arcsec=10.0) # use a large FOV so we grab essentially all the light and conserve flux
+        self.do_generic_normalization_test(osys)
+
+
+    def Xtest_1_normalization_multiwave(self):
         results = [res for res in self.iter_wavelengths(self.do_test_1_normalization)]
+
+    def Xtest_1_normalization_fft_multiwave(self):
+        results = [res for res in self.iter_wavelengths(self.do_test_1_normalization_fft)]
+
+    def test_1_normalization_invMFT(self):
+        results = [res for res in self.iter_wavelengths(self.do_test_1_normalization_invMFT)]
+
+
+    def test_inverse_MFT(self):
+        # Verify basic functionality of the Inverse MFT code. 
+        poppy._FLUXCHECK=True
+
+        test_ap = ParityTestAperture(radius=6.5/2)
+
+        osys = poppy.OpticalSystem("test", oversample=4)
+        osys.addPupil(test_ap)
+        osys.addDetector(pixelscale=0.010, fov_arcsec=10.0) # use a large FOV so we grab essentially all the light and conserve flux
+        psf1 = osys.calcPSF(wavelength=2e-6, normalize='first', display_intermediates=True)
+
+        #osys.addPupil(test_ap)
+        osys.addPupil() # this will force an inverse MFT
+        osys.addDetector(pixelscale=0.010, fov_arcsec=10.0) # use a large FOV so we grab essentially all the light and conserve flux
+        P.clf()
+        psf = osys.calcPSF(wavelength=2e-6, normalize='first', display_intermediates=True)
+
+        # the intermediate PSF (after one MFT) should be essentially identical to the
+        # final PSF (after an MFT, inverse MFT, and another MFT):
+        self.assertTrue(   N.abs(psf1[0].data - psf[0].data).max()  < 1e-7 )
+
 
 class Test2(TestPoppy):
     """ Is the wave in the Lyot plane essentially all real? i.e. negligible imaginary part """
@@ -477,9 +587,9 @@ class Test7(TestPoppy):
 
         P.figure(3)
         P.subplot(211)
-        webbpsf.display_psf(psf1, title=osys1.name)
+        webbpsf.display_PSF(psf1, title=osys1.name)
         P.subplot(212)
-        webbpsf.display_psf(psf2, title=osys2.name)
+        webbpsf.display_PSF(psf2, title=osys2.name)
 
         pos1 = webbpsf.fwcentroid(psf1[0].data, halfwidth=10, threshhold=1e-2)
         pos2 = webbpsf.fwcentroid(psf2[0].data, halfwidth=10, threshhold=1e-2)
@@ -633,9 +743,9 @@ class Test10(TestPoppy):
         _log.info(" Speedup factor: %f " % (tsing/tmulti))
         P.clf()
         ax = P.subplot(1,3,1)
-        webbpsf.display_psf(psf1)
+        webbpsf.display_PSF(psf1)
         ax = P.subplot(1,3,2)
-        webbpsf.display_psf(psf2)
+        webbpsf.display_PSF(psf2)
         ax = P.subplot(1,3,3)
 
         poppy.imshow_with_mouseover(psf1[0].data - psf2[0].data, ax=ax)
@@ -643,6 +753,45 @@ class Test10(TestPoppy):
         self.assertTrue(  (psf1[0].data == psf2[0].data).all()  )
         _log.info("Exact same result achieved both ways.")
 
+
+class Test11(TestPoppy):
+    """ Test various AnalyticOpticalElements 
+    """
+
+    def test_thinlens(self):
+
+        radius = 6.5/2
+        lyot_radius = 6.5/2.5
+
+        nsteps = 5
+        P.clf()
+        fig, axarr = P.subplots(1,nsteps, squeeze=True, num=1)
+        psfs = []
+        for nwaves in range(nsteps):
+
+            osys = poppy.OpticalSystem("test", oversample=self.oversample)
+            osys.addPupil('Circle', radius=radius)
+            osys.addPupil(optic=poppy.ThinLens(nwaves=nwaves, reference_wavelength=self.wavelength)) 
+            osys.addDetector(pixelscale=self.pixelscale, fov_arcsec=5.0)
+
+            psf = osys.calcPSF(wavelength=self.wavelength)
+            psfs.append(psf)
+
+            norm = matplotlib.colors.LogNorm(vmin=1e-8, vmax=1e-4)
+            poppy.imshow_with_mouseover(psf[0].data, ax=axarr[nwaves], norm=norm)
+
+        stop()
+
+
+
+    def test_scalar(self):
+        wave = poppy.Wavefront(npix=100, wavelength=self.wavelength)
+        nulloptic = poppy.ScalarTransmission()
+
+        self.assertEqual(nulloptic.getPhasor(wave), 1.0)
+
+        NDoptic = poppy.ScalarTransmission(transmission=1e-3)
+        self.assertEqual(NDoptic.getPhasor(wave), 1.0e-3)
 
 
         
@@ -788,7 +937,7 @@ def test_run(index=None, wavelength=2e-6):
     #tests = [Test1]
     global _TEST_WAVELENGTH
     _TEST_WAVELENGTH = wavelength
-    tests = [TestPupils, Test1, Test2, Test3, Test4, Test5, Test6, Test7, Test8, Test9, Test10]
+    tests = [TestPupils, Test1, Test2, Test3, Test4, Test5, Test6, Test7, Test8, Test9, Test10, Test11]
 
     if index is not None:
         if not hasattr(index, '__iter__') : index = [index]
@@ -809,7 +958,81 @@ def test_multiwave(*args):
         print("  Running tests with wavelength = %e m" % w)
         test_run(wavelength=w, *args)
 
+def test_defocus():
+    radius = 6.5/2
+    lyot_radius = 6.5/2.5
 
+    waves = [0, 0.5, 1, 2, 4, 8]
+    nsteps = len(waves)
+    P.clf()
+    fig, axarr = P.subplots(1,nsteps, squeeze=True, num=1)
+    psfs = []
+    #for nwaves in range(nsteps):
+    for i, nwaves in enumerate(waves):
+
+        osys = poppy.OpticalSystem("test", oversample=2)
+        osys.addPupil('Circle', radius=radius)
+        lens =poppy.ThinLens(nwaves=nwaves, reference_wavelength=1e-6)
+        osys.addPupil(optic=lens)
+        osys.addDetector(pixelscale=0.010, fov_arcsec=10.0)
+
+        psf = osys.calcPSF(wavelength=1e-6)
+        psfs.append(psf)
+
+        norm = matplotlib.colors.LogNorm(vmin=1e-8, vmax=1e-4)
+        poppy.imshow_with_mouseover(psf[0].data, ax=axarr[i], norm=norm )
+        axarr[i].set_title('%.1f waves defocus' % nwaves)
+
+        #wf = osys.inputWavefront()
+        #wf2 = wf * osys.planes[0]
+        #wf3 = wf2* osys.planes[1]
+
+
+    stop()
+
+
+
+def test_SAMC(display_intermediates=False):
+    """ Test semianalytic coronagraphic method
+
+    """
+    radius = 6.5/2
+    lyot_radius = 6.5/2.5
+    pixelscale = 0.010
+
+    osys = poppy.OpticalSystem("test", oversample=8)
+    osys.addPupil('Circle', radius=radius, name='Entrance Pupil')
+    osys.addImage('CircularOcculter', radius = 0.1)
+    osys.addPupil('Circle', radius=lyot_radius, name = "Lyot Pupil")
+    osys.addDetector(pixelscale=pixelscale, fov_arcsec=5.0)
+
+
+    P.figure(1)
+    sam_osys = poppy.SemiAnalyticCoronagraph(osys, oversample=8, occulter_box=0.15) 
+
+    t0s = time.time()
+    psf_sam = sam_osys.calcPSF(display_intermediates=display_intermediates)
+    t1s = time.time()
+
+    P.figure(2)
+    t0f = time.time()
+    psf_fft = osys.calcPSF(display_intermediates=display_intermediates)
+    t1f = time.time()
+
+    P.figure(3)
+    P.clf()
+    P.subplot(121)
+    webbpsf.display_PSF(psf_fft, title="FFT")
+    P.subplot(122)
+    webbpsf.display_PSF(psf_sam, title="SAM")
+
+    print "Elapsed time, FFT:  %.3s" % (t1f-t0f)
+    print "Elapsed time, SAM:  %.3s" % (t1s-t0s)
+
+
+    print "Max difference between results: ", N.abs(psf_fft[0].data - psf_sam[0].data).max()
+
+    stop()
 
 if __name__== "__main__":
     logging.basicConfig(level=logging.DEBUG,format='%(name)-10s: %(levelname)-8s %(message)s')
@@ -820,6 +1043,4 @@ if __name__== "__main__":
     #nc.pupilopd=None
     #osys = nc.getOpticalSystem()
     pass
-
-
 

@@ -5,6 +5,21 @@
     Matrix-based Fourier transforms for computing PSFs. 
     See Soummer et al. 2007 JOSA
 
+    Note that this is 'slow' only in the sense that if you perform the exact same
+    calculation as an FFT, the FFT algorithm is much faster. However this algorithm
+    gives you much more flexibility in choosing array sizes and sampling, and often lets
+    you replace "fast calculations on very large arrays" with 
+    "relatively slow calculations on much smaller ones". 
+
+
+    This module contains the following four functions for different types of discrete
+    FTs. There is also a class SlowFourierTransform() which is a useful wrapper.
+        - SFT1: 'FFTSTYLE' centered on one pixel
+        - SFT2: 'SYMMETRIC' centerd on crosshairs between middle pixel
+        - SFT3: 'ADJUSTIBLE', always centered in output array depending on whether it is even/odd
+        - SFT4: 'ROTATABLE'; not properly implemented do not use
+
+
 
     Example
     -------
@@ -32,7 +47,9 @@ import pyfits
 def SFT1(pupil, nlamD, npix):
     """
 
-    Compute an "FFTSTYLE" matrix fourier transform. 
+    Compute an "FFTSTYLE" matrix fourier transform.
+    This means that the zero-order term is put all in a 
+    single pixel.
 
     Parameters
     ----------
@@ -81,6 +98,8 @@ def SFT1(pupil, nlamD, npix):
 def SFT2(pupil, nlamD, npix):
     """
     Compute a "SYMMETRIC" matrix fourier transform. 
+    This means that the zero-order term is spread evenly
+    between the center 4 pixels.
 
     Parameters
     ----------
@@ -319,7 +338,13 @@ class SlowFourierTransform:
         self.perform = fns[choice]
 
     def offset(self):
-            return self.correctoffset[self.choice]
+        return self.correctoffset[self.choice]
+
+
+    def inverse(self, image, nlamD, npix):
+        pupil = self.perform(image, nlamD, npix)
+        pupil = pupil[::-1, ::-1].copy() # reverse the X and Y axes, needed to get coordinates right
+        return pupil
 
 
     def performFITS(hdulist, focalplane_size, focalplane_npix):
@@ -341,7 +366,7 @@ def euclid2(s, c=None):
 	if c is None:
 		c = (0.5*float(s[0]),  0.5*float(s[1]))
 
-	y, x = N.indices(s)
+	y, x = np.indices(s)
 	r2 = (x - c[0])**2 + (y - c[1])**2
 
 	return r2
@@ -351,7 +376,7 @@ def makedisk(s=None, c=None, r=None, inside=1.0, outside=0.0, grey=None, t=None)
 	# fft style or sft asymmetric style - center = nx/2, ny/2
 	# see ellipseDriver.py for details on symm...
 
-	disk = N.where(euclid2(s, c=c) <= r*r, inside, outside)
+	disk = np.where(euclid2(s, c=c) <= r*r, inside, outside)
 	return disk
 
 
@@ -462,10 +487,72 @@ def test_SFT_center( npix=100, outdir='.', outname='SFT1'):
 
 
 
+def test_inverse():
+    import matplotlib
+    import matplotlib.pyplot as P
+
+    choice='ADJUSTIBLE'
+    choice='SYMMETRIC'
+    import os
+
+    npupil = 300 #156
+    pctr = int(npupil/2)
+    npix = 100 #1024
+    u = 20 #100    # of lam/D
+
+    npix, u = 2000, 200
+    s = (npupil,npupil)
+
+
+
+
+    # FFT style
+    sft1 = SlowFourierTransform(choice=choice)
+
+    ctr = (float(npupil)/2.0 + sft1.offset(), float(npupil)/2.0 + sft1.offset())
+    #print ctr
+    pupil = makedisk(s=s, c=ctr, r=float(npupil)/2.0001, t=np.float64, grey=0)
+    pupil /= np.sqrt(pupil.sum())
+
+    pupil[100:200, 30:50] = 0
+    pupil[0:50, 140:160] = 0
+
+    P.subplot(141)
+    P.imshow(pupil)
+
+    print "Pupil 1 total:", pupil.sum() 
+
+    a = sft1.perform(pupil, u, npix)
+
+    asf = a.real.copy()
+    cpsf = a * a.conjugate()
+    psf = cpsf.real.copy()
+    print "PSF total", psf.sum()
+ 
+    P.subplot(142)
+    P.imshow(psf, norm=matplotlib.colors.LogNorm(1e-8, 1.0))
+
+    P.subplot(143)
+
+    pupil2 = sft1.inverse(a, u, npupil)
+    pupil2r = (pupil2 * pupil2.conjugate()).real
+    P.imshow( pupil2r)
+
+    print "Pupil 2 total:", pupil2r.sum() 
+
+
+
+    a2 = sft1.perform(pupil2r, u, npix)
+    psf2 = (a2*a2.conjugate()).real.copy()
+    print "PSF total", psf2.sum()
+    P.subplot(144)
+    P.imshow(psf2, norm=matplotlib.colors.LogNorm(1e-8, 1.0))
+
 
 
 
 if __name__ == "__main__":
 
-    test_SFT('FFTSTYLE', outname='SFT1')
-    test_SFT('SYMMETRIC', outname='SFT2')
+    #test_SFT('FFTSTYLE', outname='SFT1')
+    #test_SFT('SYMMETRIC', outname='SFT2')
+    pass

@@ -1,12 +1,5 @@
-debug circular occulter masks
-
-Add detector QE and germanium filter features. 
-
 Overall:
  ** improve oversampled calculations 
-	Pay attention to source centration very carefully, particularly when changing oversampling factor.
-	Should arrange so that pixels directly map one to the other...
-
 
  ** better rasterization of pupils - perhaps use GTKAgg or one of the other Agg ones, in a special ipython session, and then dump the output to png
 
@@ -14,13 +7,12 @@ Overall:
 SFT:
 
 poppy:
+	Test offset detector capability
+	Add Semianalytic coronagraphy
 
-popjw: 
- - offset sources for coronagraphy. 
+webbpsf: 
 
 
 GUI:
- - derived class for image display which allows mouseover display of the image values, not just coordinates. 
  - derived class for colorbar (or hooks into existing code) to allow dynamic rescaling with windows. 
- - actually do something with stellar spectral types!
  - calculations for large FOV should display the whole thing when calculating...

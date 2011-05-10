@@ -7,8 +7,8 @@ Physical Optics Propagation in PYthon (POPPY)
 
 This package implements an object-oriented system for modeling physical optics
 propagation with diffraction, particularly for telescopic and coronagraphic
-imaging. Right now only image and pupil planes are supported; intermediate
-planes are a future goal.
+imaging. Right now only Fraunhoffer diffraction is supported, providing image and pupil planes; 
+intermediate planes are a future goal.
 
 Classes:
 --------
@@ -31,6 +31,15 @@ Module-level configuration constants
 
 _USE_FFTW3 : bool
     Should the FFTW3 library be used? Set automatically to True if fftw3 is importable, else False.
+_USE_MULTIPROC : bool
+    Should we use python multiprocessing to spawn multiple simultaneous processes to speed calculations?
+    Note that FFTW3 automatically makes use of multiple cores so this should not be used at the same time as
+    _USE_FFTW3. Default is False.
+_MULTIPROC_NPROCESS : int
+    If the above is set, how many processes should be used? Default is 4. Note that you probably don't want to 
+    set this too large due to memory limitations; i.e. don't just blindly set this to 16 on a 16-core machine unless
+    you have many, many GB of RAM...
+
 _TIMETESTS : bool
     Print out simple benchmarking of elapsed time to screen. Default False
 _FLUXCHECK : bool
@@ -42,7 +51,7 @@ _IMAGECROP : float
 
 """
 
-from __future__ import division  
+from __future__ import division
 #import os, sys
 import multiprocessing
 import copy
@@ -67,7 +76,6 @@ import logging
 _log = logging.getLogger('poppy')
 _log.addHandler(logging.NullHandler())
 
-   
 
 try:
     import fftw3
@@ -78,7 +86,7 @@ except:
 
 _USE_MULTIPROC = False # auto set this cleverly?
 _MULTIPROC_NPROCESS = min(4,multiprocessing.cpu_count())  # Caution: Do not make this too large on high-CPU-count machines
-                                                          # because this is a memory-intensive calculation and you will 
+                                                          # because this is a memory-intensive calculation and you willg
                                                           # just end up thrashing IO and swapping out a ton, so everything
                                                           # becomes super slow.
 
@@ -91,6 +99,7 @@ PUPIL = 1
 IMAGE = 2
 DETECTOR = 3 # specialized type of image plane.
 ROTATION = 4 # not a real optic, just a coordinate transform
+typestrs = ['', 'Pupil plane', 'Image plane', 'Detector']
 
 
 #conversions
@@ -132,16 +141,16 @@ def removePadding(array,oversample):
 
 def _wrap_propagate_for_multiprocessing(args):
     """ This is an internal helper routine for parallelizing computations across multiple processors.
-    
-    Python's multiprocessing module allows easy execution of tasks across 
+   g
+    Python's multiprocessing module allows easy execution of tasks acrossg
     many CPUs or even distinct machines. It relies on Python's pickle mechanism to
     serialize and pass objects between processes. One annoying side effect of this is
-    that object instance methods cannot easily be pickled, and thus cannot be easily 
-    invoked in other processes. 
+    that object instance methods cannot easily be pickled, and thus cannot be easilyg
+    invoked in other processes.g
 
     Here, we work around that by pickling the entire object and argument list, packed
-    as a tuple, transmitting that to the new process, and then unpickling that, 
-    unpacking the results, and *then* at last making our instance method call. 
+    as a tuple, transmitting that to the new process, and then unpickling that,g
+    unpacking the results, and *then* at last making our instance method call.g
     """
     self, wavelength, weight, kwargs, usefftw3flag = args
     _USE_FFTW3 = usefftw3flag
@@ -165,7 +174,7 @@ def imshow_with_mouseover(image, ax=None,  *args, **kwargs):
     # We use the extent and implementation to map back from the data coord to pixel coord
     # There is probably an easier way to do this...
     imext = ax.images[0].get_extent()  # returns [-X, X, -Y, Y]
-    imsize = ax.images[0].get_size()   # returns [sY, sX] 
+    imsize = ax.images[0].get_size()   # returns [sY, sX]g
     # map data coords back to pixel coords:
     #pixx = (x - imext[0])/(imext[1]-imext[0])*imsize[1]
     #pixy = (y - imext[2])/(imext[3]-imext[2])*imsize[0]
@@ -210,7 +219,7 @@ class Wavefront(object):
         For IMAGE PLANE wavefronts, use this pixel scale.
     oversample : int, optional
         how much to oversample by in FFTs. Default is 2.
-        Note that final propagations to Detectors use a different algorithm 
+        Note that final propagations to Detectors use a different algorithmg
         and, optionally, a separate oversampling factor.
     dtype : numpy.dtype, optional
         default is double complex.
@@ -240,7 +249,6 @@ class Wavefront(object):
         """Diameter in meters. Applies to a pupil plane only."""
         self.fov = None                                     # image plane size in arcsec
         """Field of view in arcsec. Applies to an image plane only."""
-        
         self.pixelscale = None
         "Pixel scale, in arcsec/pixel or meters/pixel depending on plane type"
 
@@ -252,7 +260,7 @@ class Wavefront(object):
             self.planetype = IMAGE
         self._image_centered='array_center'                     # one of 'array_center', 'pixel', 'corner'
                                                                 # This records where the coordinate origin is
-                                                                # in image planes, and depends on how the image 
+                                                                # in image planes, and depends on how the imageg
                                                                 # plane was produced (e.g. FFT implies pixel)
         "Are FFT'ed image planes centered on a pixel or on a corner between pixels? "
         self.wavefront = N.ones((npix,npix), dtype=dtype)   # the actual complex wavefront array
@@ -284,7 +292,7 @@ class Wavefront(object):
     def __imul__(self, optic):
         "Multiply a Wavefront by an OpticalElement or scalar"
         if isinstance(optic,Rotation):
-            return self # a rotation doesn't actually affect the wavefront via multiplication, 
+            return self # a rotation doesn't actually affect the wavefront via multiplication,
                         # but instead via forcing a call to rotate() elsewhere...
         if (isinstance(optic,float)) or isinstance(optic,int):
             self.wavefront *= optic # it's just a scalar
@@ -318,6 +326,8 @@ class Wavefront(object):
         new = self.copy()
         new *= optic
         return new
+    __rmul__ = __mul__  # either way works.
+
 
     def __iadd__(self,wave):
         "Add another wavefront to this one"
@@ -330,6 +340,11 @@ class Wavefront(object):
         self.wavefront += wave.wavefront
         self.history.append("Summed with another wavefront!")
         return self
+
+    def __add__(self,wave):
+        new = self.copy()
+        new += wave
+        return new
 
     def asFITS(self, what='intensity'):
         """ Return a wavefront as a pyFITS HDUList object
@@ -453,13 +468,13 @@ class Wavefront(object):
             unit = "m"
         else:
             # make coordinates relative to center.
-            # image plane coordinates depend on whether the 
+            # image plane coordinates depend on whether theg
             if self._image_centered == 'array_center' or self._image_centered=='corner':
                 cenx = (intens.shape[0]-1)/2.
             elif self._image_centered == 'pixel':
                 cenx = (intens.shape[0])/2.
 
-            extent -= cenx*self.pixelscale 
+            extent -= cenx*self.pixelscale
             halffov = intens.shape[0]/2.*self.pixelscale #for use later
             #(N.array([-0.5,intens.shape[1]-1+0.5, -0.5,intens.shape[0]-1+0.5])-cenx) * self.pixelscale
             #halffov = self.pixelscale*intens.shape[0]/2
@@ -468,7 +483,7 @@ class Wavefront(object):
 
         # implement semi-intellegent selection of what to display
         if what =='best':
-            if self.planetype ==IMAGE: 
+            if self.planetype ==IMAGE:
                 what = 'intensity' # always show intensity for image planes
             elif phase[N.where(N.isfinite(phase))].sum() == 0:
                 what = 'intensity' # for perfect pupils
@@ -488,7 +503,7 @@ class Wavefront(object):
                 norm=matplotlib.colors.Normalize(vmin=0)
                 cmap = matplotlib.cm.gray
                 cmap.set_bad('0.0')
-            else: 
+            else:
                 norm=LogNorm(vmin=1e-8,vmax=1e-1)
                 cmap = matplotlib.cm.jet
                 cmap.set_bad(cmap(0))
@@ -503,7 +518,7 @@ class Wavefront(object):
             if colorbar: p.colorbar(ax.images[0], orientation='vertical', shrink=0.8)
 
             if self.planetype ==IMAGE:
-                if crosshairs: 
+                if crosshairs:
                     p.axhline(0,ls=":", color='k')
                     p.axvline(0,ls=":", color='k')
                 imsize = min( (imagecrop, halffov))
@@ -572,14 +587,20 @@ class Wavefront(object):
             _log.debug(msg)
             self.history.append(msg)
 
-        if optic.planetype == ROTATION:
+        _log.info('==== at %s, to %s' % (typestrs[self.planetype], typestrs[optic.planetype]))
+        if optic.planetype == ROTATION:     # rotate
             self.rotate(optic.angle)
             self.location='after '+optic.name
-        elif optic.planetype == DETECTOR:
+        elif optic.planetype == DETECTOR and self.planetype ==PUPIL:    # MFT pupil to detector
             self._propagateMFT(optic)
             self.location='before '+optic.name
+        elif optic.planetype == PUPIL and self.planetype ==IMAGE and self._last_transform_type =='MFT': # inverse MFT detector to pupil
+            self._propagateMFTinverse(optic)
+            self.location='before '+optic.name
+        elif self.planetype==IMAGE and optic.planetype == DETECTOR:
+            raise NotImplemented('image plane directly to detector propagation (resampling!) not implemented yet')
         else:
-            self._propagateFFT(optic)
+            self._propagateFFT(optic)           # FFT pupil to image or image to pupil
             self.location='before '+optic.name
 
     def _propagateFFT(self, optic):
@@ -622,19 +643,19 @@ class Wavefront(object):
         # do FFT
         if _FLUXCHECK: _log.debug("\tPre-FFT total intensity: "+str(self.totalIntensity))
         if _TIMETESTS: t0 = time.time()
-    
+
         if FFT_direction =='backward': self.wavefront = numpy_ifftshift(self.wavefront)
 
         if _USE_FFTW3:
             _log.debug("using FFTW3 FFT")
-            # Benchmarking on a Mac Pro (8 cores) indicated that the fastest performance comes from 
-            # in-place FFTs, and that it is safe to ignore byte alignment issues for these arrays 
+            # Benchmarking on a Mac Pro (8 cores) indicated that the fastest performance comes from
+            # in-place FFTs, and that it is safe to ignore byte alignment issues for these arrays
             # (indeed, even beneficial in many cases) contrary to the suggestion of the FFTW docs
             # which say that aligning arrays helps. Not sure why, but it's true!
             # See the discussion of FFTs in the documentation.
             #wfold = self.copy()
             if (self.wavefront.shape, FFT_direction) not in _FFTW3_INIT.keys():
-                # The first time you run FFTW3 to transform a given size, it does a speed test to determine optimal algorithm 
+                # The first time you run FFTW3 to transform a given size, it does a speed test to determine optimal algorithm
                 # that is destructive to your chosen array. So only do that test on a copy, not the real array:
                 _log.info("Evaluating FFT optimal algorithm for %s, direction=%s" % (str(self.wavefront.shape), FFT_direction))
                 fftplan = fftw3.Plan(self.wavefront.copy(), None, nthreads = multiprocessing.cpu_count(),direction=FFT_direction, flags=['measure'])
@@ -647,14 +668,14 @@ class Wavefront(object):
                 #print "After  FFTW Flux 1: %f" % (self.totalIntensity)
         else:
             _log.debug("using numpy FFT")
-            self.wavefront = numpy_fft(self.wavefront) 
+            self.wavefront = numpy_fft(self.wavefront)
 
         #wave1 = self.copy()
         #stop()
-        if FFT_direction == 'forward': 
+        if FFT_direction == 'forward':
             self.wavefront = numpy_fftshift(self.wavefront)
             # FFT produces pixel-centered images by default, unless the _image_centered param has already been set by an FQPM_FFT_aligner class
-            if self._image_centered != 'corner': self._image_centered = 'pixel' 
+            if self._image_centered != 'corner': self._image_centered = 'pixel'
         self.wavefront = self.wavefront *normalization_factor
         self._last_transform_type = 'FFT'
 
@@ -677,6 +698,8 @@ class Wavefront(object):
             #pupil plane is padded - trim that out since it's not needed
             self.wavefront = removePadding(self.wavefront, self.oversample)
             self.ispadded = False
+        self._preMFT_pupil_shape =self.wavefront.shape  #save for possible inverseMFT
+        self._preMFT_pupil_pixelscale = self.pixelscale #save for possible inverseMFT
 
 
         # the arguments for the SFT are
@@ -709,9 +732,54 @@ class Wavefront(object):
         self.fov = det.fov_arcsec
         self.pixelscale = det.fov_arcsec / det_calc_size_pixels
 
+    def _propagateMFTinverse(self, pupil, pupil_npix=None):
+        """ Compute from an image to a pupil using the Soummer et al. 2007 MFT algorithm
+        This allows transformation back from an arbitrarily-sampled 'detector' plane to a pupil. 
+
+        This is only used inside the semi-analytic coronagraphy algorithm.
+
+        """
+
+        assert self.planetype == IMAGE
+        assert pupil.planetype == PUPIL
+
+        # the arguments for the SFT are
+        # - wavefront (assumed to fill the input array)
+        # - focal plane size in lambda/D units
+        # - number of pixels on a side in focal plane array.
+
+        lamD = self.wavelength / self.diam * RADIANStoARCSEC
+        #print "lam/D = %f arcsec" % lamD
+
+        det_fov_lamD = self.fov / lamD
+        #det_calc_size_pixels = det.fov_pixels * det.oversample
+
+        # try to transform to whatever the intrinsic scale of the next pupil is. 
+        # but if this ends up being a scalar (meaning it is an AnalyticOptic) then
+        # just go back to our own prior shape and pixel scale.
+        if pupil_npix == None:
+            if pupil.shape is not None and pupil.shape[0] != 1:
+                pupil_npix = pupil.shape[0]
+            else:
+                pupil_npix = self._preMFT_pupil_shape[0]
+
+        mft = SFT.SlowFourierTransform(choice='ADJUSTIBLE', verbose=False)
+        msg= '    Propagating w/ InvMFT: %.4f"/pix     fov=%.3f lam/D    pupil npix=%d' % \
+            (self.pixelscale, det_fov_lamD, pupil_npix)
+        _log.debug(msg)
+        self.history.append(msg)
+        det_offset = (0,0)  # det_offset not supported for InvMFT
+
+        self.wavefront = mft.inverse(self.wavefront, det_fov_lamD, pupil_npix)
+        self._last_transform_type = 'InvMFT'
+
+        self.planetype=PUPIL
+        self.pixelscale = self.diam / self.wavefront.shape[0]
+
+
     def tilt(self, Xangle=0.0, Yangle=0.0):
-        """ Tilt a wavefront in X and Y. 
-        
+        """ Tilt a wavefront in X and Y.
+
         Recall from Fourier optics (although this is straightforwardly rederivable by drawing triangles...)
         that for a wavefront tilted by some angle theta in radians, for a point r meters from the center of
         the pupil has
@@ -719,9 +787,9 @@ class Wavefront(object):
             extra_waves = extra_pathlength/ wavelength = r * sin(theta) / wavelength
 
         So we calculate the U and V arrays (corresponding to r for the pupil, in meters from the center)
-        and then multiply by the appropriate trig factors for the angle. 
+        and then multiply by the appropriate trig factors for the angle.
 
-        The sign convention is chosen such that positive Yangle tilts move the star upwards in the 
+        The sign convention is chosen such that positive Yangle tilts move the star upwards in theg
         array at the focal plane. (This is sort of an inverse of what physically happens in the propagation
         to or through focus, but we're ignoring that here and trying to just work in sky coords)
 
@@ -729,7 +797,7 @@ class Wavefront(object):
         ----------
         Xangle, Yangle : float
             tilt angles, specified in arcseconds
-        
+
         """
         if self.planetype==IMAGE:
             raise NotImplementedError("Are you sure you want to tilt a wavefront in an IMAGE plane?")
@@ -761,16 +829,16 @@ class Wavefront(object):
         self.history.append("Tilted wavefront")
 
     def rotate(self, angle=0.0):
-        """Rotate a wavefront by some amount 
-        
+        """Rotate a wavefront by some amount
+
         Parameters
         ----------
         angle : float
             Angle to rotate, in degrees counterclockwise.
-        
+
         """
         #self.wavefront = scipy.ndimage.interpolation.rotate(self.wavefront, angle, reshape=False)
-        # Huh, the ndimage rotate function does not work for complex numbers. That's weird. 
+        # Huh, the ndimage rotate function does not work for complex numbers. That's weird.
         # so let's treat the real and imaginary parts individually
         # FIXME TODO or would it be better to do this on the amplitude and phase?
         rot_real = scipy.ndimage.interpolation.rotate(self.wavefront.real, angle, reshape=False)
@@ -784,7 +852,7 @@ class Wavefront(object):
         """ Return Y, X coordinates for this wavefront, in the manner of numpy.indices()
 
         This function knows about the offset resulting from FFTs. Use it whenever computing anything
-        measures in wavefront coordinates. 
+        measures in wavefront coordinates.
 
         Returns
         -------
@@ -795,7 +863,7 @@ class Wavefront(object):
         y, x = N.indices(self.shape, dtype=float)
 
         # in most cases, the x and y values are centered around the exact center of the array.
-        # This is not true in general for FFT-produced image planes where the center is in the 
+        # This is not true in general for FFT-produced image planes where the center is in the
         # middle of one single pixel (the 0th-order term of the FFT), even though that means that the
         # PSF center is slightly offset from the array center.
         # On the other hand, if we used the FQPM FFT Aligner optic, then that forces the PSF center to
@@ -806,7 +874,7 @@ class Wavefront(object):
         elif self.planetype == IMAGE:
             # The following are just relevant for the FFT-created images, not for the Detector MFT image at the end.
             if self._last_transform_type == 'FFT':
-                # FFT array sizes will always be even, right? 
+                # FFT array sizes will always be even, right?
                 if self._image_centered=='pixel':  # so this goes to an integer pixel
                     y-= (self.shape[0])/2.
                     x-= (self.shape[1])/2.
@@ -822,7 +890,7 @@ class Wavefront(object):
         x *= self.pixelscale
         y *= self.pixelscale
         return y, x
- 
+
 #------
 class OpticalElement():
     """ Defines an arbitrary optic, based on amplitude transmission and/or OPD files.
@@ -944,7 +1012,7 @@ class OpticalElement():
             # Likewise, if a rotation is specified and we're NOT a null (scalar) optic, then do the rotation:
             if rotation is not None and len(self.amplitude.shape) ==2:
 
-                # do rotation with interpolation, but try to clean up some of the artifacts afterwards. 
+                # do rotation with interpolation, but try to clean up some of the artifacts afterwards.
                 # this is imperfect at best, of course...
 
                 self.amplitude = scipy.ndimage.interpolation.rotate(self.amplitude, rotation, reshape=False).clip(min=0,max=1.0)
@@ -1024,7 +1092,7 @@ class OpticalElement():
 
         if self.amplitude.shape is () or self.amplitude.size == 1:
             # can't really display a null or scalar optical element?
-            # really the best way to do this would be to create a subclass for a 
+            # really the best way to do this would be to create a subclass for a
             # scalar optical element...
             tmp = N.ones((10,10))
             tmp2 = N.ones((10,10))
@@ -1043,12 +1111,12 @@ class OpticalElement():
             ax2.set_xticklabels([""]*10)
             ax2.set_yticklabels([""]*10)
             cb = p.colorbar(ax2.images[0], orientation=orient, ticks=N.array([-0.5, -0.25, 0, 0.25, 0.5])*1e-6)
-            if crosshairs: 
+            if crosshairs:
                 for a in [ax, ax2]:
                     a.axhline(0,ls=":", color='k')
                     a.axvline(0,ls=":", color='k')
- 
-            return 
+
+            return
 
 
         if self.planetype == PUPIL:
@@ -1092,13 +1160,12 @@ class OpticalElement():
             p.title("OPD for "+self.name)
         cb = p.colorbar(ax2.images[0], orientation=orient, ticks=N.array([-0.5, -0.25, 0, 0.25, 0.5])*1e-6)
         cb.set_label('meters')
-        if crosshairs: 
+        if crosshairs:
             for a in [ax, ax2]:
                 a.axhline(0,ls=":", color='k')
                 a.axvline(0,ls=":", color='k')
- 
+
     def __str__(self):
-        typestrs = ['', 'Pupil plane', 'Image plane', 'Detector']
         if self.planetype is PUPIL:
             #return "Pupil plane: %s (%dx%d pixels, diam=%f m)" % (self.name, self.shape[0], self.shape[0], self.pupil_diam)
             return "Pupil plane: %s " % (self.name)
@@ -1120,14 +1187,14 @@ class OpticalElement():
             assert wavefront.shape == phasor.shape
 
 class Rotation(OpticalElement):
-    """ Performs a rotation of the axes in the optical train. 
-    
+    """ Performs a rotation of the axes in the optical train.
+
     This is not an actual optic itself, of course, but can be used to model
     a rotated optic by appling a Rotation before and/or after light is incident
-    on that optic. 
+    on that optic.
 
 
-    This is basically a placeholder to indicate the need for a rotation at a 
+    This is basically a placeholder to indicate the need for a rotation at a
     given part of the optical train. The actual rotation computation is performed
     in the Wavefront object's propagation routines.
 
@@ -1135,7 +1202,7 @@ class Rotation(OpticalElement):
     Parameters
     ----------
     angle : float
-        Rotation angle, in degrees counterclockwise. 
+        Rotation angle, in degrees counterclockwise.
 
     """
     def __init__(self, angle=0.0, verbose=True):
@@ -1154,7 +1221,7 @@ class Rotation(OpticalElement):
     def display(self, nrows=1, row=1, phase=False, wavelength=2e-6):
         p.subplot(nrows, 2, row*2-1)
         p.text(0.3,0.3,self.name)
-        
+
         #raise NotImplementedError("display is not applicable for a Rotation.")
 
 
@@ -1162,8 +1229,8 @@ class AnalyticOpticalElement(OpticalElement):
     """ Defines an abstract analytic optical element, i.e. one definable by some formula rather than
         by an input OPD or pupil file.
 
-        This class is useless on its own; instead use its various subclasses that implement appropriate getPhasor functions. 
-        It exists mostly to provide some behaviors & initialization common to all analytic optical elements. 
+        This class is useless on its own; instead use its various subclasses that implement appropriate getPhasor functions.
+        It exists mostly to provide some behaviors & initialization common to all analytic optical elements.
 
         Parameters
         ----------
@@ -1188,7 +1255,6 @@ class AnalyticOpticalElement(OpticalElement):
             raise ValueError("AnalyticOpticalElements should not have a opd= argument specified.")
 
     def __str__(self):
-        typestrs = ['', 'Pupil plane', 'Image plane', 'Detector']
         if self.planetype is PUPIL:
             return "Pupil plane: %s (Analytic)" % (self.name)
         elif self.planetype is IMAGE:
@@ -1201,7 +1267,7 @@ class AnalyticOpticalElement(OpticalElement):
 
     def display(self, nrows=1, row=1, phase=False, wavelength=2e-6, npix=512):
         "Display an Analytic optic by first computing it onto a grid..."
-    
+
         if self.planetype is PUPIL:
             unit="meters"
             if hasattr(self, 'pupil_diam'): self.diam = self.pupil_diam
@@ -1210,11 +1276,11 @@ class AnalyticOpticalElement(OpticalElement):
             w = Wavefront(wavelength=wavelength, npix=npix,  diam = self.diam)
             self.pupil_scale = self.diam/npix
             self.pixelscale = self.pupil_scale
-            
+
         else:
             unit="arcsec"
-            if hasattr(self, '_default_display_size'): 
-                halffov = self._default_display_size/2 
+            if hasattr(self, '_default_display_size'):
+                halffov = self._default_display_size/2
             else:
                 halffov = 2.0
             self.pixelscale = 2.*halffov/npix
@@ -1238,25 +1304,75 @@ class AnalyticOpticalElement(OpticalElement):
         self.amplitude = None
 
 class ScalarTransmission(AnalyticOpticalElement):
-    """ Either a null optic (empty plane) or some perfect ND filter...  
+    """ Either a null optic (empty plane) or some perfect ND filter...
     But most commonly this is just used as a null optic placeholder """
     def __init__(self, name="-empty-", transmission=1.0, **kwargs):
         AnalyticOpticalElement.__init__(self,name=name, **kwargs)
-        self.transmission = 1.0
-    def getPhasor(wave):
+        self.transmission = transmission
+    def getPhasor(self, wave):
         return self.transmission
- 
+
+class InverseTransmission(OpticalElement):
+    """ Given any arbitrary OpticalElement with transmission T(x,y)
+    return the inverse transmission 1 - T(x,y)
+
+    This is a useful ingredient in the SemiAnalyticCoronagraph algorithm.
+    """
+    def __init__(self, optic=None):
+        if optic is None or not hasattr(optic, 'getPhasor'):
+            raise ValueError("Need to supply an valid optic to invert!")
+        self.optic = optic
+        self.name = "1 - "+optic.name
+        self.planetype = optic.planetype
+        self.shape = optic.shape
+        self.pixelscale = optic.pixelscale
+        self.oversample = optic.oversample
+    def getPhasor(self, wave):
+        return 1- self.optic.getPhasor(wave)
+
+
+class ThinLens(AnalyticOpticalElement):
+    """ An idealized thin lens, implemented as a Zernike defocus term.
+
+    """
+    def __init__(self, name='Thin lens', nwaves=4.0, reference_wavelength=2e-6, **kwargs):
+        AnalyticOpticalElement.__init__(self,name=name, **kwargs)
+        self.planetype=PUPIL
+
+        self.reference_wavelength = reference_wavelength
+        self.nwaves = nwaves
+        self.max_phase_delay = reference_wavelength * nwaves
+
+
+    def getPhasor(self, wave):
+        y, x = wave.coordinates()
+        r = N.sqrt(x**2+y**2)
+        # get the normalized radius, assuming the input wave
+        # is a square
+        #if wave.shape[0] != wave.shape[1]:
+            #raise NotImplemented("ThinLens only implemented for square wavefronts.")
+        max_r = r[N.where(wave.intensity > 0)].max()
+        r_norm = r / max_r 
+        #r_norm = r / (wave.shape[0]/2.*wave.pixelscale)
+
+        defocus_zernike = N.sqrt(3)* (2* r_norm**2 - 1)  *  (self.nwaves *self.reference_wavelength/wave.wavelength)
+        lens_phasor = N.exp(1.j * 2* N.pi * defocus_zernike)
+        #stop()
+        return lens_phasor
+
+
+
 
 class BandLimitedCoron(AnalyticOpticalElement):
     """ Defines an ideal band limited coronagraph occulting mask.
-        
+
         Parameters
         ----------
         name : string
             Descriptive name
         kind : string
             Either 'circular' or 'linear'. The linear ones are custom shaped to NIRCAM's design
-            with flat bits on either side of the linear tapered bit. 
+            with flat bits on either side of the linear tapered bit.
         sigma : float
             The numerical size parameter, as specified in Krist et al. 2009 SPIE
         wavelength : float
@@ -1283,27 +1399,22 @@ class BandLimitedCoron(AnalyticOpticalElement):
             raise ValueError("BLC getPhasor must be called with a Wavefront to define the spacing")
         assert (wave.planetype == IMAGE)
 
-        #y, x = N.indices(wave.shape, dtype=float)
-        #y-= (wave.shape[0]-1)/2
-        #x-= (wave.shape[1]-1)/2
-        #x *= wave.pixelscale
-        #y *= wave.pixelscale
         y, x = wave.coordinates()
         if self.kind == 'circular':
             # larger sigma implies narrower peak? TBD verify if this is correct
             #
-            r = N.sqrt(x**2+y**2) 
+            r = N.sqrt(x**2+y**2)
             sigmar = self.sigma*r
             self.transmission = (1-  (2*scipy.special.jn(1,sigmar)/sigmar)**2)**2
         if self.kind == 'nircamcircular':
             # larger sigma implies narrower peak? TBD verify if this is correct
             #
-            r = N.sqrt(x**2+y**2) 
+            r = N.sqrt(x**2+y**2)
             sigmar = self.sigma*r
             sigmar.clip(N.finfo(sigmar.dtype).tiny)  # avoid divide by zero -> NaNs
             self.transmission = (1-  (2*scipy.special.jn(1,sigmar)/sigmar)**2)**2
 
-            # add in the ND squares. Note the positions are not exactly the same in the two wedges. 
+            # add in the ND squares. Note the positions are not exactly the same in the two wedges.
             # See the figures  in Krist et al. of how the 6 ND squares are spaced among the 5 corongraph regions
             # Also add in the opaque border of the coronagraph mask holder.
             if self.sigma > 4:
@@ -1311,7 +1422,7 @@ class BandLimitedCoron(AnalyticOpticalElement):
                 wborder  = N.where((N.abs(y) > 10) | (x < -10) )                        #left end of mask holder
             else:
                 wnd = N.where((y > 5) & (N.abs(x) > 7.5) & (N.abs(x) < 12.5))        # the others have two halves on in each corner.
-                wborder  = N.where(N.abs(y) > 10) 
+                wborder  = N.where(N.abs(y) > 10)
 
             self.transmission[wnd] = 1e-3
             self.transmission[wborder] = 0
@@ -1359,15 +1470,15 @@ class BandLimitedCoron(AnalyticOpticalElement):
             self.transmission = (1-  (N.sin(sigmar)/sigmar)**2)**2
             # the bar should truncate at +- 10 arcsec:
             woutside = N.where(N.abs(x) > 10)
-            self.transmission[woutside] = 1.0 
+            self.transmission[woutside] = 1.0
 
 
-            # add in the ND squares. Note the positions are not exactly the same in the two wedges. 
+            # add in the ND squares. Note the positions are not exactly the same in the two wedges.
             # See the figures  in Krist et al. of how the 6 ND squares are spaced among the 5 corongraph regions
             # Also add in the opaque border of the coronagraph mask holder.
             if N.abs(self.wavelength - 2.1e-6) < 0.1e-6:
                 wnd = N.where((y > 5) & (((x < -5)&(x>-10)) | ((x > 7.5)&(x<12.5))) ) # half ND square on each side
-                wborder  = N.where(N.abs(y) > 10) 
+                wborder  = N.where(N.abs(y) > 10)
             elif N.abs(self.wavelength - 4.6e-6) < 0.1e-6:
                 wnd = N.where((y > 5) & (((x < -7.5)&(x>-12.5)) | (x > 5)) )
                 wborder  = N.where((N.abs(y) > 10) | (x > 10) )     # right end of mask holder
@@ -1390,11 +1501,11 @@ class FQPM_FFT_aligner(AnalyticOpticalElement):
 
     Adds (or removes) a slight wavelength- and pixel-scale-dependent tilt
     to a pupil wavefront, to ensure the correct alignment of the image plane
-    FFT'ed PSF with the desired quad pixel alignment for the FQPM. 
+    FFT'ed PSF with the desired quad pixel alignment for the FQPM.
 
     This is purely a computational convenience tool to work around the
-    pixel coordinate restrictions imposed by the FFT algorithm, 
-    not a representation of any physical optic. 
+    pixel coordinate restrictions imposed by the FFT algorithm,
+    not a representation of any physical optic.
 
     Parameters
     ----------
@@ -1411,24 +1522,24 @@ class FQPM_FFT_aligner(AnalyticOpticalElement):
 
     def getPhasor(self,wave):
         """ Compute the required tilt needed to get the PSF centered on the corner between
-        the 4 central pixels, not on the central pixel itself. 
+        the 4 central pixels, not on the central pixel itself.
         """
 
         if not isinstance(wave, Wavefront):
             raise ValueError("FQPM getPhasor must be called with a Wavefront to define the spacing")
         assert (wave.planetype == PUPIL )
 
-        
+
         fft_im_pixelscale = wave.wavelength/ wave.diam / wave.oversample * RADIANStoARCSEC
         required_offset = -fft_im_pixelscale *0.5
-        if self.direction == 'backward': 
+        if self.direction == 'backward':
             required_offset *= -1
             wave._image_centered='pixel'
         else:
             wave._image_centered='corner'
         wave.tilt(required_offset, required_offset)
-        
-        # gotta return something...
+
+        # gotta return something... so return a value that will not affect the wave any more.
         align_phasor = 1.0
         return align_phasor
 
@@ -1487,7 +1598,7 @@ class IdealFieldStop(AnalyticOpticalElement):
     size : float
         Size of the field stop, in arcseconds. Default 20.
     angle : float
-        Position angle of the field stop sides relative to the detector +Y direction, in degrees. 
+        Position angle of the field stop sides relative to the detector +Y direction, in degrees.
 
     """
 
@@ -1521,7 +1632,7 @@ class IdealFieldStop(AnalyticOpticalElement):
         halfsize = self.size   / 2
         w_outside = N.where( (abs(y) > halfsize)  | (abs(x) > halfsize))
         del x # for large arrays, cleanup very promptly, before allocating self.transmission
-        del y 
+        del y
         self.transmission = N.ones(wave.shape)
         self.transmission[w_outside] = 0
 
@@ -1578,7 +1689,7 @@ class IdealBarOcculter(AnalyticOpticalElement):
     width : float
         width of the bar stop, in arcseconds. Default is 1.0
     angle : float
-        position angle of the bar, rotated relative to the normal +y direction. 
+        position angle of the bar, rotated relative to the normal +y direction.
 
     """
 
@@ -1612,6 +1723,58 @@ class IdealBarOcculter(AnalyticOpticalElement):
 
         return self.transmission
 
+class ParityTestAperture(AnalyticOpticalElement):
+    """ Defines a circular pupil aperture with boxes cut out.
+    This is mostly a test aperture
+
+    Parameters
+    ----------
+    name : string
+        Descriptive name
+    radius : float
+        Radius of the pupil, in meters. Default is 1.0
+
+    pad_factor : float, optional
+        Amount to oversize the wavefront array relative to this pupil.
+        This is in practice not very useful, but it provides a straightforward way
+        of verifying during code testing that the amount of padding (or size of the circle)
+        does not make any numerical difference in the final result.
+
+    """
+
+    def __init__(self, name=None,  radius=1.0, pad_factor = 1.5, **kwargs):
+        if name is None: name = "Circle, radius=%.2f m" % radius
+        AnalyticOpticalElement.__init__(self,name=name, **kwargs)
+        self.radius = radius
+        self.pupil_diam = pad_factor * 2* self.radius # for creating input wavefronts - let's pad a bit
+
+
+    def getPhasor(self,wave):
+        """ Compute the transmission inside/outside of the occulter.
+        """
+        if not isinstance(wave, Wavefront):
+            raise ValueError("CircularAperture getPhasor must be called with a Wavefront to define the spacing")
+        assert (wave.planetype == PUPIL)
+
+        y, x = wave.coordinates()
+        r = N.sqrt(x**2+y**2) #* wave.pixelscale
+        del x
+        del y
+
+
+        w_outside = N.where( r > self.radius)
+        del r
+        self.transmission = N.ones(wave.shape)
+        self.transmission[w_outside] = 0
+
+        w_box1 = N.where( r> (self.radius*0.5) & N.abs(x) < self.radius*0.1 & y < 0)
+        w_box1 = N.where( r> (self.radius*0.75) & N.abs(y) < self.radius*0.2 & x< 0)
+        self.transmission[w_box1] = 0
+        self.transmission[w_box2] = 0
+
+        return self.transmission
+
+
 class CircularAperture(AnalyticOpticalElement):
     """ Defines an ideal circular pupil aperture
 
@@ -1623,17 +1786,17 @@ class CircularAperture(AnalyticOpticalElement):
         Radius of the pupil, in meters. Default is 1.0
 
     pad_factor : float, optional
-        Amount to oversize the wavefront array relative to this pupil. 
+        Amount to oversize the wavefront array relative to this pupil.
         This is in practice not very useful, but it provides a straightforward way
         of verifying during code testing that the amount of padding (or size of the circle)
-        does not make any numerical difference in the final result. 
+        does not make any numerical difference in the final result.
 
     """
 
     def __init__(self, name=None,  radius=1.0, pad_factor = 1.5, **kwargs):
         if name is None: name = "Circle, radius=%.2f m" % radius
         AnalyticOpticalElement.__init__(self,name=name, **kwargs)
-        self.radius = radius    
+        self.radius = radius
         self.pupil_diam = pad_factor * 2* self.radius # for creating input wavefronts - let's pad a bit
 
 
@@ -1679,7 +1842,7 @@ class HexagonAperture(AnalyticOpticalElement):
     flattoflat : float, optional
         Flat-to-flat distance of the pupil, in meters. Default is 1.0
     side : float, optional
-        side length of hexagon, in meters. 
+        side length of hexagon, in meters.
 
     """
 
@@ -1758,19 +1921,19 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
     """ Define a compound analytic optical element made up of the combination
     of two or more individual optical elements.
 
-    This is just a convenience routine for semantic organization of optics. 
+    This is just a convenience routine for semantic organization of optics.
     It can be useful to keep the list of optical planes cleaner, but
     you can certainly just add a whole bunch of planes all in a row without
     using this class to group them.
-    
-    All optics should be at the same plane (pupil or image); propagation between
-    different optics contained in the compound is not supported.
+
+    All optics should be of the same plane type (pupil or image); propagation between
+    different optics contained inside one compound is not supported.
 
     Parameters
     ----------
     opticslist : list
         A list of AnalyticOpticalElements to be merged together.
-    
+
     """
     def __init__(self, name="unnamed", verbose=True, oversample=1, transmission=None, opd=None, planetype=None,
         opticslist=None):
@@ -1791,8 +1954,8 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
         #phasor = self.opticslist[0].getPhasor(wave)
         for optic in self.opticslist[:-1]:
             #nextphasor = optic.getPhasor(wave)
-            #phasor *= nextphasor #FIXME this does not work... for instance if you have an aperture mask (so all the phase is zero) 
-                                  # then you really want to multiply the amplitude transmissions and add the phases. 
+            #phasor *= nextphasor #FIXME this does not work... for instance if you have an aperture mask (so all the phase is zero)
+                                  # then you really want to multiply the amplitude transmissions and add the phases.
                                   # simpler to just multiply the wave instead here:
             wave *= optic
         # and just hand back the last one to the calling routine:
@@ -1811,13 +1974,16 @@ class Detector(OpticalElement):
         Pixel scale in arcsec/pixel
     fov_pixels, fov_arcsec : float
         The field of view may be specified either in arcseconds or by a number of pixels. Either is acceptable
-        and the pixel scale is used to convert as needed. 
+        and the pixel scale is used to convert as needed.
     oversample : int
         Oversampling factor beyond the detector pixel scale
-
+    offset : tuple (X,Y)
+        Offset for the detector center relative to a hypothetical off-axis PSF. Specifying this lets you
+        pick a different sub-region for the detector to compute, if for some reason you are computing a small
+        subarray around an off-axis source. (Has not been tested!)
 
     """
-    def __init__(self, pixelscale, fov_pixels=None, fov_arcsec=None, oversample=1, name="Detector"):
+    def __init__(self, pixelscale, fov_pixels=None, fov_arcsec=None, oversample=1, name="Detector", offset=None):
         self.name=name
         self.planetype = DETECTOR
         self.pixelscale = float(pixelscale)
@@ -1888,7 +2054,7 @@ class OpticalSystem():
     # Methods for adding or manipulating optical planes:
 
     def addPupil(self, optic=None, function=None, **kwargs):
-        """ Add a pupil plane optic from file(s) giving transmission or OPD 
+        """ Add a pupil plane optic from file(s) giving transmission or OPD
 
           1) from file(s) giving transmission or OPD
                 [set arguments `transmission=filename` and/or `opd=filename`]
@@ -1903,7 +2069,7 @@ class OpticalSystem():
         optic : poppy.OpticalElement, optional
             An already-created OpticalElement you would like to add
         function: string, optional
-            Name of some analytic function to add. 
+            Name of some analytic function to add.
             Optional `kwargs` can be used to set the parameters of that function.
             Allowable function names are Circle, Square
         opd, transmission : string, optional
@@ -1933,7 +2099,7 @@ class OpticalSystem():
                 fn = HexagonAperture
             elif optic.lower()[0:4] == 'fqpm':
                 fn = FQPM_FFT_aligner
- 
+
             else:
                 raise ValueError("Unknown pupil function type: %s. Perhaps you meant to set transmission= or opd= instead?" % optic)
             optic = fn(planetype=PUPIL, oversample=self.oversample, **kwargs)
@@ -1961,7 +2127,7 @@ class OpticalSystem():
         optic : poppy.OpticalElement
             An already-created OpticalElement you would like to add
         function: string
-            Name of some analytic function to add. 
+            Name of some analytic function to add.
             Optional `kwargs` can be used to set the parameters of that function.
             Allowable function names are CircularOcculter, fieldstop, BandLimitedCoron, FQPM
         opd, transmission : string
@@ -2009,8 +2175,8 @@ class OpticalSystem():
 
 
     def addDetector(self, pixelscale, oversample=None, **kwargs):
-        """ Add a Detector object to an optical system. 
-        By default, use the same oversampling as the rest of the optical system, 
+        """ Add a Detector object to an optical system.
+        By default, use the same oversampling as the rest of the optical system,
         but the user can override to a different value if desired by setting `oversample`.
 
 
@@ -2021,7 +2187,7 @@ class OpticalSystem():
         pixelscale : float
             Pixel scale in arcsec/pixel
         oversample : int, optional
-            Oversampling factor for *this detector*, relative to hardware pixel size. 
+            Oversampling factor for *this detector*, relative to hardware pixel size.
             Optionally distinct from the default oversampling parameter of the OpticalSystem.
 
         """
@@ -2045,7 +2211,7 @@ class OpticalSystem():
         """Create a Wavefront object suitable for sending through a given optical system, based on
         the size of the first optical plane, assumed to be a pupil.
 
-        If the first optical element is an Analytic pupil (i.e. has no pixel scale) then 
+        If the first optical element is an Analytic pupil (i.e. has no pixel scale) then
         an array of 1024x1024 will be created (not including oversampling).
 
         Uses self.source_offset to assign an off-axis tilt, if requested.
@@ -2088,17 +2254,18 @@ class OpticalSystem():
             how to normalize the wavefront?
             * 'first' = set total flux = 1 after the first optic, presumably a pupil
             * 'last' = set total flux = 1 after the entire optical system.
-
-        poly_weight : float
-            is this being called as part of a polychromatic calculation?
-            if not, set this to None. if so, set this to the weight for
-            that wavelength.
+            * 'first=2' = set total flux = 2 after the first optic (used for debugging only)
         display_intermediates : bool
             Should intermediate steps in the calculation be displayed on screen? Default False
         save_intermediates : bool
             Should intermediate steps in the calculation be saved to disk? Default False.
             If this is True, then setting `poly_weight` controls whether intermediate optical planes are actually saved to *disk* by this routine
             (for the monochromatic case) or are passed back up via memory and handled in `calcPSF` (for the polychromatic case).
+        poly_weight : float
+            is this being called as part of a polychromatic calculation?
+            if not, set this to None. if so, set this to the weight for
+            that wavelength. (This is used only for properly normalizing the
+            multiwavelength FITs file written to disk if save_intermediates is set.)
 
 
         """
@@ -2113,6 +2280,7 @@ class OpticalSystem():
             _log.debug("reset intermediates")
 
         # do the propagation:
+
         count = 0
         for optic in self.planes:
             wavefront.propagateTo(optic)
@@ -2122,6 +2290,11 @@ class OpticalSystem():
 
             if normalize.lower()=='first' and count == 1:
                 wavefront.normalize()
+
+            if normalize.lower()=='first=2' and count == 1:
+                wavefront.normalize()
+                wavefront *= N.sqrt(2) 
+
 
 
             if _FLUXCHECK: _log.debug("  Flux === "+str(wavefront.totalIntensity))
@@ -2157,7 +2330,7 @@ class OpticalSystem():
         sum of wavelengths, across multiple processors
 
         This version uses Python's `multiprocessing` package to span tasks across
-        available processor cores. 
+        available processor cores.
 
         Any additional `kwargs` will be passed on to `propagate_mono()`
 
@@ -2167,8 +2340,8 @@ class OpticalSystem():
 
         Don't set the number of processes too high, or your machine will exhaust its memory and grind to a halt.
         Figure about 600 MB per process, due to the large arrays used in the FFTing, and multiple copies etc.
-        Yes, this is surprisingly high overhead - but the raw wavefront array is typically 2048^2 * 16 
-        (since it's type dcomplex) = 67 MB, so this is just ~ 8-10 copies of the array floating arround. 
+        Yes, this is surprisingly high overhead - but the raw wavefront array is typically 2048^2 * 16
+        (since it's type dcomplex) = 67 MB, so this is just ~ 8-10 copies of the array floating arround.
         TODO: be more clever and efficient with all this somehow?
         TODO: write an auto tool to optimize the number of processes automatically?
 
@@ -2178,7 +2351,7 @@ class OpticalSystem():
             a dict containing 'wavelengths' and 'weights' list.
             *TBD - replace w/ pysynphot observation object*
         nprocesses : int
-            Number of processes. Don't make this too large, or you will overfill your memory and 
+            Number of processes. Don't make this too large, or you will overfill your memory and
             things will grind painfully to a half as everything swaps to disk and back.
         save_intermediates : bool
             whether to output intermediate optical planes to disk. Default is False
@@ -2190,7 +2363,7 @@ class OpticalSystem():
             a pyfits.HDUList
         """
 
-        if _USE_FFTW3: 
+        if _USE_FFTW3:
             _log.warn('IMPORTANT WARNING: Python multiprocessing and fftw3 do not appear to play well together. This is likely to crash intermittently')
             _log.warn('   We suggest you set   poppy._USE_FFTW3 = False   if you want to use calcPSFmultiproc().')
 
@@ -2211,7 +2384,7 @@ class OpticalSystem():
             raise ValueError("Input source has different number of weights and wavelengths...")
         # do *NOT* just blindly try to create as many processes as one has CPUs, or one per wavelength either
         # This is a memory-intensive task so that can end up swapping to disk and thrashing IO
-        pool = multiprocessing.Pool(nprocesses ) 
+        pool = multiprocessing.Pool(nprocesses )
 
         # build a single iterable containing the required function arguments
         _log.info("Beginning multiprocessor job")
@@ -2242,9 +2415,9 @@ class OpticalSystem():
         if self.verbose: _log.info(" PSF Calculation completed.")
         return outFITS
 
-    def calcPSF(self, wavelength=1e-6, weight=None,  
+    def calcPSF(self, wavelength=1e-6, weight=None,
         save_intermediates=False, save_intermediates_what='all', display= False, return_intermediates=False, **kwargs):
-        """Calculate a PSF, either 
+        """Calculate a PSF, either
         - multi-wavelength PSF over some weighted sum of wavelengths (if you provide a source parameter)
         - monochromatic (if you provide just a wavelen= parameter)
 
@@ -2260,7 +2433,7 @@ class OpticalSystem():
         save_intermediates : bool
             whether to output intermediate optical planes to disk. Default is False
         save_intermediate_what : string
-            What to save - phase, intensity, amplitude, complex, parts, all. default is all. 
+            What to save - phase, intensity, amplitude, complex, parts, all. default is all.
         return_intermediates: bool
             return intermediate wavefronts as well as PSF?
         display : bool
@@ -2284,7 +2457,7 @@ class OpticalSystem():
 
         if len(tuple(wavelength)) != len(tuple(weight)):
             raise ValueError("Input source has different number of weights and wavelengths...")
-      
+
         if display: p.clf()
 
         if save_intermediates or return_intermediates:
@@ -2300,17 +2473,17 @@ class OpticalSystem():
         normwts /= normwts.sum()
 
         if _USE_MULTIPROC and len(wavelength) > 1 : ######### Parallellized computation ############
-            if _USE_FFTW3: 
+            if _USE_FFTW3:
                 _log.warn('IMPORTANT WARNING: Python multiprocessing and fftw3 do not appear to play well together. This is likely to crash intermittently')
                 _log.warn('   We suggest you set   poppy._USE_FFTW3 = False   if you want to use calcPSFmultiproc().')
 
             if save_intermediates:
                 raise NotImplementedError("Can't save intermediate steps if using parallelized code")
             self.intermediate_wfs = []
-     
+
             # do *NOT* just blindly try to create as many processes as one has CPUs, or one per wavelength either
             # This is a memory-intensive task so that can end up swapping to disk and thrashing IO
-            pool = multiprocessing.Pool(_MULTIPROC_NPROCESS) 
+            pool = multiprocessing.Pool(_MULTIPROC_NPROCESS)
 
             # build a single iterable containing the required function arguments
             _log.info("Beginning multiprocessor job")
@@ -2363,7 +2536,7 @@ class OpticalSystem():
             imshow_with_mouseover(outFITS[0].data, extent=extent, norm=norm, cmap=cmap)
 
 
-        # TODO update FITS header for oversampling here if detector is different from regular? 
+        # TODO update FITS header for oversampling here if detector is different from regular?
         waves = N.asarray(wavelength)
         wts = N.asarray(weight)
         mnwave = (waves*wts).sum() / wts.sum()
@@ -2384,6 +2557,7 @@ class OpticalSystem():
         else:
             return outFITS
 
+
     def display(self, **kwargs):
         """ Display all elements in an optical system on screen.
 
@@ -2398,6 +2572,152 @@ class OpticalSystem():
             self.planes[i].display(nrows=nplanes, row=i+1, **kwargs)
 
 
+
+class SemiAnalyticCoronagraph(OpticalSystem):
+    """ A subclass of OpticalSystem that implements a specialized propagation
+    algorithm for coronagraphs whose occulting mask has limited and small support in
+    the image plane. Algorithm from Soummer et al. (2007)
+
+    The way to use this class is to build an OpticalSystem class the usual way, and then
+    cast it to a SemiAnalyticCoronagraph, and then you can just call calcPSF on that in the
+    usual fashion.
+
+    Parameters
+    -----------
+    ExistingOpticalSystem : OpticalSystem
+        An optical system which can be converted into a SemiAnalyticCoronagraph. This
+        means it must have exactly 4 planes, in order Pupil, Image, Pupil, Detector.
+    oversample : int
+        Oversampling factor in intermediate image plane. Default is 8
+    occulter_box : float
+        half size of field of view region entirely including the occulter, in arcseconds. Default 1.0
+
+
+    Notes
+    ------
+
+    Note that this algorithm is only appropriate for certain types of Fourier transform,
+    namely those using occulters limited to a sub-region of the image plane.
+    It is certainly appropriate for TFI, and probably the right choice for NIRCam as well, but
+    is of no use for MIRI's FQPMs.
+
+
+
+    """
+
+    def __init__(self, ExistingOpticalSystem, oversample=8, occulter_box = 1.0):
+
+        if len(ExistingOpticalSystem.planes) != 4:
+            raise ValueError("Input optical system must have exactly 4 planes to be convertible into a SemiAnalyticCoronagraph")
+        self.name = "SemiAnalyticCoronagraph for "+ExistingOpticalSystem.name
+        self.verbose = ExistingOpticalSystem.verbose
+        self.source_offset_r = ExistingOpticalSystem.source_offset_r
+        self.source_offset_theta = ExistingOpticalSystem.source_offset_theta
+        self.planes = ExistingOpticalSystem.planes
+
+        # SemiAnalyticCoronagraphs have some fixed planes, so give them reasonable names.
+        self.inputpupil = self.planes[0]
+        self.occulter = self.planes[1]
+        self.lyotplane = self.planes[2]
+        self.detector = self.planes[3]
+
+        self.mask_function = InverseTransmission(self.occulter)
+
+        for i, typecode in enumerate([PUPIL, IMAGE, PUPIL, DETECTOR]):
+            if not self.planes[i].planetype == typecode:
+                raise ValueError("Plane %i is not of the right type for a semianalytic coronagraph calculation: should be %s but is %s." % (i, typestrs[typecode], typestrs[self.planes[i].planetype]))
+
+
+        self.oversample = oversample
+        self.occulter_box = occulter_box
+
+        self.occulter_det = Detector(self.detector.pixelscale/self.oversample, fov_arcsec = occulter_box*2, name='Oversampled Occulter Plane')
+
+    def propagate_mono(self, wavelength=2e-6, normalize='first', save_intermediates=False, display_intermediates=False, intermediate_fn=None, poly_weight=None):
+        """
+
+        Parameters
+        -------------
+        wavelength : float
+            Wavelength in meters
+        normalize : string, {'first', 'last'}
+            how to normalize the wavefront?
+            * 'first' = set total flux = 1 after the first optic, presumably a pupil
+            * 'last' = set total flux = 1 after the entire optical system.
+
+
+        save_intermediates, display_intermediates, intermediate_fn, poly_weight : bools
+            Ignored in current version of code?
+
+        """
+        if _TIMETESTS:
+            t_start = time.time()
+        if self.verbose: _log.info(" Propagating wavelength = %g meters" % wavelength)
+        wavefront = self.inputWavefront(wavelength)
+
+        if save_intermediates:
+            raise NotImplemented("not yet")
+
+        #------- differences from regular propagation begin here --------------
+        wavefront *= self.inputpupil
+
+        if normalize.lower()=='first':
+            wavefront.normalize()
+
+
+        if display_intermediates:
+            nrows = 6
+            P.clf()
+            wavefront.display(what='best',nrows=nrows,row=1, colorbar=False)
+
+
+        # determine FOV region bounding the image plane occulting stop.
+        # determine number of pixels across that to use ("N_B")
+        # calculate the MFT to the N_B x N_B occulting region.
+        wavefront_cor = wavefront.copy()
+        wavefront_cor.propagateTo(self.occulter_det)
+
+        if display_intermediates: wavefront_cor.display(what='best',nrows=nrows,row=2, colorbar=False)
+
+
+        # Multiply that by M(r) =  1 - the occulting plane mask function
+        wavefront_cor *= self.mask_function
+
+        if display_intermediates: wavefront_cor.display(what='best',nrows=nrows,row=3, colorbar=False)
+
+        # calculate the MFT from that small region back to the full Lyot plane
+
+        wavefront_lyot = wavefront_cor.copy()
+        wavefront_lyot.propagateTo(self.lyotplane)
+
+        if display_intermediates: wavefront_lyot.display(what='best',nrows=nrows,row=4, colorbar=False)
+        # combine that with the original pupil function
+        wavefront_combined = wavefront + (-1)*wavefront_lyot
+
+        wavefront_combined *= self.lyotplane
+        wavefront_combined.location = 'after combined Lyot pupil'
+
+        if display_intermediates: wavefront_combined.display(what='best',nrows=nrows,row=5, colorbar=False)
+
+        # propagate to the real detector in the final image plane.
+        wavefront_combined.propagateTo(self.detector)
+
+        if display_intermediates: wavefront_combined.display(what='best',nrows=nrows,row=6, colorbar=False)
+
+        #------- differences from regular propagation end here --------------
+
+        # prepare output arrays
+        if normalize.lower()=='last':
+                wavefront_combined.normalize()
+
+        if _TIMETESTS:
+            t_stop = time.time()
+            _log.debug("\tTIME %f s\tfor propagating one wavelength" % (t_stop-t_start))
+
+        return wavefront_combined.asFITS()
+
+
+## TODO: Move all these test fns into the test suite .py file
 def test_MFT():
     osys = OpticalSystem("Perfect JW", oversample=2)
     osys.addPupil(transmission="/Users/mperrin/software/newJWPSF/data/pupil.fits", name='JW Pupil')
@@ -2509,7 +2829,7 @@ def test_speed():
 
 
     #P.clf()
-    #P.imshow(res[0].data) 
+    #P.imshow(res[0].data)
     res.writeto('test_ci_np%d_off%s.fits' %(npix, offset), clobber=True)
 
 
@@ -2546,7 +2866,7 @@ if __name__ == "__main__":
 
 
                 #P.clf()
-                #P.imshow(res[0].data) 
+                #P.imshow(res[0].data)
                 res.writeto('test_ci_np%d_off%s.fits' %(npix, offset), clobber=True)
 
     #test_speed()

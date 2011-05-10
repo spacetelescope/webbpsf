@@ -229,7 +229,8 @@ Utility Functions for Display and Plotting
 Display Functions
 ^^^^^^^^^^^^^^^^^^
 
-.. autofunction:: display_psf
+.. autofunction:: display_PSF
+.. autofunction:: display_PSF_difference
 .. autofunction:: display_profiles
 
 Metrics of PSF Quality

@@ -611,7 +611,7 @@ class WebbPSF_GUI(object):
         #self._updateFromGUI()
         #if self.PSF_HDUlist is not None:
         P.clf()
-        webbpsf.display_psf(self.PSF_HDUlist)
+        webbpsf.display_PSF(self.PSF_HDUlist)
 
     def ev_displayProfiles(self):
         "Event handler for Displaying the PSF"
