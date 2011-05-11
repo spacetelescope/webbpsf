@@ -122,6 +122,10 @@ class JWInstrument(object):
             Set this to force full coronagraphic optical propagation when it might not otherwise take place
             (e.g. calculate the non-coronagraphic images in the same way as coronagraphy is done, rather than
             taking the straight-to-MFT shortcut)
+        no_sam : bool
+            Set this to prevent the SemiAnalyticMethod coronagraph mode from being used when possible, and instead do
+            the brute-force FFT calculations. This is usually not what you want to do, but is available for comparison tests.
+            The SAM code will in general be much faster than the FFT method, particularly for high oversampling.
 
         """
 
@@ -196,7 +200,7 @@ class JWInstrument(object):
         if name is not None:
             name = name.upper() # force to uppercase
             if name not in self.image_mask_list:
-                raise ValueError("Instrument %s doesn't have an image mask called %s." % (self.name, value))
+                raise ValueError("Instrument %s doesn't have an image mask called %s." % (self.name, name))
         self._image_mask = name
     @property
     def pupil_mask(self):
@@ -560,8 +564,9 @@ class JWInstrument(object):
         full_pupil_path = self.pupil if os.path.exists( self.pupil) else os.path.join(self._WebbPSF_basepath,self.pupil)
         optsys.addPupil(name='JWST Pupil', transmission=full_pupil_path, opd=full_opd_path, opdunits='micron', rotation=self._rotation)
 
-        if self.image_mask is not None or self.pupil_mask is not None or 'force_coron' in self.options.keys():
-            optsys = self._addCoronagraphOptics(optsys)
+        if self.image_mask is not None or self.pupil_mask is not None or ('force_coron' in self.options.keys() and self.options['force_coron']):
+            optsys, trySAM, SAM_box_size = self._addCoronagraphOptics(optsys, oversample=calc_oversample)
+        else: trySAM = False
 
         if fov_pixels is None:
             fov_pixels = N.round(fov_arcsec/self.pixelscale)
@@ -570,6 +575,16 @@ class JWInstrument(object):
                 if self.options['parity'].lower() == 'even' and N.remainder(fov_pixels,2)==1: fov_pixels +=1
 
         optsys.addDetector(self.pixelscale, fov_pixels = fov_pixels, oversample = detector_oversample, name=self.name+" detector")
+
+        if trySAM and not ('no_sam' in self.options.keys() and self.options['no_sam']): # if this flag is set, try switching to SemiAnalyticCoronagraph mode. 
+            try: 
+                SAM_optsys = poppy.SemiAnalyticCoronagraph(optsys, oversample=calc_oversample, occulter_box = SAM_box_size )
+                return SAM_optsys
+            except: 
+                pass
+ 
+
+
         return optsys
 
 
@@ -578,9 +593,20 @@ class JWInstrument(object):
         optsys = self._getOpticalSystem()
         optsys.display()
 
-    def _addCoronagraphOptics(self,optsys):
+    def _addCoronagraphOptics(self,optsys, oversample=2):
         """Add coronagraphic optics to an optical system. 
         This method must be provided by derived instrument classes. 
+
+        Returns
+        --------
+        optsys : OpticalSystem
+            modified to add coronagraph optics
+        useSAM : bool
+            flag that, after adding the Detector, the whole thing should be converted to
+            a SemiAnalyticCoronagraph model
+        SAM_box_size : float
+            size of box that entirely encloses the image plane occulter, in arcsec.
+
         """
         raise NotImplementedError("needs to be subclassed.")
 
@@ -652,7 +678,7 @@ class MIRI(JWInstrument):
                 _log.warn("*"*80)
 
 
-    def _addCoronagraphOptics(self,optsys):
+    def _addCoronagraphOptics(self,optsys, oversample=2):
         """Add coronagraphic optics for MIRI 
         """
 
@@ -727,7 +753,8 @@ class MIRI(JWInstrument):
 
         optsys.addRotation(self._rotation)
 
-        return optsys
+        return (optsys, False, 0) # don't ever try SemiAnalyticCoronagraph for MIRI? 
+            # TBD maybe for Lyot mode, later?
 
 
 class NIRCam(JWInstrument):
@@ -771,7 +798,7 @@ class NIRCam(JWInstrument):
             _log.info("NIRCam pixel scale updated to %f arcsec/pixel to match channel for the selected filter." % self.pixelscale)
 
 
-    def _addCoronagraphOptics(self,optsys):
+    def _addCoronagraphOptics(self,optsys, oversample=2):
         """Add coronagraphic optics for NIRCam
 
         See Krist et al. 2007, 2009 SPIE
@@ -806,15 +833,25 @@ class NIRCam(JWInstrument):
 
         if self.image_mask == 'MASK210R':
             optsys.addImage(function='BandLimitedCoron', kind='nircamcircular', sigma=5.253 , name=self.image_mask)
+            trySAM = True
+            SAM_box_size = 5.0
         elif self.image_mask == 'MASK335R':
             optsys.addImage(function='BandLimitedCoron', kind='nircamcircular', sigma=3.2927866 , name=self.image_mask)
+            trySAM = True
+            SAM_box_size = 5.0
         elif self.image_mask == 'MASK430R':
             optsys.addImage(function='BandLimitedCoron', kind='nircamcircular', sigma=2.5652 , name=self.image_mask)
+            trySAM = True
+            SAM_box_size = 5.0
         elif self.image_mask == 'MASKSWB':
             optsys.addImage(function='BandLimitedCoron', kind='nircamwedge', wavelength=2.1e-6, name=self.image_mask)
+            trySAM = False
+            SAM_box_size = [5,20]
         elif self.image_mask == 'MASKLWB':
             optsys.addImage(function='BandLimitedCoron', kind='nircamwedge', wavelength=4.6e-6, name=self.image_mask)
-
+            trySAM = False
+            SAM_box_size = [5,20]
+ 
         # add pupil plane mask
         if ('pupil_shift_x' in self.options.keys() and self.options['pupil_shift_x'] != 0) or \
            ('pupil_shift_y' in self.options.keys() and self.options['pupil_shift_y'] != 0):
@@ -830,7 +867,7 @@ class NIRCam(JWInstrument):
         elif (self.pupil_mask is None and self.image_mask is not None):
             optsys.addPupil(name='No Lyot Mask Selected!')
 
-        return optsys
+        return (optsys, trySAM, SAM_box_size) # don't ever try SemiAnalyticCoronagraph for NIRCam? 
 
 
 class NIRSpec(JWInstrument):
@@ -859,7 +896,7 @@ class NIRSpec(JWInstrument):
             raise ValueError('NIRSpec does not have image or pupil masks!')
             self.image_mask = None
             self.pupil_mask = None
-    def _addCoronagraphOptics(self,optsys):
+    def _addCoronagraphOptics(self,optsys, oversample=2):
         raise NotImplementedError("No Coronagraph in NIRSpec!")
 
 
@@ -899,7 +936,7 @@ class TFI(JWInstrument):
     def _validate_config(self):
         pass
 
-    def _addCoronagraphOptics(self,optsys):
+    def _addCoronagraphOptics(self,optsys, oversample=2):
         """Add coronagraphic optics for TFI
         """
         if self.image_mask == 'CORON058':
@@ -932,12 +969,7 @@ class TFI(JWInstrument):
         elif (self.pupil_mask  is None and self.image_mask is not None):
             optsys.addPupil(name='No Lyot Mask Selected!')
 
-        # attempt to cast this to a SemiAnalyticCoronagraph
-        try: 
-            SAM_optsys = poppy.SemiAnalyticCoronagraph(optsys)
-            return optsys
-        except:
-            return optsys
+        return (optsys, True, radius+0.05) # always attempt to cast this to a SemiAnalyticCoronagraph
 
     def _getSynphotBandpass(self):
         """ Return a pysynphot.ObsBandpass object for the given desired band.
@@ -1841,8 +1873,8 @@ if __name__ == "__main__":
 
 
     nc = NIRCam()
-    nc.filter = 'F200W'
-    nc.image_mask = 'MASK210R'
+    nc.filter = 'F460M'
+    nc.image_mask = 'MASK430R'
     nc.pupil_mask = 'CIRCLYOT'
     #nc.calcPSF('test_nircam.fits', mono=False)
 
@@ -1854,4 +1886,6 @@ if __name__ == "__main__":
     #miri.display()
     nircam=NIRCam()
     tfi = TFI()
+    tfi.image_mask = "CORON058"
+    tfi.pupil_mask = 'MASKC66N'
     nirspec = NIRSpec()

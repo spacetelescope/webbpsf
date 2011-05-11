@@ -277,6 +277,7 @@ class WebbPSF_GUI(object):
         addbutton(self,lf,'Display PSF', self.ev_displayPSF, 1, disabled=True)
         addbutton(self,lf,'Display profiles', self.ev_displayProfiles, 2, disabled=True)
         addbutton(self,lf,'Save PSF As...', self.ev_SaveAs, 3, disabled=True)
+        addbutton(self,lf,'More options...', self.ev_options, 4, disabled=False)
 
         #ttk.Button(lf, text='Display Optics', command=self.ev_displayOptics ).grid(column=4, row=0)
         ttk.Button(lf, text='Quit', command=self.quit).grid(column=5, row=0)
@@ -561,6 +562,9 @@ class WebbPSF_GUI(object):
             self.PSF_HDUlist.writeto(filename) 
             print "Saved to %s" % filename
 
+    def ev_options(self):
+        d = WebbPSFOptionsDialog(self.root)
+
     def ev_plotspectrum(self):
         "Event handler for Plot Spectrum "
         sptype = self.widgets['SpType'].get()
@@ -726,7 +730,168 @@ class WebbPSF_GUI(object):
     def mainloop(self):
         self.root.mainloop()
 
+#-------------------------------------------------------------------------
 
+class Dialog(tk.Toplevel):
+    """ Base class for a modal dialog box. 
+    From example code at  http://effbot.org/tkinterbook/tkinter-dialog-windows.htm
+
+    """
+
+    def __init__(self, parent, title = None):
+
+        tk.Toplevel.__init__(self, parent)
+        self.transient(parent)
+
+        if title:
+            self.title(title)
+
+        self.parent = parent
+
+        self.result = None
+
+        body = ttk.Frame(self)
+        self.initial_focus = self.body(body)
+        body.pack(padx=5, pady=5)
+
+        self.buttonbox()
+
+        self.grab_set()
+
+        if not self.initial_focus:
+            self.initial_focus = self
+
+        self.protocol("WM_DELETE_WINDOW", self.cancel)
+
+        self.geometry("+%d+%d" % (parent.winfo_rootx()+50,
+                                  parent.winfo_rooty()+50))
+
+        self.initial_focus.focus_set()
+
+        self.wait_window(self)
+
+    #
+    # construction hooks
+    def body(self, master):
+        # create dialog body.  return widget that should have
+        # initial focus.  this method should be overridden
+        pass
+
+
+    def buttonbox(self):
+        # add standard button box. override if you don't want the
+        # standard buttons
+
+        box = ttk.Frame(self)
+
+        w = ttk.Button(box, text="OK", width=10, command=self.ok, default=tk.ACTIVE)
+        w.pack(side=tk.LEFT, padx=5, pady=5)
+        w = ttk.Button(box, text="Cancel", width=10, command=self.cancel)
+        w.pack(side=tk.LEFT, padx=5, pady=5)
+
+        self.bind("<Return>", self.ok)
+        self.bind("<Escape>", self.cancel)
+
+        box.pack()
+
+    #
+    # standard button semantics
+
+    def ok(self, event=None):
+
+        if not self.validate():
+            self.initial_focus.focus_set() # put focus back
+            return
+
+        self.withdraw()
+        self.update_idletasks()
+
+        self.apply()
+
+        self.cancel()
+
+    def cancel(self, event=None):
+
+        # put focus back to the parent window
+        self.parent.focus_set()
+        self.destroy()
+
+    #
+    # command hooks
+
+    def validate(self):
+
+        return True # override
+
+    def apply(self):
+
+        pass # override
+
+
+class WebbPSFOptionsDialog(Dialog):
+
+    def _add_labeled_dropdown(self, name, root,label="Entry:", values=None, default=None, width=5, position=(0,0), **kwargs):
+        "convenient wrapper for adding a Combobox"
+
+        ttk.Label(root, text=label).grid(row=position[0],  column=position[1], sticky='W')
+
+        self.vars[name] = tk.StringVar()
+        self.widgets[name] = ttk.Combobox(root, textvariable=self.vars[name], width=width, state='readonly')
+        self.widgets[name].grid(row=position[0], column=position[1]+1, **kwargs)
+        self.widgets[name]['values'] = values
+
+        if default is None: default=values[0]
+        self.widgets[name].set(default)
+ 
+
+    def _add_labeled_entry(self, name, root,label="Entry:", value="", width=5, position=(0,0), postlabel=None, **kwargs):
+        "convenient wrapper for adding an Entry"
+        ttk.Label(root, text=label).grid(row=position[0],  column=position[1], sticky='W')
+
+        self.vars[name] = tk.StringVar()
+        self.widgets[name] = ttk.Entry(root, textvariable=self.vars[name], width=width)
+        self.widgets[name].insert(0,value)
+        self.widgets[name].grid(row=position[0], column=position[1]+1, **kwargs)
+
+        if postlabel is not None:
+            ttk.Label(root, text=postlabel).grid(row=position[0],  column=position[1]+2, sticky='W')
+
+
+
+    def body(self, master):
+        self.vars = {}
+        self.widgets = {}
+
+        lf = ttk.LabelFrame(master, text='WebbPSF Advanced Options')
+
+        r=1
+        fr2 = ttk.Frame(lf)
+
+        self._add_labeled_dropdown("force_coron", lf, label='Direct imaging calculations use', values=['regular propagation (MFT)', 'full coronagraphic propagation (FFT/SAM)'], width=30, position=(r,0), sticky='W')
+        r+=1
+        self._add_labeled_dropdown("no_sam", lf, label='Corongraphic calculations use', values=['semi-analytic method if possible', 'basic FFT method always'], width=30, position=(r,0), sticky='W')
+        r+=1
+        self._add_labeled_dropdown("parity", lf, label='Output pixel grid parity is', values=['odd', 'even', 'either'], width=10, position=(r,0), sticky='W')
+
+
+
+        lf.grid(row=1, sticky='E,W', padx=10,pady=5)
+
+        lf = ttk.LabelFrame(master, text='PSF Display Options')
+        r=0
+        self._add_labeled_dropdown("psf_scale", lf, label='    Display scale:', values=['log','linear'], width=5, position=(r,0), sticky='W')
+        r+=1
+        self._add_labeled_entry("psf_vmin", lf, label='    Min scale value:', value='1e-8', width=5, position=(r,0), sticky='W')
+        r+=1
+        self._add_labeled_entry("psf_vmax", lf, label='    Max scale value:', value='1.0', width=5, position=(r,0), sticky='W')
+        r+=1
+        self._add_labeled_dropdown("psf_cmap", lf, label='    Color table:', values=['Jet (blue to red)', 'Gray', 'Heat (black-red-yellow)', 'Stern', 'Prism (repeating rainbow)'], width=20, position=(r,0), sticky='W')
+        lf.grid(row=2, sticky='E,W', padx=10,pady=5)
+
+
+        return self.widgets['force_coron']# return widget to have initial focus
+
+    
 
 #-------------------------------------------------------------------------
 

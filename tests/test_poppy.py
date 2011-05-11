@@ -794,7 +794,56 @@ class Test11(TestPoppy):
         self.assertEqual(NDoptic.getPhasor(wave), 1.0e-3)
 
 
-        
+class Test12(TestPoppy):
+    """ Test SemiAnalyticCoronagraph code
+    """
+
+    def test_SAMC(self):
+        self.do_test_SAMC()
+
+    def do_test_SAMC(self, display_intermediates=False):
+        """ Test semianalytic coronagraphic method
+
+        """
+        radius = 6.5/2
+        lyot_radius = 6.5/2.5
+        pixelscale = 0.010
+
+        osys = poppy.OpticalSystem("test", oversample=8)
+        osys.addPupil('Circle', radius=radius, name='Entrance Pupil')
+        osys.addImage('CircularOcculter', radius = 0.1)
+        osys.addPupil('Circle', radius=lyot_radius, name = "Lyot Pupil")
+        osys.addDetector(pixelscale=pixelscale, fov_arcsec=5.0)
+
+
+        P.figure(1)
+        sam_osys = poppy.SemiAnalyticCoronagraph(osys, oversample=8, occulter_box=0.15) 
+
+        t0s = time.time()
+        psf_sam = sam_osys.calcPSF(display_intermediates=display_intermediates)
+        t1s = time.time()
+
+        P.figure(2)
+        t0f = time.time()
+        psf_fft = osys.calcPSF(display_intermediates=display_intermediates)
+        t1f = time.time()
+
+        P.figure(3)
+        P.clf()
+        P.subplot(121)
+        webbpsf.display_PSF(psf_fft, title="FFT")
+        P.subplot(122)
+        webbpsf.display_PSF(psf_sam, title="SAM")
+
+        print "Elapsed time, FFT:  %.3s" % (t1f-t0f)
+        print "Elapsed time, SAM:  %.3s" % (t1s-t0s)
+
+
+        maxdiff = N.abs(psf_fft[0].data - psf_sam[0].data).max()
+        print "Max difference between results: ", maxdiff
+
+        self.assertTrue( maxdiff < 1e-8)
+
 
 #################################################################################
 
@@ -991,48 +1040,6 @@ def test_defocus():
     stop()
 
 
-
-def test_SAMC(display_intermediates=False):
-    """ Test semianalytic coronagraphic method
-
-    """
-    radius = 6.5/2
-    lyot_radius = 6.5/2.5
-    pixelscale = 0.010
-
-    osys = poppy.OpticalSystem("test", oversample=8)
-    osys.addPupil('Circle', radius=radius, name='Entrance Pupil')
-    osys.addImage('CircularOcculter', radius = 0.1)
-    osys.addPupil('Circle', radius=lyot_radius, name = "Lyot Pupil")
-    osys.addDetector(pixelscale=pixelscale, fov_arcsec=5.0)
-
-
-    P.figure(1)
-    sam_osys = poppy.SemiAnalyticCoronagraph(osys, oversample=8, occulter_box=0.15) 
-
-    t0s = time.time()
-    psf_sam = sam_osys.calcPSF(display_intermediates=display_intermediates)
-    t1s = time.time()
-
-    P.figure(2)
-    t0f = time.time()
-    psf_fft = osys.calcPSF(display_intermediates=display_intermediates)
-    t1f = time.time()
-
-    P.figure(3)
-    P.clf()
-    P.subplot(121)
-    webbpsf.display_PSF(psf_fft, title="FFT")
-    P.subplot(122)
-    webbpsf.display_PSF(psf_sam, title="SAM")
-
-    print "Elapsed time, FFT:  %.3s" % (t1f-t0f)
-    print "Elapsed time, SAM:  %.3s" % (t1s-t0s)
-
-
-    print "Max difference between results: ", N.abs(psf_fft[0].data - psf_sam[0].data).max()
-
-    stop()
 
 if __name__== "__main__":
     logging.basicConfig(level=logging.DEBUG,format='%(name)-10s: %(levelname)-8s %(message)s')
