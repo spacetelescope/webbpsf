@@ -564,6 +564,7 @@ class WebbPSF_GUI(object):
 
     def ev_options(self):
         d = WebbPSFOptionsDialog(self.root)
+        print d.results
 
     def ev_plotspectrum(self):
         "Event handler for Plot Spectrum "
@@ -861,6 +862,18 @@ class WebbPSFOptionsDialog(Dialog):
     def body(self, master):
         self.vars = {}
         self.widgets = {}
+        self.results = {}
+
+        colortables = [
+         ('Jet (blue to red)',matplotlib.cm.jet),
+         ('Gray', matplotlib.cm.gray),
+         ('Heat (black-red-yellow)', matplotlib.cm.gist_heat),
+         ('Copper (black to tan)',matplotlib.cm.copper),
+         ('Stern',matplotlib.cm.gist_stern),
+         ('Prism (repeating rainbow)', matplotlib.cm.prism)]
+
+        self.colortables = dict(colortables)
+
 
         lf = ttk.LabelFrame(master, text='WebbPSF Advanced Options')
 
@@ -869,7 +882,7 @@ class WebbPSFOptionsDialog(Dialog):
 
         self._add_labeled_dropdown("force_coron", lf, label='Direct imaging calculations use', values=['regular propagation (MFT)', 'full coronagraphic propagation (FFT/SAM)'], width=30, position=(r,0), sticky='W')
         r+=1
-        self._add_labeled_dropdown("no_sam", lf, label='Corongraphic calculations use', values=['semi-analytic method if possible', 'basic FFT method always'], width=30, position=(r,0), sticky='W')
+        self._add_labeled_dropdown("no_sam", lf, label='Coronagraphic calculations use', values=['semi-analytic method if possible', 'basic FFT method always'], width=30, position=(r,0), sticky='W')
         r+=1
         self._add_labeled_dropdown("parity", lf, label='Output pixel grid parity is', values=['odd', 'even', 'either'], width=10, position=(r,0), sticky='W')
 
@@ -885,13 +898,24 @@ class WebbPSFOptionsDialog(Dialog):
         r+=1
         self._add_labeled_entry("psf_vmax", lf, label='    Max scale value:', value='1.0', width=5, position=(r,0), sticky='W')
         r+=1
-        self._add_labeled_dropdown("psf_cmap", lf, label='    Color table:', values=['Jet (blue to red)', 'Gray', 'Heat (black-red-yellow)', 'Stern', 'Prism (repeating rainbow)'], width=20, position=(r,0), sticky='W')
+        self._add_labeled_dropdown("psf_cmap", lf, label='    Color table:', values=[a[0] for a in colortables], width=20, position=(r,0), sticky='W')
         lf.grid(row=2, sticky='E,W', padx=10,pady=5)
 
 
         return self.widgets['force_coron']# return widget to have initial focus
 
-    
+    def apply(self):
+        self.results['force_coron'] = self.vars['force_coron'].get() == 'full coronagraphic propagation (FFT/SAM)'
+        self.results['no_sam'] = self.vars['no_sam'].get() == 'basic FFT method always'
+        self.results['parity'] = self.vars['parity'].get() 
+        self.results['psf_scale'] = self.vars['psf_scale'].get() 
+        self.results['psf_vmax'] = self.vars['psf_vmax'].get() 
+        self.results['psf_vmin'] = self.vars['psf_vmin'].get() 
+        self.results['psf_cmap'] = self.colortables[ str(self.vars['psf_cmap'].get() ) ]
+
+        pass # override
+
+
 
 #-------------------------------------------------------------------------
 
