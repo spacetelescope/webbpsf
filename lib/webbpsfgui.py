@@ -7,7 +7,10 @@ import pyfits
 import Tkinter as tk
 import tkMessageBox
 import tkFileDialog
+import logging
 #from Tkinter import N,E,S,W
+
+__version__ = poppy.__version__
 
 try:
     import ttk
@@ -1025,6 +1028,7 @@ def gui():
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO,format='%(name)-10s: %(levelname)-8s %(message)s')
     gui()
 
 

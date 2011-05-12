@@ -36,15 +36,25 @@
         with Soummer et al. 2007. Updated documentation.  -- M. Perrin
 
 """
+from __future__ import division # always floating point
 
 
 import numpy as np
 import pyfits
+
+try:
+    __IPYTHON__
+    from IPython.Debugger import Tracer; stop = Tracer()
+except:
+    def stop(): 
+        pass
+
+
 #import SimpleFits as SF
 
 
 # FFTSTYLE
-def SFT1(pupil, nlamD, npix):
+def SFT1(pupil, nlamD, npix, **kwargs):
     """
 
     Compute an "FFTSTYLE" matrix fourier transform.
@@ -85,17 +95,115 @@ def SFT1(pupil, nlamD, npix):
 
     expXU = np.exp(-2.0 * np.pi * 1j * XU)
     expYV = np.exp(-2.0 * np.pi * 1j * YV)
-    expXU = expXU.T.copy()
 
-    t1 = np.dot(expXU, pupil)
-    t2 = np.dot(t1, expYV)
+    print ""
+    print dx, dy, du, dv
+    print ""
+
+    if inverse:
+        expYV = expYV.T.copy()
+        t1 = np.dot(expYV, pupil)
+        t2 = np.dot(t1, expXU)
+    else:
+        expXU = expXU.T.copy()
+        t1 = np.dot(expXU, pupil)
+        t2 = np.dot(t1, expYV)
 
     #return  nlamD/(npup*npix) *   t2 * dx * dy
     return  float(nlamD)/(npup*npix) *   t2 
 
+# FFTSTYLE
+def SFT1rect(pupil, nlamD, npix, inverse=False):
+    """
+
+    Compute an "FFTSTYLE" matrix fourier transform.
+    This means that the zero-order term is put all in a 
+    single pixel.
+
+    This version supports rectangular, non-square arrays,
+    in which case nlamD and npix should be 2-element
+    tuples or lists, using the usual Pythonic order (Y,X)
+
+    Parameters
+    ----------
+    pupil
+        pupil array (n by n)
+    nlamD
+        size of focal plane array, in units of lam/D
+        (corresponds to 'm' in Soummer et al. 2007 4.2)
+    npix
+        number of pixels per side side of focal plane array
+        (corresponds to 'N_B' in Soummer et al. 2007 4.2)
+
+
+    """
+
+    npupY, npupX = pupil.shape[0:2]
+
+    if hasattr(npix, '__getitem__'):
+        npixY, npixX = npix[0:2]   
+    else:
+        npixY, npixX = npix, npix
+
+    if hasattr(nlamD, '__getitem__'):
+        nlamDY, nlamDX = nlamD[0:2]
+    else:
+        nlamDY, nlamDX = nlamD, nlamD
+
+
+    if inverse:
+        dX = nlamDX / float(npupX)
+        dY = nlamDY / float(npupY)
+        dU = 1.0/float(npixY)
+        dV = 1.0/float(npixX)
+
+    else:
+        dU = nlamDX / float(npixX)
+        dV = nlamDX / float(npixX)
+        dX = 1.0/float(npupX)
+        dY = 1.0/float(npupY)
+
+    Xs = (np.arange(npupX) - (npupX/2)) * dX
+    Ys = (np.arange(npupY) - (npupY/2)) * dY
+
+    Us = (np.arange(npixX) - npixX/2) * dU
+    Vs = (np.arange(npixY) - npixY/2) * dV
+
+    YV = np.outer(Ys, Vs)
+    XU = np.outer(Xs, Us)
+
+    expYV = np.exp(-2.0 * np.pi * 1j * YV)  
+    expXU = np.exp(-2.0 * np.pi * 1j * XU)
+
+    #print ""
+    #print dX, dY, dU, dV
+    #print (npupY, npupX, nlamDY, nlamDX, npixY, npixY)
+    #print YV.shape, XU.shape
+    expYV = expYV.T.copy()
+    t1 = np.dot(expYV, pupil)
+    t2 = np.dot(t1, expXU)
+
+    if inverse:
+        #print expYV.shape, pupil.shape, expXU.shape
+        t2 = t2[::-1, ::-1]
+    #else:
+        #expYV = expYV.T.copy()                          # matrix npixY * npupY
+        #t1 = np.dot(expYV, pupil)                       # matrix npixY * npupX?     dot prod combined last axis of expYV and first axis of pupil.
+        #t2 = np.dot(t1, expXU)                          # matrix npixY * npixX
+        #print expYV.shape, pupil.shape, expXU.shape
+
+    #print ""
+
+    #return  nlamD/(npup*npix) *   t2 * dx * dy
+    # normalization here is almost certainly wrong:
+    norm_coeff = np.sqrt(  ( nlamDY* nlamDX) / (npupY*npupX*npixY*npixX))
+    #mean_npup = np.sqrt(npupY**2+npupX**2)
+    #mean_npix = np.sqrt(npixY**2+npixX**2)
+    return  norm_coeff *   t2 
+
 
 # SYMMETRIC
-def SFT2(pupil, nlamD, npix):
+def SFT2(pupil, nlamD, npix, **kwargs):
     """
     Compute a "SYMMETRIC" matrix fourier transform. 
     This means that the zero-order term is spread evenly
@@ -141,13 +249,17 @@ def SFT2(pupil, nlamD, npix):
 
     t1 = np.dot(expXU, pupil)
     t2 = np.dot(t1, expYV)
+    #print ""
+    #print dx, dy, du, dv
+    #print ""
+
 
     #return t2 * dx * dy
     return  float(nlamD)/(npup*npix) *   t2 
 
 
 # ADJUSTIBLE
-def SFT3(pupil, nlamD, npix, offset=(0.0,0.0)):
+def SFT3(pupil, nlamD, npix, offset=(0.0,0.0), inverse=False, **kwargs):
     """
     Compute an adjustible-center matrix fourier transform. 
 
@@ -157,24 +269,23 @@ def SFT3(pupil, nlamD, npix, offset=(0.0,0.0)):
     For an output array with EVEN size n, 
     the PSF center will be in the corner between pixel (n/2-1,n/2-1) and (n/2,n/2)
 
-    Those coordinates all assume IDL or Python style pixel coordinates running from
+    Those coordinates all assume Python/IDL style pixel coordinates running from
     (0,0) up to (n-1, n-1). 
 
     Parameters
     ----------
-    pupil
+    pupil : array
         pupil array (n by n)
-    nlamD
+    nlamD : float or tuple
         size of focal plane array, in units of lam/D
         (corresponds to 'm' in Soummer et al. 2007 4.2)
-    npix
+    npix : float or tuple
         number of pixels per side side of focal plane array
         (corresponds to 'N_B' in Soummer et al. 2007 4.2)
-    offset
+    offset: tuple
         an offset in pixels relative to the above
 
     """
-
 
 
     npup = pupil.shape[0]
@@ -208,7 +319,7 @@ def SFT3(pupil, nlamD, npix, offset=(0.0,0.0)):
 
 
 # ROTATABLE 
-def SFT4(pupil, nlamD, npix, offset=(0.0,0.0), angle=0.0):
+def SFT4(pupil, nlamD, npix, offset=(0.0,0.0), angle=0.0, **kwargs):
     """
     Compute an adjustible-center, rotatable matrix fourier transform. 
 
@@ -323,13 +434,13 @@ class SlowFourierTransform:
 
         self.verbose=verbose
 
-        self.choices = ("FFTSTYLE", "SYMMETRIC", "ADJUSTIBLE")
-        self.correctoffset = {self.choices[0]: 0.5, self.choices[1]: 0.0}
+        self.choices = ("FFTSTYLE", "SYMMETRIC", "ADJUSTIBLE", 'FFTRECT')
+        self.correctoffset = {self.choices[0]: 0.5, self.choices[1]: 0.0, self.choices[2]:-1, self.choices[3]: 0.5 }
         if choice not in self.choices:
-            raise ValueError("Error: choice must be one of " % self.choices)
+            raise ValueError("Error: choice must be one of [%s]" % ', '.join(self.choices))
         self.choice = choice
 
-        fns = {'FFTSTYLE':SFT1, "SYMMETRIC":SFT2, "ADJUSTIBLE":SFT3}
+        fns = {'FFTSTYLE':SFT1, "SYMMETRIC":SFT2, "ADJUSTIBLE":SFT3, 'FFTRECT': SFT1rect}
 
         if self.verbose:
             #print choice
@@ -342,8 +453,8 @@ class SlowFourierTransform:
 
 
     def inverse(self, image, nlamD, npix):
-        pupil = self.perform(image, nlamD, npix)
-        pupil = pupil[::-1, ::-1].copy() # reverse the X and Y axes, needed to get coordinates right
+        pupil = self.perform(image, nlamD, npix, inverse=True)
+        #pupil = pupil[::-1, ::-1].copy() # reverse the X and Y axes, needed to get coordinates right
         return pupil
 
 
@@ -437,6 +548,105 @@ def test_SFT(choice='FFTSTYLE', outdir='.', outname='SFT1'):
     psf = cpsf.real.copy()
     #SF.SimpleFitsWrite(fn=outdir+os.sep+outname+"psf.fits", data=psf.astype(np.float32), clobber='y')
     pyfits.PrimaryHDU(psf.astype(np.float32)).writeto(outdir+os.sep+outname+"psf.fits", clobber=True)
+
+
+def test_SFT_rect(choice='FFTRECT', outdir='.', outname='SFT1R_', npix=None, sampling=10., nlamd=None):
+    import os
+    import matplotlib
+    import matplotlib.pyplot as P
+
+
+
+    print "Testing SFT, style = "+choice
+
+    def complexinfo(a, str=None):
+
+        if str:
+            print 
+            print "\t", str
+        re = a.real.copy()
+        im = a.imag.copy()
+        print "\t%.2e  %.2g  =  re.sum im.sum" % (re.sum(), im.sum())
+        print "\t%.2e  %.2g  =  abs(re).sum abs(im).sum" % (abs(re).sum(), abs(im).sum())
+
+
+    npupil = 156
+    pctr = int(npupil/2)
+    s = (npupil,npupil)
+
+
+    # make things rectangular:
+    if nlamd is None and npix is None:
+        nlamd = (10,20)
+        npix = [val*sampling for val in nlamd] #(100, 200) 
+    elif npix is None:
+        npix = [val*sampling for val in nlamd] #(100, 200) 
+    elif nlamd is None:
+        nlamd = [val/sampling for val in npix]
+    u = nlamd
+    print u
+    #(u, float(u)/npix[0]*npix[1])
+    #npix = (npix, 2*npix)
+
+
+    # FFT style
+    sft1 = SlowFourierTransform(choice=choice)
+
+    ctr = (float(npupil)/2.0 + sft1.offset(), float(npupil)/2.0 + sft1.offset())
+    #print ctr
+    pupil = makedisk(s=s, c=ctr, r=float(npupil)/2.0001, t=np.float64, grey=0)
+
+    pupil[0:60, 0:60] = 0
+    pupil[0:10] = 0
+
+    pupil /= np.sqrt(pupil.sum())
+
+    P.clf()
+    P.subplot(141)
+    P.imshow(pupil)
+
+
+    pyfits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir+os.sep+outname+"pupil.fits", clobber=True)
+
+    a = sft1.perform(pupil, u, npix)
+
+    pre = (abs(pupil)**2).sum() 
+    post = (abs(a)**2).sum() 
+    ratio = post / pre
+    calcr = 1./(1.0*u[0]*u[1] *npix[0]*npix[1])     # multiply post by this to make them equal
+    print "Pre-FFT  total: "+str( pre)
+    print "Post-FFT total: "+str( post )
+    print "Ratio:          "+str( ratio)
+    #print "Calc ratio  :   "+str( calcr)
+    #print "uncorrected:    "+str( ratio/calcr)
+
+
+    complexinfo(a, str="sft1 asf")
+    #print 
+    asf = a.real.copy()
+    #SF.SimpleFitsWrite(fn=outdir+os.sep+outname+"asf.fits", data=asf.astype(np.float32), clobber='y')
+    pyfits.PrimaryHDU(asf.astype(np.float32)).writeto(outdir+os.sep+outname+"asf.fits", clobber=True)
+    cpsf = a * a.conjugate()
+    psf = cpsf.real.copy()
+    #SF.SimpleFitsWrite(fn=outdir+os.sep+outname+"psf.fits", data=psf.astype(np.float32), clobber='y')
+    pyfits.PrimaryHDU(psf.astype(np.float32)).writeto(outdir+os.sep+outname+"psf.fits", clobber=True)
+
+    P.subplot(142)
+    P.imshow(asf, norm=matplotlib.colors.LogNorm(1e-8, 1.0))
+    P.gca().set_title='ASF'
+
+    P.subplot(143)
+    P.imshow(psf, norm=matplotlib.colors.LogNorm(1e-8, 1.0))
+    P.gca().set_title='PSF'
+
+    P.subplot(144)
+
+    pupil2 = sft1.inverse(a, u, npupil)
+    pupil2r = (pupil2 * pupil2.conjugate()).real
+    P.imshow( pupil2r)
+    P.gca().set_title='back to pupil'
+    P.draw()
+    print "Post-inverse FFT total: "+str( abs(pupil2r).sum() )
 
 
 

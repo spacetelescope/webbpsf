@@ -35,6 +35,9 @@ from matplotlib.colors import LogNorm  # for log scaling of images, with automat
 import poppy
 from fwcentroid import fwcentroid
 
+__version__ = poppy.__version__
+
+
 try: 
     import pysynphot
     _HAS_PYSYNPHOT = True
@@ -418,7 +421,11 @@ class JWInstrument(object):
             case where one is computing many PSFs for the same spectral source.
             """
             if source is None:
-                source = pysynphot.Icat('ck04models',5700,0.0,2.0)
+                try:
+                    source = pysynphot.Icat('ck04models',5700,0.0,2.0)
+                except:
+                    _log.error("Could not load Castelli & Kurucz stellar model from disk; falling back to 5700 K blackbody")
+                    source = pysynphot.Blackbody(5700)
 
             try:
                 key = self._getSpecCacheKey(source, nlambda)
@@ -471,19 +478,20 @@ class JWInstrument(object):
             return newsource
 
         else:  #Fallback simple code for if we don't have pysynphot.
-            _log.info("Computing source spectrum & instrument spectral transmission")
+            _log.warning("Pysynphot unavailable!   Assuming flat # of counts versus wavelength.")
             # compute a source spectrum weighted by the desired filter curves.
             # TBD this will eventually use pysynphot, so don't write anything fancy for now!
             wf = N.where(self.filter == N.asarray(self.filter_list))[0]
             # The existing FITS files all have wavelength in ANGSTROMS since that is the pysynphot convention...
             filterdata = atpy.Table(self._filter_files[wf], type='fits')
-            _log.warn("CAUTION: Really basic top-hat function for filter profile, with %d steps" % nlambda)
-            wtrans = N.where(filterdata.THROUGHPUT > 0.5)
+            _log.warn("CAUTION: Just interpolating rather than integrating filter profile, over %d steps" % nlambda)
+            wtrans = N.where(filterdata.THROUGHPUT > 0.4)
             if self.filter == 'FND':  # special case MIRI's ND filter since it is < 0.1% everywhere...
                 wtrans = N.where(  ( filterdata.THROUGHPUT > 0.0005)  & (filterdata.WAVELENGTH > 7e-6*1e10) & (filterdata.WAVELENGTH < 26e-6*1e10 ))
             lrange = filterdata.WAVELENGTH[wtrans] *1e-10  # convert from Angstroms to Meters
             lambd = N.linspace(N.min(lrange), N.max(lrange), nlambda)
-            weights = N.ones(nlambda)
+            filter_fn = scipy.interpolate.interp1d(filterdata.WAVELENGTH*1e-10, filterdata.THROUGHPUT,kind='cubic', bounds_error=False)
+            weights = filter_fn(lambd)
             return (lambd,weights)
             #source = {'wavelengths': lambd, 'weights': weights}
 

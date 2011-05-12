@@ -66,6 +66,8 @@ import time
 from matplotlib.colors import LogNorm  # for log scaling of images, with automatic colorbar support
 import SFT
 
+__version__ = '0.2.2'
+
 try:
     from IPython.Debugger import Tracer; stop = Tracer()
 except:
@@ -587,7 +589,7 @@ class Wavefront(object):
             _log.debug(msg)
             self.history.append(msg)
 
-        _log.info('==== at %s, to %s' % (typestrs[self.planetype], typestrs[optic.planetype]))
+        #_log.debug('==== at %s, to %s' % (typestrs[self.planetype], typestrs[optic.planetype]))
         if optic.planetype == ROTATION:     # rotate
             self.rotate(optic.angle)
             self.location='after '+optic.name
