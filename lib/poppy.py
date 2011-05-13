@@ -23,6 +23,10 @@ Classes:
  * OpticalSystem
 
 
+POPPY makes use of python's ``logging`` facility for log messages, using
+the logger name "poppy".
+
+
     Code by Marshall Perrin <mperrin@stsci.edu>
 
 
@@ -76,7 +80,7 @@ except:
 
 import logging
 _log = logging.getLogger('poppy')
-_log.addHandler(logging.NullHandler())
+#_log.addHandler(logging.NullHandler())
 
 
 try:

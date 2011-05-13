@@ -16,6 +16,10 @@ Classes:
     * FGS
 
 
+WebbPSF makes use of python's ``logging`` facility for log messages, using
+the logger name "webbpsf".
+
+
 
 Code by Marshall Perrin <mperrin@stsci.edu>
 
@@ -49,7 +53,7 @@ import logging
 _log = logging.getLogger('webbpsf')
 _log.setLevel(logging.DEBUG)
 _log.setLevel(logging.INFO)
-_log.addHandler(logging.NullHandler())
+#_log.addHandler(logging.NullHandler())
 
 
 
@@ -478,7 +482,7 @@ class JWInstrument(object):
             return newsource
 
         else:  #Fallback simple code for if we don't have pysynphot.
-            _log.warning("Pysynphot unavailable!   Assuming flat # of counts versus wavelength.")
+            _log.warning("Pysynphot unavailable (or invalid source supplied)!   Assuming flat # of counts versus wavelength.")
             # compute a source spectrum weighted by the desired filter curves.
             # TBD this will eventually use pysynphot, so don't write anything fancy for now!
             wf = N.where(self.filter == N.asarray(self.filter_list))[0]
@@ -956,15 +960,22 @@ class TFI(JWInstrument):
         if self.image_mask == 'CORON058':
             radius = 0.58/2
             optsys.addImage(function='CircularOcculter', radius=radius, name=self.image_mask)
+            trySAM = True
         elif self.image_mask == 'CORON075':
             radius=0.75/2
             optsys.addImage(function='CircularOcculter', radius=radius, name=self.image_mask)
+            trySAM = True
         elif self.image_mask == 'CORON150':
             radius=1.5/2
             optsys.addImage(function='CircularOcculter', radius=radius, name=self.image_mask)
+            trySAM = True
         elif self.image_mask == 'CORON200':
             radius=2.0/2
             optsys.addImage(function='CircularOcculter', radius=radius, name=self.image_mask)
+            trySAM = True
+        else:
+            trySAM = False
+            radius = 0.0 # irrelevant but variable needs to be initialized
 
         # add pupil plane mask
         if ('pupil_shift_x' in self.options.keys() and self.options['pupil_shift_x'] != 0) or \
@@ -978,12 +989,14 @@ class TFI(JWInstrument):
             optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKC66N.fits", name=self.pupil_mask, shift=shift)
         elif self.pupil_mask == 'MASKC71N':
             optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKC71N.fits", name=self.pupil_mask, shift=shift)
+        elif self.pupil_mask == 'MASK_NRM':
+            optsys.addPupil(transmission=self._datapath+"/coronagraph/MASK_NRM.fits", name=self.pupil_mask, shift=shift)
         elif self.pupil_mask == 'CLEAR':
             optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKCLEAR.fits", name=self.pupil_mask, shift=shift)
         elif (self.pupil_mask  is None and self.image_mask is not None):
             optsys.addPupil(name='No Lyot Mask Selected!')
 
-        return (optsys, True, radius+0.05) # always attempt to cast this to a SemiAnalyticCoronagraph
+        return (optsys, trySAM, radius+0.05) # always attempt to cast this to a SemiAnalyticCoronagraph
 
     def _getSynphotBandpass(self):
         """ Return a pysynphot.ObsBandpass object for the given desired band.

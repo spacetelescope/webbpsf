@@ -8,15 +8,22 @@ obssim.py
 
 
 """
+import os
+import numbers
 import numpy as N
 import scipy.interpolate, scipy.ndimage
 import pylab as P
 import matplotlib
+import pysynphot
 import atpy
 import pyfits
+import logging
 import webbpsf
 
-
+_log = logging.getLogger('obssim')
+_log.setLevel(logging.DEBUG)
+_log.setLevel(logging.INFO)
+#
 ###########################################################################
 #
 #
@@ -28,21 +35,54 @@ class TargetScene(object):
 
     pysynphot is required for this.
 
+
+
     """
 
 
     def __init__(self):
         self.sources = []
 
-    def addPointSource(self, sptype_or_spectrum, separation=0.0, PA=0.0, normalization=None):
+    def addPointSource(self, sptype_or_spectrum, name="unnamed source", separation=0.0, PA=0.0, normalization=None):
+        """ Add a point source to the list for a given scene
+
+        Parameters
+        -----------
+        sptype_or_spectrum : string or pysynphot.Spectrum
+            spectrum of the source
+        name : str
+            descriptive string
+        separation : float
+            arcsec
+        PA : float
+            deg from N
+        normalization : scalar or tuple TBD
+            Simple version: this is a float to multiply the PSF by.
+            Complex version: Probably tuple of arguments to spectrum.renorm(). 
+
+
+
+        How normalization works:  
+            First the PSF for that source is calculated, using calcPSF(norm='first')
+            i.e. the input intensity through the telescope pupil is set to 1. 
+            The resulting output PSF total counts will be proportional to the 
+            throughput through the OTE+SI (including filters, coronagraphs etc)
+
+            Then we apply the normalization:
+                1) if it's just a number, we just multiply by it.
+                2) if it's something else: Then we use a separate bandpass object and parameters 
+                   passed in here to figure out the overall normalization, and apply that as a 
+                   multiplicative factor to the resulting PSF itself?
+        """
         if type(sptype_or_spectrum) is str:
             spectrum = specFromSpectralType(sptype_or_spectrum)
         else:
             spectrum = sptype_or_spectrum
 
-        self.companions.append(   {'spectrum': sptype_or_spectrum, 'separation': separation, 'PA': PA, normalization)
+        self.sources.append(   {'spectrum': sptype_or_spectrum, 'separation': separation, 'PA': PA, 
+            'normalization': normalization, 'name': name})
 
-    def calcImage(self, instrument, outfile=None, noise=False, rebin=True, **kwargs):
+    def calcImage(self, instrument, outfile=None, noise=False, rebin=True, PA=0, clobber=True, **kwargs):
         """ Calculate an image of a scene through some instrument
 
 
@@ -50,49 +90,97 @@ class TargetScene(object):
         -----------
         instrument : webbpsf.jwinstrument instance
             A configured instance of an instrument class
+        outfile : str
+            filename to save to
+        rebin : bool
+            passed to calcPSF
+        PA : float
+            postion angle for +Y direction in the output image
+        noise : bool
+            add read noise? TBD
+        clobber : bool
+            overwrite existing files? default True
+
 
         It may also be useful to pass arguments to the calcPSF() call, which is supported through the **kwargs 
         mechanism. Such arguments might include fov_arcsec, fov_pixels, oversample, etc.
         """
 
-        star_psf = instrument.calcPSF(source = self.sourcespectrum, outfile=None, save_intermediates=False, rebin=rebin, **kwargs)
+        sum_image = None
+        image_PA = PA
 
-        for comp in companion:
+        for obj in self.sources:
             # set  companion spectrum and position
-            comp_spectrum = None
-            comp_psf =  instrument.calcPSF(source = comp_spectrum, outfile=None, save_intermediates=False, rebin=rebin, **kwargs)
+            src_spectrum = obj['spectrum']
+            instrument.options['source_offset_r'] = obj['separation']
+            instrument.options['source_offset_theta'] = obj['PA'] - image_PA
+
+            src_psf =  instrument.calcPSF(source = src_spectrum, outfile=None, save_intermediates=False, rebin=rebin, 
+                **kwargs)
 
             # figure out the flux ratio
+            if obj['normalization'] is not None:
+                if isinstance(obj['normalization'], numbers.Number):
+                    src_psf[0].data *= obj['normalization']
+                else:
+                    raise NotImplemented("Not Yet")
 
             # add the scaled companion PSF to the stellar PSF:
-            star_psf[0].data += comp_psf[0].data * comp_flux_ratio
+            if sum_image is None:
+                sum_image = src_psf
+                sum_image[0].header.add_history("obssim : Creating an image simulation with multiple PSFs")
+            else:
+                sum_image[0].data += src_psf[0].data
             #update FITS header history
+            sum_image[0].header.add_history("Added source %s at r=%.3f, theta=%.2f" % (obj['name'], obj['separation'], obj['PA']))
         if noise:
-            pass
+            raise NotImplemented("Not Yet")
+
+        sum_image[0].header.update('NSOURCES', len(self.sources), "Number of point sources in sim")
             #add noise in image - photon and read noise, mainly.
        
         # downsample? 
-        if rebin and detector_oversample > 1:
+        if rebin and sum_image[0].header['DET_SAMP'] > 1:
             # throw away the existing rebinned extension
-
+            sum_image.pop() 
             # and generate a new one from the summed image
-            _log.info(" Downsampling to detector pixel scale.")
-            rebinned_result = result[0].copy()
-            rebinned_result.data = rebin_array(rebinned_result.data, rc=(detector_oversample, detector_oversample))
-            rebinned_result.header.update('OVERSAMP', 1, 'These data are rebinned to detector pixels')
-            rebinned_result.header.update('CALCSAMP', detector_oversample, 'This much oversampling used in calculation')
-            rebinned_result.header.update('EXTNAME', 'DET_SAMP')
-            rebinned_result.header['PIXELSCL'] *= detector_oversample
-            result.append(rebinned_result)
+            _log.info(" Downsampling summed image to detector pixel scale.")
+            rebinned_sum_image = sum_image[0].copy()
+            detector_oversample = sum_image[0].header['DET_SAMP']
+            rebinned_sum_image.data = webbpsf.rebin_array(rebinned_sum_image.data, rc=(detector_oversample, detector_oversample))
+            rebinned_sum_image.header.update('OVERSAMP', 1, 'These data are rebinned to detector pixels')
+            rebinned_sum_image.header.update('CALCSAMP', detector_oversample, 'This much oversampling used in calculation')
+            rebinned_sum_image.header.update('EXTNAME', 'DET_SAMP')
+            rebinned_sum_image.header['PIXELSCL'] *= detector_oversample
+            sum_image.append(rebinned_sum_image)
 
 
 
         if outfile is not None:
-            result[0].header.update ("FILENAME", os.path.basename (outfile),
+            sum_image[0].header.update ("FILENAME", os.path.basename (outfile),
                            comment="Name of this file")
-            result.writeto(outfile, clobber=clobber)
-            _log.info("Saved result to "+outfile)
-        return result
+            sum_image.writeto(outfile, clobber=clobber)
+            _log.info("Saved image to "+outfile)
+        return sum_image
+
+
+def test_obssim(nlambda=3, clobber=Fale):
+    s = TargetScene()
+
+    s.addPointSource('G0V', name='G0V star', separation = 0.1, normalization=1.)
+    s.addPointSource('K0V', name='K0V star', separation = 1.0, PA=45,  normalization=0.4)
+    s.addPointSource('M0V', name='M0V star', separation = 1.5, PA=245,  normalization=0.3)
+
+    inst = webbpsf.NIRCam()
+
+    for filt in ['F115W', 'F210M', 'F360M']:
+        inst.filter = filt
+        outname = "test_scene_%s.fits"% filt
+        if not os.path.exists(outname) or clobber:
+            s.calcImage(inst, outfile=outname, fov_arcsec=5, nlambda=nlambda)
+
+
+
 
 if __name__ == "__main__":
 
