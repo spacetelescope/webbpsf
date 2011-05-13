@@ -19,6 +19,8 @@
         - SFT3: 'ADJUSTIBLE', always centered in output array depending on whether it is even/odd
         - SFT4: 'ROTATABLE'; not properly implemented do not use
 
+    There are also SFT1rect and SFT3rect versions which support non-square arrays for both
+    forward and inverse transformations.
 
 
     Example
@@ -317,6 +319,93 @@ def SFT3(pupil, nlamD, npix, offset=(0.0,0.0), inverse=False, **kwargs):
     return  float(nlamD)/(npup*npix) *   t2 
 
 
+# ADJUSTIBLE
+def SFT3rect(pupil, nlamD, npix, offset=(0.0,0.0), inverse=False, **kwargs):
+    """
+    Compute an adjustible-center matrix fourier transform. 
+
+    For an output array with ODD size n,
+    the PSF center will be at the center of pixel (n-1)/2
+    
+    For an output array with EVEN size n, 
+    the PSF center will be in the corner between pixel (n/2-1,n/2-1) and (n/2,n/2)
+
+    Those coordinates all assume Python/IDL style pixel coordinates running from
+    (0,0) up to (n-1, n-1). 
+
+
+    This version supports rectangular, non-square arrays,
+    in which case nlamD and npix should be 2-element
+    tuples or lists, using the usual Pythonic order (Y,X)
+
+
+
+    Parameters
+    ----------
+    pupil : array
+        pupil array (n by n)
+    nlamD : float or tuple
+        size of focal plane array, in units of lam/D
+        (corresponds to 'm' in Soummer et al. 2007 4.2)
+    npix : float or tuple
+        number of pixels per side side of focal plane array
+        (corresponds to 'N_B' in Soummer et al. 2007 4.2)
+    offset: tuple
+        an offset in pixels relative to the above
+
+    """
+
+
+    npupY, npupX = pupil.shape[0:2]
+
+    if hasattr(npix, '__getitem__'):
+        npixY, npixX = npix[0:2]   
+    else:
+        npixY, npixX = npix, npix
+
+    if hasattr(nlamD, '__getitem__'):
+        nlamDY, nlamDX = nlamD[0:2]
+    else:
+        nlamDY, nlamDX = nlamD, nlamD
+
+
+    if inverse:
+        dX = nlamDX / float(npupX)
+        dY = nlamDY / float(npupY)
+        dU = 1.0/float(npixY)
+        dV = 1.0/float(npixX)
+
+    else:
+        dU = nlamDX / float(npixX)
+        dV = nlamDX / float(npixX)
+        dX = 1.0/float(npupX)
+        dY = 1.0/float(npupY)
+
+    Xs = (np.arange(npupX) - float(npupX)/2.0 - offset[1] + 0.5) * dX
+    Ys = (np.arange(npupY) - float(npupY)/2.0 - offset[0] + 0.5) * dY
+
+    Us = (np.arange(npixX) - float(npixX)/2.0 - offset[1] + 0.5) * dU
+    Vs = (np.arange(npixX) - float(npixY)/2.0 - offset[0] + 0.5) * dV
+
+    XU = np.outer(Xs, Us)
+    YV = np.outer(Ys, Vs)
+
+
+    expXU = np.exp(-2.0 * np.pi * 1j * XU)
+    expYV = np.exp(-2.0 * np.pi * 1j * YV)
+
+    expYV = expYV.T.copy()
+    t1 = np.dot(expYV, pupil)
+    t2 = np.dot(t1, expXU)
+
+    if inverse:
+        #print expYV.shape, pupil.shape, expXU.shape
+        t2 = t2[::-1, ::-1]
+
+    norm_coeff = np.sqrt(  ( nlamDY* nlamDX) / (npupY*npupX*npixY*npixX))
+    return  norm_coeff *   t2 
+
+
 
 # ROTATABLE 
 def SFT4(pupil, nlamD, npix, offset=(0.0,0.0), angle=0.0, **kwargs):
@@ -440,7 +529,7 @@ class SlowFourierTransform:
             raise ValueError("Error: choice must be one of [%s]" % ', '.join(self.choices))
         self.choice = choice
 
-        fns = {'FFTSTYLE':SFT1, "SYMMETRIC":SFT2, "ADJUSTIBLE":SFT3, 'FFTRECT': SFT1rect}
+        fns = {'FFTSTYLE':SFT1, "SYMMETRIC":SFT2, "ADJUSTIBLE":SFT3rect, 'FFTRECT': SFT1rect}
 
         if self.verbose:
             #print choice
@@ -453,9 +542,7 @@ class SlowFourierTransform:
 
 
     def inverse(self, image, nlamD, npix):
-        pupil = self.perform(image, nlamD, npix, inverse=True)
-        #pupil = pupil[::-1, ::-1].copy() # reverse the X and Y axes, needed to get coordinates right
-        return pupil
+        return self.perform(image, nlamD, npix, inverse=True)
 
 
     def performFITS(hdulist, focalplane_size, focalplane_npix):

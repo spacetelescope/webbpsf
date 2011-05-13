@@ -417,7 +417,7 @@ class Wavefront(object):
         self.asFITS(**kwargs).writeto(filename, clobber=clobber)
         _log.info("  Wavefront saved to %s" % filename)
 
-    def display(self,what='intensity', nrows=1,row=1,showpadding=False,imagecrop=None, colorbar=False, crosshairs=True):
+    def display(self,what='intensity', nrows=1,row=1,showpadding=False,imagecrop=None, colorbar=False, crosshairs=True, ax=None):
         """Display wavefront on screen
 
         Parameters
@@ -438,7 +438,8 @@ class Wavefront(object):
             Show the entire padded arrays, or just the good parts? Default is False
         colorbar : bool
             Display colorbar
-
+        ax : matplotlib Axes
+            axes to display into
 
         Returns
         -------
@@ -510,7 +511,8 @@ class Wavefront(object):
                 cmap = matplotlib.cm.jet
                 cmap.set_bad(cmap(0))
 
-            ax = p.subplot(nr,nc,int(row))
+            if ax is None:
+                ax = p.subplot(nr,nc,int(row))
             imshow_with_mouseover(intens, ax=ax, extent=extent, norm=norm, cmap=cmap)
             title = "Intensity "+self.location
             title = title.replace('after', 'after\n')
@@ -531,8 +533,9 @@ class Wavefront(object):
             cmap = matplotlib.cm.jet
             cmap.set_bad('0.3')
             norm=matplotlib.colors.Normalize(vmin=-0.25,vmax=0.25)
-            ax2 = p.subplot(nr,nc,int(row))
-            imshow_with_mouseover(phase/(N.pi*2), ax=ax2, extent=extent, norm=norm, cmap=cmap)
+            if ax is None:
+                ax = p.subplot(nr,nc,int(row))
+            imshow_with_mouseover(phase/(N.pi*2), ax=ax, extent=extent, norm=norm, cmap=cmap)
             p.title("Phase "+self.location)
             p.xlabel(unit)
             if colorbar: p.colorbar(ax2.images[0], orientation='vertical', shrink=0.8)
@@ -1081,9 +1084,19 @@ class OpticalElement():
         else:
             return self.phasor
 
-    def display(self, nrows=1, row=1, phase=False, wavelength=None, crosshairs=True):
-        "Display plots showing an optic's transmission and OPD"
-        orient = "horizontal" if nrows == 1 else 'vertical'
+    def display(self, nrows=1, row=1, what='both', phase=False, wavelength=None, crosshairs=True, ax=None, colorbar_orientation=None):
+        """Display plots showing an optic's transmission and OPD
+
+        Parameters
+        ----------
+        what : str
+            What do display: 'intensity', 'phase', or 'both'
+        ax : matplotlib.Axes
+            Axes to display into
+
+        """
+        if colorbar_orientation is None:
+            colorbar_orientation= "horizontal" if nrows == 1 else 'vertical'
         cmap = matplotlib.cm.gray
         cmap.set_bad('0.0')
         cmap_opd = matplotlib.cm.jet
@@ -1096,6 +1109,8 @@ class OpticalElement():
             # can't really display a null or scalar optical element?
             # really the best way to do this would be to create a subclass for a
             # scalar optical element...
+
+            #--this code is probably now obsoleted by ScalarElement?? --
             tmp = N.ones((10,10))
             tmp2 = N.ones((10,10))
             ax = p.subplot(nrows, 2, row*2-1)
@@ -1105,14 +1120,14 @@ class OpticalElement():
             ax.set_xticklabels([""]*10)
             ax.set_yticklabels([""]*10)
             p.ylabel(self.name+"\n")
-            cb = p.colorbar(ax.images[0], orientation=orient, ticks=[0,0.25, 0.5, 0.75, 1.0])
+            cb = p.colorbar(ax.images[0], orientation=colorbar_orientation, ticks=[0,0.25, 0.5, 0.75, 1.0])
 
             ax2 = p.subplot(nrows, 2, row*2)
             tmp2[:,:] = self.opd
             imshow_with_mouseover(tmp2, ax=ax2, cmap=cmap_opd, norm=norm_opd )
             ax2.set_xticklabels([""]*10)
             ax2.set_yticklabels([""]*10)
-            cb = p.colorbar(ax2.images[0], orientation=orient, ticks=N.array([-0.5, -0.25, 0, 0.25, 0.5])*1e-6)
+            cb = p.colorbar(ax2.images[0], orientation=colorbar_orientation, ticks=N.array([-0.5, -0.25, 0, 0.25, 0.5])*1e-6)
             if crosshairs:
                 for a in [ax, ax2]:
                     a.axhline(0,ls=":", color='k')
@@ -1142,30 +1157,40 @@ class OpticalElement():
         opd = self.opd.copy()
         opd[N.where(self.amplitude ==0)] = N.nan
 
-        ax = p.subplot(nrows, 2, row*2-1)
-        imshow_with_mouseover(ampl, ax=ax, extent=extent, cmap=cmap, norm=norm_amp)
-        if nrows == 1:
-            p.title("Transmissivity for "+self.name)
-        p.ylabel(units)
-        ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, integer=True))
-        ax.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, integer=True))
-        cb = p.colorbar(ax.images[0], orientation=orient, ticks=[0,0.25, 0.5, 0.75, 1.0])
-        cb.set_label('transmission')
+        if what=='intensity' or what=='both':
+            if ax is None:
+                ax = p.subplot(nrows, 2, row*2-1)
+            imshow_with_mouseover(ampl, ax=ax, extent=extent, cmap=cmap, norm=norm_amp)
+            if nrows == 1:
+                p.title("Transmissivity for "+self.name)
+            p.ylabel(units)
+            ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, integer=True))
+            ax.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, integer=True))
+            cb = p.colorbar(ax.images[0], orientation=colorbar_orientation, ticks=[0,0.25, 0.5, 0.75, 1.0])
+            cb.set_label('transmission')
+            if crosshairs:
+                ax.axhline(0,ls=":", color='k')
+                ax.axvline(0,ls=":", color='k')
 
 
-        ax2 = p.subplot(nrows, 2, row*2)
-        imshow_with_mouseover(opd, ax=ax2, extent=extent, cmap=cmap_opd, norm=norm_opd)
-        p.ylabel(units)
-        ax2.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, integer=True))
-        ax2.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, integer=True))
-        if nrows == 1:
-            p.title("OPD for "+self.name)
-        cb = p.colorbar(ax2.images[0], orientation=orient, ticks=N.array([-0.5, -0.25, 0, 0.25, 0.5])*1e-6)
-        cb.set_label('meters')
-        if crosshairs:
-            for a in [ax, ax2]:
-                a.axhline(0,ls=":", color='k')
-                a.axvline(0,ls=":", color='k')
+        if what=='phase' or what=='both':
+            if ax is None:
+                ax2 = p.subplot(nrows, 2, row*2-1)
+            else:
+                ax2 = ax
+    
+            ax2 = p.subplot(nrows, 2, row*2)
+            imshow_with_mouseover(opd, ax=ax2, extent=extent, cmap=cmap_opd, norm=norm_opd)
+            p.ylabel(units)
+            ax2.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, integer=True))
+            ax2.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, integer=True))
+            if nrows == 1:
+                p.title("OPD for "+self.name)
+            cb = p.colorbar(ax2.images[0], orientation=colorbar_orientation, ticks=N.array([-0.5, -0.25, 0, 0.25, 0.5])*1e-6)
+            cb.set_label('meters')
+            if crosshairs:
+                ax2.axhline(0,ls=":", color='k')
+                ax2.axvline(0,ls=":", color='k')
 
     def __str__(self):
         if self.planetype is PUPIL:
@@ -1220,7 +1245,7 @@ class Rotation(OpticalElement):
         return 1.0  #no change in wavefront (apart from the rotation)
         # returning this is necessary to allow the multiplication in propagate_mono to be OK
 
-    def display(self, nrows=1, row=1, phase=False, wavelength=2e-6):
+    def display(self, nrows=1, row=1, **kwargs):
         p.subplot(nrows, 2, row*2-1)
         p.text(0.3,0.3,self.name)
 
@@ -1267,7 +1292,7 @@ class AnalyticOpticalElement(OpticalElement):
     def getPhasor(self,wave):
         raise NotImplementedError("getPhasor must be supplied by a derived subclass")
 
-    def display(self, nrows=1, row=1, phase=False, wavelength=2e-6, npix=512):
+    def display(self, nrows=1, row=1,  wavelength=2e-6, npix=512, **kwargs):
         "Display an Analytic optic by first computing it onto a grid..."
 
         if self.planetype is PUPIL:
@@ -1296,7 +1321,7 @@ class AnalyticOpticalElement(OpticalElement):
         self.opd = phase *wavelength
 
         #then call parent class display
-        OpticalElement.display(self,nrows=nrows, row=row)
+        OpticalElement.display(self,nrows=nrows, row=row, **kwargs)
 
         # now un-set everything back cause this is analytic and these are unneeded
         self.pixelscale = None
@@ -2001,14 +2026,16 @@ class Detector(OpticalElement):
             # consistent with having an integer number of pixels
             self.fov_pixels = round(fov_arcsec / self.pixelscale)
             self.fov_arcsec = self.fov_pixels * self.pixelscale
-
-        self.shape = (self.fov_pixels, self.fov_pixels)
+        if hasattr(self.fov_pixels, '__getitem__'):
+            self.shape = self.fov_pixels[0:2]
+        else:
+            self.shape = (self.fov_pixels, self.fov_pixels)
 
         self.amplitude = 1
         self.opd = 0
 
     def __str__(self):
-        return "Detector plane: %s (%dx%d, %f arcsec/pixel)" % (self.name, self.fov_pixels, self.fov_pixels, self.pixelscale)
+        return "Detector plane: %s (%dx%d, %f arcsec/pixel)" % (self.name, self.shape[1], self.shape[0], self.pixelscale)
 
 #------
 class OpticalSystem():
@@ -2593,6 +2620,7 @@ class SemiAnalyticCoronagraph(OpticalSystem):
         Oversampling factor in intermediate image plane. Default is 8
     occulter_box : float
         half size of field of view region entirely including the occulter, in arcseconds. Default 1.0
+        This can be a tuple or list to specify a rectangular region [deltaY,deltaX] if desired.
 
 
     Notes
@@ -2631,9 +2659,12 @@ class SemiAnalyticCoronagraph(OpticalSystem):
 
 
         self.oversample = oversample
+
+        if hasattr(occulter_box, '__getitem__'):
+            occulter_box = N.array(occulterbox) # cast to numpy array so the multiplication by 2 just below will work
         self.occulter_box = occulter_box
 
-        self.occulter_det = Detector(self.detector.pixelscale/self.oversample, fov_arcsec = occulter_box*2, name='Oversampled Occulter Plane')
+        self.occulter_det = Detector(self.detector.pixelscale/self.oversample, fov_arcsec = self.occulter_box*2, name='Oversampled Occulter Plane')
 
     def propagate_mono(self, wavelength=2e-6, normalize='first', save_intermediates=False, display_intermediates=False, intermediate_fn=None, poly_weight=None):
         """

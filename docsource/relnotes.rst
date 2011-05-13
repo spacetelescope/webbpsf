@@ -25,6 +25,16 @@ Known Issues
     NOT DEFAULT -- Primary mirror area:  253260
 
 
+Version 0.2.2
+--------------
+
+* Installation bug fixes
+* Semi-analytic coronagraphic algorithm (Soummer et al. 2007)
+* Advanced settings dialog box in GUI
+* better logic for NIRCam pixel scale auto-switching: will no longer override custom user pixelscales.
+* slight fix to pupil file pixel scales to reflect JWST flat-to-flat diameter=6.559 m rather than just "6.5m"
+
+
 
 Version 0.2
 ------------

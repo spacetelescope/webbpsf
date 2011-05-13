@@ -865,6 +865,17 @@ def test_blc2(oversample=2, verbose=True, wavelength=2e-6, angle=0, kind='circul
     wg = N.where(sigmar > 0.01)
     intfn = scipy.interpolate.interp1d(x[wg], trans[wg])
     print "Value at %.4f :\t%.4f" % (loc, intfn(loc))
+
+    # figure out the FWHM
+    #   cut out the portion of the curve from the origin to the first positive maximum
+    wp = N.where(x > 0)
+    xp = x[wp]
+    transp = trans[wp]
+    wm = N.argmax(transp)
+    wg = N.where(( x>0 )& ( x<xp[wm]))
+    interp = scipy.interpolate.interp1d(trans[wg], x[wg])
+    print "For sigma = %.4f, HWHM occurs at %.4f" % (sigma, interp(0.5))
+
     #stop()
 
 def width_blc(desired_width, approx=None, plot=False):

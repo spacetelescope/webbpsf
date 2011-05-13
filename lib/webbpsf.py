@@ -801,7 +801,9 @@ class NIRCam(JWInstrument):
         """For NIRCam, this checks whenever you change a filter and updates the pixelscale appropriately"""
         filtwave = float(self.filter[1:4])/100
         newscale = self._pixelscale_short if filtwave < 2.4 else self._pixelscale_long
-        if newscale != self.pixelscale:
+        # update the pixel scale if it has changed *and*
+        # only if the user has not already set the pixel scale to some custom value
+        if newscale != self.pixelscale and (self.pixelscale == self._pixelscale_short or self.pixelscale==self._pixelscale_long):
             self.pixelscale = newscale
             _log.info("NIRCam pixel scale updated to %f arcsec/pixel to match channel for the selected filter." % self.pixelscale)
 
@@ -853,12 +855,16 @@ class NIRCam(JWInstrument):
             SAM_box_size = 5.0
         elif self.image_mask == 'MASKSWB':
             optsys.addImage(function='BandLimitedCoron', kind='nircamwedge', wavelength=2.1e-6, name=self.image_mask)
-            trySAM = False
+            trySAM = True
             SAM_box_size = [5,20]
         elif self.image_mask == 'MASKLWB':
             optsys.addImage(function='BandLimitedCoron', kind='nircamwedge', wavelength=4.6e-6, name=self.image_mask)
-            trySAM = False
+            trySAM = True
             SAM_box_size = [5,20]
+        else:
+            # no occulter selected but coronagraphic mode anyway.
+            trySAM = False
+            SAM_box_size = 1.0 # irrelevant but variable still needs to be set.
  
         # add pupil plane mask
         if ('pupil_shift_x' in self.options.keys() and self.options['pupil_shift_x'] != 0) or \
@@ -1064,7 +1070,7 @@ def Instrument(name):
 Instrument.list = ['nircam', 'nirspec', 'tfi', 'miri'] # useful list for iteration
 
 
-def calc_or_load_psf(filename, inst, **kwargs):
+def calc_or_load_psf(filename, inst, clobber=False, **kwargs):
     """ Utility function for loading a precomputed PSF from disk, or else
     if that files does not exist, then compute it and save to disk. 
 
@@ -1086,7 +1092,7 @@ def calc_or_load_psf(filename, inst, **kwargs):
     helper function.
 
     """
-    if os.path.exists(filename):
+    if os.path.exists(filename) and not clobber:
         return pyfits.open(filename)
     else: 
         return inst.calcPSF(outfile = filename, **kwargs)
@@ -1128,8 +1134,15 @@ def MakePSF(self, instrument=None, pupil_file=None, phase_file=None, output=None
 #
 #    Display and PSF evaluation functions follow..
 #
-def display_PSF(HDUlist_or_filename=None, ext=0, vmin=1e-8,vmax=1e-1, title=None, imagecrop=None, adjust_for_oversampling=False, normalize=None, crosshairs=False, markcentroid=False, colorbar=True, colorbar_orientation='vertical'):
+def display_PSF(HDUlist_or_filename=None, ext=0,
+    vmin=1e-8,vmax=1e-1, scale='log', cmap = matplotlib.cm.jet, 
+        title=None, imagecrop=None, adjust_for_oversampling=False, normalize='None', crosshairs=False, markcentroid=False, colorbar=True, colorbar_orientation='vertical',
+        pixelscale='PIXELSCL'):
     """Display nicely a PSF from a given HDUlist or filename 
+
+    This is extensively configurable. In addition to making an attractive display, for
+    interactive usage this function provides a live display of the pixel value at a
+    given (x,y) as you mouse around the image. 
     
     Parameters
     ----------
@@ -1138,7 +1151,11 @@ def display_PSF(HDUlist_or_filename=None, ext=0, vmin=1e-8,vmax=1e-1, title=None
     ext : int
         FITS extension. default = 0
     vmin, vmax : float
-        for the log scaling
+        min and max for image display scaling
+    scale : str
+        'linear' or 'log', default is log
+    cmap : matplotlib.cm.Colormap instance
+        Colormap to use. Default is matplotlib.cm.jet
     title : string, optional
     imagecrop : float
         size of region to display (default is whole image)
@@ -1153,6 +1170,12 @@ def display_PSF(HDUlist_or_filename=None, ext=0, vmin=1e-8,vmax=1e-1, title=None
         Draw a colorbar?
     colorbar_orientation : str
         either 'horizontal' or 'vertical'; default is vertical.
+    pixelscale : str or float
+        if str, interpreted as the FITS keyword name for the pixel scale in arcsec/pixels.
+        if float, used as the pixelscale directly.
+
+
+
     """
     if isinstance(HDUlist_or_filename, str):
         HDUlist = pyfits.open(HDUlist_or_filename)
@@ -1161,18 +1184,37 @@ def display_PSF(HDUlist_or_filename=None, ext=0, vmin=1e-8,vmax=1e-1, title=None
     else: raise ValueError("input must be a filename or HDUlist")
 
     if adjust_for_oversampling:
-        scalefactor = HDUlist[ext].header['OVERSAMP']**2
+
+        try:
+            scalefactor = HDUlist[ext].header['OVERSAMP']**2
+        except:
+            _log.error("Could not determine oversampling scale factor; therefore NOT rescaling fluxes.")
+            scalefactor=1
         im = HDUlist[ext].data *scalefactor
     else: im = HDUlist[ext].data
 
-    if normalize == 'peak':
+    if normalize.lower() == 'peak':
         _log.debug("Displaying image normalized to peak = 1")
         im /= im.max()
-        vmax = 1.0
+    elif normalize.lower() =='total':
+        _log.debug("Displaying image normalized to PSF total = 1")
+        im /= im.sum()
+ 
 
-    norm=LogNorm(vmin=vmin, vmax=vmax)
-    cmap = matplotlib.cm.jet
-    halffov = HDUlist[ext].header['PIXELSCL']*HDUlist[ext].data.shape[0]/2
+    if scale == 'linear':
+        norm=matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
+    else: 
+        norm=LogNorm(vmin=vmin, vmax=vmax)
+
+    if type(pixelscale) is str:
+        halffov = HDUlist[ext].header[pixelscale]*HDUlist[ext].data.shape[0]/2
+    else:
+        try: 
+            pixelscale = float(pixelscale)
+        except:
+            _log.warning("Provided pixelscale is neither float nor str; cannot use it. Using default=1 instead.")
+            pixelscale = 1.0
+        halffov = pixelscale*HDUlist[ext].data.shape[0]/2
     unit="arcsec"
     extent = [-halffov, halffov, -halffov, halffov]
 
@@ -1197,10 +1239,11 @@ def display_PSF(HDUlist_or_filename=None, ext=0, vmin=1e-8,vmax=1e-1, title=None
 
     if colorbar:
         cb = P.colorbar(ax.images[0], orientation=colorbar_orientation)
-        ticks = N.logspace(N.log10(vmin), N.log10(vmax), N.log10(vmax/vmin)+1)
-        if colorbar_orientation=='horizontal' and vmax==1e-1 and vmin==1e-8: ticks = [1e-8, 1e-6, 1e-4,  1e-2, 1e-1] # looks better
-        cb.set_ticks(ticks)
-        cb.set_ticklabels(ticks)
+        if scale.lower() =='log':
+            ticks = N.logspace(N.log10(vmin), N.log10(vmax), N.log10(vmax/vmin)+1)
+            if colorbar_orientation=='horizontal' and vmax==1e-1 and vmin==1e-8: ticks = [1e-8, 1e-6, 1e-4,  1e-2, 1e-1] # looks better
+            cb.set_ticks(ticks)
+            cb.set_ticklabels(ticks)
         if normalize =='peak':
             cb.set_label('Intensity relative to peak pixel')
         else: 

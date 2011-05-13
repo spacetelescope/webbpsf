@@ -10,7 +10,6 @@ import tkFileDialog
 import logging
 #from Tkinter import N,E,S,W
 
-__version__ = poppy.__version__
 
 try:
     import ttk
@@ -34,7 +33,7 @@ except:
 
 
 import webbpsf
-
+__version__ = webbpsf.__version__
 
 class WebbPSF_GUI(object):
     """ A GUI for the PSF Simulator 
@@ -47,6 +46,7 @@ class WebbPSF_GUI(object):
         self.instrument = {}
         self.widgets = {}
         self.vars = {}
+        self.advanced_options = {'parity': 'any', 'force_coron': False, 'no_sam': False, 'psf_vmin': 1e-8, 'psf_vmax': 1.0, 'psf_scale': 'log', 'psf_cmap_str': 'Jet (blue to red)' , 'psf_normalize': 'Total', 'psf_cmap': matplotlib.cm.jet}
         insts = ['NIRCam', 'NIRSpec','MIRI', 'TFI', 'FGS']
         for i in insts:
             self.instrument[i] = webbpsf.Instrument(i)
@@ -566,8 +566,10 @@ class WebbPSF_GUI(object):
             print "Saved to %s" % filename
 
     def ev_options(self):
-        d = WebbPSFOptionsDialog(self.root)
-        print d.results
+        d = WebbPSFOptionsDialog(self.root, input_options = self.advanced_options)
+        if d.results is not None: # none means the user hit 'cancel'
+            self.advanced_options = d.results
+
 
     def ev_plotspectrum(self):
         "Event handler for Plot Spectrum "
@@ -619,7 +621,8 @@ class WebbPSF_GUI(object):
         #self._updateFromGUI()
         #if self.PSF_HDUlist is not None:
         P.clf()
-        webbpsf.display_PSF(self.PSF_HDUlist)
+        webbpsf.display_PSF(self.PSF_HDUlist, vmin = self.advanced_options['psf_vmin'], vmax = self.advanced_options['psf_vmax'], 
+                scale = self.advanced_options['psf_scale'], cmap= self.advanced_options['psf_cmap'], normalize=self.advanced_options['psf_normalize'])
 
     def ev_displayProfiles(self):
         "Event handler for Displaying the PSF"
@@ -700,6 +703,11 @@ class WebbPSF_GUI(object):
         options['jitter'] = self.widgets['jitter'].get()
         #print "Downsamp value: ",  options['downsample']
 
+        # and get the values that may have previously been set by the 'advanced options' dialog
+        if self.advanced_options is not None:
+            for a in self.advanced_options.keys():
+                options[a] = self.advanced_options[a]
+
 
         # configure the relevant instrument object
         self.inst = self.instrument[self.iname]
@@ -742,10 +750,11 @@ class Dialog(tk.Toplevel):
 
     """
 
-    def __init__(self, parent, title = None):
+    def __init__(self, parent, title = None, input_options=None):
 
         tk.Toplevel.__init__(self, parent)
         self.transient(parent)
+        self.input_options = input_options
 
         if title:
             self.title(title)
@@ -863,9 +872,11 @@ class WebbPSFOptionsDialog(Dialog):
 
 
     def body(self, master):
+        self.results = None # in case we cancel this gets returned
+        self.results = None # in case we cancel this gets returned
         self.vars = {}
         self.widgets = {}
-        self.results = {}
+        self.values = {}
 
         colortables = [
          ('Jet (blue to red)',matplotlib.cm.jet),
@@ -883,11 +894,16 @@ class WebbPSFOptionsDialog(Dialog):
         r=1
         fr2 = ttk.Frame(lf)
 
-        self._add_labeled_dropdown("force_coron", lf, label='Direct imaging calculations use', values=['regular propagation (MFT)', 'full coronagraphic propagation (FFT/SAM)'], width=30, position=(r,0), sticky='W')
+        self.values['force_coron'] = ['regular propagation (MFT)', 'full coronagraphic propagation (FFT/SAM)']
+
+        self._add_labeled_dropdown("force_coron", lf, label='Direct imaging calculations use', values=self.values['force_coron'], 
+                default = self.values['force_coron'][ 1 if self.input_options['force_coron'] else 0]  ,  width=30, position=(r,0), sticky='W')
         r+=1
-        self._add_labeled_dropdown("no_sam", lf, label='Coronagraphic calculations use', values=['semi-analytic method if possible', 'basic FFT method always'], width=30, position=(r,0), sticky='W')
+        self.values['no_sam'] = ['semi-analytic method if possible', 'basic FFT method always']
+        self._add_labeled_dropdown("no_sam", lf, label='Coronagraphic calculations use', values=self.values['no_sam'],
+                default=self.values['no_sam'][ 1 if self.input_options['no_sam'] else 0] , width=30, position=(r,0), sticky='W')
         r+=1
-        self._add_labeled_dropdown("parity", lf, label='Output pixel grid parity is', values=['odd', 'even', 'either'], width=10, position=(r,0), sticky='W')
+        self._add_labeled_dropdown("parity", lf, label='Output pixel grid parity is', values=['odd', 'even', 'either'], default=self.input_options['parity'], width=10, position=(r,0), sticky='W')
 
 
 
@@ -895,28 +911,44 @@ class WebbPSFOptionsDialog(Dialog):
 
         lf = ttk.LabelFrame(master, text='PSF Display Options')
         r=0
-        self._add_labeled_dropdown("psf_scale", lf, label='    Display scale:', values=['log','linear'], width=5, position=(r,0), sticky='W')
+        self._add_labeled_dropdown("psf_scale", lf, label='    Display scale:', values=['log','linear'],default=self.input_options['psf_scale'], width=5, position=(r,0), sticky='W')
         r+=1
-        self._add_labeled_entry("psf_vmin", lf, label='    Min scale value:', value='1e-8', width=5, position=(r,0), sticky='W')
+        self._add_labeled_entry("psf_vmin", lf, label='    Min scale value:', value="%.2g" % self.input_options['psf_vmin'], width=7, position=(r,0), sticky='W')
         r+=1
-        self._add_labeled_entry("psf_vmax", lf, label='    Max scale value:', value='1.0', width=5, position=(r,0), sticky='W')
+        self._add_labeled_entry("psf_vmax", lf, label='    Max scale value:', value="%.2g" % self.input_options['psf_vmax'], width=7, position=(r,0), sticky='W')
         r+=1
-        self._add_labeled_dropdown("psf_cmap", lf, label='    Color table:', values=[a[0] for a in colortables], width=20, position=(r,0), sticky='W')
+        self._add_labeled_dropdown("psf_normalize", lf, label='    Normalize PSF to:', values=['Total', 'Peak'], default=self.input_options['psf_normalize'], width=5, position=(r,0), sticky='W')
+        r+=1
+        self._add_labeled_dropdown("psf_cmap", lf, label='    Color table:', values=[a[0] for a in colortables],  default=self.input_options['psf_cmap_str'], width=20, position=(r,0), sticky='W')
         lf.grid(row=2, sticky='E,W', padx=10,pady=5)
 
 
         return self.widgets['force_coron']# return widget to have initial focus
 
-    def apply(self):
-        self.results['force_coron'] = self.vars['force_coron'].get() == 'full coronagraphic propagation (FFT/SAM)'
-        self.results['no_sam'] = self.vars['no_sam'].get() == 'basic FFT method always'
-        self.results['parity'] = self.vars['parity'].get() 
-        self.results['psf_scale'] = self.vars['psf_scale'].get() 
-        self.results['psf_vmax'] = self.vars['psf_vmax'].get() 
-        self.results['psf_vmin'] = self.vars['psf_vmin'].get() 
-        self.results['psf_cmap'] = self.colortables[ str(self.vars['psf_cmap'].get() ) ]
+    def apply(self, test=False):
+        try:
+            results = {}
+            results['force_coron'] = self.vars['force_coron'].get() == 'full coronagraphic propagation (FFT/SAM)'
+            results['no_sam'] = self.vars['no_sam'].get() == 'basic FFT method always'
+            results['parity'] = self.vars['parity'].get() 
+            results['psf_scale'] = self.vars['psf_scale'].get() 
+            results['psf_vmax'] = float(self.vars['psf_vmax'].get())
+            results['psf_vmin'] = float(self.vars['psf_vmin'].get())
+            results['psf_cmap_str'] = self.vars['psf_cmap'].get()
+            results['psf_normalize'] = self.vars['psf_normalize'].get()
+            results['psf_cmap'] = self.colortables[ str(self.vars['psf_cmap'].get() ) ]
+        except:
+            return False
 
-        pass # override
+        if not test:
+            self.results = results
+        return True
+
+    def validate(self):
+        can_apply = self.apply(test=True)
+        if not can_apply:
+            _log.error("Invalid entries in one or more fields. Please re-enter!")
+        return can_apply
 
 
 

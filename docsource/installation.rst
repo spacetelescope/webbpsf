@@ -13,7 +13,7 @@ Software Requirements
 Beyond the usual numpy/scipy/matplotlib core modules, the following are required:
 
 * `pyfits <http://www.stsci.edu/resources/software_hardware/pyfits>`_
-* `ATPy <http://atpy.github.com/>`_
+* `ATPy <http://atpy.github.com/>`_, which in turn requires `vo <https://trac6.assembla.com/astrolib>`_ and `asciitable <http://cxc.harvard.edu/contrib/asciitable/>`_
   
 These are optional but highly recommended:
 
@@ -37,7 +37,7 @@ Obtaining WebbPSF
 
 Download the following files:
 
-* `webbpsf-0.2.tar.gz <http://www.stsci.edu/~mperrin/software/webbpsf/webbpsf-0.2.tar.gz>`_
+* `webbpsf-0.2.2.tar.gz <http://www.stsci.edu/~mperrin/software/webbpsf/webbpsf-0.2.2.tar.gz>`_
 * `webbpsf-data-0.2.tar.gz <http://www.stsci.edu/~mperrin/software/webbpsf/webbpsf-data-0.2.tar.gz>`_  [417 MB]
 * `pysynphot-0.7jwst.tar.gz <http://www.stsci.edu/~mperrin/software/webbpsf/pysynphot-0.7jwst.tar.gz>`_  
 
