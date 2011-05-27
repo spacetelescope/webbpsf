@@ -17,8 +17,8 @@ Beyond the usual numpy/scipy/matplotlib core modules, the following are required
   
 These are optional but highly recommended:
 
-* ``pyFFTW3``. The code will work fine without it, but will be significantly slower.
-* ``pysynphot`` (The updated, prerelease version for JWST!) enables the simulation of PSFs with proper spectral response to realistic source spectra.  Without this, PSF fidelity is reduced.
+* `pyFFTW3 <http://pypi.python.org/pypi/PyFFTW3/0.2.1>`_. The code will work fine without it, but will be significantly slower.
+* `pysynphot <https://trac6.assembla.com/astrolib>`_ enables the simulation of PSFs with proper spectral response to realistic source spectra.  Without this, PSF fidelity is reduced.
 
 Additional requirement for the GUI: 
 
@@ -37,13 +37,13 @@ Obtaining WebbPSF
 
 Download the following files:
 
-* `webbpsf-0.2.2.tar.gz <http://www.stsci.edu/~mperrin/software/webbpsf/webbpsf-0.2.2.tar.gz>`_
-* `webbpsf-data-0.2.tar.gz <http://www.stsci.edu/~mperrin/software/webbpsf/webbpsf-data-0.2.tar.gz>`_  [417 MB]
+* `webbpsf-0.2.3.tar.gz <http://www.stsci.edu/~mperrin/software/webbpsf/webbpsf-0.2.3.tar.gz>`_
+* `webbpsf-data-0.2.3.tar.gz <http://www.stsci.edu/~mperrin/software/webbpsf/webbpsf-data-0.2.3.tar.gz>`_  [417 MB]
 * `pysynphot-0.7jwst.tar.gz <http://www.stsci.edu/~mperrin/software/webbpsf/pysynphot-0.7jwst.tar.gz>`_  
 
 Note that the linked `pysynphot <http://www.stsci.edu/~mperrin/software/webbpsf/pysynphot-0.7jwst.tar.gz>`_
 file is an unofficial, pre-release version, provided courtesy of STScI
-Science Software Branch (Greenfield, Hanley et al.) and not an "officially
+Science Software Branch (Laidler, Greenfield, et al.) and not an "officially
 supported" release. (This file tracks the internal development subversion
 repository of pysynphot as of revision 2007 on April 21 2011). 
 
@@ -59,6 +59,7 @@ Installing WebbPSF
 
 To install ``pysynphot`` (highly recommended) do the following. (See also http://stsdas.stsci.edu/pysynphot/ and https://trac6.assembla.com/astrolib). If you already have ``pysynphot`` 
 installed, it may work without this update but computations will be slower than the current version, so we recommend updating it. 
+
 .. comment
         you should still do these steps to update it to support all the JWST instruments transmission profiles. 
 

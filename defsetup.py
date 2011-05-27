@@ -2,7 +2,7 @@
 pkg = 'webbpsf'
 
 setupargs = {
-    'version'       :      	"0.2.2",
+    'version'       :      	"0.2.3",
     'description'   :       'James Webb Space Telescope synthetic PSFs',
     'fullname'      :       'AstroLib WebbPSF',
     'license'       :       'BSD',

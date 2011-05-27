@@ -841,6 +841,10 @@ class NIRCam(JWInstrument):
                         # This is NOT a linear relationship! It's a tricky inverse sin nonlinear thing.
 
 
+        Empirical checks against John Krist's provided 430R and LWB files:
+            430R should have sigma = 2.588496
+
+
         """
 
         #optsys.addImage(name='null for debugging NIRcam _addCoron') # for debugging
@@ -854,7 +858,7 @@ class NIRCam(JWInstrument):
             trySAM = True
             SAM_box_size = 5.0
         elif self.image_mask == 'MASK430R':
-            optsys.addImage(function='BandLimitedCoron', kind='nircamcircular', sigma=2.5652 , name=self.image_mask)
+            optsys.addImage(function='BandLimitedCoron', kind='nircamcircular', sigma=2.588496*0.99993495 , name=self.image_mask)
             trySAM = True
             SAM_box_size = 5.0
         elif self.image_mask == 'MASKSWB':
@@ -1317,9 +1321,9 @@ def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
     if normalize:
         avg_im = (im1+im2)/2
         diff_im /= avg_im
-        cbtitle = 'Relative intensity difference per pixel'
+        cbtitle = 'Image difference / average  (per pixel)' #Relative intensity difference per pixel'
     else:
-        cbtitle = 'Fractional intensity difference per pixel'
+        cbtitle = 'Intensity difference per pixel'
 
 
     if print_:

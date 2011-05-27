@@ -1,7 +1,7 @@
 #!/bin/sh
 # Script to make a distributable version of WebbPSF, with various packaging tweaks
 
-VER="0.2.2"
+VER="0.2.3"
 TAR=/usr/bin/tar  # make sure to use the BSD version, required for the -L option
 
 # Create a source distribution

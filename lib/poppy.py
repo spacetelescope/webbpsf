@@ -70,7 +70,7 @@ import time
 from matplotlib.colors import LogNorm  # for log scaling of images, with automatic colorbar support
 import SFT
 
-__version__ = '0.2.2'
+__version__ = '0.2.3'
 
 try:
     from IPython.Debugger import Tracer; stop = Tracer()
@@ -1050,6 +1050,9 @@ class OpticalElement():
     def getPhasor(self,wave):
         """ Compute a complex phasor from an OPD, given a wavelength.
 
+        The returned value should be the complex phasor array as appropriate for
+        multiplying by the wavefront amplitude. 
+
         Parameters
         ----------
         wave : float or obj
@@ -1162,9 +1165,12 @@ class OpticalElement():
         opd[N.where(self.amplitude ==0)] = N.nan
 
         if what=='intensity' or what=='both':
+            # Note that the ampl variable is the *amplitude* transmissivity. 
+            # What we want to display is what happens to the wavefront's intensity
+            # so we have to square the amplitude here.
             if ax is None:
                 ax = p.subplot(nrows, 2, row*2-1)
-            imshow_with_mouseover(ampl, ax=ax, extent=extent, cmap=cmap, norm=norm_amp)
+            imshow_with_mouseover(ampl**2, ax=ax, extent=extent, cmap=cmap, norm=norm_amp)
             if nrows == 1:
                 p.title("Transmissivity for "+self.name)
             p.ylabel(units)
@@ -1404,6 +1410,9 @@ class BandLimitedCoron(AnalyticOpticalElement):
         kind : string
             Either 'circular' or 'linear'. The linear ones are custom shaped to NIRCAM's design
             with flat bits on either side of the linear tapered bit.
+            Also includes options 'nircamcircular' and 'nircamwedge' specialized for the
+            JWST NIRCam occulters, including the off-axis ND acq spots and the changing
+            width of the wedge occulter.
         sigma : float
             The numerical size parameter, as specified in Krist et al. 2009 SPIE
         wavelength : float
@@ -1424,7 +1433,15 @@ class BandLimitedCoron(AnalyticOpticalElement):
 
     def getPhasor(self,wave):
         """ Compute the amplitude transmission appropriate for a BLC for some given pixel spacing
-        corresponding to the supplied Wavefront
+        corresponding to the supplied Wavefront.
+
+        Based on  Krist et al. SPIE paper.
+
+        Note that the equations in Krist et al specify the intensity transmission of the occulter,
+        but what we want to return here is the amplitude transmittance. That is the square root of the
+        intensity, of course, so the equations as implemented here all differ from those written in
+        Krist's SPIE paper by lacking a factor of **2. Thanks to John Krist for pointing this out.
+
         """
         if not isinstance(wave, Wavefront):
             raise ValueError("BLC getPhasor must be called with a Wavefront to define the spacing")
@@ -1436,14 +1453,14 @@ class BandLimitedCoron(AnalyticOpticalElement):
             #
             r = N.sqrt(x**2+y**2)
             sigmar = self.sigma*r
-            self.transmission = (1-  (2*scipy.special.jn(1,sigmar)/sigmar)**2)**2
+            self.transmission = (1-  (2*scipy.special.jn(1,sigmar)/sigmar)**2)
         if self.kind == 'nircamcircular':
             # larger sigma implies narrower peak? TBD verify if this is correct
             #
             r = N.sqrt(x**2+y**2)
             sigmar = self.sigma*r
             sigmar.clip(N.finfo(sigmar.dtype).tiny)  # avoid divide by zero -> NaNs
-            self.transmission = (1-  (2*scipy.special.jn(1,sigmar)/sigmar)**2)**2
+            self.transmission = (1-  (2*scipy.special.jn(1,sigmar)/sigmar)**2)
 
             # add in the ND squares. Note the positions are not exactly the same in the two wedges.
             # See the figures  in Krist et al. of how the 6 ND squares are spaced among the 5 corongraph regions
@@ -1455,7 +1472,7 @@ class BandLimitedCoron(AnalyticOpticalElement):
                 wnd = N.where((y > 5) & (N.abs(x) > 7.5) & (N.abs(x) < 12.5))        # the others have two halves on in each corner.
                 wborder  = N.where(N.abs(y) > 10)
 
-            self.transmission[wnd] = 1e-3
+            self.transmission[wnd] = N.sqrt(1e-3)
             self.transmission[wborder] = 0
 
 
@@ -1463,7 +1480,7 @@ class BandLimitedCoron(AnalyticOpticalElement):
             #raise(NotImplemented("Generic linear not implemented"))
             sigmar = self.sigma * N.abs(y)
             sigmar.clip( N.finfo(sigmar.dtype).tiny)  # avoid divide by zero -> NaNs
-            self.transmission = (1-  (N.sin(sigmar)/sigmar)**2)**2
+            self.transmission = (1-  (N.sin(sigmar)/sigmar)**2)
 
 
         elif self.kind == 'nircamwedge':
@@ -1498,7 +1515,7 @@ class BandLimitedCoron(AnalyticOpticalElement):
 
             sigmar = sigmas * N.abs(y)
             sigmar.clip( N.finfo(sigmar.dtype).tiny)  # avoid divide by zero -> NaNs
-            self.transmission = (1-  (N.sin(sigmar)/sigmar)**2)**2
+            self.transmission = (1-  (N.sin(sigmar)/sigmar)**2)
             # the bar should truncate at +- 10 arcsec:
             woutside = N.where(N.abs(x) > 10)
             self.transmission[woutside] = 1.0
@@ -1514,7 +1531,7 @@ class BandLimitedCoron(AnalyticOpticalElement):
                 wnd = N.where((y > 5) & (((x < -7.5)&(x>-12.5)) | (x > 5)) )
                 wborder  = N.where((N.abs(y) > 10) | (x > 10) )     # right end of mask holder
 
-            self.transmission[wnd] = 1e-3
+            self.transmission[wnd] = N.sqrt(1e-3)
             self.transmission[wborder] = 0
 
 
