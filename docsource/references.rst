@@ -118,7 +118,7 @@ In summary for the following subset of filters we take information from alternat
    NIRCam       F150W2          Top-hat function based on filter properties list at http://ircamera.as.arizona.edu/nircam/features.html
    NIRCam       F322W2          Top-hat function based on filter properties list at http://ircamera.as.arizona.edu/nircam/features.html
    NIRSpec      F115W           Assumed to be identical to the NIRCam one
-   NIRSpec      F140X           Top-hat function based on stated filter bandpass in NIRSpec Docs
+   NIRSpec      F140X           NIRSpec "BBA" transmission curve traced from NIRSpec GWA FWA Assembly Report, NIRS-ZEO-RO-0051, section 6.3.2
    MIRI         all filters     MIRI filters are represented as top-hat functions only at this time, by request of the MIRI team.
    FGS          none            Assumed top-hat function based on detector cut-on and cut-off wavelengths. 
 

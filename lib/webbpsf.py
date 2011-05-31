@@ -834,12 +834,12 @@ class NIRCam(JWInstrument):
             For circular occulters, 0.3998 requires sigma = 5.253
                                     0.8187 requires sigma = 2.5652
                                     sigma = 2.10013932 / loc
+                                    vs. Krist's statement sigma = 2.1001/hwhm
 
             For linear occulters, 0.3998 requires sigma = 4.5012
                                   0.13327 requires sigma = 13.5078
 
                         # This is NOT a linear relationship! It's a tricky inverse sin nonlinear thing.
-
 
         Empirical checks against John Krist's provided 430R and LWB files:
             430R should have sigma = 2.588496

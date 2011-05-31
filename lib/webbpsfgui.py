@@ -547,8 +547,6 @@ class WebbPSF_GUI(object):
 
 
 
-
-
     def quit(self):
         " Quit the GUI"
         if tkMessageBox.askyesno( message='Are you sure you want to quit?', icon='question', title='Install') :
@@ -570,24 +568,73 @@ class WebbPSF_GUI(object):
         if d.results is not None: # none means the user hit 'cancel'
             self.advanced_options = d.results
 
-
     def ev_plotspectrum(self):
         "Event handler for Plot Spectrum "
-        sptype = self.widgets['SpType'].get()
-        iname = self.widgets[self.widgets['tabset'].select()]
-        print "Spectral type is "+sptype
-        print "Selected instrument tab is "+iname
-        if iname != 'TFI':
-            filter = self.widgets[iname+"_filter"].get()
-            print "Selected instrument filter is "+filter
+        self._updateFromGUI()
+
+        #sptype = self.widgets['SpType'].get()
+        #iname = self.widgets[self.widgets['tabset'].select()]
+        print "Spectral type is "+self.sptype
+        print "Selected instrument tab is "+self.iname
+        #if iname != 'TFI':
+            #filter = self.widgets[self.iname+"_filter"].get()
+        print "Selected instrument filter is "+self.filter
 
 
         P.clf()
 
-        #speclib = webbpsf.kurucz_stars()
-
-        spectrum = specFromSpectralType(sptype)
+        ax1 = P.subplot(311)
+        spectrum = specFromSpectralType(self.sptype)
         synplot(spectrum)
+
+        ax2 = P.subplot(312, sharex=ax1)
+        ax2.set_ybound(0,1.1)
+        #try:
+        band = self.inst._getSynphotBandpass() #pysynphot.ObsBandpass(obsname)
+        band.name = "%s %s" % (self.iname, self.inst.filter)
+        synplot(band) #, **kwargs)
+        legend_font = matplotlib.font_manager.FontProperties(size=10)
+        P.legend(loc='lower right', prop=legend_font)
+
+        ax2.set_ybound(0,1.1)
+
+
+        ax3 = P.subplot(313, sharex=ax1)
+        if self.nlambda is None:
+            # Automatically determine number of appropriate wavelengths.
+            # Make selection based on filter configuration file
+            try:
+                if self.inst.name=='TFI':    # filter names are irrelevant for TFI.
+                    nlambda=5
+                else:
+                    #filt_width = self.filter[-1]
+                    #lookup_table = {'NIRCam': {'2': 10, 'W':20,'M':3,'N':1}, 
+                                    #'NIRSpec':{'W':5,'M':3,'N':1}, 
+                                    #'MIRI':{'W':5,'M':3,'N':1}, 
+                                    #'FGS':{'W':5,'M':3,'N':1}}
+
+                    #nlambda = lookup_table[self.name][filt_width]
+                    nlambda = self.inst._filter_nlambda_default[self.filter]
+            except:
+                nlambda=10
+        else:
+            nlambda = self.nlambda
+        ax1.set_xbound(0.1, 100)
+        P.draw()
+        waves, weights = self.inst._getWeights(spectrum, nlambda=nlambda)
+
+        wave_step = waves[1]-waves[0]
+        plot_waves = N.concatenate( ([waves[0]-wave_step], waves, [waves[-1]+wave_step])) * 1e6
+        plot_weights = N.concatenate(([0], weights,[0]))
+
+
+        P.ylabel("Weight")
+        P.xlabel("Wavelength [$\mu$m]")
+
+        ax3.plot(plot_waves, plot_weights,  drawstyle='steps-mid')
+
+        ax1.set_xbound(0.1, 100)
+
 
         #speclib.specFromSpectralType(sptype)
         #P.loglog(spectrum['wavelength_um'],spectrum['flux']/spectrum['flux'].max(),label=sptype+" star")
@@ -842,7 +889,6 @@ class Dialog(tk.Toplevel):
 
 
 class WebbPSFOptionsDialog(Dialog):
-
     def _add_labeled_dropdown(self, name, root,label="Entry:", values=None, default=None, width=5, position=(0,0), **kwargs):
         "convenient wrapper for adding a Combobox"
 
@@ -954,7 +1000,7 @@ class WebbPSFOptionsDialog(Dialog):
 
 #-------------------------------------------------------------------------
 
-def synplot(thing, waveunit='micron'):
+def synplot(thing, waveunit='micron', **kwargs):
     """ Plot a single PySynPhot object (either SpectralElement or SourceSpectrum)
     versus wavelength, with nice axes labels.
 
@@ -966,14 +1012,14 @@ def synplot(thing, waveunit='micron'):
 
 
     if isinstance(thing, pysynphot.spectrum.SourceSpectrum):
-        P.loglog(wave, thing.flux, label=thing.name)
+        P.loglog(wave, thing.flux, label=thing.name, **kwargs)
         P.xlabel("Wavelength [%s]" % waveunit)
         if str(thing.fluxunits) == 'flam':
             P.ylabel("Flux [%s]" % ' erg cm$^{-2}$ s$^{-1}$ Ang$^{-1}$' )
         else:
             P.ylabel("Flux [%s]" % thing.fluxunits)
     elif isinstance(thing, pysynphot.spectrum.SpectralElement):
-        P.plot(wave, thing.throughput,label=thing.name)
+        P.plot(wave, thing.throughput,label=thing.name, **kwargs)
         P.xlabel("Wavelength [%s]" % waveunit)
         P.ylabel("Throughput")
         P.gca().set_ylim(0,1)
