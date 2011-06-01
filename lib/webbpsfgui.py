@@ -225,7 +225,7 @@ class WebbPSF_GUI(object):
             default_opd = self.instrument[iname].pupilopd if self.instrument[iname].pupilopd is not None else "Zero OPD (perfect)"
             self._add_labeled_dropdown(iname+"_opd", fr2, label='    OPD File:', values=opd_list, default=default_opd, width=21, position=(0,0), sticky='W')
 
-            self._add_labeled_dropdown(iname+"_opd_i", fr2, label=' # ', values= [str(i+1) for i in range(10)], width=3, position=(0,2), sticky='W')
+            self._add_labeled_dropdown(iname+"_opd_i", fr2, label=' # ', values= [str(i) for i in range(10)], width=3, position=(0,2), sticky='W')
 
             self.widgets[iname+"_opd_label"] = ttk.Label(fr2, text=' 0 nm RMS            ', width=30)
             self.widgets[iname+"_opd_label"].grid( column=4,sticky='W', row=0)
@@ -586,6 +586,8 @@ class WebbPSF_GUI(object):
         ax1 = P.subplot(311)
         spectrum = specFromSpectralType(self.sptype)
         synplot(spectrum)
+        ax1.set_ybound(1e-6, 1e8) # hard coded for now
+        ax1.yaxis.set_major_locator(matplotlib.ticker.LogLocator(base=1000))
 
         ax2 = P.subplot(312, sharex=ax1)
         ax2.set_ybound(0,1.1)

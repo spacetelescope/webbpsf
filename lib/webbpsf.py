@@ -372,7 +372,7 @@ class JWInstrument(object):
         if self.pupil_mask is not None:
             result[0].header.update('LYOTMASK', self.pupil_mask)
         result[0].header.update('EXTNAME', 'OVERSAMP')
-        result[0].header.add_history('Created by JWPSF v4 ')
+        result[0].header.add_history('Created by WebbPSF version '+__version__)
         result[0].header.update('OVERSAMP', calc_oversample, 'Oversampling factor for FFTs in computation')
         result[0].header.update('DET_SAMP', detector_oversample, 'Oversampling factor for MFT to detector plane')
         (year, month, day, hour, minute, second, weekday, DOY, DST) =  time.gmtime()
@@ -1216,7 +1216,6 @@ def display_PSF(HDUlist_or_filename=None, ext=0,
     elif normalize.lower() =='total':
         _log.debug("Displaying image normalized to PSF total = 1")
         im /= im.sum()
- 
 
     if scale == 'linear':
         norm=matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
@@ -1261,7 +1260,7 @@ def display_PSF(HDUlist_or_filename=None, ext=0,
             if colorbar_orientation=='horizontal' and vmax==1e-1 and vmin==1e-8: ticks = [1e-8, 1e-6, 1e-4,  1e-2, 1e-1] # looks better
             cb.set_ticks(ticks)
             cb.set_ticklabels(ticks)
-        if normalize =='peak':
+        if normalize.lower() == 'peak':
             cb.set_label('Intensity relative to peak pixel')
         else: 
             cb.set_label('Fractional intensity per pixel')

@@ -70,7 +70,7 @@ import time
 from matplotlib.colors import LogNorm  # for log scaling of images, with automatic colorbar support
 import SFT
 
-__version__ = '0.2.3'
+__version__ = '0.2.5'
 
 try:
     from IPython.Debugger import Tracer; stop = Tracer()
@@ -556,6 +556,10 @@ class Wavefront(object):
             p.imshow(self.phase,extent=extent, cmap=cmap)
             p.ylabel(unit)
             p.title("Wavefront phase")
+
+        ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(5))
+        ax.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(5))
+
 
         p.draw()
 
@@ -1059,6 +1063,7 @@ class OpticalElement():
             either a scalar wavelength or a Wavefront object
 
         """
+        #_log.info("Pixelscales for %s: wave %f, optic  %f" % (self.name, wave.pixelscale, self.pixelscale))
 
         if isinstance(wave, Wavefront):
             wavelength=wave.wavelength
@@ -1071,6 +1076,7 @@ class OpticalElement():
         float_tolerance = 0.0001  #how big of a relative scale mismatch before resampling?
         if self.pixelscale is not None and hasattr(wave,'pixelscale') and abs(wave.pixelscale -self.pixelscale)/self.pixelscale >= float_tolerance:
             _log.debug("Pixelscales: %f, %f" % (wave.pixelscale, self.pixelscale))
+
             raise ValueError("Non-matching pixel scale for wavefront and optic! Need to add interpolation / rescaling ")
             if self.has_attr('_resampled_scale') and abs(self._resampled_scale-wave.pixelscale)/self._resampled_scale >= float_tolerance:
                 # we already did this same resampling, so just re-use it!
@@ -2330,6 +2336,9 @@ class OpticalSystem():
             _log.debug("reset intermediates")
 
         # do the propagation:
+        if display_intermediates:
+            suptitle = p.suptitle( "propagating $\lambda=$ %.3f $\mu$m" % (wavelength*1e6), size='x-large')
+
 
         count = 0
         for optic in self.planes:
@@ -2364,6 +2373,9 @@ class OpticalSystem():
                     t1 = time.time()
                     _log.debug("\tTIME %f s\t for displaying the wavefront." % (t1-t0))
 
+        if display_intermediates:
+            #suptitle.remove() #  does not work due to some matplotlib limitation, so work arount:
+            suptitle.set_text('') # clean up before next iteration to avoid ugly overwriting
 
         # prepare output arrays
         if normalize.lower()=='last':
@@ -2720,8 +2732,10 @@ class SemiAnalyticCoronagraph(OpticalSystem):
 
 
         if display_intermediates:
+            suptitle = p.suptitle( "propagating $\lambda=$ %.3f $\mu$m" % (wavelength*1e6), size='x-large')
+
             nrows = 6
-            P.clf()
+            #P.clf()
             wavefront.display(what='best',nrows=nrows,row=1, colorbar=False)
 
 
@@ -2756,7 +2770,12 @@ class SemiAnalyticCoronagraph(OpticalSystem):
         # propagate to the real detector in the final image plane.
         wavefront_combined.propagateTo(self.detector)
 
-        if display_intermediates: wavefront_combined.display(what='best',nrows=nrows,row=6, colorbar=False)
+        if display_intermediates: 
+            wavefront_combined.display(what='best',nrows=nrows,row=6, colorbar=False)
+            #suptitle.remove() #  does not work due to some matplotlib limitation, so work arount:
+            suptitle.set_text('') # clean up before next iteration to avoid ugly overwriting
+
+
 
         #------- differences from regular propagation end here --------------
 

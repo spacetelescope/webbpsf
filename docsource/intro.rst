@@ -77,7 +77,14 @@ sampling in the pupil and image planes. As a result, obtaining finely sampled PS
 mostly of zero-padding. A more computationally attractive method is to use a discrete matrix Fourier transform, which
 provides flexibility to compute PSFs on any desired output sampling without requiring any excess padding of the input arrays.
 While this algorithm's computational cost grows as `O(N^3)` versus `O(N log N)` for the FFT, the FFT's apparent advantage is immediately lost
-due to the need to resample the output onto the real pixel grid, which is an `O(N^2)` operation.
+due to the need to resample the output onto the real pixel grid, which is an `O(N^2)` operation. By performing a matrix fourier transform 
+directly to the desired output pixel scale, we can achieve arbitrarily fine sampling without the use of memory-intensive large padded arrays, and 
+with lower overall computation time.
+
+Further optimizations are available in coronagraphic mode using the semi-analytic coronagraphic propagation algorithm of Soummer et al. 2007. In this approach, rather than
+propagating the entire wavefront from pupil to image and back to pupil in order to account for the coronagraphic masks, we can propagate only the subset of the wavefront that
+is actually blocked by the image occulter and then subtract it from the rest of the wavefront at the Lyot plane. This relies on Babinet's principle to achieve the same final PSF
+with more computational efficiency, particularly for the case of highly oversampled image planes (as is necessary to account for fine structure in image plane occulter masks). See Soummer et al. 2007 for a detailed description of this algorithm.
 
 
 
