@@ -82,7 +82,8 @@ class TargetScene(object):
         self.sources.append(   {'spectrum': sptype_or_spectrum, 'separation': separation, 'PA': PA, 
             'normalization': normalization, 'name': name})
 
-    def calcImage(self, instrument, outfile=None, noise=False, rebin=True, PA=0, clobber=True, **kwargs):
+    def calcImage(self, instrument, outfile=None, noise=False, rebin=True, clobber=True, 
+            PA=0, offset_r=None, offset_PA=0.0, **kwargs):
         """ Calculate an image of a scene through some instrument
 
 
@@ -96,6 +97,9 @@ class TargetScene(object):
             passed to calcPSF
         PA : float
             postion angle for +Y direction in the output image
+        offset_r, offset_PA : float
+            Distance and angle to offset the target center from the FOV center.
+            This is to simulate imperfect acquisition + alignment. 
         noise : bool
             add read noise? TBD
         clobber : bool
@@ -110,29 +114,62 @@ class TargetScene(object):
         image_PA = PA
 
         for obj in self.sources:
+            _log.info('Now propagating for '+obj['name'])
             # set  companion spectrum and position
             src_spectrum = obj['spectrum']
-            instrument.options['source_offset_r'] = obj['separation']
-            instrument.options['source_offset_theta'] = obj['PA'] - image_PA
+
+            if offset_r is None:
+                instrument.options['source_offset_r'] = obj['separation']
+                instrument.options['source_offset_theta'] = obj['PA'] - image_PA
+            else:
+                # combine the actual source position with the image offset position.
+                obj_x = obj['separation'] * N.cos(obj['PA'] * N.pi/180)
+                obj_y = obj['separation'] * N.sin(obj['PA'] * N.pi/180)
+                offset_x = offset_r * N.cos(offset_PA * N.pi/180)
+                offset_y = offset_r * N.sin(offset_PA * N.pi/180)
+
+                src_x = obj_x + offset_x
+                src_y = obj_y + offset_y
+                src_r = N.sqrt(src_x**2+src_y**2)
+                src_pa = N.arctan2(src_y, src_x) * 180/N.pi
+                instrument.options['source_offset_r'] = src_r
+                instrument.options['source_offset_theta'] = src_pa
+
 
             src_psf =  instrument.calcPSF(source = src_spectrum, outfile=None, save_intermediates=False, rebin=rebin, 
                 **kwargs)
 
             # figure out the flux ratio
             if obj['normalization'] is not None:
+                # use the explicitly-provided normalization:
                 if isinstance(obj['normalization'], numbers.Number):
                     src_psf[0].data *= obj['normalization']
                 else:
                     raise NotImplemented("Not Yet")
-
+            else:
+                # use the flux level already implicitly set by the source spectrum.
+                # i.e. figure out what the flux of the source is, inside the selected bandpass
+                bp = instrument._getSynphotBandpass()
+                effstim_Jy = pysynphot.Observation(src_spectrum, bp).effstim('Jy')
+                src_psf[0].data *= effstim_Jy
+ 
             # add the scaled companion PSF to the stellar PSF:
             if sum_image is None:
                 sum_image = src_psf
                 sum_image[0].header.add_history("obssim : Creating an image simulation with multiple PSFs")
+                if offset_r is None:
+                    sum_image[0].header.add_history("Image is centered on target (perfect acquisition)")
+                else:
+                    sum_image[0].header.add_history("Image is offset %.2f arcsec at PA=%.1f from target" % (offset_r, offset_PA))
+
             else:
                 sum_image[0].data += src_psf[0].data
             #update FITS header history
             sum_image[0].header.add_history("Added source %s at r=%.3f, theta=%.2f" % (obj['name'], obj['separation'], obj['PA']))
+            sum_image[0].header.add_history("                with effstim = %.3g Jy" % effstim_Jy)
+            sum_image[0].header.add_history("                counts in image: %.3g" % src_psf[0].data.sum())
+
+
         if noise:
             raise NotImplemented("Not Yet")
 
@@ -163,6 +200,17 @@ class TargetScene(object):
             _log.info("Saved image to "+outfile)
         return sum_image
 
+    def display(self):
+        P.clf()
+        for obj in self.sources:
+            X = obj['separation'] * -N.sin(obj['PA'] * N.pi/180)
+            Y = obj['separation'] * N.cos(obj['PA'] * N.pi/180)
+
+            P.plot([X],[Y],'*')
+            P.text(X,Y, obj['name'])
+
+
+
 
 def test_obssim(nlambda=3, clobber=False):
     s = TargetScene()
@@ -178,13 +226,6 @@ def test_obssim(nlambda=3, clobber=False):
         outname = "test_scene_%s.fits"% filt
         if not os.path.exists(outname) or clobber:
             s.calcImage(inst, outfile=outname, fov_arcsec=5, nlambda=nlambda)
-
-
-
-
-if __name__ == "__main__":
-
-    logging.basicConfig(level=logging.INFO,format='%(name)-10s: %(levelname)-8s %(message)s')
 
 
 
@@ -258,6 +299,13 @@ def specFromSpectralType(sptype, return_list=False):
 
     return pysynphot.Icat('ck04models',keys[0], keys[1], keys[2])
 
+
+
+
+
+if __name__ == "__main__":
+
+    logging.basicConfig(level=logging.INFO,format='%(name)-10s: %(levelname)-8s %(message)s')
 
 
 
