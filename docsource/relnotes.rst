@@ -42,6 +42,7 @@ Plans for Future Releases
 --------------------------
 * Full support for the NIRSpec and MIRI IFUs will be added in a future release
 * Realistic (but time consuming) jitter models
+* Integration with OPD generation software and detector noise models.
 * Possibly: separate handling of pre- and post- coronagraphic WFE in instruments, if it appears likely to be significant. 
 
 

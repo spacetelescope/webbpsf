@@ -164,7 +164,7 @@ class TargetScene(object):
         return sum_image
 
 
-def test_obssim(nlambda=3, clobber=Fale):
+def test_obssim(nlambda=3, clobber=False):
     s = TargetScene()
 
     s.addPointSource('G0V', name='G0V star', separation = 0.1, normalization=1.)

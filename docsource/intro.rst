@@ -95,7 +95,7 @@ with more computational efficiency, particularly for the case of highly oversamp
 
 Quick Start
 ------------
-First, download and install the software (as described in the next page of this document).  Then just
+First, download and install the software (as described in the next page of this document).  Then just start python and
 
 >>> import webbpsf
 >>> webbpsf.gui()
