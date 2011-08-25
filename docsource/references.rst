@@ -58,6 +58,17 @@ NIRSpec
 --------
 NIRspec field of view rotation: 41.5 degrees. Matt Lallo, draft SIAF information; and Ball SI Fields for WFS&C document, J. Scott Knight
 
+Occulting spots: Assumed to be perfect circles with diameters 0.58, 0.75, 1.5, and 2.0 arcsec. Doyon et al. 2010 SPIE 7731. While these
+are not likely to see extensive use with NIRISS, they are indeed still present in the hardware, so we retain the ability to simulate them. 
+
+NRM occulter mask: Provided by Anand Sivaramakrishnan. 
+
+
+NIRISS
+-------
+
+NIRISS filter bandpasses are assumed to be precisely identical to NIRCam for the filters in common. 
+
 
 MIRI
 ------
@@ -79,18 +90,13 @@ Lyot mask files:                                         Anthony Boccaletti priv
 
 
 
-TFI
-----
-
-TFI Etalon spectral resolution model:            From Craig Haley at ComDev, provided by Alex Fullerton
-
-The transmission of TFI is modeled as a Gaussian with peak 1.0 and FWHM corresponding to the spectral resolution at the given wavelength. **Note:** In a future version of this software this should be improved to match the Airy function for an Etalon as given in "An Introduction to the TFI Etalon", JWST-STScI-002059.
-
-
-TFI occulting spots: Assumed to be perfect circles with diameters 0.58, 0.75, 1.5, and 2.0 arcsec. Doyon et al. 2010 SPIE 7731. 
-
-Lyot occulter masks were provided by David Lafreniere and Mathilde Beaulieu. **Note:** The stated pixel scale is 6.44716 mm/pixel, which is slightly discrepant from the assumed pixel 
-scale for the IPAM OPDs (differing by ~1 part in 1000). This discrepancy should be resolved in future versions of this software.
+.. comment
+    TFI
+    TFI Etalon spectral resolution model:            From Craig Haley at ComDev, provided by Alex Fullerton
+    The transmission of TFI is modeled as a Gaussian with peak 1.0 and FWHM corresponding to the spectral resolution at the given wavelength. **Note:** In a future version of this software this should be improved to match the Airy function for an Etalon as given in "An Introduction to the TFI Etalon", JWST-STScI-002059.
+    TFI occulting spots: Assumed to be perfect circles with diameters 0.58, 0.75, 1.5, and 2.0 arcsec. Doyon et al. 2010 SPIE 7731. 
+    Lyot occulter masks were provided by David Lafreniere and Mathilde Beaulieu. **Note:** The stated pixel scale is 6.44716 mm/pixel, which is slightly discrepant from the assumed pixel 
+    scale for the IPAM OPDs (differing by ~1 part in 1000). This discrepancy should be resolved in future versions of this software.
 
 
 Instrument + Filter Throughputs

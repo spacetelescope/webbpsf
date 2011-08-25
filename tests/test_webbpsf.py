@@ -190,11 +190,4 @@ def test_run(index=None, wavelength=2e-6):
 if __name__== "__main__":
     logging.basicConfig(level=logging.DEBUG,format='%(name)-10s: %(levelname)-8s %(message)s')
 
-    miri = jw.MIRI()
-    miri.pupilopd = None
-    miri.filter='F1065C'
-    miri.image_mask = 'FQPM1065'
-    miri.pupil_mask = 'MASKFQPM'
-
-
-
+    unittest.main()

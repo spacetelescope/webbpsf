@@ -133,7 +133,10 @@ class TargetScene(object):
                 src_r = N.sqrt(src_x**2+src_y**2)
                 src_pa = N.arctan2(src_y, src_x) * 180/N.pi
                 instrument.options['source_offset_r'] = src_r
-                instrument.options['source_offset_theta'] = src_pa
+                instrument.options['source_offset_theta'] = src_pa - image_PA
+                #stop()
+
+            _log.info('  post-offset & rot pos: %.3f  at %.1f deg' % (instrument.options['source_offset_r'], instrument.options['source_offset_theta']))
 
 
             src_psf =  instrument.calcPSF(source = src_spectrum, outfile=None, save_intermediates=False, rebin=rebin, 
@@ -157,6 +160,10 @@ class TargetScene(object):
             if sum_image is None:
                 sum_image = src_psf
                 sum_image[0].header.add_history("obssim : Creating an image simulation with multiple PSFs")
+                sum_image[0].header.update('IMAGE_PA', image_PA,'PA of scene in simulated image')
+                sum_image[0].header.update('OFFSET_R',0 if offset_r is None else offset_r ,'[arcsec] Offset of target center from FOV center')
+                sum_image[0].header.update('OFFSETPA',0 if offset_PA is None else offset_PA ,'[deg] Position angle of target offset from FOV center')
+
                 if offset_r is None:
                     sum_image[0].header.add_history("Image is centered on target (perfect acquisition)")
                 else:
@@ -168,6 +175,7 @@ class TargetScene(object):
             sum_image[0].header.add_history("Added source %s at r=%.3f, theta=%.2f" % (obj['name'], obj['separation'], obj['PA']))
             sum_image[0].header.add_history("                with effstim = %.3g Jy" % effstim_Jy)
             sum_image[0].header.add_history("                counts in image: %.3g" % src_psf[0].data.sum())
+            sum_image[0].header.add_history("                pos in image: %.3g'' at %.1f deg" % (instrument.options['source_offset_r'],  instrument.options['source_offset_theta'])  )
 
 
         if noise:

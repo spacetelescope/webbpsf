@@ -12,7 +12,7 @@ Classes:
     * MIRI
     * NIRCam
     * NIRSpec
-    * TFI
+    * NIRISS
     * FGS
 
 
@@ -65,6 +65,7 @@ except:
         pass
 
 
+_Strehl_perfect_cache = {} # dict for caching perfect images used in Strehl calcs.
 
 
 class JWInstrument(object):
@@ -86,7 +87,7 @@ class JWInstrument(object):
     configuration can be done by editing the :ref:`JWInstrument.options` dictionary, either by passing options to __init__ or by directly editing the dict afterwards.
     """
 
-    def __init__(self, name=None):
+    def __init__(self, name=""):
         self.name=name
 
         self._WebbPSF_basepath = os.getenv('WEBBPSF_PATH', default= os.path.dirname(os.path.dirname(os.path.abspath(poppy.__file__))) +os.sep+"data" )
@@ -148,7 +149,9 @@ class JWInstrument(object):
 
         #self._filter_files= [os.path.abspath(f) for f in glob.glob(self._datapath+os.sep+'filters/*_thru.fits')]
         #self.filter_list=[os.path.basename(f).split("_")[0] for f in self._filter_files]
-        if len(self.filter_list) ==0: self.filter_list=[''] # don't crash for TFI or FGS which lack filters in the usual sense
+        if len(self.filter_list) ==0: 
+            self.filter_list=[''] # don't crash for FGS which lacks filters in the usual sense
+            stop()
 
         def sort_filters(filtname):
             try:
@@ -299,9 +302,9 @@ class JWInstrument(object):
             # Automatically determine number of appropriate wavelengths.
             # Make selection based on filter configuration file
             try:
-                if self.name=='TFI':    # filter names are irrelevant for TFI.
-                    nlambda=5
-                else:
+                #if self.name=='TFI':    # filter names are irrelevant for TFI.
+                    #nlambda=5
+                #else:
                     #filt_width = self.filter[-1]
                     #lookup_table = {'NIRCam': {'2': 10, 'W':20,'M':3,'N':1}, 
                                     #'NIRSpec':{'W':5,'M':3,'N':1}, 
@@ -309,7 +312,7 @@ class JWInstrument(object):
                                     #'FGS':{'W':5,'M':3,'N':1}}
 
                     #nlambda = lookup_table[self.name][filt_width]
-                    nlambda = self._filter_nlambda_default[self.filter]
+                nlambda = self._filter_nlambda_default[self.filter]
                 _log.debug("Automatically selecting # of wavelengths: %d" % nlambda)
             except:
                 nlambda=10
@@ -589,10 +592,15 @@ class JWInstrument(object):
         optsys.addDetector(self.pixelscale, fov_pixels = fov_pixels, oversample = detector_oversample, name=self.name+" detector")
 
         if trySAM and not ('no_sam' in self.options.keys() and self.options['no_sam']): # if this flag is set, try switching to SemiAnalyticCoronagraph mode. 
+            _log.info("Trying to invoke switch to Semi-Analytic Coronagraphy algorithm")
             try: 
                 SAM_optsys = poppy.SemiAnalyticCoronagraph(optsys, oversample=calc_oversample, occulter_box = SAM_box_size )
+                _log.info("SAC OK")
                 return SAM_optsys
-            except: 
+            except ValueError as err: 
+                _log.warn("Could not switch to Semi-Analytic Coronagraphy mode; invalid set of optical planes? Using default propagation instead.")
+                _log.warn(str(err))
+                #_log.warn("ERROR ({0}): {1}".format(errno, strerror))
                 pass
  
 
@@ -603,7 +611,7 @@ class JWInstrument(object):
     def display(self):
         """Display the currently configured optical system on screen """
         optsys = self._getOpticalSystem()
-        optsys.display()
+        optsys.display(what='both')
 
     def _addCoronagraphOptics(self,optsys, oversample=2):
         """Add coronagraphic optics to an optical system. 
@@ -691,7 +699,9 @@ class MIRI(JWInstrument):
 
 
     def _addCoronagraphOptics(self,optsys, oversample=2):
-        """Add coronagraphic optics for MIRI 
+        """Add coronagraphic optics for MIRI.
+        Semi-analytic coronagraphy algorithm used for the Lyot only.
+
         """
 
         # For MIRI coronagraphy, all the coronagraphic optics are rotated the same
@@ -718,18 +728,22 @@ class MIRI(JWInstrument):
                 opticslist = [  poppy.IdealFQPM(wavelength=10.65e-6, name=self.image_mask),
                                 poppy.IdealFieldStop(size=24, angle=-4.56)])
             optsys.addImage(container)
-
-            #optsys.addImage(poppy.IdealFQPM(wavelength=10.65e-6, name=self.image_mask) )
+            trySAM = False
+            SAM_box_size = 1.0 # irrelevant but variable still needs to be set.
         elif self.image_mask == 'FQPM1140':
             container = poppy.CompoundAnalyticOptic(name = "MIRI FQPM 1140",
                 opticslist = [  poppy.IdealFQPM(wavelength=11.40e-6, name=self.image_mask),
                                 poppy.IdealFieldStop(size=24, angle=-4.56)])
             optsys.addImage(container)
+            trySAM = False
+            SAM_box_size = 1.0 # irrelevant but variable still needs to be set.
         elif self.image_mask == 'FQPM1550':
             container = poppy.CompoundAnalyticOptic(name = "MIRI FQPM 1550",
                 opticslist = [  poppy.IdealFQPM(wavelength=15.50e-6, name=self.image_mask),
                                 poppy.IdealFieldStop(size=24, angle=-4.56)])
             optsys.addImage(container)
+            trySAM = False
+            SAM_box_size = 1.0 # irrelevant but variable still needs to be set.
         elif self.image_mask =='LYOT2300':
             #diameter is 4.25 (measured) 4.32 (spec) supposedly 6 lambda/D
             #optsys.addImage(function='CircularOcculter',radius =4.25/2, name=self.image_mask) 
@@ -743,7 +757,9 @@ class MIRI(JWInstrument):
                               poppy.IdealBarOcculter(width=0.722), 
                               poppy.IdealFieldStop(size=30, angle=-4.56)] )
             optsys.addImage(container)
-        else: 
+            trySAM = True
+            SAM_box_size = [5,20]
+        else:
             optsys.addImage()
 
         if (self.image_mask is not None and 'FQPM' in self.image_mask)  or 'force_fqpm_shift' in self.options.keys() : optsys.addPupil("FQPM FFT aligner", direction='backward')
@@ -765,8 +781,7 @@ class MIRI(JWInstrument):
 
         optsys.addRotation(self._rotation)
 
-        return (optsys, False, 0) # don't ever try SemiAnalyticCoronagraph for MIRI? 
-            # TBD maybe for Lyot mode, later?
+        return (optsys, trySAM, SAM_box_size)
 
 
 class NIRCam(JWInstrument):
@@ -889,7 +904,7 @@ class NIRCam(JWInstrument):
         elif (self.pupil_mask is None and self.image_mask is not None):
             optsys.addPupil(name='No Lyot Mask Selected!')
 
-        return (optsys, trySAM, SAM_box_size) # don't ever try SemiAnalyticCoronagraph for NIRCam? 
+        return (optsys, trySAM, SAM_box_size)
 
 
 class NIRSpec(JWInstrument):
@@ -925,9 +940,77 @@ class NIRSpec(JWInstrument):
     def _validate_config(self):
         if self.filter.startswith("IFU"): raise NotImplementedError("The NIRSpec IFU is not yet implemented.")
 
+class NIRISS(JWInstrument):
+    """ A class modeling the optics of the Near-IR Imager and Slit Spectrograph
+        (formerly nTFI)
+    
+    Relevant attributes include `image_mask`, and `pupil_mask`.
 
+    """
+    def __init__(self):
+        JWInstrument.__init__(self, "NIRISS")
+        self.pixelscale = 0.064 
+
+        self.image_mask_list = ['CORON058', 'CORON075','CORON150','CORON200'] # available but unlikely to be used...
+        self.pupil_mask_list = ['MASK_NRM','CLEAR']
+
+
+    def _validate_config(self):
+        pass
+
+    def _addCoronagraphOptics(self,optsys, oversample=2):
+        """Add coronagraphic optics for TFI/NIRISS. 
+
+            These are probably not going to be used much in practice for NIRISS, but they
+            are present, so we might as well still provide the ability to simulate 'em. 
+        """
+        if self.image_mask == 'CORON058':
+            radius = 0.58/2
+            optsys.addImage(function='CircularOcculter', radius=radius, name=self.image_mask)
+            trySAM = True
+        elif self.image_mask == 'CORON075':
+            radius=0.75/2
+            optsys.addImage(function='CircularOcculter', radius=radius, name=self.image_mask)
+            trySAM = True
+        elif self.image_mask == 'CORON150':
+            radius=1.5/2
+            optsys.addImage(function='CircularOcculter', radius=radius, name=self.image_mask)
+            trySAM = True
+        elif self.image_mask == 'CORON200':
+            radius=2.0/2
+            optsys.addImage(function='CircularOcculter', radius=radius, name=self.image_mask)
+            trySAM = True
+        else:
+            trySAM = False
+            radius = 0.0 # irrelevant but variable needs to be initialized
+
+        # add pupil plane mask
+        if ('pupil_shift_x' in self.options.keys() and self.options['pupil_shift_x'] != 0) or \
+           ('pupil_shift_y' in self.options.keys() and self.options['pupil_shift_y'] != 0):
+            shift = (self.options['pupil_shift_x'], self.options['pupil_shift_y'])
+        else: shift = None
+
+        #if self.pupil_mask == 'MASKC21N':
+            #optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKC21N.fits", name=self.pupil_mask, shift=shift)
+        #elif self.pupil_mask == 'MASKC66N':
+            #optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKC66N.fits", name=self.pupil_mask, shift=shift)
+        #elif self.pupil_mask == 'MASKC71N':
+            #optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKC71N.fits", name=self.pupil_mask, shift=shift)
+        if self.pupil_mask == 'MASK_NRM':
+            optsys.addPupil(transmission=self._datapath+"/coronagraph/MASK_NRM.fits", name=self.pupil_mask, shift=shift)
+        elif self.pupil_mask == 'CLEAR':
+            optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKCLEAR.fits", name=self.pupil_mask, shift=shift)
+        elif (self.pupil_mask  is None and self.image_mask is not None):
+            optsys.addPupil(name='No Lyot Mask Selected!')
+
+        return (optsys, trySAM, radius+0.05) # always attempt to cast this to a SemiAnalyticCoronagraph
+
+ 
 class TFI(JWInstrument):
     """ A class modeling the optics of the Tunable Filter Imager
+
+    ** This class is preserved here for archival/historical purposes in this version of WebbPSF. It is now
+    deprecated in favor of NIRISS. **
     
     Relevant attributes include `image_mask`, and `pupil_mask`.
 
@@ -1067,7 +1150,7 @@ def Instrument(name):
     """This is just a convenience function, allowing one to access instrument objects based on a string.
     For instance, 
 
-    >>> t = Instrument('TFI')
+    >>> t = Instrument('NIRISS')
 
 
     
@@ -1081,6 +1164,7 @@ def Instrument(name):
     if name == 'miri': return MIRI()
     if name == 'nircam': return NIRCam()
     if name == 'nirspec': return NIRSpec()
+    if name == 'niriss': return NIRISS()
     if name == 'tfi': return TFI()
     if name == 'fgs': return FGS()
     else: raise ValueError("Incorrect instrument name "+name)
@@ -1154,7 +1238,7 @@ def MakePSF(self, instrument=None, pupil_file=None, phase_file=None, output=None
 def display_PSF(HDUlist_or_filename=None, ext=0,
     vmin=1e-8,vmax=1e-1, scale='log', cmap = matplotlib.cm.jet, 
         title=None, imagecrop=None, adjust_for_oversampling=False, normalize='None', crosshairs=False, markcentroid=False, colorbar=True, colorbar_orientation='vertical',
-        pixelscale='PIXELSCL'):
+        pixelscale='PIXELSCL', ax=None):
     """Display nicely a PSF from a given HDUlist or filename 
 
     This is extensively configurable. In addition to making an attractive display, for
@@ -1173,6 +1257,8 @@ def display_PSF(HDUlist_or_filename=None, ext=0,
         'linear' or 'log', default is log
     cmap : matplotlib.cm.Colormap instance
         Colormap to use. Default is matplotlib.cm.jet
+    ax : matplotlib.Axes instance
+        Axes to display into.
     title : string, optional
     imagecrop : float
         size of region to display (default is whole image)
@@ -1235,7 +1321,7 @@ def display_PSF(HDUlist_or_filename=None, ext=0,
     extent = [-halffov, halffov, -halffov, halffov]
 
 
-    ax = poppy.imshow_with_mouseover( im   ,extent=extent,cmap=cmap, norm=norm)
+    ax = poppy.imshow_with_mouseover( im   ,extent=extent,cmap=cmap, norm=norm, ax=ax)
     if imagecrop is not None:
         halffov = min( (imagecrop/2, halffov))
     ax.set_xbound(-halffov, halffov)
@@ -1251,7 +1337,7 @@ def display_PSF(HDUlist_or_filename=None, ext=0,
         except: 
             fspec= str(HDUlist_or_filename)
         title="PSF sim for "+fspec
-    P.title(title)
+    ax.set_title(title)
 
     if colorbar:
         cb = P.colorbar(ax.images[0], orientation=colorbar_orientation)
@@ -1273,7 +1359,7 @@ def display_PSF(HDUlist_or_filename=None, ext=0,
         P.draw()
 
 
-def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None, ext1=0, ext2=0, vmax=1e-4, title=None, imagecrop=None, adjust_for_oversampling=False, normalize=False, crosshairs=False, colorbar=True, colorbar_orientation='vertical', print_=False):
+def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None, ext1=0, ext2=0, vmax=1e-4, title=None, imagecrop=None, adjust_for_oversampling=False, normalize=False, crosshairs=False, colorbar=True, colorbar_orientation='vertical', print_=False, ax=None):
     """Display nicely the difference of two PSFs from given files 
     
     Parameters
@@ -1288,7 +1374,7 @@ def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
     imagecrop : float
         size of region to display (default is whole image)
     normalize : bool
-        Display (difference image)/(mean image) instead of just the difference image
+        Display (difference image)/(mean image) instead of just the difference image.
     adjust_for_oversampling : bool
         rescale to conserve surface brightness for oversampled PSFs? 
         (making this True conserves surface brightness but not total flux)
@@ -1336,7 +1422,7 @@ def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
     extent = [-halffov, halffov, -halffov, halffov]
 
 
-    ax = poppy.imshow_with_mouseover( diff_im   ,extent=extent,cmap=cmap, norm=norm)
+    ax = poppy.imshow_with_mouseover( diff_im   ,extent=extent,cmap=cmap, norm=norm, ax=ax)
     if imagecrop is not None:
         halffov = min( (imagecrop/2, halffov))
     ax.set_xbound(-halffov, halffov)
@@ -1353,7 +1439,7 @@ def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
         except: 
             fspec= str(HDUlist_or_filename1) +"-"+str(HDUlist_or_filename2)
         title="Difference of "+fspec
-    P.title(title)
+    ax.set_title(title)
 
     if colorbar:
         cb = P.colorbar(ax.images[0], orientation=colorbar_orientation)
@@ -1704,7 +1790,7 @@ def measure_centroid(HDUlist_or_filename=None, ext=0, slice=0, boxsize=50, print
     return cent_of_mass
 
 
-def measure_strehl(HDUlist_or_filename=None, ext=0, center=None, display=True, print_=True):
+def measure_strehl(HDUlist_or_filename=None, ext=0, center=None, display=True, print_=True, cache_perfect=False):
     """ Estimate the Strehl ratio for a PSF.
     
     This requires computing a simulated PSF with the same
@@ -1728,6 +1814,8 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, center=None, display=True, p
     print_, display : bool
         control whether to print the results or display plots on screen. 
 
+    cache_perfect : bool
+        use caching for perfect images? greatly speeds up multiple calcs w/ same config
 
     Returns
     ---------
@@ -1757,10 +1845,15 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, center=None, display=True, p
     inst.filter = header['FILTER']
     inst.pupilopd = None # perfect image
     inst.pixelscale = header['PIXELSCL'] * header['OVERSAMP'] # same pixel scale pre-oversampling
-    comparison_psf = inst.calcPSF(fov_arcsec = header['FOV'], oversample=header['OVERSAMP'], nlambda=header['NWAVES'])
+    cache_key = (header['INSTRUME'], header['FILTER'], header['PIXELSCL'], header['OVERSAMP'],  header['FOV'],header['NWAVES'])
+    try:
+        comparison_psf = _Strehl_perfect_cache[cache_key]
+    except:
+        comparison_psf = inst.calcPSF(fov_arcsec = header['FOV'], oversample=header['OVERSAMP'], nlambda=header['NWAVES'])
+        if cache_perfect: _Strehl_perfect_cache[cache_key ] = comparison_psf
+
     comparison_image = comparison_psf[0].data
 
-    
     if (int(center[1]) == center[1]) and (int(center[0]) == center[0]):
         # individual pixel
         meas_peak =           image[center[1], center[0]]
@@ -1938,21 +2031,23 @@ if __name__ == "__main__":
 
     logging.basicConfig(level=logging.INFO,format='%(name)-10s: %(levelname)-8s %(message)s')
 
-
-    nc = NIRCam()
-    nc.filter = 'F460M'
-    nc.image_mask = 'MASK430R'
-    nc.pupil_mask = 'CIRCLYOT'
-    #nc.calcPSF('test_nircam.fits', mono=False)
-
+#
+#    nc = NIRCam()
+#    nc.filter = 'F460M'
+#    nc.image_mask = 'MASK430R'
+#    nc.pupil_mask = 'CIRCLYOT'
+#    #nc.calcPSF('test_nircam.fits', mono=False)
+#
     miri=MIRI()
-    miri.image_mask = 'FQPM1065'
-    miri.pupil_mask = 'MASKFQPM'
-    miri.filter='F1065C'
-
-    #miri.display()
-    nircam=NIRCam()
-    tfi = TFI()
-    tfi.image_mask = "CORON058"
-    tfi.pupil_mask = 'MASKC66N'
-    nirspec = NIRSpec()
+    miri.image_mask = 'LYOT2300'
+    miri.pupil_mask = 'MASKLYOT'
+    miri.filter='F2300C'
+    P.clf()
+    miri.display()
+#
+#    #miri.display()
+#    nircam=NIRCam()
+#    tfi = TFI()
+#    tfi.image_mask = "CORON058"
+#    tfi.pupil_mask = 'MASKC66N'
+#    nirspec = NIRSpec()

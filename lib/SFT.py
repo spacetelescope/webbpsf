@@ -638,6 +638,14 @@ def test_SFT(choice='FFTSTYLE', outdir='.', outname='SFT1'):
 
 
 def test_SFT_rect(choice='FFTRECT', outdir='.', outname='SFT1R_', npix=None, sampling=10., nlamd=None):
+    """
+    Test matrix DFT, including non-square arrays, in both the
+    forward and inverse directions.
+
+    This is an exact equivalent (in Python) of test_matrix_DFT in matrix_dft.pro (in IDL)
+    They should give identical results.
+
+    """
     import os
     import matplotlib
     import matplotlib.pyplot as P
@@ -689,8 +697,11 @@ def test_SFT_rect(choice='FFTRECT', outdir='.', outname='SFT1R_', npix=None, sam
     pupil /= np.sqrt(pupil.sum())
 
     P.clf()
+    P.subplots_adjust(left=0.02, right=0.98)
     P.subplot(141)
-    P.imshow(pupil)
+
+    pmx = pupil.max()
+    P.imshow(pupil, vmin=0, vmax=pmx*1.5)
 
 
     pyfits.PrimaryHDU(pupil.astype(np.float32)).writeto(outdir+os.sep+outname+"pupil.fits", clobber=True)
@@ -718,23 +729,25 @@ def test_SFT_rect(choice='FFTRECT', outdir='.', outname='SFT1R_', npix=None, sam
     #SF.SimpleFitsWrite(fn=outdir+os.sep+outname+"psf.fits", data=psf.astype(np.float32), clobber='y')
     pyfits.PrimaryHDU(psf.astype(np.float32)).writeto(outdir+os.sep+outname+"psf.fits", clobber=True)
 
-    P.subplot(142)
+    ax=P.subplot(142)
     P.imshow(asf, norm=matplotlib.colors.LogNorm(1e-8, 1.0))
-    P.gca().set_title='ASF'
+    ax.set_title='ASF'
 
-    P.subplot(143)
+    ax=P.subplot(143)
     P.imshow(psf, norm=matplotlib.colors.LogNorm(1e-8, 1.0))
-    P.gca().set_title='PSF'
+    ax.set_title='PSF'
 
     P.subplot(144)
 
     pupil2 = sft1.inverse(a, u, npupil)
     pupil2r = (pupil2 * pupil2.conjugate()).real
-    P.imshow( pupil2r)
+    P.imshow( pupil2r, vmin=0,vmax=pmx*1.5*0.01) # FIXME flux normalization is not right?? I think this has to do with squaring the pupil here, that's all.
     P.gca().set_title='back to pupil'
     P.draw()
     print "Post-inverse FFT total: "+str( abs(pupil2r).sum() )
+    print "Post-inverse pupil max: "+str(pupil2r.max())
 
+    stop()
 
 
 def test_SFT_center( npix=100, outdir='.', outname='SFT1'):

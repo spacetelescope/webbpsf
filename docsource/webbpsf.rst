@@ -141,7 +141,7 @@ pixel scale in a variety of ways, as follows. See the :py:class:`JWInstrument.ca
 2. For coronagraphic calculations, it is possible to set different oversampling factors at different parts of the calculation. See the ``calc_oversample`` and ``detector_oversample`` parameters. This
    is of no use for regular imaging calculations (in which case ``oversample`` is a synonym for ``detector_oversample``).
 
-   >>> tfi.calcPSF(calc_oversample=8, detector_oversample= 2)    # model the occulter with very fine pixels, then save the 
+   >>> miri.calcPSF(calc_oversample=8, detector_oversample= 2)    # model the occulter with very fine pixels, then save the 
    >>>                                                           # data on a coarser (but still oversampled) scale
 
 3. Or, if you need even more flexibility, just change the ``instrument.pixelscale`` attribute to be whatever arbitrary scale you require. 
@@ -156,7 +156,7 @@ pixel scale in a variety of ways, as follows. See the :py:class:`JWInstrument.ca
 The JWInstrument generic class
 --------------------------------
 
-.. inheritance-diagram:: webbpsf.NIRCam webbpsf.NIRSpec webbpsf.MIRI webbpsf.TFI webbpsf.FGS
+.. inheritance-diagram:: webbpsf.NIRCam webbpsf.NIRSpec webbpsf.MIRI webbpsf.TFI webbpsf.NIRISS webbpsf.FGS
 
 
 .. autoclass:: webbpsf.JWInstrument
@@ -205,13 +205,13 @@ MIRI
    simulations will include two 'virtual optics' called 'FQPM FFT aligners' that  will show up in the display window for such calculations. These 
    can be ignored by most end users of this software; interested readers should consult the  :py:mod:`POPPY <poppy>` documentation for more detail.
 
+NIRISS
+^^^^^^^
 
-TFI
-^^^^
-
-.. autoclass:: webbpsf.TFI
+.. autoclass:: webbpsf.NIRISS
 
         See methods under :py:class:`JWInstrument` 
+
 
 FGS
 ^^^^
@@ -219,6 +219,15 @@ FGS
 .. autoclass:: webbpsf.FGS
 
         See methods under :py:class:`JWInstrument` 
+
+
+TFI
+^^^^
+
+Deprecated in favor of NIRISS.  The TFI class is still included in this version of WebbPSF for compatibility with existing code, just
+to be on the safe side, but is likely to go away in the next release. 
+
+.. autoclass:: webbpsf.TFI
 
 
 Utility Functions for Display and Plotting

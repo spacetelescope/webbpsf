@@ -47,7 +47,7 @@ class WebbPSF_GUI(object):
         self.widgets = {}
         self.vars = {}
         self.advanced_options = {'parity': 'any', 'force_coron': False, 'no_sam': False, 'psf_vmin': 1e-8, 'psf_vmax': 1.0, 'psf_scale': 'log', 'psf_cmap_str': 'Jet (blue to red)' , 'psf_normalize': 'Total', 'psf_cmap': matplotlib.cm.jet}
-        insts = ['NIRCam', 'NIRSpec','MIRI', 'TFI', 'FGS']
+        insts = ['NIRCam', 'NIRSpec','NIRISS', 'MIRI', 'FGS']
         for i in insts:
             self.instrument[i] = webbpsf.Instrument(i)
 
@@ -90,15 +90,15 @@ class WebbPSF_GUI(object):
         the ttk extension to Tkinter, available in Python 2.7 or newer
         """
         #---- create the GUIs
-        insts = ['NIRCam', 'NIRSpec','MIRI', 'TFI', 'FGS']
+        insts = ['NIRCam', 'NIRSpec','NIRISS', 'MIRI',  'FGS']
         self.root = tk.Tk()
         self.root.geometry('+50+50')
-        self.root.title("Webb PSF GUI")
+        self.root.title("James Webb Space Telescope PSF Calculator GUI")
 
         frame = ttk.Frame(self.root)
         #frame = ttk.Frame(self.root, padx=10,pady=10)
 
-        ttk.Label(frame, text='James Webb PSF Calculator' ).grid(row=0)
+        #ttk.Label(frame, text='James Webb PSF Calculator' ).grid(row=0)
 
         #-- star
         lf = ttk.LabelFrame(frame, text='Source Properties')
@@ -143,14 +143,14 @@ class WebbPSF_GUI(object):
             ttk.Button(page, text='Display Optics', command=self.ev_displayOptics ).grid(column=2, row=0, sticky='E', columnspan=3)
 
 
-            if  iname != 'TFI':
-                self._add_labeled_dropdown(iname+"_filter", page, label='    Filter:', values=self.instrument[iname].filter_list, default=self.instrument[iname].filter, width=10, position=(1,0), sticky='W')
-            else:
-                ttk.Label(page, text='Etalon wavelength: ' , state='disabled').grid(row=1, column=0, sticky='W')
-                self.widgets[iname+"_wavelen"] = ttk.Entry(page, width=7) #, disabledforeground="#A0A0A0")
-                self.widgets[iname+"_wavelen"].insert(0, str(self.instrument[iname].etalon_wavelength))
-                self.widgets[iname+"_wavelen"].grid(row=1, column=1, sticky='W')
-                ttk.Label(page, text=' um' ).grid(row=1, column=2, sticky='W')
+            #if  iname != 'TFI':
+            self._add_labeled_dropdown(iname+"_filter", page, label='    Filter:', values=self.instrument[iname].filter_list, default=self.instrument[iname].filter, width=10, position=(1,0), sticky='W')
+            #else:
+                #ttk.Label(page, text='Etalon wavelength: ' , state='disabled').grid(row=1, column=0, sticky='W')
+                #self.widgets[iname+"_wavelen"] = ttk.Entry(page, width=7) #, disabledforeground="#A0A0A0")
+                #self.widgets[iname+"_wavelen"].insert(0, str(self.instrument[iname].etalon_wavelength))
+                #self.widgets[iname+"_wavelen"].grid(row=1, column=1, sticky='W')
+                #ttk.Label(page, text=' um' ).grid(row=1, column=2, sticky='W')
  
             #self.vars[iname+"_filter"] = tk.StringVar()
             #self.widgets[iname+"_filter"] = ttk.Combobox(page,textvariable =self.vars[iname+"_filter"], width=10, state='readonly')
@@ -164,8 +164,8 @@ class WebbPSF_GUI(object):
             #if hasattr(self.instrument[iname], 'ifu_wavelength'):
             if iname == 'NIRSpec' or iname =='MIRI':
                 fr2 = ttk.Frame(page)
-                label = 'IFU' if iname !='TFI' else 'TF'
-                ttk.Label(fr2, text='   %s wavelen: '%label , state='disabled').grid(row=0, column=0)
+                #label = 'IFU' if iname !='TFI' else 'TF'
+                ttk.Label(fr2, text='   IFU wavelen: ', state='disabled').grid(row=0, column=0)
                 self.widgets[iname+"_ifu_wavelen"] = ttk.Entry(fr2, width=5) #, disabledforeground="#A0A0A0")
                 self.widgets[iname+"_ifu_wavelen"].insert(0, str(self.instrument[iname].monochromatic))
                 self.widgets[iname+"_ifu_wavelen"].grid(row=0, column=1)
@@ -373,8 +373,8 @@ class WebbPSF_GUI(object):
 
             if hasattr(self.instrument[iname], 'ifu_wavelength'):
                 fr2 = ttk.Frame(page)
-                label = 'IFU' if iname !='TFI' else 'TFI'
-                ttk.Label(fr2, text='   %s wavelen: '%label , state='disabled').grid(row=0, column=0)
+                #label = 'IFU' if iname !='TFI' else 'TFI'
+                ttk.Label(fr2, text='   IFU wavelen: ' , state='disabled').grid(row=0, column=0)
                 self.widgets[iname+"_ifu_wavelen"] = ttk.Entry(fr2, width=5) #, disabledforeground="#A0A0A0")
                 self.widgets[iname+"_ifu_wavelen"].insert(0, str(self.instrument[iname].ifu_wavelength))
                 self.widgets[iname+"_ifu_wavelen"].grid(row=0, column=1)
@@ -549,7 +549,7 @@ class WebbPSF_GUI(object):
 
     def quit(self):
         " Quit the GUI"
-        if tkMessageBox.askyesno( message='Are you sure you want to quit?', icon='question', title='Install') :
+        if tkMessageBox.askyesno( message='Are you sure you want to quit WebbPSF?', icon='question', title='Confirm quit') :
             self.root.destroy()
 
     def ev_SaveAs(self):
@@ -606,9 +606,9 @@ class WebbPSF_GUI(object):
             # Automatically determine number of appropriate wavelengths.
             # Make selection based on filter configuration file
             try:
-                if self.inst.name=='TFI':    # filter names are irrelevant for TFI.
-                    nlambda=5
-                else:
+                #if self.inst.name=='TFI':    # filter names are irrelevant for TFI.
+                    #nlambda=5
+                #else:
                     #filt_width = self.filter[-1]
                     #lookup_table = {'NIRCam': {'2': 10, 'W':20,'M':3,'N':1}, 
                                     #'NIRSpec':{'W':5,'M':3,'N':1}, 
@@ -616,7 +616,7 @@ class WebbPSF_GUI(object):
                                     #'FGS':{'W':5,'M':3,'N':1}}
 
                     #nlambda = lookup_table[self.name][filt_width]
-                    nlambda = self.inst._filter_nlambda_default[self.filter]
+                nlambda = self.inst._filter_nlambda_default[self.filter]
             except:
                 nlambda=10
         else:
@@ -706,8 +706,13 @@ class WebbPSF_GUI(object):
             P.text(0.4, 0.02, "OPD WFE = %6.2f nm RMS" % (masked_opd.std()*1000.), transform=f.transFigure)
 
     def ev_update_ifu_label(self, iname):
-        newfilt = self.widgets[iname+"_filter"].get()
-        print "Updating IFU label for "+iname+", filt="+newfilt
+        pass
+        # FIXME
+        # I no longer remember what the point of this function was... it doesn't appear to do anything??
+        # Disabling for now - remove in future version?
+
+        #newfilt = self.widgets[iname+"_filter"].get()
+        #print "Updating IFU label for "+iname+", filt="+newfilt
 
 
 

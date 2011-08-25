@@ -254,7 +254,7 @@ class Test1(TestPoppy):
                 self.assertAlmostEqual(abs(tot), 2, delta=0.01 )  # this should be very roughly 1.
             else: 
                 self.assertAlmostEqual(abs(tot), 1, delta=0.01 )  # this should be very roughly 1.
-    def Xdo_test_1_normalization(self):
+    def do_test_1_normalization(self):
         """ Test the PSF normalization for MFTs """
 
         osys = poppy.OpticalSystem("test", oversample=self.oversample)
@@ -262,7 +262,7 @@ class Test1(TestPoppy):
         osys.addDetector(pixelscale=self.pixelscale, fov_arcsec=20.0) # use a large FOV so we grab essentially all the light and conserve flux
         self.do_generic_normalization_test(osys)
 
-    def Xdo_test_1_normalization_fft(self):
+    def do_test_1_normalization_fft(self):
         """ Test the PSF normalization for FFTs"""
 
         osys = poppy.OpticalSystem("test", oversample=self.oversample)
@@ -283,10 +283,10 @@ class Test1(TestPoppy):
         self.do_generic_normalization_test(osys)
 
 
-    def Xtest_1_normalization_multiwave(self):
+    def test_1_normalization_multiwave(self):
         results = [res for res in self.iter_wavelengths(self.do_test_1_normalization)]
 
-    def Xtest_1_normalization_fft_multiwave(self):
+    def test_1_normalization_fft_multiwave(self):
         results = [res for res in self.iter_wavelengths(self.do_test_1_normalization_fft)]
 
     def test_1_normalization_invMFT(self):
@@ -451,7 +451,7 @@ class Test4(TestPoppy):
         #oversample=2, verbose=True, wavelength=2e-6, angle=0):
         """ Perfect circular case  no FQPM no field mask, off-axis PSF location
 
-        Test point source shifting. no FQPM, no field mask. Verify proper behavior in Lyot plane"""
+        Test point source shifting. no FQPM, no field mask. Verify point source goes to right spot in image plane"""
 
         osys = poppy.OpticalSystem("test", oversample=self.oversample)
         osys.addPupil('Circle', radius=6.5/2)
@@ -780,6 +780,7 @@ class Test11(TestPoppy):
             norm = matplotlib.colors.LogNorm(vmin=1e-8, vmax=1e-4)
             poppy.imshow_with_mouseover(psf[0].data, ax=axarr[nwaves], norm=norm)
 
+        # FIXME need evaluation here. 
         stop()
 
 
@@ -1055,10 +1056,4 @@ def test_defocus():
 if __name__== "__main__":
     logging.basicConfig(level=logging.DEBUG,format='%(name)-10s: %(levelname)-8s %(message)s')
 
-    #reload poppy
-    #reload webbpsf
-    #nc = webbpsf.NIRCam()
-    #nc.pupilopd=None
-    #osys = nc.getOpticalSystem()
-    pass
-
+    unittest.main()

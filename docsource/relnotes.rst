@@ -46,10 +46,18 @@ Plans for Future Releases
 * Possibly: separate handling of pre- and post- coronagraphic WFE in instruments, if it appears likely to be significant. 
 
 
+Version 0.2.6pre
+-----------------
+* TFI -> NIRISS. 
+* Strehl measurement code caches computed perfect PSFs for improved speed when measuring many files.
+
+
+
+
 Version 0.2.5
 --------------
 
-Initial public release, June 2011. Questions, comments, criticism all welcome!
+Initial public release, June 1 2011. Questions, comments, criticism all welcome!
 
 * Improved spectrum display
 * Improved display of intermediate results during calculations.

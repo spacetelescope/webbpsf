@@ -48,7 +48,7 @@ interested in doing so, I believe very fine subsampling would be needed. This mi
 
 
 
-Because NIRSpec, TFI, and FGS sample the PSF relatively coarsely, they will require a higher degree of oversampling in simulations than NIRCam to reach a given SNR level. 
+Because NIRSpec, NIRISS, and FGS sample the PSF relatively coarsely, they will require a higher degree of oversampling in simulations than NIRCam to reach a given SNR level. 
 MIRI is fairly well-sampled.
 
 
@@ -136,42 +136,9 @@ Required sampling for NIRCam::
              F480M     (4, 1)     (2, 5)     (2, 3)     (2, 3)
 
  
-
-Compared to the other instruments, TFI is fairly straightforward. Its spectral resolution varies between roughly 65 and 120 for most of its available wavelength range, though it decrease as low as 26 just outside the nonfunctional gap region at 3 microns. Given the narrow bandwidth, in most cases just 3 wavelengths is sufficient. For TFI::
-
-        TFI, SNR=100
-                      r=0.5"       1.0"       2.0"       3.0"
-           1.500um    higher!     (8, 3)     (8, 3)     (8, 3)
-           1.750um     (8, 3)     (8, 3)     (8, 3)     (8, 3)
-           2.000um     (8, 1)     (8, 3)     (8, 3)     (8, 3)
-           2.250um     (8, 3)     (8, 3)     (8, 3)     (8, 3)
-           2.500um    higher!     (8, 3)     (8, 3)     (4, 3)
-           3.000um    higher!     (8, 3)     (4, 5)     (4, 9)
-           3.250um     (8, 1)     (8, 3)     (4, 3)     (4, 3)
-           3.500um     (8, 1)     (8, 1)     (4, 3)     (4, 3)
-           3.750um     (8, 1)     (8, 3)     (4, 3)     (4, 3)
-           4.000um     (8, 1)     (8, 1)     (4, 3)     (4, 3)
-           4.250um     (8, 1)     (8, 1)     (4, 3)     (4, 3)
-           4.500um     (8, 1)     (8, 1)     (4, 3)     (4, 3)
-           4.750um     (8, 1)     (4, 3)     (4, 3)     (4, 3)
-           5.000um     (8, 3)     (8, 3)     (4, 5)     (4, 5)
-
-        TFI, SNR=20
-                      r=0.5"       1.0"       2.0"       3.0"
-           1.500um     (8, 1)     (4, 1)     (4, 1)     (4, 3)
-           1.750um     (8, 1)     (4, 1)     (4, 1)     (4, 3)
-           2.000um     (4, 1)     (4, 1)     (4, 1)     (4, 3)
-           2.250um     (4, 1)     (4, 1)     (4, 1)     (4, 3)
-           2.500um     (8, 1)     (4, 1)     (4, 3)     (4, 3)
-           3.000um     (8, 1)     (4, 3)     (2, 3)     (2, 3)
-           3.250um     (4, 1)     (4, 1)     (2, 3)     (2, 3)
-           3.500um     (4, 1)     (4, 1)     (2, 3)     (2, 3)
-           3.750um     (4, 1)     (4, 1)     (2, 3)     (2, 3)
-           4.000um     (4, 1)     (4, 1)     (2, 3)     (2, 3)
-           4.250um     (4, 1)     (4, 1)     (2, 3)     (2, 3)
-           4.500um     (4, 1)     (4, 1)     (2, 3)     (2, 3)
-           4.750um     (4, 1)     (2, 3)     (2, 3)     (2, 3)
-           5.000um     (4, 1)     (2, 3)     (2, 3)     (2, 3)
+We have not yet performed simulations for the case of NIRISS. The number of wavelengths used for each filter is set equal to 
+that used for NIRCam. This should certainly be adequate for the long-wavelength filters (given the NIRISS detector and NIRCam LW are
+identical) but users may wish to investigate using finer sampling for the shorter wavelength filters that are very undersampled on NIRISS.
 
  
 And for MIRI::

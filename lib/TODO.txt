@@ -1,14 +1,14 @@
 Overall:
  ** improve oversampled calculations 
 
- ** better rasterization of pupils - perhaps use GTKAgg or one of the other Agg ones, in a special ipython session, and then dump the output to png
+ ** better rasterization of pupils - see note to use numpy point inside poly function. 
 
 -----
 SFT:
 
 poppy:
 	Test offset detector capability
-	Add Semianalytic coronagraphy
+	Add rotation to SemiAnalyticCoronagraphy somehow in support of MIRI Lyot.
 
 webbpsf: 
 

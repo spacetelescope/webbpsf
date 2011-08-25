@@ -86,7 +86,7 @@ _log = logging.getLogger('poppy')
 try:
     import fftw3
     _USE_FFTW3 = True
-    _FFTW3_INIT = {}
+    _FFTW3_INIT = {}  # dict of array sizes for which we have already performed the required FFTW3 planning step
 except:
     _USE_FFTW3 = False
 
@@ -421,7 +421,7 @@ class Wavefront(object):
         self.asFITS(**kwargs).writeto(filename, clobber=clobber)
         _log.info("  Wavefront saved to %s" % filename)
 
-    def display(self,what='intensity', nrows=1,row=1,showpadding=False,imagecrop=None, colorbar=False, crosshairs=True, ax=None):
+    def display(self,what='intensity', nrows=1,row=1,showpadding=False,imagecrop=None, colorbar=False, crosshairs=True, ax=None, title=None):
         """Display wavefront on screen
 
         Parameters
@@ -518,9 +518,10 @@ class Wavefront(object):
             if ax is None:
                 ax = p.subplot(nr,nc,int(row))
             imshow_with_mouseover(intens, ax=ax, extent=extent, norm=norm, cmap=cmap)
-            title = "Intensity "+self.location
-            title = title.replace('after', 'after\n')
-            title = title.replace('before', 'before\n')
+            if title is None:
+                title = "Intensity "+self.location
+                title = title.replace('after', 'after\n')
+                title = title.replace('before', 'before\n')
             p.title(title)
             p.xlabel(unit)
             if colorbar: p.colorbar(ax.images[0], orientation='vertical', shrink=0.8)
@@ -1097,7 +1098,7 @@ class OpticalElement():
         else:
             return self.phasor
 
-    def display(self, nrows=1, row=1, what='both', phase=False, wavelength=None, crosshairs=True, ax=None, colorbar_orientation=None):
+    def display(self, nrows=1, row=1, what='intensity', phase=False, wavelength=None, crosshairs=True, ax=None, colorbar=True, colorbar_orientation=None, title=None):
         """Display plots showing an optic's transmission and OPD
 
         Parameters
@@ -1117,37 +1118,38 @@ class OpticalElement():
         norm_amp=matplotlib.colors.Normalize(vmin=0, vmax=1)
         norm_opd=matplotlib.colors.Normalize(vmin=-0.5e-6, vmax=0.5e-6)
 
-
-        if self.amplitude.shape is () or self.amplitude.size == 1:
-            # can't really display a null or scalar optical element?
-            # really the best way to do this would be to create a subclass for a
-            # scalar optical element...
-
-            #--this code is probably now obsoleted by ScalarElement?? --
-            tmp = N.ones((10,10))
-            tmp2 = N.ones((10,10))
-            ax = p.subplot(nrows, 2, row*2-1)
-            tmp[:,:] = self.amplitude
-
-            imshow_with_mouseover(tmp, ax=ax, cmap=cmap, norm=norm_amp )
-            ax.set_xticklabels([""]*10)
-            ax.set_yticklabels([""]*10)
-            p.ylabel(self.name+"\n")
-            cb = p.colorbar(ax.images[0], orientation=colorbar_orientation, ticks=[0,0.25, 0.5, 0.75, 1.0])
-
-            ax2 = p.subplot(nrows, 2, row*2)
-            tmp2[:,:] = self.opd
-            imshow_with_mouseover(tmp2, ax=ax2, cmap=cmap_opd, norm=norm_opd )
-            ax2.set_xticklabels([""]*10)
-            ax2.set_yticklabels([""]*10)
-            cb = p.colorbar(ax2.images[0], orientation=colorbar_orientation, ticks=N.array([-0.5, -0.25, 0, 0.25, 0.5])*1e-6)
-            if crosshairs:
-                for a in [ax, ax2]:
-                    a.axhline(0,ls=":", color='k')
-                    a.axvline(0,ls=":", color='k')
-
-            return
-
+#
+#        if self.amplitude.shape is () or self.amplitude.size == 1:
+#            # can't really display a null or scalar optical element?
+#            # really the best way to do this would be to create a subclass for a
+#            # scalar optical element...
+#
+#            #--this code is probably now obsoleted by ScalarElement?? --
+#            tmp = N.ones((10,10))
+#            tmp2 = N.ones((10,10))
+#            ax = p.subplot(nrows, 2, row*2-1)
+#            tmp[:,:] = self.amplitude
+#
+#            imshow_with_mouseover(tmp, ax=ax, cmap=cmap, norm=norm_amp )
+#            ax.set_xticklabels([""]*10)
+#            ax.set_yticklabels([""]*10)
+#            p.ylabel(self.name+"\n")
+#
+#            cb = p.colorbar(ax.images[0], orientation=colorbar_orientation, ticks=[0,0.25, 0.5, 0.75, 1.0])
+#
+#            ax2 = p.subplot(nrows, 2, row*2)
+#            tmp2[:,:] = self.opd
+#            imshow_with_mouseover(tmp2, ax=ax2, cmap=cmap_opd, norm=norm_opd )
+#            ax2.set_xticklabels([""]*10)
+#            ax2.set_yticklabels([""]*10)
+#            cb = p.colorbar(ax2.images[0], orientation=colorbar_orientation, ticks=N.array([-0.5, -0.25, 0, 0.25, 0.5])*1e-6)
+#            if crosshairs:
+#                for a in [ax, ax2]:
+#                    a.axhline(0,ls=":", color='k')
+#                    a.axvline(0,ls=":", color='k')
+#
+#            return
+#
 
         if self.planetype == PUPIL:
             pixelscale = self.pupil_scale
@@ -1182,8 +1184,9 @@ class OpticalElement():
             p.ylabel(units)
             ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, integer=True))
             ax.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, integer=True))
-            cb = p.colorbar(ax.images[0], orientation=colorbar_orientation, ticks=[0,0.25, 0.5, 0.75, 1.0])
-            cb.set_label('transmission')
+            if colorbar: 
+                cb = p.colorbar(ax.images[0], orientation=colorbar_orientation, ticks=[0,0.25, 0.5, 0.75, 1.0])
+                cb.set_label('transmission')
             if crosshairs:
                 ax.axhline(0,ls=":", color='k')
                 ax.axvline(0,ls=":", color='k')
@@ -1202,8 +1205,9 @@ class OpticalElement():
             ax2.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(nbins=4, integer=True))
             if nrows == 1:
                 p.title("OPD for "+self.name)
-            cb = p.colorbar(ax2.images[0], orientation=colorbar_orientation, ticks=N.array([-0.5, -0.25, 0, 0.25, 0.5])*1e-6)
-            cb.set_label('meters')
+            if colorbar:
+                cb = p.colorbar(ax2.images[0], orientation=colorbar_orientation, ticks=N.array([-0.5, -0.25, 0, 0.25, 0.5])*1e-6)
+                cb.set_label('meters')
             if crosshairs:
                 ax2.axhline(0,ls=":", color='k')
                 ax2.axvline(0,ls=":", color='k')
@@ -1935,6 +1939,52 @@ class HexagonAperture(AnalyticOpticalElement):
         return self.transmission
 
 
+class NgonAperture(AnalyticOpticalElement):
+    """ Defines an ideal N-gon pupil aperture. 
+
+    Parameters
+    -----------
+    name : string
+        Descriptive name
+    nsides : integer
+        Number of sides. Default is 6.
+    radius : float
+        radius to the vertices, meters. Default is 1. 
+    rotation : float
+        Rotation angle to first vertex. Default is 0.
+    """
+    def __init__(self, name=None,  nsides=6, radius=1, rotation=0., **kwargs):
+        self.radius =radius
+        self.nsides =nsides
+        self.rotation =rotation
+        self.pupil_diam = 2* self.radius # for creating input wavefronts
+        if name is None: name = "%d-gon, radius= %.1f m" % (self.nsides, self.radius)
+        AnalyticOpticalElement.__init__(self,name=name, **kwargs)
+
+    def getPhasor(self,wave):
+        """ Compute the transmission inside/outside of the occulter.
+        """
+        if not isinstance(wave, Wavefront):
+            raise ValueError("getPhasor must be called with a Wavefront to define the spacing")
+        assert (wave.planetype == PUPIL)
+        y, x = wave.coordinates()
+
+        phase = self.rotation *N.pi/180
+        vertices = N.array( [ [N.cos( i * 2*N.pi/self.nsides +phase ), N.sin( i * 2*N.pi/self.nsides +phase)] for i in range(self.nsides)], float)
+
+        self.transmission = N.zeros(wave.shape)
+        for row in range(wave.shape[0]):
+            pts = N.asarray(zip(x[row],y[row]))
+            ok = matplotlib.nxutils.points_inside_poly(pts, vertices)
+            self.transmission[row][ok] = 1.0
+
+
+        return self.transmission
+
+
+
+ 
+
 class SquareAperture(AnalyticOpticalElement):
     """ Defines an ideal square pupil aperture
 
@@ -2006,14 +2056,28 @@ class CompoundAnalyticOptic(AnalyticOpticalElement):
 
     def getPhasor(self,wave):
         #phasor = self.opticslist[0].getPhasor(wave)
-        for optic in self.opticslist[:-1]:
+
+        ampl = N.ones(wave.shape)
+        opd = N.zeros(wave.shape)
+        for optic in self.opticslist:
             #nextphasor = optic.getPhasor(wave)
             #phasor *= nextphasor #FIXME this does not work... for instance if you have an aperture mask (so all the phase is zero)
                                   # then you really want to multiply the amplitude transmissions and add the phases.
                                   # simpler to just multiply the wave instead here:
             wave *= optic
+
+            #revised version: handle amplitude and OPD both explictly here
+            nextphasor = optic.getPhasor(wave)
+            nextamp = N.abs(nextphasor)
+            nextopd = N.angle(nextphasor) * 2*N.pi *wave.wavelength
+            ampl *= nextamp
+            opd  *= nextopd
+
+
+        phasor = ampl * N.exp(1.j * 2* N.pi * opd/wave.wavelength)
         # and just hand back the last one to the calling routine:
-        return self.opticslist[-1].getPhasor(wave)
+        #return self.opticslist[-1].getPhasor(wave)
+        return phasor
 
 
 class Detector(OpticalElement):
@@ -2538,6 +2602,10 @@ class OpticalSystem():
             if _USE_FFTW3:
                 _log.warn('IMPORTANT WARNING: Python multiprocessing and fftw3 do not appear to play well together. This is likely to crash intermittently')
                 _log.warn('   We suggest you set   poppy._USE_FFTW3 = False   if you want to use calcPSFmultiproc().')
+            if display:
+                _log.warn('Display during calculations is not supported for multiprocess mode. Set poppy._USE_MULTIPROC=False if you want to use display=True.')
+                _log.warn('For now, display is being set to False.')
+                display=False
 
             if save_intermediates:
                 raise NotImplementedError("Can't save intermediate steps if using parallelized code")
@@ -2561,7 +2629,7 @@ class OpticalSystem():
             for i in range(1, len(normwts)):
                 _log.info("got results for wavelength channel %d / %d" % (i, len(tuple(wavelength))) )
                 outFITS[0].data += results[i][0].data * normwts[i]
-            outFITS[0].header.add_history("Multiwavelength PSF calc on %d processors completed." % nprocesses)
+            outFITS[0].header.add_history("Multiwavelength PSF calc on %d processors completed." % _MULTIPROC_NPROCESS)
 
 
 

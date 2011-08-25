@@ -17,7 +17,7 @@ import numpy as N
 #except: 
     #pass
 
-def fwcentroid(image, checkbox=1, maxiterations=20, threshhold=1e-4, halfwidth=5, verbose=False):
+def fwcentroid(image, checkbox=1, maxiterations=20, threshold=1e-4, halfwidth=5, verbose=False):
     """ Implement the Floating-window first moment centroid algorithm
         chosen for JWST target acquisition.
 
@@ -40,8 +40,8 @@ def fwcentroid(image, checkbox=1, maxiterations=20, threshhold=1e-4, halfwidth=5
             preferably some small factor larger
         maxiterations : int
             Max number of loops. Default 5
-        threshhold : float
-            Position threshhold for convergence
+        threshold : float
+            Position threshold for convergence
 
         Returns
         --------
@@ -178,8 +178,8 @@ def fwcentroid(image, checkbox=1, maxiterations=20, threshhold=1e-4, halfwidth=5
  
         if verbose: print( "After iter %d , cent pos is  (%f, %f)" % (k, XCEN, YCEN))
         #Check for convergence:
-        if (N.abs(XCEN - oldXCEN) <= threshhold and
-            N.abs(YCEN - oldYCEN) <= threshhold):
+        if (N.abs(XCEN - oldXCEN) <= threshold and
+            N.abs(YCEN - oldYCEN) <= threshold):
             CONVERGENCEFLAG = True
             break
         else:

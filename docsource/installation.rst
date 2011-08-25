@@ -45,6 +45,10 @@ Installing WebbPSF
 
 1. Untar ``webbpsf-0.2.tar.gz`` into a temporary working directory. 
 2. Run ``python setup.py install`` in that directory. This will install ``webbpsf`` into your Python path. 
+
+   If you lack the filesystem permissions to write into the system python directory 
+   (for instance, on a machine you don't have root on), you can do ``python setup.py install --user`` to install locally
+   in your home directory.
 3. Untar ``webbpsf-data-0.2.tar.gz`` into a directory of your choosing.
 4. Set the environment variable ``WEBBPSF_PATH`` to point to that directory. e.g. ``setenv WEBBPSF_PATH $HOME/data/webbpsf-data``.
 5. You should now be able to do ``import webbpsf`` in a Python session. 
