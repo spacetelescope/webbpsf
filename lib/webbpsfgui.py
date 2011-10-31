@@ -104,7 +104,7 @@ class WebbPSF_GUI(object):
         lf = ttk.LabelFrame(frame, text='Source Properties')
 
         if _HAS_PYSYNPHOT:
-            self._add_labeled_dropdown("SpType", lf, label='    Spectral Type:', values=specFromSpectralType("",return_list=True), default='G0V', width=5, position=(0,0), sticky='W')
+            self._add_labeled_dropdown("SpType", lf, label='    Spectral Type:', values=specFromSpectralType("",return_list=True), default='G0V', width=20, position=(0,0), sticky='W')
             ttk.Button(lf, text='Plot spectrum', command=self.ev_plotspectrum).grid(row=0,column=2,sticky='E',columnspan=4)
 
         r = 1
@@ -138,7 +138,16 @@ class WebbPSF_GUI(object):
             notebook.add(page,text=iname) 
             notebook.select(i)  # make it active
             self.widgets[notebook.select()] = iname # save reverse lookup from meaningless widget "name" to string name
-            ttk.Label(page, text='Configuration Options for '+iname+"                      ").grid(row=0, columnspan=2, sticky='W')
+            if iname =='NIRCam':
+                ttk.Label(page, text='Configuration Options for '+iname+',     module: ').grid(row=0, column=0, sticky='W')
+                mname='NIRCam module'
+                self.vars[mname] = tk.StringVar()
+                self.widgets[mname] = ttk.Combobox(page, textvariable=self.vars[mname], width=2, state='readonly')
+                self.widgets[mname].grid(row=0,column=1, sticky='W')
+                self.widgets[mname]['values'] = ['A','B']
+                self.widgets[mname].set('A')
+            else:
+                ttk.Label(page, text='Configuration Options for '+iname+"                      ").grid(row=0, columnspan=2, sticky='W')
 
             ttk.Button(page, text='Display Optics', command=self.ev_displayOptics ).grid(column=2, row=0, sticky='E', columnspan=3)
 
@@ -250,10 +259,13 @@ class WebbPSF_GUI(object):
         r+=1
         self._add_labeled_entry('detector_oversampling', lf, label='Output Oversampling:',  width=3, value='2', postlabel='x finer than instrument pixels       ', position=(r,0))
 
-        self.vars['downsamp'] = tk.BooleanVar()
-        self.vars['downsamp'].set(True)
-        self.widgets['downsamp'] = ttk.Checkbutton(lf, text='Save in instr. pixel scale, too?', onvalue=True, offvalue=False,variable=self.vars['downsamp'])
-        self.widgets['downsamp'].grid(row=r, column=4, sticky='E')
+        #self.vars['downsamp'] = tk.BooleanVar()
+        #self.vars['downsamp'].set(True)
+        #self.widgets['downsamp'] = ttk.Checkbutton(lf, text='Save in instr. pixel scale, too?', onvalue=True, offvalue=False,variable=self.vars['downsamp'])
+        #self.widgets['downsamp'].grid(row=r, column=4, sticky='E')
+
+        output_options=['Oversampled PSF only', 'Oversampled + Detector Res. PSFs', 'Mock full image from JWST DMS']
+        self._add_labeled_dropdown("output_type", fr2, label='Output format:', values=output_options, default=output_options[1], width=31, position=(r,4), sticky='W')
 
 
         r+=1
@@ -751,9 +763,12 @@ class WebbPSF_GUI(object):
         self.calc_oversampling= int(self.widgets['calc_oversampling'].get())
         self.detector_oversampling= int(self.widgets['detector_oversampling'].get())
 
+        self.output_type = self.widgets['output_type'].get()
 
         options = {}
-        options['downsample'] = bool(self.vars['downsamp'])
+        #options['downsample'] = bool(self.vars['downsamp'])
+        options['rebin'] = not (self.output_type == 'Oversampled PSF only')  #was downsample, which seems wrong?
+        options['mock_dms'] = (self.output_type == 'Mock full image from JWST DMS')
         options['jitter'] = self.widgets['jitter'].get()
         #print "Downsamp value: ",  options['downsample']
 
@@ -1095,14 +1110,21 @@ def specFromSpectralType(sptype, return_list=False):
             elif "V" in typestr: value += .5
             return value
         sptype_list.sort(key=sort_sptype)
+        sptype_list.insert(0,"Flat spectrum in F_nu")
+        sptype_list.insert(0,"Flat spectrum in F_lambda")
         return sptype_list
 
     try:
         keys = lookuptable[sptype]
+        return pysynphot.Icat('ck04models',keys[0], keys[1], keys[2])
     except:
-        raise LookupError("Lookup table does not include spectral type %s" % sptype)
+        if "Flat" in sptype:
+            if sptype == "Flat spectrum in F_nu":    spec = pysynphot.FlatSpectrum( 1, fluxunits = 'fnu')
+            elif sptype == "Flat spectrum in F_lambda":  spec= pysynphot.FlatSpectrum( 1, fluxunits = 'flam')
+            spec.convert('flam')
+            return spec/spec.flux.mean()
+        else: raise LookupError("Lookup table does not include spectral type %s" % sptype)
 
-    return pysynphot.Icat('ck04models',keys[0], keys[1], keys[2])
 
 
 

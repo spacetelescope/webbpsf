@@ -50,6 +50,8 @@ Version 0.2.6pre
 -----------------
 * TFI -> NIRISS. 
 * Strehl measurement code caches computed perfect PSFs for improved speed when measuring many files.
+* Added GUI options for flat spectra in F_nu and F_lambda. (Thanks to Christopher Willmer at Steward Observatory for this suggestion)
+
 
 
 

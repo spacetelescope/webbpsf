@@ -56,25 +56,15 @@ Installing WebbPSF
 Installing or Updating pysynphot
 -------------------------------
 To install or update ``pysynphot``, do the following. (See also http://stsdas.stsci.edu/pysynphot/ and https://trac6.assembla.com/astrolib). If you already have ``pysynphot`` 
-installed, it will probably work fine without this update, but computations may be slower than the current version. 
+installed, it will probably work fine without this update, but computations may be slower than the current version if you have a version earlier than 0.8. 
 
 .. comment 
         work without this update but computations will be slower than the current version, so we recommend updating it. 
 
-* Download `pysynphot-0.7jwst.tar.gz <http://www.stsci.edu/~mperrin/software/webbpsf/pysynphot-0.7jwst.tar.gz>`_  
-
-Note that the above-linked file is an unofficial, pre-release version, provided courtesy of STScI
-Science Software Branch (Laidler, Greenfield, et al.) and not an "officially
-supported" release. (This file tracks the internal development subversion
-repository of pysynphot as of revision 2007 on April 21 2011). An official release of an updated pysynphot is expected in the near future.
-
-
-.. comment
-        you should still do these steps to update it to support all the JWST instruments transmission profiles. 
-
-1. Untar ``pysynphot-0.7jwst.tar.gz`` into a temporary working directory. 
-2. run ``python setup.py install`` in that directory.  You can delete the setup files there after you do this step. 
-3. If this is your initial installation of ``pysynphot`` you need to install the CDBS files. See the `pysynphot installation guide <https://trac6.assembla.com/astrolib/wiki/PysynphotInstallationGuide>`_. The necessary files are available from https://trac6.assembla.com/astrolib; follow the download links for "throughput files" and "model spectra". If you already have CDBS installed, then you're all set and can skip this step.
+1. Download the most recent version of pysynphot from https://trac6.assembla.com/astrolib. 
+2. Untar ``pysynphot-0.7jwst.tar.gz`` into a temporary working directory. 
+3. run ``python setup.py install`` in that directory.  You can delete the setup files there after you do this step. 
+4. If this is your initial installation of ``pysynphot`` you need to install the CDBS files. See the `pysynphot installation guide <https://trac6.assembla.com/astrolib/wiki/PysynphotInstallationGuide>`_. The necessary files are available from https://trac6.assembla.com/astrolib; follow the download links for "throughput files" and "model spectra". If you already have CDBS installed, then you're all set and can skip this step.
 
 
 WebbPSF includes its own normalized copies of the new JWST instrumental throughputs from the development CDBS at STScI.

@@ -150,6 +150,10 @@ pixel scale in a variety of ways, as follows. See the :py:class:`JWInstrument.ca
 
 
  
+Note that the calculations performed by WebbPSF are somewhat memory intensive, particularly for coronagraphic observations. All arrays used internally are 
+double-precision complex floats (16 bytes per value), and many arrays of size (npixels*oversampling)^2 are needed (particularly if display options are turned on, since the
+Matplotlib graphics library makes its own copy of all arrays displayed). Your average laptop with a couple GB of RAM will do perfectly well for most computations so long as you're not too ambitious with setting array size and oversampling. 
+If you're interested in very high fidelity simulations of large fields (e.g. 1024x1024 pixels oversampled 8x) then we recommend a large multicore desktop with >16 GB RAM. 
 
 
 

@@ -70,7 +70,7 @@ import time
 from matplotlib.colors import LogNorm  # for log scaling of images, with automatic colorbar support
 import SFT
 
-__version__ = '0.2.5'
+__version__ = '0.2.6pre'
 
 try:
     from IPython.Debugger import Tracer; stop = Tracer()
@@ -1074,7 +1074,7 @@ class OpticalElement():
 
         # set the self.phasor attribute:
         # first check whether we need to interpolate to do this.
-        float_tolerance = 0.0001  #how big of a relative scale mismatch before resampling?
+        float_tolerance = 0.001  #how big of a relative scale mismatch before resampling?
         if self.pixelscale is not None and hasattr(wave,'pixelscale') and abs(wave.pixelscale -self.pixelscale)/self.pixelscale >= float_tolerance:
             _log.debug("Pixelscales: %f, %f" % (wave.pixelscale, self.pixelscale))
 

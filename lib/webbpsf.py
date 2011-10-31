@@ -660,6 +660,7 @@ class MIRI(JWInstrument):
             # The above tuples give the pixel resolution (perpendicular to the slice, along the slice). 
             # The pixels are not square.
 
+        self._default_aperture='MIRIM_center' # reference into SIAF for ITM simulation V/O coords
         self.apertures =  [ {'name': 'Imager', 'size': (768,1024), 'avail_filt': [f for f in self.filter_list if 'C' in f]},
                 {'name': 'Cor-1065', 'size': (256,256), 'avail_filt': ['F1065C']},
                 {'name': 'Cor-1140', 'size': (256,256), 'avail_filt': ['F1140C']},
@@ -761,6 +762,8 @@ class MIRI(JWInstrument):
             SAM_box_size = [5,20]
         else:
             optsys.addImage()
+            trySAM = False
+            SAM_box_size= 1.0 # irrelevant but variable still needs to be set.
 
         if (self.image_mask is not None and 'FQPM' in self.image_mask)  or 'force_fqpm_shift' in self.options.keys() : optsys.addPupil("FQPM FFT aligner", direction='backward')
 
@@ -806,6 +809,7 @@ class NIRCam(JWInstrument):
         self.pupil_mask_list = ['CIRCLYOT','WEDGELYOT']
 
         self.filter = 'F200W' # default
+        self._default_aperture='NIRCam A1 center' # reference into SIAF for ITM simulation V/O coords
 
         self.apertures = [
             {'name': 'Imager-SW A', 'size': (2048,2048), 'avail_filt': self.filter_list}, 
@@ -928,6 +932,9 @@ class NIRSpec(JWInstrument):
         self.monochromatic= 3.0
         self.filter = 'F110W' # or is this called F115W to match NIRCam??
 
+
+        self._default_aperture='NIRSpec A center' # reference into SIAF for ITM simulation V/O coords
+
     def _validate_config(self):
         if (not self.image_mask is None) or (not self.pupil_mask is None):
             raise ValueError('NIRSpec does not have image or pupil masks!')
@@ -953,6 +960,7 @@ class NIRISS(JWInstrument):
 
         self.image_mask_list = ['CORON058', 'CORON075','CORON150','CORON200'] # available but unlikely to be used...
         self.pupil_mask_list = ['MASK_NRM','CLEAR']
+        self._default_aperture='NIRISS center' # reference into SIAF for ITM simulation V/O coords
 
 
     def _validate_config(self):
@@ -1132,6 +1140,7 @@ class FGS(JWInstrument):
     def __init__(self):
         JWInstrument.__init__(self, "FGS")
         self.pixelscale = 0.069 # for FGS
+        self._default_aperture='FGS1 center' # reference into SIAF for ITM simulation V/O coords
 
     def _validate_config(self):
         if (not self.image_mask is None) or (not self.pupil_mask is None):
@@ -1238,7 +1247,7 @@ def MakePSF(self, instrument=None, pupil_file=None, phase_file=None, output=None
 def display_PSF(HDUlist_or_filename=None, ext=0,
     vmin=1e-8,vmax=1e-1, scale='log', cmap = matplotlib.cm.jet, 
         title=None, imagecrop=None, adjust_for_oversampling=False, normalize='None', crosshairs=False, markcentroid=False, colorbar=True, colorbar_orientation='vertical',
-        pixelscale='PIXELSCL', ax=None):
+        pixelscale='PIXELSCL', ax=None, return_ax=False):
     """Display nicely a PSF from a given HDUlist or filename 
 
     This is extensively configurable. In addition to making an attractive display, for
@@ -1340,7 +1349,7 @@ def display_PSF(HDUlist_or_filename=None, ext=0,
     ax.set_title(title)
 
     if colorbar:
-        cb = P.colorbar(ax.images[0], orientation=colorbar_orientation)
+        cb = P.colorbar(ax.images[0], ax=ax, orientation=colorbar_orientation)
         if scale.lower() =='log':
             ticks = N.logspace(N.log10(vmin), N.log10(vmax), N.log10(vmax/vmin)+1)
             if colorbar_orientation=='horizontal' and vmax==1e-1 and vmin==1e-8: ticks = [1e-8, 1e-6, 1e-4,  1e-2, 1e-1] # looks better
@@ -1358,8 +1367,12 @@ def display_PSF(HDUlist_or_filename=None, ext=0,
         _log.info("centroid: (%f, %f) " % (cenx, ceny))
         P.draw()
 
+    if return_ax:
+        if colorbar: return (ax, cb)
+        else: return ax
 
-def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None, ext1=0, ext2=0, vmax=1e-4, title=None, imagecrop=None, adjust_for_oversampling=False, normalize=False, crosshairs=False, colorbar=True, colorbar_orientation='vertical', print_=False, ax=None):
+
+def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None, ext1=0, ext2=0, vmax=1e-4, title=None, imagecrop=None, adjust_for_oversampling=False, normalize=False, crosshairs=False, colorbar=True, colorbar_orientation='vertical', print_=False, ax=None, return_ax=False):
     """Display nicely the difference of two PSFs from given files 
     
     Parameters
@@ -1442,7 +1455,7 @@ def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
     ax.set_title(title)
 
     if colorbar:
-        cb = P.colorbar(ax.images[0], orientation=colorbar_orientation)
+        cb = P.colorbar(ax.images[0], ax=ax, orientation=colorbar_orientation)
         #ticks = N.logspace(N.log10(vmin), N.log10(vmax), N.log10(vmax/vmin)+1)
         #if vmin == 1e-8 and vmax==1e-1: 
             #ticks = [1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1]
@@ -1451,12 +1464,46 @@ def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
         cb.set_ticklabels(ticks)
         #stop()
         cb.set_label(cbtitle)
+    if return_ax:
+        if colorbar: return (ax, cb)
+        else: return ax
+
+
+
+def display_EE(HDUlist_or_filename=None,ext=0, overplot=False, ax=None, mark_levels=True ):
+    """ Display Encircled Energy curve for a PSF
+
+    """
+    if isinstance(HDUlist_or_filename, str):
+        HDUlist = pyfits.open(HDUlist_or_filename,ext=ext)
+    elif isinstance(HDUlist_or_filename, pyfits.HDUList):
+        HDUlist = HDUlist_or_filename
+    else: raise ValueError("input must be a filename or HDUlist")
+
+
+    radius, profile, EE = radial_profile(HDUlist, EE=True)
+
+    if not overplot:
+        if ax is None: 
+            P.clf()
+            ax = P.subplot(111)
+
+    ax.plot(radius, EE) #, nonposy='clip')
+    if not overplot:
+        ax.set_xlabel("Radius [arcsec]")
+        ax.set_ylabel("Encircled Energy")
+
+    if mark_levels:
+        for level in [0.5, 0.8, 0.95]:
+            EElev = radius[N.where(EE > level)[0][0]]
+            yoffset = 0 if level < 0.9 else -0.05 
+            P.text(EElev+0.1, level+yoffset, 'EE=%2d%% at r=%.3f"' % (level*100, EElev))
 
 
 
 def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False ):
     if isinstance(HDUlist_or_filename, str):
-        HDUlist = pyfits.open(filename,ext=ext)
+        HDUlist = pyfits.open(HDUlist_or_filename,ext=ext)
     elif isinstance(HDUlist_or_filename, pyfits.HDUList):
         HDUlist = HDUlist_or_filename
     else: raise ValueError("input must be a filename or HDUlist")
