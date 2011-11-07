@@ -62,7 +62,7 @@ onto a common pixel scale) more than makes up for this and the MFT is faster.
 List of Classes
 --------
 
-.. inheritance-diagram:: poppy.Detector poppy.Wavefront poppy.OpticalSystem poppy.Rotation poppy.CircularAperture poppy.HexagonAperture poppy.SquareAperture poppy.IdealFieldStop poppy.IdealCircularOcculter poppy.IdealBarOcculter poppy.BandLimitedCoron poppy.IdealFQPM poppy.FQPM_FFT_aligner poppy.CompoundAnalyticOptic
+.. inheritance-diagram:: poppy.Detector poppy.Wavefront poppy.OpticalSystem poppy.Rotation poppy.CircularAperture poppy.HexagonAperture poppy.SquareAperture poppy.IdealFieldStop poppy.IdealCircularOcculter poppy.IdealBarOcculter poppy.BandLimitedCoron poppy.IdealFQPM poppy.FQPM_FFT_aligner poppy.CompoundAnalyticOptic poppy.FITSOpticalElement
 
 
 
@@ -92,8 +92,8 @@ Optical Elements
 
 ------
 
-.. autoclass:: poppy.Rotation
-   :show-inheritance:
+.. autoclass:: poppy.FITSOpticalElement
+   :members:
 
 .. autoclass:: poppy.AnalyticOpticalElement
    :show-inheritance:
@@ -116,6 +116,10 @@ Optical Elements
 .. autoclass:: poppy.FQPM_FFT_aligner
    :show-inheritance:
 .. autoclass:: poppy.CompoundAnalyticOptic
+   :show-inheritance:
+
+
+.. autoclass:: poppy.Rotation
    :show-inheritance:
 
 

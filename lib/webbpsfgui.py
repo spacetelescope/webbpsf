@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import os
-import numpy as N
-import pylab as P
+import numpy as np
+import matplotlib.pyplot as plt
 import matplotlib
 import pyfits
 import Tkinter as tk
@@ -93,7 +93,7 @@ class WebbPSF_GUI(object):
         insts = ['NIRCam', 'NIRSpec','NIRISS', 'MIRI',  'FGS']
         self.root = tk.Tk()
         self.root.geometry('+50+50')
-        self.root.title("James Webb Space Telescope PSF Calculator GUI")
+        self.root.title("James Webb Space Telescope PSF Calculator")
 
         frame = ttk.Frame(self.root)
         #frame = ttk.Frame(self.root, padx=10,pady=10)
@@ -139,13 +139,17 @@ class WebbPSF_GUI(object):
             notebook.select(i)  # make it active
             self.widgets[notebook.select()] = iname # save reverse lookup from meaningless widget "name" to string name
             if iname =='NIRCam':
-                ttk.Label(page, text='Configuration Options for '+iname+',     module: ').grid(row=0, column=0, sticky='W')
+                lframe = ttk.Frame(page)
+
+                ttk.Label(lframe, text='Configuration Options for '+iname+',     module: ').grid(row=0, column=0, sticky='W')
                 mname='NIRCam module'
                 self.vars[mname] = tk.StringVar()
-                self.widgets[mname] = ttk.Combobox(page, textvariable=self.vars[mname], width=2, state='readonly')
+                self.widgets[mname] = ttk.Combobox(lframe, textvariable=self.vars[mname], width=2, state='readonly')
                 self.widgets[mname].grid(row=0,column=1, sticky='W')
                 self.widgets[mname]['values'] = ['A','B']
                 self.widgets[mname].set('A')
+
+                lframe.grid(row=0, columnspan=2, sticky='W')
             else:
                 ttk.Label(page, text='Configuration Options for '+iname+"                      ").grid(row=0, columnspan=2, sticky='W')
 
@@ -231,12 +235,14 @@ class WebbPSF_GUI(object):
 
             opd_list =  self.instrument[iname].opd_list
             opd_list.insert(0,"Zero OPD (perfect)")
+            if os.getenv("WEBBPSF_ITM") or 1:  
+                opd_list.append("ITM Server")
             default_opd = self.instrument[iname].pupilopd if self.instrument[iname].pupilopd is not None else "Zero OPD (perfect)"
             self._add_labeled_dropdown(iname+"_opd", fr2, label='    OPD File:', values=opd_list, default=default_opd, width=21, position=(0,0), sticky='W')
 
             self._add_labeled_dropdown(iname+"_opd_i", fr2, label=' # ', values= [str(i) for i in range(10)], width=3, position=(0,2), sticky='W')
 
-            self.widgets[iname+"_opd_label"] = ttk.Label(fr2, text=' 0 nm RMS            ', width=30)
+            self.widgets[iname+"_opd_label"] = ttk.Label(fr2, text=' 0 nm RMS            ', width=35)
             self.widgets[iname+"_opd_label"].grid( column=4,sticky='W', row=0)
 
             self.widgets[iname+"_opd"].bind('<<ComboboxSelected>>', 
@@ -247,6 +253,24 @@ class WebbPSF_GUI(object):
             ttk.Button(fr2, text='Display', command=self.ev_displayOPD).grid(column=5,sticky='E',row=0)
 
             fr2.grid(row=5, column=0, columnspan=4,sticky='S')
+
+            # ITM interface here
+            fr2 = ttk.Frame(page)
+            self._add_labeled_entry(iname+"_coords", fr2, label='    Source location:', value='0, 0', width=12, position=(1,0), sticky='W')
+            units_list = ['V1,V2 coords', 'detector pixels']
+            self._add_labeled_dropdown(iname+"_coord_units", fr2, label='in:', values=units_list, default=units_list[0], width=11, position=(1,2), sticky='W')
+            choose_list=['', 'SI center', 'SI upper left corner', 'SI upper right corner', 'SI lower left corner', 'SI lower right corner']
+            self._add_labeled_dropdown(iname+"_coord_choose", fr2, label='or select:', values=choose_list, default=choose_list[0], width=21, position=(1,4), sticky='W')
+
+
+            ttk.Label(fr2, text='    ITM output:').grid(row=2, column=0, sticky='W')
+            self.widgets[iname+"_itm_output"] = ttk.Label(fr2, text='    - no file available yet -')
+            self.widgets[iname+"_itm_output"].grid(row=2, column=1, columnspan=4, sticky='W')
+            ttk.Button(fr2, text='Access ITM...', command=self.ev_launch_ITM_dialog).grid(column=5,sticky='E',row=2)
+
+
+            fr2.grid(row=6, column=0, columnspan=4,sticky='SW')
+            self.widgets[iname+"_itm_coords"] = fr2
 
 
         self.ev_update_OPD_labels()
@@ -593,27 +617,27 @@ class WebbPSF_GUI(object):
         print "Selected instrument filter is "+self.filter
 
 
-        P.clf()
+        plt.clf()
 
-        ax1 = P.subplot(311)
+        ax1 = plt.subplot(311)
         spectrum = specFromSpectralType(self.sptype)
         synplot(spectrum)
         ax1.set_ybound(1e-6, 1e8) # hard coded for now
         ax1.yaxis.set_major_locator(matplotlib.ticker.LogLocator(base=1000))
 
-        ax2 = P.subplot(312, sharex=ax1)
+        ax2 = plt.subplot(312, sharex=ax1)
         ax2.set_ybound(0,1.1)
         #try:
         band = self.inst._getSynphotBandpass() #pysynphot.ObsBandpass(obsname)
         band.name = "%s %s" % (self.iname, self.inst.filter)
         synplot(band) #, **kwargs)
         legend_font = matplotlib.font_manager.FontProperties(size=10)
-        P.legend(loc='lower right', prop=legend_font)
+        plt.legend(loc='lower right', prop=legend_font)
 
         ax2.set_ybound(0,1.1)
 
 
-        ax3 = P.subplot(313, sharex=ax1)
+        ax3 = plt.subplot(313, sharex=ax1)
         if self.nlambda is None:
             # Automatically determine number of appropriate wavelengths.
             # Make selection based on filter configuration file
@@ -634,16 +658,16 @@ class WebbPSF_GUI(object):
         else:
             nlambda = self.nlambda
         ax1.set_xbound(0.1, 100)
-        P.draw()
+        plt.draw()
         waves, weights = self.inst._getWeights(spectrum, nlambda=nlambda)
 
         wave_step = waves[1]-waves[0]
-        plot_waves = N.concatenate( ([waves[0]-wave_step], waves, [waves[-1]+wave_step])) * 1e6
-        plot_weights = N.concatenate(([0], weights,[0]))
+        plot_waves = np.concatenate( ([waves[0]-wave_step], waves, [waves[-1]+wave_step])) * 1e6
+        plot_weights = np.concatenate(([0], weights,[0]))
 
 
-        P.ylabel("Weight")
-        P.xlabel("Wavelength [$\mu$m]")
+        plt.ylabel("Weight")
+        plt.xlabel("Wavelength [$\mu$m]")
 
         ax3.plot(plot_waves, plot_weights,  drawstyle='steps-mid')
 
@@ -651,14 +675,14 @@ class WebbPSF_GUI(object):
 
 
         #speclib.specFromSpectralType(sptype)
-        #P.loglog(spectrum['wavelength_um'],spectrum['flux']/spectrum['flux'].max(),label=sptype+" star")
-        #P.xlabel("Wavelength [$\mu$m]")
-        #P.ylabel("Flux [$erg s^{-1} cm^{-2} \AA^{-1} \\times$ arbitrary scale factor ]")
+        #plt.loglog(spectrum['wavelength_um'],spectrum['flux']/spectrum['flux'].max(),label=sptype+" star")
+        #plt.xlabel("Wavelength [$\mu$m]")
+        #plt.ylabel("Flux [$erg s^{-1} cm^{-2} \AA^{-1} \\times$ arbitrary scale factor ]")
 
         #filt = self.instrument[iname].getFilter(filter)
-        #P.plot(filt.WAVELENGTH, filt.THROUGHPUT+1e-9, "--" ,label=filter+" filter")
-        #P.gca().set_ybound(1e-6,10)
-        #P.legend(loc="upper left")
+        #plt.plot(filt.WAVELENGTH, filt.THROUGHPUT+1e-9, "--" ,label=filter+" filter")
+        #plt.gca().set_ybound(1e-6,10)
+        #plt.legend(loc="upper left")
 
     def ev_calcPSF(self):
         "Event handler for PSF Calculations"
@@ -681,7 +705,7 @@ class WebbPSF_GUI(object):
         "Event handler for Displaying the PSF"
         #self._updateFromGUI()
         #if self.PSF_HDUlist is not None:
-        P.clf()
+        plt.clf()
         webbpsf.display_PSF(self.PSF_HDUlist, vmin = self.advanced_options['psf_vmin'], vmax = self.advanced_options['psf_vmax'], 
                 scale = self.advanced_options['psf_scale'], cmap= self.advanced_options['psf_cmap'], normalize=self.advanced_options['psf_normalize'])
 
@@ -693,7 +717,7 @@ class WebbPSF_GUI(object):
     def ev_displayOptics(self):
         "Event handler for Displaying the optical system"
         self._updateFromGUI()
-        P.clf()
+        plt.clf()
         self.inst.display()
 
     def ev_displayOPD(self):
@@ -705,17 +729,17 @@ class WebbPSF_GUI(object):
 
             opd = opd[self.opd_i,:,:] # grab correct slice
 
-            masked_opd = N.ma.masked_equal(opd,  0) # mask out all pixels which are exactly 0, outside the aperture
+            masked_opd = np.ma.masked_equal(opd,  0) # mask out all pixels which are exactly 0, outside the aperture
             cmap = matplotlib.cm.jet
             cmap.set_bad('k', 0.8)
-            P.clf()
-            P.imshow(masked_opd, cmap=cmap, interpolation='nearest', vmin=-0.5, vmax=0.5)
-            P.title("OPD from %s, #%d" %( os.path.basename(self.opd), self.opd_i))
-            cb = P.colorbar(orientation='vertical')
+            plt.clf()
+            plt.imshow(masked_opd, cmap=cmap, interpolation='nearest', vmin=-0.5, vmax=0.5)
+            plt.title("OPD from %s, #%d" %( os.path.basename(self.opd), self.opd_i))
+            cb = plt.colorbar(orientation='vertical')
             cb.set_label('microns')
 
-            f = P.gcf()
-            P.text(0.4, 0.02, "OPD WFE = %6.2f nm RMS" % (masked_opd.std()*1000.), transform=f.transFigure)
+            f = plt.gcf()
+            plt.text(0.4, 0.02, "OPD WFE = %6.2f nm RMS" % (masked_opd.std()*1000.), transform=f.transFigure)
 
     def ev_update_ifu_label(self, iname):
         pass
@@ -726,6 +750,8 @@ class WebbPSF_GUI(object):
         #newfilt = self.widgets[iname+"_filter"].get()
         #print "Updating IFU label for "+iname+", filt="+newfilt
 
+    def ev_launch_ITM_dialog(self):
+        tkMessageBox.showwarning( message="ITM dialog box not yet implemented", title="Can't Display") 
 
 
     def ev_update_OPD_labels(self):
@@ -738,13 +764,21 @@ class WebbPSF_GUI(object):
         #print "Here! for "+iname
         filename = self.instrument[iname]._datapath +os.sep+ 'OPD'+ os.sep+widget_combobox.get()
         if filename.endswith(".fits"):
-            #print "read fits %s" % filename
             header_summary = pyfits.getheader(filename)['SUMMARY']
             self.widgets[iname+"_opd_i"]['state'] = 'readonly'
-        else:
-            #print "not fits: %s" % filename
-            header_summary = " 0 nm RMS"
+            self.widgets[iname+"_itm_coords"].grid_remove()  # hide ITM options
+        else:  # Special options for non-FITS file inputs
             self.widgets[iname+"_opd_i"]['state'] = 'disabled'
+            if 'Zero' in widget_combobox.get():
+                header_summary = " 0 nm RMS"
+                self.widgets[iname+"_itm_coords"].grid_remove()  # hide ITM options
+            elif 'ITM' in widget_combobox.get():
+                header_summary= "Get OPD from ITM Server"
+
+                self.widgets[iname+"_itm_coords"].grid() # re-show
+            else:
+                header_summary = "   "
+                self.widgets[iname+"_itm_coords"].grid_remove()  # hide
 
         widget_label.configure(text=header_summary, width=30)
 
@@ -1034,17 +1068,17 @@ def synplot(thing, waveunit='micron', **kwargs):
 
 
     if isinstance(thing, pysynphot.spectrum.SourceSpectrum):
-        P.loglog(wave, thing.flux, label=thing.name, **kwargs)
-        P.xlabel("Wavelength [%s]" % waveunit)
+        plt.loglog(wave, thing.flux, label=thing.name, **kwargs)
+        plt.xlabel("Wavelength [%s]" % waveunit)
         if str(thing.fluxunits) == 'flam':
-            P.ylabel("Flux [%s]" % ' erg cm$^{-2}$ s$^{-1}$ Ang$^{-1}$' )
+            plt.ylabel("Flux [%s]" % ' erg cm$^{-2}$ s$^{-1}$ Ang$^{-1}$' )
         else:
-            P.ylabel("Flux [%s]" % thing.fluxunits)
+            plt.ylabel("Flux [%s]" % thing.fluxunits)
     elif isinstance(thing, pysynphot.spectrum.SpectralElement):
-        P.plot(wave, thing.throughput,label=thing.name, **kwargs)
-        P.xlabel("Wavelength [%s]" % waveunit)
-        P.ylabel("Throughput")
-        P.gca().set_ylim(0,1)
+        plt.plot(wave, thing.throughput,label=thing.name, **kwargs)
+        plt.xlabel("Wavelength [%s]" % waveunit)
+        plt.ylabel("Throughput")
+        plt.gca().set_ylim(0,1)
     else:
         print "Don't know how to plot that object..."
 

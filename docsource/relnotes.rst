@@ -20,11 +20,6 @@ Known Issues
     Warning: invalid value encountered in absolute
 
   These can safely be ignored. 
-* The current development version of pysynphot prints text like the following when it starts up. This, too, can just be ignored. ::
-
-    GRAPHTABLE:  /Users/mperrin/data/CDBS/mtab/z999999zz_tmg.fits
-    COMPTABLE:  /Users/mperrin/data/CDBS/mtab/z999999zz_tmc.fits
-    NOT DEFAULT -- Primary mirror area:  253260
 
 
 
@@ -40,17 +35,37 @@ Known Issues
 
 Plans for Future Releases
 --------------------------
-* Full support for the NIRSpec and MIRI IFUs will be added in a future release
-* Realistic (but time consuming) jitter models
+* Full support for the NIRSpec and MIRI IFUs will be added in a future release. Likewise for grisms.
+* Realistic (but time consuming) jitter models (This code now available in beta form if you need it now; contact Marshall.)
 * Integration with OPD generation software and detector noise models.
-* Possibly: separate handling of pre- and post- coronagraphic WFE in instruments, if it appears likely to be significant. 
+* Possibly: separate handling of pre- and post- coronagraphic WFE in instruments, if this appears likely to be significant. 
+* Python 3 support will be added as soon as it is needed, but is not an immediate priority. Any users who would like to run webbpsf under python 3, please let me know.
 
 
-Version 0.2.6pre
+Version 0.2.6
 -----------------
-* TFI -> NIRISS. 
+
+Released November 7, 2011
+
+* Updated & renamed TFI -> NIRISS. 
+
+  * Removed etalon code.
+  * Added in filters transmissions copied from NIRCam
+  * Removed coronagraphic Lyot pupils. Note: the coronagraphic occulting spots are machined into the pickoff mirror so will still fly, and thus are retained in the NIRISS model. 
+  * Slitless spectroscopy not yet supported; check back in a future version.
+
 * Strehl measurement code caches computed perfect PSFs for improved speed when measuring many files.
 * Added GUI options for flat spectra in F_nu and F_lambda. (Thanks to Christopher Willmer at Steward Observatory for this suggestion)
+* "display_psf" function renamed to "display_PSF" for consistency with all-uppercase use of PSF in all function names.
+* numpy and pylab imports changed to 'np' and 'plt' for consistency with astropy guidelines (http://astropy.wikispaces.com/Astropy+Coding+Guidelines)
+* poppy.py library updates: 
+
+  * Rotations can be specified in either degrees or radians. Added units parameters to Rotations.__init__
+  * optics created from FITS files use the filename as a default optic name.
+  * FITSOpticalElement created, to separate FITS file reading functionality from the base OpticalElement class.
+    Also adds 'pixelscale' keyword to directly specify the pixel scale for such a file, if not present in the FITS header.
+  * Removed redundant 'pupil_scale' attribute: pixelscale now used for both image and pupil plane pixel scales. 
+  * unit test code updates & improvements
 
 
 

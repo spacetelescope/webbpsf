@@ -104,12 +104,13 @@ and you should be able to test drive things using the GUI:
 
 .. image:: ./fig_webbpsfgui_main.png
    :scale: 75%
-   :align: right
+   :align: center 
    :alt: WebbPSFGui main window
 
 
 
+Most controls should be self-explanatory, so feel free to experiment. Detailed instructions on the GUI are available :py:mod:`here <webbpsfgui>`.
 
-
+------
 
 

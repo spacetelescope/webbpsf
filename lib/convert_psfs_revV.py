@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 import os, sys
-import numpy as N
-import pylab as P
+import numpy as np
+import matplotlib.pyplot as plt
 import pywcs, pyfits
 #import aplpy, atpy
 #import RO.DS9
-from IPython.Debugger import Tracer; stop = Tracer()
+#from IPython.Debugger import Tracer; stop = Tracer()
 
 import poppy
 
@@ -31,7 +31,7 @@ def convert_pupil(filename, instname, wfe, outdir=JWPSF_basepath, includes="OPD"
 
     imstack3 = imstack2.transpose((0,2,1))[:,::-1,:] #transpose and flip Y to get +y = +V3
 
-    P.imshow(imstack3[0,:,:])
+    plt.imshow(imstack3[0,:,:])
     pupil = imstack[-1, :, :].transpose()[::-1,:]
 
 
@@ -81,7 +81,7 @@ def convert_one(filename, instname, wfe, outdir=JWPSF_basepath, includes="OPD", 
 
     imstack.shape = (imstack.shape[0]/1024,1024,1024)
 
-    #N.transpose(imstack, axes=[0,2,1]) # swap X and Y to align Y = +V3
+    #np.transpose(imstack, axes=[0,2,1]) # swap X and Y to align Y = +V3
 
     imstack2 = imstack[-2::-1, :, :].copy() # get all the OPDs, and reverse order 
         #(so the one previously at the top becomes first in the new arrangement)
@@ -90,7 +90,7 @@ def convert_one(filename, instname, wfe, outdir=JWPSF_basepath, includes="OPD", 
 
     imstack3 = imstack2.transpose((0,2,1))[:,::-1,:] #transpose and flip Y to get +y = +V3
 
-    P.imshow(imstack3[0,:,:])
+    plt.imshow(imstack3[0,:,:])
     pupil = imstack[-1, :, :].transpose()[::-1,:]
 
 

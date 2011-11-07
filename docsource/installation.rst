@@ -10,15 +10,23 @@ Requirements & Installation
 Software Requirements
 -----------------------
 
+**Python**:
+
+Python 2.6 or higher is required. Python 2.7 is required for the GUI (see below) and strongly recommended overall. WebbPSF is not yet Python 3 compatible.
+
+
+**Python modules**:
+
 Beyond the usual numpy/scipy/matplotlib core modules, the following are required:
 
 * `pyfits <http://www.stsci.edu/resources/software_hardware/pyfits>`_
 * `ATPy <http://atpy.github.com/>`_, which in turn requires `vo <https://trac6.assembla.com/astrolib>`_ and `asciitable <http://cxc.harvard.edu/contrib/asciitable/>`_
+
   
 These are optional but highly recommended:
 
 * `pyFFTW3 <http://pypi.python.org/pypi/PyFFTW3/0.2.1>`_. The code will work fine without it, but will be significantly slower.
-* `pysynphot <https://trac6.assembla.com/astrolib>`_ enables the simulation of PSFs with proper spectral response to realistic source spectra.  Without this, PSF fidelity is reduced.
+* `pysynphot <https://trac6.assembla.com/astrolib>`_ enables the simulation of PSFs with proper spectral response to realistic source spectra.  Without this, PSF fidelity is reduced. See below for installation instructions.
 
 Additional requirement for the GUI: 
 
@@ -37,39 +45,41 @@ Obtaining WebbPSF
 
 Download the following files:
 
-* `webbpsf-0.2.5.tar.gz <http://www.stsci.edu/~mperrin/software/webbpsf/webbpsf-0.2.5.tar.gz>`_
-* `webbpsf-data-0.2.5.tar.gz <http://www.stsci.edu/~mperrin/software/webbpsf/webbpsf-data-0.2.5.tar.gz>`_  [417 MB]
+* `webbpsf-0.2.6.tar.gz <http://www.stsci.edu/~mperrin/software/webbpsf/webbpsf-0.2.6.tar.gz>`_
+* `webbpsf-data-0.2.6.tar.gz <http://www.stsci.edu/~mperrin/software/webbpsf/webbpsf-data-0.2.6.tar.gz>`_  [417 MB]
 
 Installing WebbPSF
 --------------------
 
-1. Untar ``webbpsf-0.2.tar.gz`` into a temporary working directory. 
+1. Untar ``webbpsf-0.6.x.tar.gz`` into a temporary working directory. 
 2. Run ``python setup.py install`` in that directory. This will install ``webbpsf`` into your Python path. 
 
    If you lack the filesystem permissions to write into the system python directory 
    (for instance, on a machine you don't have root on), you can do ``python setup.py install --user`` to install locally
    in your home directory.
-3. Untar ``webbpsf-data-0.2.tar.gz`` into a directory of your choosing.
+3. Untar ``webbpsf-data-0.2.x.tar.gz`` into a directory of your choosing.
 4. Set the environment variable ``WEBBPSF_PATH`` to point to that directory. e.g. ``setenv WEBBPSF_PATH $HOME/data/webbpsf-data``.
 5. You should now be able to do ``import webbpsf`` in a Python session. 
 
-Installing or Updating pysynphot
+Installing or updating pysynphot
 -------------------------------
 To install or update ``pysynphot``, do the following. (See also http://stsdas.stsci.edu/pysynphot/ and https://trac6.assembla.com/astrolib). If you already have ``pysynphot`` 
-installed, it will probably work fine without this update, but computations may be slower than the current version if you have a version earlier than 0.8. 
+installed, it will probably work fine without this update, but computations may be slower if you have a version earlier than 0.8.  WebbPSF has most recently been tested using pysynphot v 0.8.3
 
 .. comment 
         work without this update but computations will be slower than the current version, so we recommend updating it. 
 
 1. Download the most recent version of pysynphot from https://trac6.assembla.com/astrolib. 
-2. Untar ``pysynphot-0.7jwst.tar.gz`` into a temporary working directory. 
+2. Untar that file into a temporary working directory. 
 3. run ``python setup.py install`` in that directory.  You can delete the setup files there after you do this step. 
 4. If this is your initial installation of ``pysynphot`` you need to install the CDBS files. See the `pysynphot installation guide <https://trac6.assembla.com/astrolib/wiki/PysynphotInstallationGuide>`_. The necessary files are available from https://trac6.assembla.com/astrolib; follow the download links for "throughput files" and "model spectra". If you already have CDBS installed, then you're all set and can skip this step.
 
 
-WebbPSF includes its own normalized copies of the new JWST instrumental throughputs from the development CDBS at STScI.
-If you have JWST throughput files available in your ``$PYSYN_CDBS`` directory (likely true only for internal users at STScI), those will be used in preference to the WebbPSF internal files, but
-this is not required and so we do not distribute those files now.
+WebbPSF includes its own normalized copies of the new JWST instrumental
+throughputs from the development CDBS at STScI.  If you have JWST throughput
+files available in your ``$PYSYN_CDBS`` directory (likely true only for
+internal users at STScI), those will be used in preference to the WebbPSF
+internal files, but this is not required.
 
 .. comment
         3. Untar ``CDBS-for-webb.tar.gz`` in a directory of your choosing. (Typically replacing into your current CDBS directory if already present)

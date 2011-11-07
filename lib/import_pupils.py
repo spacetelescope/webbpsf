@@ -1,5 +1,4 @@
 import pyfits
-import numpy as N
 import glob
 
 def convert_pupil(filename, diam=6.5):
@@ -51,7 +50,7 @@ def convert_pupil(filename, diam=6.5):
     pupilscale = diam*1.0/true_pupil_diam
     file_diam = f[0].data.shape[0] * pupilscale
 
-    f[0].header.update('PUPLDIAM', file_diam, 'Pupil *file* diameter in meters')
+    #f[0].header.update('PUPLDIAM', file_diam, 'Pupil *file* diameter in meters')
     f[0].header.update('DIAM', diam, 'True Pupil diameter in meters (ignoring padding)')
     f[0].header.update('PUPLSCAL', pupilscale, 'Pupil pixel scale in meters/pixel')
     f.close(output_verify='ignore')

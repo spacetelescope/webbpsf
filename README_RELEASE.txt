@@ -4,3 +4,4 @@ Update release number in
 	docsource/installation file names and links
 	./defsetup.py
 	make-sdist.sh
+	make-data-sdist.sh

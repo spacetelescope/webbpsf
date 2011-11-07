@@ -28,13 +28,12 @@ import os
 import types
 import glob
 import time
-import numpy as N
+import numpy as np
+import matplotlib.pyplot as plt
 import scipy.interpolate, scipy.ndimage
-import pylab as P
 import matplotlib
 import atpy
 import pyfits
-from matplotlib.colors import LogNorm  # for log scaling of images, with automatic colorbar support
 
 import poppy
 from fwcentroid import fwcentroid
@@ -142,7 +141,7 @@ class JWInstrument(object):
         self._filter=None
 
         filter_table = atpy.Table(self._WebbPSF_basepath + os.sep+ 'filters.txt',type='ascii',delimiter='\t')
-        wmatch = N.where(filter_table.instrument == self.name)
+        wmatch = np.where(filter_table.instrument == self.name)
         self.filter_list = filter_table.filter[wmatch].tolist()
         "List of available filters"
         self._filter_nlambda_default = dict(zip(filter_table.filter[wmatch], filter_table.nlambda[wmatch]))
@@ -396,10 +395,10 @@ class JWInstrument(object):
 
 
         if display:
-            f = P.gcf()
+            f = plt.gcf()
             #p.text( 0.1, 0.95, "%s, filter= %s" % (self.name, self.filter), transform=f.transFigure, size='xx-large')
-            P.suptitle( "%s, filter= %s" % (self.name, self.filter), size='xx-large')
-            P.text( 0.99, 0.04, "Calculation with %d wavelengths (%g - %g um)" % (nlambda, wavelens[0]*1e6, wavelens[-1]*1e6), transform=f.transFigure, horizontalalignment='right')
+            plt.suptitle( "%s, filter= %s" % (self.name, self.filter), size='xx-large')
+            plt.text( 0.99, 0.04, "Calculation with %d wavelengths (%g - %g um)" % (nlambda, wavelens[0]*1e6, wavelens[-1]*1e6), transform=f.transFigure, horizontalalignment='right')
 
         if outfile is not None:
             result[0].header.update ("FILENAME", os.path.basename (outfile),
@@ -418,7 +417,7 @@ class JWInstrument(object):
     def _getWeights(self, source=None, nlambda=5, monochromatic=None, verbose=False):
         if monochromatic is not None:
             _log.info(" monochromatic calculation requested.")
-            return (N.asarray([monochromatic]),  N.asarray([1]) )
+            return (np.asarray([monochromatic]),  np.asarray([1]) )
 
         elif _HAS_PYSYNPHOT and (isinstance(source, pysynphot.spectrum.SourceSpectrum)  or source is None):
             """ Given a pysynphot.SourceSpectrum object, perform synthetic photometry for
@@ -444,7 +443,7 @@ class JWInstrument(object):
             _log.info("Computing wavelength weights using synthetic photometry for %s..." % self.filter)
             band = self._getSynphotBandpass()
             # choose reasonable min and max wavelengths
-            w_above10 = N.where(band.throughput > 0.10*band.throughput.max())
+            w_above10 = np.where(band.throughput > 0.10*band.throughput.max())
 
             minwave = band.wave[w_above10].min()
             maxwave = band.wave[w_above10].max()
@@ -457,7 +456,7 @@ class JWInstrument(object):
                 _log.debug("Special case: setting max wavelength to 14.32 um to ignore red leak")
                 maxwave = 143200.0
  
-            wave_bin_edges =  N.linspace(minwave,maxwave,nlambda+1)
+            wave_bin_edges =  np.linspace(minwave,maxwave,nlambda+1)
             wavesteps = (wave_bin_edges[:-1] +  wave_bin_edges[1:])/2
             deltawave = wave_bin_edges[1]-wave_bin_edges[0]
             effstims = []
@@ -474,7 +473,7 @@ class JWInstrument(object):
             #t1 = time.time()
             #print "  that took %f seconds for %d wavelengths" % (t1-t0, nlambda)
 
-            effstims = N.array(effstims)
+            effstims = np.array(effstims)
             effstims /= effstims.sum()
             wave_m =  band.waveunits.Convert(wavesteps,'m') # convert to meters
 
@@ -488,15 +487,15 @@ class JWInstrument(object):
             _log.warning("Pysynphot unavailable (or invalid source supplied)!   Assuming flat # of counts versus wavelength.")
             # compute a source spectrum weighted by the desired filter curves.
             # TBD this will eventually use pysynphot, so don't write anything fancy for now!
-            wf = N.where(self.filter == N.asarray(self.filter_list))[0]
+            wf = np.where(self.filter == np.asarray(self.filter_list))[0]
             # The existing FITS files all have wavelength in ANGSTROMS since that is the pysynphot convention...
             filterdata = atpy.Table(self._filter_files[wf], type='fits')
             _log.warn("CAUTION: Just interpolating rather than integrating filter profile, over %d steps" % nlambda)
-            wtrans = N.where(filterdata.THROUGHPUT > 0.4)
+            wtrans = np.where(filterdata.THROUGHPUT > 0.4)
             if self.filter == 'FND':  # special case MIRI's ND filter since it is < 0.1% everywhere...
-                wtrans = N.where(  ( filterdata.THROUGHPUT > 0.0005)  & (filterdata.WAVELENGTH > 7e-6*1e10) & (filterdata.WAVELENGTH < 26e-6*1e10 ))
+                wtrans = np.where(  ( filterdata.THROUGHPUT > 0.0005)  & (filterdata.WAVELENGTH > 7e-6*1e10) & (filterdata.WAVELENGTH < 26e-6*1e10 ))
             lrange = filterdata.WAVELENGTH[wtrans] *1e-10  # convert from Angstroms to Meters
-            lambd = N.linspace(N.min(lrange), N.max(lrange), nlambda)
+            lambd = np.linspace(np.min(lrange), np.max(lrange), nlambda)
             filter_fn = scipy.interpolate.interp1d(filterdata.WAVELENGTH*1e-10, filterdata.THROUGHPUT,kind='cubic', bounds_error=False)
             weights = filter_fn(lambd)
             return (lambd,weights)
@@ -515,7 +514,7 @@ class JWInstrument(object):
             # the requested band is not yet supported in synphot/CDBS. (those files are still a
             # work in progress...). Therefore, use our local throughput files and create a synphot
             # transmission object.
-            wf = N.where(self.filter == N.asarray(self.filter_list))[0]
+            wf = np.where(self.filter == np.asarray(self.filter_list))[0]
             # The existing FITS files all have wavelength in ANGSTROMS since that is the pysynphot convention...
             filterdata = atpy.Table(self._filter_files[wf], type='fits')
 
@@ -584,10 +583,10 @@ class JWInstrument(object):
         else: trySAM = False
 
         if fov_pixels is None:
-            fov_pixels = N.round(fov_arcsec/self.pixelscale)
+            fov_pixels = np.round(fov_arcsec/self.pixelscale)
             if 'parity' in self.options.keys():
-                if self.options['parity'].lower() == 'odd'  and N.remainder(fov_pixels,2)==0: fov_pixels +=1
-                if self.options['parity'].lower() == 'even' and N.remainder(fov_pixels,2)==1: fov_pixels +=1
+                if self.options['parity'].lower() == 'odd'  and np.remainder(fov_pixels,2)==0: fov_pixels +=1
+                if self.options['parity'].lower() == 'even' and np.remainder(fov_pixels,2)==1: fov_pixels +=1
 
         optsys.addDetector(self.pixelscale, fov_pixels = fov_pixels, oversample = detector_oversample, name=self.name+" detector")
 
@@ -999,11 +998,11 @@ class NIRISS(JWInstrument):
         else: shift = None
 
         #if self.pupil_mask == 'MASKC21N':
-            #optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKC21N.fits", name=self.pupil_mask, shift=shift)
+            #optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKC21np.fits", name=self.pupil_mask, shift=shift)
         #elif self.pupil_mask == 'MASKC66N':
-            #optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKC66N.fits", name=self.pupil_mask, shift=shift)
+            #optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKC66np.fits", name=self.pupil_mask, shift=shift)
         #elif self.pupil_mask == 'MASKC71N':
-            #optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKC71N.fits", name=self.pupil_mask, shift=shift)
+            #optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKC71np.fits", name=self.pupil_mask, shift=shift)
         if self.pupil_mask == 'MASK_NRM':
             optsys.addPupil(transmission=self._datapath+"/coronagraph/MASK_NRM.fits", name=self.pupil_mask, shift=shift)
         elif self.pupil_mask == 'CLEAR':
@@ -1079,11 +1078,11 @@ class TFI(JWInstrument):
         else: shift = None
 
         if self.pupil_mask == 'MASKC21N':
-            optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKC21N.fits", name=self.pupil_mask, shift=shift)
+            optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKC21np.fits", name=self.pupil_mask, shift=shift)
         elif self.pupil_mask == 'MASKC66N':
-            optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKC66N.fits", name=self.pupil_mask, shift=shift)
+            optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKC66np.fits", name=self.pupil_mask, shift=shift)
         elif self.pupil_mask == 'MASKC71N':
-            optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKC71N.fits", name=self.pupil_mask, shift=shift)
+            optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKC71np.fits", name=self.pupil_mask, shift=shift)
         elif self.pupil_mask == 'MASK_NRM':
             optsys.addPupil(transmission=self._datapath+"/coronagraph/MASK_NRM.fits", name=self.pupil_mask, shift=shift)
         elif self.pupil_mask == 'CLEAR':
@@ -1104,17 +1103,17 @@ class TFI(JWInstrument):
             raise ValueError("Invalid value for etalon wavelength: %f. Please set a value in 1.5-2.7 or 3.0-5.0 microns." % self.etalon_wavelength)
 
 
-        match_index = N.abs(self.resolution_table.wavelength - self.etalon_wavelength).argmin()
+        match_index = np.abs(self.resolution_table.wavelength - self.etalon_wavelength).argmin()
         resolution = self.resolution_table.resolution[match_index]
         _log.info("Etalon wavelength %.3f has resolution %.2f" % (self.etalon_wavelength, resolution))
-        wavelen = N.linspace(1.0, 5.0, 1000)
+        wavelen = np.linspace(1.0, 5.0, 1000)
 
         fwhm = self.etalon_wavelength/resolution
         sigma = fwhm / 2.35482
 
-        transmission = N.exp(- (wavelen - self.etalon_wavelength)**2/ (2*sigma**2))
+        transmission = np.exp(- (wavelen - self.etalon_wavelength)**2/ (2*sigma**2))
 
-        #P.plot(wavelen, transmission)
+        #plt.plot(wavelen, transmission)
         band = pysynphot.ArrayBandpass(wave=wavelen*1e4, throughput=transmission, waveunits='angstrom',name='TFI-etalon-%.3d' % self.etalon_wavelength)
 
         self.filter = '%.3f um' % self.etalon_wavelength # update this. used for display and FITS header info
@@ -1180,7 +1179,7 @@ def Instrument(name):
 Instrument.list = ['nircam', 'nirspec', 'tfi', 'miri'] # useful list for iteration
 
 
-def calc_or_load_psf(filename, inst, clobber=False, **kwargs):
+def calc_or_load_PSF(filename, inst, clobber=False, **kwargs):
     """ Utility function for loading a precomputed PSF from disk, or else
     if that files does not exist, then compute it and save to disk. 
 
@@ -1209,7 +1208,7 @@ def calc_or_load_psf(filename, inst, clobber=False, **kwargs):
 
 
 def MakePSF(self, instrument=None, pupil_file=None, phase_file=None, output=None,
-                  diameter=None, oversample=4, type=N.float64,
+                  diameter=None, oversample=4, type=np.float64,
                   filter=((1.,),(1.,)),
                   output_size=512, pixel_size=None, verbose=False):
     """This is a wrapper function to provide back-compatibility with the
@@ -1315,7 +1314,7 @@ def display_PSF(HDUlist_or_filename=None, ext=0,
     if scale == 'linear':
         norm=matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
     else: 
-        norm=LogNorm(vmin=vmin, vmax=vmax)
+        norm=matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax)
 
     if type(pixelscale) is str:
         halffov = HDUlist[ext].header[pixelscale]*HDUlist[ext].data.shape[0]/2
@@ -1349,9 +1348,9 @@ def display_PSF(HDUlist_or_filename=None, ext=0,
     ax.set_title(title)
 
     if colorbar:
-        cb = P.colorbar(ax.images[0], ax=ax, orientation=colorbar_orientation)
+        cb = plt.colorbar(ax.images[0], ax=ax, orientation=colorbar_orientation)
         if scale.lower() =='log':
-            ticks = N.logspace(N.log10(vmin), N.log10(vmax), N.log10(vmax/vmin)+1)
+            ticks = np.logspace(np.log10(vmin), np.log10(vmax), np.log10(vmax/vmin)+1)
             if colorbar_orientation=='horizontal' and vmax==1e-1 and vmin==1e-8: ticks = [1e-8, 1e-6, 1e-4,  1e-2, 1e-1] # looks better
             cb.set_ticks(ticks)
             cb.set_ticklabels(ticks)
@@ -1365,7 +1364,7 @@ def display_PSF(HDUlist_or_filename=None, ext=0,
         ceny, cenx = measure_centroid(HDUlist, ext=ext, units='arcsec', relativeto='center', boxsize=20, threshhold=0.1)
         ax.plot(cenx, ceny, 'k+', markersize=15, markeredgewidth=1)
         _log.info("centroid: (%f, %f) " % (cenx, ceny))
-        P.draw()
+        plt.draw()
 
     if return_ax:
         if colorbar: return (ax, cb)
@@ -1425,7 +1424,7 @@ def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
 
 
     if print_:
-        rms_diff = N.sqrt((diff_im**2).mean())
+        rms_diff = np.sqrt((diff_im**2).mean())
         print "RMS of difference image: %f" % rms_diff
 
     norm=matplotlib.colors.Normalize(vmin=-vmax, vmax=vmax)
@@ -1455,8 +1454,8 @@ def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
     ax.set_title(title)
 
     if colorbar:
-        cb = P.colorbar(ax.images[0], ax=ax, orientation=colorbar_orientation)
-        #ticks = N.logspace(N.log10(vmin), N.log10(vmax), N.log10(vmax/vmin)+1)
+        cb = plt.colorbar(ax.images[0], ax=ax, orientation=colorbar_orientation)
+        #ticks = np.logspace(np.log10(vmin), np.log10(vmax), np.log10(vmax/vmin)+1)
         #if vmin == 1e-8 and vmax==1e-1: 
             #ticks = [1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1]
         ticks = [-vmax, -0.5*vmax, 0, 0.5*vmax, vmax]
@@ -1485,8 +1484,8 @@ def display_EE(HDUlist_or_filename=None,ext=0, overplot=False, ax=None, mark_lev
 
     if not overplot:
         if ax is None: 
-            P.clf()
-            ax = P.subplot(111)
+            plt.clf()
+            ax = plt.subplot(111)
 
     ax.plot(radius, EE) #, nonposy='clip')
     if not overplot:
@@ -1495,9 +1494,9 @@ def display_EE(HDUlist_or_filename=None,ext=0, overplot=False, ax=None, mark_lev
 
     if mark_levels:
         for level in [0.5, 0.8, 0.95]:
-            EElev = radius[N.where(EE > level)[0][0]]
+            EElev = radius[np.where(EE > level)[0][0]]
             yoffset = 0 if level < 0.9 else -0.05 
-            P.text(EElev+0.1, level+yoffset, 'EE=%2d%% at r=%.3f"' % (level*100, EElev))
+            plt.text(EElev+0.1, level+yoffset, 'EE=%2d%% at r=%.3f"' % (level*100, EElev))
 
 
 
@@ -1512,27 +1511,27 @@ def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False ):
     radius, profile, EE = radial_profile(HDUlist, EE=True)
 
     if not overplot:
-        P.clf()
-        P.title("PSF sim for %s, %s" % (HDUlist[ext].header['INSTRUME'], HDUlist[ext].header['FILTER']))
-        P.xlabel("Radius [arcsec]")
-        P.ylabel("PSF radial profile")
-    P.subplot(2,1,1)
-    P.semilogy(radius, profile)
+        plt.clf()
+        plt.title("PSF sim for %s, %s" % (HDUlist[ext].header['INSTRUME'], HDUlist[ext].header['FILTER']))
+        plt.xlabel("Radius [arcsec]")
+        plt.ylabel("PSF radial profile")
+    plt.subplot(2,1,1)
+    plt.semilogy(radius, profile)
 
-    fwhm = 2*radius[N.where(profile < profile[0]*0.5)[0][0]]
-    P.text(fwhm, profile[0]*0.5, 'FWHM = %.3f"' % fwhm)
+    fwhm = 2*radius[np.where(profile < profile[0]*0.5)[0][0]]
+    plt.text(fwhm, profile[0]*0.5, 'FWHM = %.3f"' % fwhm)
 
-    P.subplot(2,1,2)
-    #P.semilogy(radius, EE, nonposy='clip')
-    P.plot(radius, EE, color='r') #, nonposy='clip')
+    plt.subplot(2,1,2)
+    #plt.semilogy(radius, EE, nonposy='clip')
+    plt.plot(radius, EE, color='r') #, nonposy='clip')
     if not overplot:
-        P.xlabel("Radius [arcsec]")
-        P.ylabel("Encircled Energy")
+        plt.xlabel("Radius [arcsec]")
+        plt.ylabel("Encircled Energy")
 
     for level in [0.5, 0.8, 0.95]:
-        EElev = radius[N.where(EE > level)[0][0]]
+        EElev = radius[np.where(EE > level)[0][0]]
         yoffset = 0 if level < 0.9 else -0.05 
-        P.text(EElev+0.1, level+yoffset, 'EE=%2d%% at r=%.3f"' % (level*100, EElev))
+        plt.text(EElev+0.1, level+yoffset, 'EE=%2d%% at r=%.3f"' % (level*100, EElev))
 
 
 def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stddev=False, binsize=None, maxradius=None):
@@ -1585,44 +1584,44 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
     if binsize is None:
         binsize=pixelscale
 
-    y,x = N.indices(image.shape)
+    y,x = np.indices(image.shape)
     if center is None:
         # get exact center of image
         #center = (image.shape[1]/2, image.shape[0]/2)
         center = tuple( (a-1)/2.0 for a in image.shape[::-1])
 
-    r = N.sqrt( (x-center[0])**2 + (y-center[1])**2) *pixelscale / binsize # radius in bin size steps
-    ind = N.argsort(r.flat)
+    r = np.sqrt( (x-center[0])**2 + (y-center[1])**2) *pixelscale / binsize # radius in bin size steps
+    ind = np.argsort(r.flat)
 
 
     sr = r.flat[ind]
     sim = image.flat[ind]
     ri = sr.astype(int)
     deltar = ri[1:]-ri[:-1] # assume all radii represented (more work if not)
-    rind = N.where(deltar)[0]
+    rind = np.where(deltar)[0]
     nr = rind[1:] - rind[:-1] # number in radius bin
-    csim = N.cumsum(sim, dtype=float) # cumulative sum to figure out sums for each bin
+    csim = np.cumsum(sim, dtype=float) # cumulative sum to figure out sums for each bin
     tbin = csim[rind[1:]] - csim[rind[:-1]] # sum for image values in radius bins
     radialprofile=tbin/nr
 
     #pre-pend the initial element that the above code misses.
-    radialprofile2 = N.empty(len(radialprofile)+1)
+    radialprofile2 = np.empty(len(radialprofile)+1)
     if rind[0] != 0:
         radialprofile2[0] =  csim[rind[0]] / (rind[0]+1)  # if there are multiple elements in the center bin, average them
     else:
         radialprofile2[0] = csim[0]                       # otherwise if there's just one then just take it. 
     radialprofile2[1:] = radialprofile
-    rr = N.arange(len(radialprofile2))*binsize + binsize*0.5  # these should be centered in the bins, so add a half.
+    rr = np.arange(len(radialprofile2))*binsize + binsize*0.5  # these should be centered in the bins, so add a half.
 
     if stddev:
-        stddevs = N.zeros_like(radialprofile2)
+        stddevs = np.zeros_like(radialprofile2)
         r_pix = r * binsize
         for i, radius in enumerate(rr):
-            if i == 0: wg = N.where(r < radius+ binsize/2)
+            if i == 0: wg = np.where(r < radius+ binsize/2)
             else: 
-                wg = N.where( (r_pix >= (radius-binsize/2)) &  (r_pix < (radius+binsize/2)))
+                wg = np.where( (r_pix >= (radius-binsize/2)) &  (r_pix < (radius+binsize/2)))
                 #print radius-binsize/2, radius+binsize/2, len(wg[0])
-                #wg = N.where( (r >= rr[i-1]) &  (r <rr[i] )))
+                #wg = np.where( (r >= rr[i-1]) &  (r <rr[i] )))
             stddevs[i] = image[wg].std()
         #stop()
         return (rr, stddevs)
@@ -1630,8 +1629,8 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
     if not EE:
         return (rr, radialprofile2)
     else:
-        #weighted_profile = radialprofile2*2*N.pi*(rr/rr[1])
-        #EE = N.cumsum(weighted_profile)
+        #weighted_profile = radialprofile2*2*np.pi*(rr/rr[1])
+        #EE = np.cumsum(weighted_profile)
         EE = csim[rind]
         return (rr, radialprofile2, EE) 
 
@@ -1670,8 +1669,8 @@ def measure_EE(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
     # append the zero at the center
     rr_EE = rr + (rr[1]-rr[0])/1  # add half a binsize to this, because the EE is measured inside the
                                   # outer edge of each annulus. 
-    rr0 = N.concatenate( ([0], rr_EE)) 
-    EE0 = N.concatenate( ([0], EE))
+    rr0 = np.concatenate( ([0], rr_EE)) 
+    EE0 = np.concatenate( ([0], EE))
 
 
     EE_fn = scipy.interpolate.interp1d(rr0, EE0,kind='cubic', bounds_error=False)
@@ -1702,7 +1701,7 @@ def measure_radial(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
     Examples
     --------
     >>> rp = measure_radial("someimage.fits")
-    >>> radius = N.linspace(0, 5.0, 100)
+    >>> radius = np.linspace(0, 5.0, 100)
     >>> plot(radius, rp(radius), label="PSF")
 
     """
@@ -1735,10 +1734,10 @@ def measure_fwhm(HDUlist_or_filename=None, ext=0, center=None, level=0.5):
     rr, radialprofile, EE = radial_profile(HDUlist_or_filename, ext, EE=True, center=center)
     rpmax = radialprofile.max()
 
-    wlower = N.where(radialprofile < rpmax *level)
-    wmin = N.min(wlower[0])
+    wlower = np.where(radialprofile < rpmax *level)
+    wmin = np.min(wlower[0])
     # go just a bit beyond the half way mark
-    winterp = N.arange(0, wmin+2, dtype=int)[::-1]
+    winterp = np.arange(0, wmin+2, dtype=int)[::-1]
 
     if len(winterp) < 6: kind='linear'
     else: kind = 'cubic'
@@ -1811,28 +1810,28 @@ def measure_centroid(HDUlist_or_filename=None, ext=0, slice=0, boxsize=50, print
 
 
     if 0: 
-        y, x= N.indices(image.shape)
-        wpeak = N.where(image == image.max())
+        y, x= np.indices(image.shape)
+        wpeak = np.where(image == image.max())
         cy, cx = y[wpeak][0], x[wpeak][0]
         print "Peak pixel: (%d, %d)" % (cx, cy)
 
 
         cutout = image[cy-boxsize:cy+boxsize+1, cx-boxsize:cx+boxsize+1]
-        cent_of_mass_cutout = N.asarray(scipy.ndimage.center_of_mass(cutout))
-        cent_of_mass =  cent_of_mass_cutout + N.array([cy-boxsize, cx-boxsize])
+        cent_of_mass_cutout = np.asarray(scipy.ndimage.center_of_mass(cutout))
+        cent_of_mass =  cent_of_mass_cutout + np.array([cy-boxsize, cx-boxsize])
     else:
         cent_of_mass = fwcentroid(image, halfwidth=boxsize, **kwargs)
 
     if print_: print("Center of mass: (%.4f, %.4f)" % (cent_of_mass[1], cent_of_mass[0]))
 
     if relativeto == 'center':
-        imcen = N.array([ (image.shape[0]-1)/2., (image.shape[1]-1)/2. ])
-        cent_of_mass  = tuple( N.array(cent_of_mass) -  imcen)
+        imcen = np.array([ (image.shape[0]-1)/2., (image.shape[1]-1)/2. ])
+        cent_of_mass  = tuple( np.array(cent_of_mass) -  imcen)
 
 
     if units == 'arcsec':
         pixelscale = HDUlist[ext].header['PIXELSCL']
-        cent_of_mass = tuple( N.array(cent_of_mass) *pixelscale)
+        cent_of_mass = tuple( np.array(cent_of_mass) *pixelscale)
 
     return cent_of_mass
 
@@ -1907,19 +1906,19 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, center=None, display=True, p
         ref_peak = comparison_image[center[1], center[0]]
     else:
         # average across a group of 4
-        bot = [N.floor(f) for f in center]
-        top = [N.ceil(f)+1 for f in center]
+        bot = [np.floor(f) for f in center]
+        top = [np.ceil(f)+1 for f in center]
         meas_peak =           image[bot[1]:top[1], bot[0]:top[0]].mean()
         ref_peak = comparison_image[bot[1]:top[1], bot[0]:top[0]].mean()
     strehl = (meas_peak/ref_peak)
 
     if display:
-        P.clf()
-        P.subplot(121)
+        plt.clf()
+        plt.subplot(121)
         display_PSF(HDUlist, title="Observed PSF")
-        P.subplot(122)
+        plt.subplot(122)
         display_PSF(comparison_psf, title="Perfect PSF")
-        P.gcf().suptitle("Strehl ratio = %.3f" % strehl) 
+        plt.gcf().suptitle("Strehl ratio = %.3f" % strehl) 
 
 
     if print_:
@@ -1975,10 +1974,10 @@ def rebin_array(a = None, rc=(2,2), verbose=False):
 			print "row loop"
 		for ci in range(0, nc):
 			Clo = ci * c
-			b[ri, ci] = N.add.reduce(a[Rlo:Rlo+r, Clo:Clo+c].copy().flat)
+			b[ri, ci] = np.add.reduce(a[Rlo:Rlo+r, Clo:Clo+c].copy().flat)
 			if verbose:
 				print "    [%d:%d, %d:%d]" % (Rlo,Rlo+r, Clo,Clo+c),
-				print "%4.0f"  %   N.add.reduce(a[Rlo:Rlo+r, Clo:Clo+c].copy().flat)
+				print "%4.0f"  %   np.add.reduce(a[Rlo:Rlo+r, Clo:Clo+c].copy().flat)
 	return b
 
 
@@ -1991,10 +1990,10 @@ def makeFakeFilter(filename, lcenter, dlam, instrument='NIRCam', name='filter', 
     nlambda = 40
 
     _log.info("Filter from %f - %f " % (lstart, lstop))
-    wavelength = N.linspace( lstart-dlam*0.1, lstop+dlam*0.1, nlambda)
+    wavelength = np.linspace( lstart-dlam*0.1, lstop+dlam*0.1, nlambda)
     _log.debug(wavelength)
-    transmission = N.zeros_like(wavelength)
-    transmission[N.where( (wavelength > lstart) & (wavelength < lstop) )] = 1.0
+    transmission = np.zeros_like(wavelength)
+    transmission[np.where( (wavelength > lstart) & (wavelength < lstop) )] = 1.0
 
     t = atpy.Table()
     t.add_column('WAVELENGTH', wavelength*1e4, unit='angstrom')
@@ -2089,7 +2088,7 @@ if __name__ == "__main__":
     miri.image_mask = 'LYOT2300'
     miri.pupil_mask = 'MASKLYOT'
     miri.filter='F2300C'
-    P.clf()
+    plt.clf()
     miri.display()
 #
 #    #miri.display()

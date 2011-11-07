@@ -27,7 +27,7 @@ You can also just run directly from the commandline the ``webbpsfgui.py`` file c
 
 .. image:: ./fig_webbpsfgui_main.png
    :scale: 75%
-   :align: right
+   :align: center
    :alt: WebbPSFGui main window
 
 
@@ -59,7 +59,7 @@ This button will redisplay the PSF if the window has closed or something else ha
 
 .. image:: ./fig_display_psf.png
    :scale: 75%
-   :align: right
+   :align: center
    :alt: PSF display
 
 
@@ -70,7 +70,7 @@ This will display the PSF's radial profile and encircled energy profile.
 
 .. image:: ./fig_display_profiles.png
    :scale: 75%
-   :align: right
+   :align: center
    :alt: PSF radial profiles display
 
 
@@ -92,6 +92,20 @@ This will display a graphical representation of the optical train for the curren
    :scale: 75%
    :align: center
    :alt: Sample "Display Optics" results showing NIRCam coronagraphic optics.
+
+
+More Options...
+^^^^^^^^^^^^^^^^^^
+
+The 'More Options...' button on the toolbar will bring up a window that allows you to select options, either for how the PSF is computed 
+(which Fourier transform algorithm is used, etc) and also for the image display stretch used for the displayed PSFs.
+
+
+
+.. image:: ./fig_gui_more_options.png
+   :scale: 75%
+   :align: center
+   :alt: Sample "More Options" dialog box.
 
 
 

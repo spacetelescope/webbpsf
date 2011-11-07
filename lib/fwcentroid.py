@@ -11,7 +11,7 @@ M. Perrin, 2011-02-17
 
 """
 
-import numpy as N
+import numpy as np
 #try:
     #from IPython.Debugger import Tracer; stop = Tracer()
 #except: 
@@ -69,7 +69,7 @@ def fwcentroid(image, checkbox=1, maxiterations=20, threshold=1e-4, halfwidth=5,
         raise NotImplemented("Checkbox smoothing not done yet")
     else:
         # just use brightest pixel
-        w = N.where(image == image.max())
+        w = np.where(image == image.max())
         YPEAK, XPEAK = w[0][0], w[1][0]
         if verbose: print "Peak pixels are %d, %d" % (XPEAK, YPEAK)
 
@@ -85,8 +85,8 @@ def fwcentroid(image, checkbox=1, maxiterations=20, threshold=1e-4, halfwidth=5,
     YSUM3 = 0.0
     CONVERGENCEFLAG = False
 
-    for i in N.arange( 2*XHW+1)+ XPEAK-XHW :
-        for j in N.arange( 2*YHW+1) +YPEAK-YHW :
+    for i in np.arange( 2*XHW+1)+ XPEAK-XHW :
+        for j in np.arange( 2*YHW+1) +YPEAK-YHW :
             #print "(%d, %d)" % (i,j)
             #XLOC = i - XPEAK + XHW +1
             #YLOC = j - YPEAK + YHW +1
@@ -129,16 +129,16 @@ def fwcentroid(image, checkbox=1, maxiterations=20, threshold=1e-4, halfwidth=5,
         YSUM = 0.0
         YSUM2 = 0.0
         YSUM3 = 0.0
-        for i in N.arange( 2*(XHW+1)+1)+ int(oldXCEN)-(XHW+1) :
-            for j in N.arange( 2*(YHW+1)+1) +int(oldYCEN)-(YHW+1) :
+        for i in np.arange( 2*(XHW+1)+1)+ int(oldXCEN)-(XHW+1) :
+            for j in np.arange( 2*(YHW+1)+1) +int(oldYCEN)-(YHW+1) :
                 #stop()
                 #-- Calculate weights
                 #Initialize weights to zero:
                 XWEIGHT = 0
                 YWEIGHT = 0
                 #Adjust weights given distance from current centroid:
-                XOFF = N.abs(i - oldXCEN)
-                YOFF = N.abs(j - oldYCEN)
+                XOFF = np.abs(i - oldXCEN)
+                YOFF = np.abs(j - oldYCEN)
                 #If within original centroid box, set the weight to one:
                 if (XOFF <= XHW): XWEIGHT = 1
                 elif (XOFF > XHW) and (XOFF < XHW+1):
@@ -178,8 +178,8 @@ def fwcentroid(image, checkbox=1, maxiterations=20, threshold=1e-4, halfwidth=5,
  
         if verbose: print( "After iter %d , cent pos is  (%f, %f)" % (k, XCEN, YCEN))
         #Check for convergence:
-        if (N.abs(XCEN - oldXCEN) <= threshold and
-            N.abs(YCEN - oldYCEN) <= threshold):
+        if (np.abs(XCEN - oldXCEN) <= threshold and
+            np.abs(YCEN - oldYCEN) <= threshold):
             CONVERGENCEFLAG = True
             break
         else:
@@ -199,24 +199,24 @@ def test_fwcentroid(n=1000, width=5, halfwidth=5, **kwargs):
         """Returns a gaussian function with the given parameters"""
         width_x = float(width_x)
         width_y = float(width_y)
-        return lambda x,y: height*N.exp(
+        return lambda x,y: height*np.exp(
                     -(((center_x-x)/width_x)**2+((center_y-y)/width_y)**2)/2)
 
 
     def makegaussian(size=128, center=(64,64), width=5):
-        x = N.arange(size)[N.newaxis,:]
-        y = N.arange(size)[:,N.newaxis]
+        x = np.arange(size)[np.newaxis,:]
+        y = np.arange(size)[:,np.newaxis]
         arr = gaussian(1, center[0], center[1], width, width)(x,y)
         return arr
 
 
     print "Performing %d tests using Gaussian PSF with width=%.1f, centroid halfwidth= %.1f" % (n,width, halfwidth)
     
-    diffx = N.zeros(n)
-    diffy = N.zeros(n)
+    diffx = np.zeros(n)
+    diffy = np.zeros(n)
     size = 100
     for i in range(n):
-        coords = N.random.uniform(halfwidth+1,size-halfwidth-1,(2))
+        coords = np.random.uniform(halfwidth+1,size-halfwidth-1,(2))
         im = makegaussian(size=size, center=coords, width=width) #, **kwargs)
         measy, measx = fwcentroid(im, halfwidth=halfwidth, **kwargs)
         diffx[i] = coords[0] - measx

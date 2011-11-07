@@ -40,6 +40,13 @@ There are three main Python modules in this distribution: a lower-level
 optical propagation library (:py:mod:`POPPY <poppy>`), an implementation of the
 JWST instruments using that library (:py:mod:`WebbPSF <webbpsf>`), and a graphical user interface (:py:mod:`WebbPSFgui <webbpsfgui>`).
 
+This documentation explains the programming interface to :py:mod:`WebbPSF <webbpsf>` and :py:mod:`POPPY <poppy>`. Further information from an optics perspective
+may be found in *"Improved PSF Simulations for JWST: Methods, Algorithms, and Validation"*, M. D. Perrin 2011, JWST Technical report JWST-STScI-002469. 
+That document describes in more detail the relevant optical physics, explains design decisions and motivation for WebbPSF's architecture, and presents
+extensive validation tests demonstrating consistency between WebbPSF and other PSF simulation packages used throughout the JWST project.
+
+
+The current version of WebbPSF is version 0.2.6, released Nov 7, 2011. If you would like to receive email announcements of future versions, please contact Marshall Perrin.
 
 
 Contents

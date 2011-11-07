@@ -4,10 +4,10 @@ sys.path.append(os.path.abspath('../lib'))
 from webbpsf import *
 import webbpsf
 import poppy
-import numpy as N
+import numpy as np
 import pyfits
 import unittest
-import matplotlib.pyplot as P
+import matplotlib.pyplot as plt
 import matplotlib
 import time
 
@@ -64,13 +64,13 @@ def check_wavefront(filename_or_hdulist, slice=0, ext=0, test='nearzero', commen
     try:
 
         if test=='nearzero':
-            assert(  N.all(N.abs(im) < N.finfo(im.dtype).eps*10))
+            assert(  np.all(np.abs(im) < np.finfo(im.dtype).eps*10))
             _log.info("Slice %d of %s %s is all essentially zero" % (slice, filename, comment))
             return True
         elif test == 'is_real':
             #assumes output type = 'all'
-            cplx_im = imstack[1,:,:] * N.exp(1j*imstack[2,:,:])
-            assert(  N.all( cplx_im.imag < N.finfo(im.dtype).eps*10))
+            cplx_im = imstack[1,:,:] * np.exp(1j*imstack[2,:,:])
+            assert(  np.all( cplx_im.imag < np.finfo(im.dtype).eps*10))
             _log.info("File %s %s is essentially all real " % (filename, comment))
             return True
 
@@ -116,14 +116,14 @@ class ParityTestAperture(poppy.AnalyticOpticalElement):
         assert (wave.planetype == poppy.PUPIL)
 
         y, x = wave.coordinates()
-        r = N.sqrt(x**2+y**2) #* wave.pixelscale
+        r = np.sqrt(x**2+y**2) #* wave.pixelscale
 
-        w_outside = N.where( r > self.radius)
-        self.transmission = N.ones(wave.shape)
+        w_outside = np.where( r > self.radius)
+        self.transmission = np.ones(wave.shape)
         self.transmission[w_outside] = 0
 
-        w_box1 = N.where( (r> self.radius*0.5) & (N.abs(x) < self.radius*0.1 ) & ( y < 0 ))
-        w_box2 = N.where( (r> self.radius*0.75) & (N.abs(y) < self.radius*0.2) & ( x < 0 ))
+        w_box1 = np.where( (r> self.radius*0.5) & (np.abs(x) < self.radius*0.1 ) & ( y < 0 ))
+        w_box2 = np.where( (r> self.radius*0.75) & (np.abs(y) < self.radius*0.2) & ( x < 0 ))
         self.transmission[w_box1] = 0
         self.transmission[w_box2] = 0
 
@@ -175,40 +175,41 @@ class Test_FOV_size(TestPoppy):
         osys.addPupil(function='Circle', radius=6.5/2)
         osys.addDetector(pixelscale=self.pixelscale, fov_pixels=100, oversample=1)
         
-        psf = osys.calcPSF(wavelength=self.wavelength, normalize=norm)
+        psf = osys.calcPSF(wavelength=self.wavelength)
 
         self.assertEqual(psf[0].data.shape[0], 100)
 
 
 
 class TestPupils(TestPoppy):
-    """ Test circular, square, hexagonal pupils and their PSFs """
-    def test_pupils(self):
+    """ Basic functionality tests"""
+    def test_analytic_pupils(self):
+        """ Test circular, square, hexagonal pupils and their PSFs """
 
         def image_cut_1d(image, angle=0):
             """ Make a quick 1D cut through an image starting at the center """
-            #y, x = N.indices(image)
+            #y, x = np.indices(image)
             #y-= (image.shape[0]-1)/2
             #x-= (image.shape[1]-1)/2
 
-            t = N.arange(image.shape[0])
-            cx = N.cos(angle*N.pi/180)*t +  (image.shape[0]-1)/2
-            cy = N.sin(angle*N.pi/180)*t +  (image.shape[1]-1)/2
-            cx = N.asarray(N.round(cx), dtype=int)
-            cy = N.asarray(N.round(cy), dtype=int)
+            t = np.arange(image.shape[0])
+            cx = np.cos(angle*np.pi/180)*t +  (image.shape[0]-1)/2
+            cy = np.sin(angle*np.pi/180)*t +  (image.shape[1]-1)/2
+            cx = np.asarray(np.round(cx), dtype=int)
+            cy = np.asarray(np.round(cy), dtype=int)
 
-            wg = N.where( (cx >=0) & (cy >=0) & (cx < image.shape[1]) & (cy < image.shape[0]))
+            wg = np.where( (cx >=0) & (cy >=0) & (cx < image.shape[1]) & (cy < image.shape[0]))
             return image[cy[wg],cx[wg]]
 
 
         pupils = ['Circle', 'Hexagon', 'Square']
         angles = [[0], [0, 30], [0, 45]]
-        effective_diams = [[2], [2,N.sqrt(3)], [2,2*N.sqrt(2)]]
+        effective_diams = [[2], [2,np.sqrt(3)], [2,2*np.sqrt(2)]]
 
-        P.clf()
+        plt.clf()
         cuts = []
         for i in range(3):
-            P.subplot(2,3, i+1)
+            plt.subplot(2,3, i+1)
             osys = poppy.OpticalSystem("test", oversample=self.oversample)
             osys.addPupil(pupils[i])
             osys.addDetector(pixelscale=self.pixelscale, fov_arcsec=3.0)
@@ -216,26 +217,68 @@ class TestPupils(TestPoppy):
             psf = osys.calcPSF(wavelength=self.wavelength)
 
             webbpsf.display_PSF(psf)
-            P.title(pupils[i])
+            plt.title(pupils[i])
 
-            P.subplot(2,3, i+4)
+            plt.subplot(2,3, i+4)
             for ang, diam in zip(angles[i], effective_diams[i]):
                 cut = image_cut_1d(psf[0].data, ang)
-                r = N.arange(cut.size) * 0.010
+                r = np.arange(cut.size) * 0.010
                 cut /= cut.max() # normalize to peak=1
-                P.semilogy(r, cut, label='$\\theta = %d^o$' % ang )
+                plt.semilogy(r, cut, label='$\\theta = %d^o$' % ang )
                 if i == 0:
                     radius, airyfn = optics.airy_1d(diam, self.wavelength, pixelscale=self.pixelscale)
-                    P.plot(radius, airyfn, "k--", label='analytic')
-            P.gca().set_xbound(0,3)
-            P.gca().set_ybound(1e-13,1.5)
+                    plt.plot(radius, airyfn, "k--", label='analytic')
+            plt.gca().set_xbound(0,3)
+            plt.gca().set_ybound(1e-13,1.5)
 
-            
             # TODO - overplot perfect analytical PSFs.
-            P.legend(loc='upper right', frameon=False)
+            plt.legend(loc='upper right', frameon=False)
 
         self.assertTrue(True)
         #FIXME - compare cuts to airy function etc.
+
+
+    def test_fits_pupil(self):
+        """ Test pupils created from FITS files, including 3 different ways of setting the pixel scale."""
+        pupilfile = os.getenv('WEBBPSF_PATH', default= os.path.dirname(os.path.dirname(os.path.abspath(poppy.__file__))) +os.sep+"data" ) + os.sep+"pupil_RevV.fits"
+
+        plt.clf()
+        for i, pixelscale in enumerate([None, 'PUPLSCAL', 0.0064560*2]):
+            ax = plt.subplot(2,3, i+1)
+            osys = poppy.OpticalSystem("test", oversample=self.oversample)
+            osys.addPupil(transmission=pupilfile, pixelscale=pixelscale)
+            osys.addDetector(pixelscale=self.pixelscale, fov_arcsec=3.0)
+            psf = osys.calcPSF(wavelength=self.wavelength)
+            osys.planes[0].display(ax=ax, what='intensity')
+
+            plt.subplot(2,3, i+4)
+            webbpsf.display_PSF(psf)
+            plt.title("File = "+os.path.basename(pupilfile))
+            plt.xlabel("Pixel scale = "+str(pixelscale))
+
+    def test_rotated_pupil(self):
+        """ Test rotations, applied to pupils created from FITS files."""
+        pupilfile = os.getenv('WEBBPSF_PATH', default= os.path.dirname(os.path.dirname(os.path.abspath(poppy.__file__))) +os.sep+"data" ) + os.sep+"pupil_RevV.fits"
+
+        plt.clf()
+        for i, rotinfo in enumerate([(0,'degrees'), (30,'degrees'),(np.pi/6,'radians')]):
+            rotdist, rotunit = rotinfo
+            ax = plt.subplot(2,3, i+1)
+            osys = poppy.OpticalSystem("test", oversample=self.oversample)
+            osys.addPupil(transmission=pupilfile)
+            osys.addRotation(angle=rotdist, units=rotunit)
+            osys.addDetector(pixelscale=self.pixelscale, fov_arcsec=3.0)
+            psf = osys.calcPSF(wavelength=self.wavelength)
+            osys.planes[0].display(ax=ax, what='intensity')
+
+            plt.subplot(2,3, i+4)
+            webbpsf.display_PSF(psf)
+            #plt.title("File = "+os.path.basename(pupilfile))
+            #plt.xlabel("Pixel scale = "+str(pixelscale))
+            plt.title("Rotated by %f %s" % (rotdist, rotunit))
+
+
+
 
 
 class Test1(TestPoppy):
@@ -243,7 +286,7 @@ class Test1(TestPoppy):
         """ Test the PSF normalization """
 
         for norm in ['first', 'last', 'first=2']:
-            P.clf()
+            plt.clf()
             psf = osys.calcPSF(wavelength=self.wavelength, normalize=norm, display_intermediates=True)
             webbpsf.display_PSF(psf)
             tot = psf[0].data.sum()
@@ -307,12 +350,12 @@ class Test1(TestPoppy):
         #osys.addPupil(test_ap)
         osys.addPupil() # this will force an inverse MFT
         osys.addDetector(pixelscale=0.010, fov_arcsec=10.0) # use a large FOV so we grab essentially all the light and conserve flux
-        P.clf()
+        plt.clf()
         psf = osys.calcPSF(wavelength=2e-6, normalize='first', display_intermediates=True)
 
         # the intermediate PSF (after one MFT) should be essentially identical to the
         # final PSF (after an MFT, inverse MFT, and another MFT):
-        self.assertTrue(   N.abs(psf1[0].data - psf[0].data).max()  < 1e-7 )
+        self.assertTrue(   np.abs(psf1[0].data - psf[0].data).max()  < 1e-7 )
 
 
 class Test2(TestPoppy):
@@ -330,7 +373,7 @@ class Test2(TestPoppy):
         osys.addImage()  # perfect image plane
         osys.addPupil('Circle', radius=6.5/2)
         osys.addDetector(pixelscale=self.pixelscale, fov_arcsec=3.0)
-        P.clf()
+        plt.clf()
         poppy._FLUXCHECK=True
         poppy._USE_FFTW3 = True
         psf = osys.calcPSF(wavelength=self.wavelength, save_intermediates=True, display_intermediates=True)
@@ -370,7 +413,7 @@ class Test3(TestPoppy):
         osys.addDetector(pixelscale=self.pixelscale, fov_arcsec=3.0)
             #TODO testing of odd and even focal plane sizes?
         
-        P.clf()
+        plt.clf()
         poppy._FLUXCHECK=True
         psf = osys.calcPSF(wavelength=self.wavelength, save_intermediates=True, display_intermediates=True)
         psf.writeto('test3a_psf.fits', clobber=True)
@@ -408,7 +451,7 @@ class Test3(TestPoppy):
         osys.addPupil('Circle', radius=6.5/2)
         osys.addDetector(pixelscale=self.pixelscale, fov_arcsec=3.0)
         
-        P.clf()
+        plt.clf()
         poppy._FLUXCHECK=True
         poppy._USE_FFTW3 = False
         #poppy._USE_FFTW3 = True
@@ -459,7 +502,7 @@ class Test4(TestPoppy):
         osys.addPupil('Circle', radius=6.5/2)
         osys.addDetector(pixelscale=self.pixelscale, fov_arcsec=3.0)
 
-        P.clf()
+        plt.clf()
         poppy._FLUXCHECK=True
 
         osys.source_offset_theta = angle
@@ -467,10 +510,10 @@ class Test4(TestPoppy):
             osys.source_offset_r = i * 0.1
             psf = osys.calcPSF(wavelength=self.wavelength, display_intermediates=True)
 
-            pos = webbpsf.fwcentroid(psf[0].data, halfwidth=10, threshhold=1e-2)
+            pos = webbpsf.fwcentroid(psf[0].data, halfwidth=10, threshold=1e-2)
             # pos is the pixel coords in y,x in pixel units.
             cenx = (psf[0].data.shape[0]-1)/2.0
-            offset = N.sqrt( (pos[0]-cenx)**2 + (pos[1]-cenx)**2)* self.pixelscale/self.oversample
+            offset = np.sqrt( (pos[0]-cenx)**2 + (pos[1]-cenx)**2)* self.pixelscale/self.oversample
             _log.info("Desired offset is %f, measured is %f " % (osys.source_offset_r, offset))
             self.assertAlmostEqual(osys.source_offset_r, offset, 3)
 
@@ -497,7 +540,7 @@ class Test5(TestPoppy):
         osys.addPupil('Circle', radius=6.5/2)
         osys.addDetector(pixelscale=self.pixelscale, fov_arcsec=12)
         
-        P.clf()
+        plt.clf()
         poppy._FLUXCHECK=True
         #poppy._USE_FFTW3 = False
         #poppy._USE_FFTW3 = True
@@ -525,7 +568,7 @@ class Test6(TestPoppy):
         osys.addPupil('Circle', radius=6.5/2)
         osys.addDetector(pixelscale=self.pixelscale, fov_arcsec=10.0)
 
-        P.clf()
+        plt.clf()
         poppy._FLUXCHECK=True
         poppy._USE_FFTW3 = False
         #poppy._USE_FFTW3 = True
@@ -578,23 +621,23 @@ class Test7(TestPoppy):
         osys2.source_offset_theta = 45.
  
         poppy._FLUXCHECK=True
-        P.figure(1)
-        P.clf()
+        plt.figure(1)
+        plt.clf()
         psf1 = osys1.calcPSF(wavelength=self.wavelength, display_intermediates=True, save_intermediates=False)
-        P.figure(2)
-        P.clf()
+        plt.figure(2)
+        plt.clf()
         psf2 = osys2.calcPSF(wavelength=self.wavelength, display_intermediates=True, save_intermediates=False)
 
-        P.figure(3)
-        P.subplot(211)
+        plt.figure(3)
+        plt.subplot(211)
         webbpsf.display_PSF(psf1, title=osys1.name)
-        P.subplot(212)
+        plt.subplot(212)
         webbpsf.display_PSF(psf2, title=osys2.name)
 
-        pos1 = webbpsf.fwcentroid(psf1[0].data, halfwidth=10, threshhold=1e-2)
-        pos2 = webbpsf.fwcentroid(psf2[0].data, halfwidth=10, threshhold=1e-2)
+        pos1 = webbpsf.fwcentroid(psf1[0].data, halfwidth=10, threshold=1e-2)
+        pos2 = webbpsf.fwcentroid(psf2[0].data, halfwidth=10, threshold=1e-2)
 
-        rel_offset = N.sqrt(((N.array(pos1) - N.array(pos2))**2).sum())
+        rel_offset = np.sqrt(((np.array(pos1) - np.array(pos2))**2).sum())
         self.assertTrue(rel_offset < 1e-3 ) 
         _log.info("Source position does not appear to be affected by FQPMs for far off-axis sources")
 
@@ -620,7 +663,7 @@ class Test8(TestPoppy):
             osys.addPupil('Circle', radius=6.5/2)
             osys.addDetector(pixelscale=self.pixelscale, fov_arcsec=3.0)
             
-            P.clf()
+            plt.clf()
             poppy._FLUXCHECK=True
             poppy._USE_FFTW3 = False
 
@@ -630,10 +673,10 @@ class Test8(TestPoppy):
             psf = osys.calcPSF(wavelength=self.wavelength, display_intermediates=True)
             #psf.writeto('test3_psf.fits', clobber=True)
             # TODO check position
-            pos = webbpsf.fwcentroid(psf[0].data, halfwidth=10, threshhold=1e-2)
+            pos = webbpsf.fwcentroid(psf[0].data, halfwidth=10, threshold=1e-2)
             # pos is the pixel coords in y,x in pixel units.
             cenx = (psf[0].data.shape[0]-1)/2.0
-            offset = N.sqrt( (pos[0]-cenx)**2 + (pos[1]-cenx)**2)* self.pixelscale/self.oversample
+            offset = np.sqrt( (pos[0]-cenx)**2 + (pos[1]-cenx)**2)* self.pixelscale/self.oversample
             _log.info("Desired offset is %f, measured is %f " % (osys.source_offset_r, offset))
             self.assertAlmostEqual(osys.source_offset_r, offset, 3)
  
@@ -671,7 +714,7 @@ class Test9(TestPoppy):
         else: 
             osys.source_offset_r =  0.0
         poppy._FLUXCHECK= True
-        P.clf()
+        plt.clf()
         psf, int_wfs = osys.calcPSF(wavelength=self.wavelength, display_intermediates=True, return_intermediates=True)
 
         if offset:
@@ -722,7 +765,7 @@ class Test10(TestPoppy):
  
 
         nlam= 6
-        source = {'weights': [0.1]*nlam, 'wavelengths': N.linspace(2.0e-6, 3.0e-6, nlam)}
+        source = {'weights': [0.1]*nlam, 'wavelengths': np.linspace(2.0e-6, 3.0e-6, nlam)}
 
         _log.info("Calculating multiprocess PSF")
         times = []
@@ -741,12 +784,12 @@ class Test10(TestPoppy):
 
 
         _log.info(" Speedup factor: %f " % (tsing/tmulti))
-        P.clf()
-        ax = P.subplot(1,3,1)
+        plt.clf()
+        ax = plt.subplot(1,3,1)
         webbpsf.display_PSF(psf1)
-        ax = P.subplot(1,3,2)
+        ax = plt.subplot(1,3,2)
         webbpsf.display_PSF(psf2)
-        ax = P.subplot(1,3,3)
+        ax = plt.subplot(1,3,3)
 
         poppy.imshow_with_mouseover(psf1[0].data - psf2[0].data, ax=ax)
 
@@ -764,8 +807,8 @@ class Test11(TestPoppy):
         lyot_radius = 6.5/2.5
 
         nsteps = 5
-        P.clf()
-        fig, axarr = P.subplots(1,nsteps, squeeze=True, num=1)
+        plt.clf()
+        fig, axarr = plt.subplots(1,nsteps, squeeze=True, num=1)
         psfs = []
         for nwaves in range(nsteps):
 
@@ -817,30 +860,30 @@ class Test12(TestPoppy):
         osys.addDetector(pixelscale=pixelscale, fov_arcsec=5.0)
 
 
-        P.figure(1)
+        plt.figure(1)
         sam_osys = poppy.SemiAnalyticCoronagraph(osys, oversample=8, occulter_box=0.15) 
 
         t0s = time.time()
         psf_sam = sam_osys.calcPSF(display_intermediates=display_intermediates)
         t1s = time.time()
 
-        P.figure(2)
+        plt.figure(2)
         t0f = time.time()
         psf_fft = osys.calcPSF(display_intermediates=display_intermediates)
         t1f = time.time()
 
-        P.figure(3)
-        P.clf()
-        P.subplot(121)
+        plt.figure(3)
+        plt.clf()
+        plt.subplot(121)
         webbpsf.display_PSF(psf_fft, title="FFT")
-        P.subplot(122)
+        plt.subplot(122)
         webbpsf.display_PSF(psf_sam, title="SAM")
 
         print "Elapsed time, FFT:  %.3s" % (t1f-t0f)
         print "Elapsed time, SAM:  %.3s" % (t1s-t0s)
 
 
-        maxdiff = N.abs(psf_fft[0].data - psf_sam[0].data).max()
+        maxdiff = np.abs(psf_fft[0].data - psf_sam[0].data).max()
         print "Max difference between results: ", maxdiff
 
         self.assertTrue( maxdiff < 1e-8)
@@ -850,30 +893,30 @@ class Test12(TestPoppy):
 
 def test_blc2(oversample=2, verbose=True, wavelength=2e-6, angle=0, kind='circular', sigma=1.0, loc = 0.3998):
     import scipy
-    x = N.linspace(-5, 5, 401)
+    x = np.linspace(-5, 5, 401)
     sigmar = sigma*x
     if kind == 'circular':
         trans = (1-  (2*scipy.special.jn(1,sigmar)/sigmar)**2)**2
     else: 
-        trans = (1-  (N.sin(sigmar)/sigmar)**2)**2
-    P.clf()
-    P.plot(x, trans)
-    P.axhline(0.5, ls='--', color='k')
+        trans = (1-  (np.sin(sigmar)/sigmar)**2)**2
+    plt.clf()
+    plt.plot(x, trans)
+    plt.axhline(0.5, ls='--', color='k')
 
 
-    P.axvline(loc, ls='--', color='k')
-    #P.gca().set_xbound(loc*0.98, loc*1.02)
-    wg = N.where(sigmar > 0.01)
+    plt.axvline(loc, ls='--', color='k')
+    #plt.gca().set_xbound(loc*0.98, loc*1.02)
+    wg = np.where(sigmar > 0.01)
     intfn = scipy.interpolate.interp1d(x[wg], trans[wg])
     print "Value at %.4f :\t%.4f" % (loc, intfn(loc))
 
     # figure out the FWHM
     #   cut out the portion of the curve from the origin to the first positive maximum
-    wp = N.where(x > 0)
+    wp = np.where(x > 0)
     xp = x[wp]
     transp = trans[wp]
-    wm = N.argmax(transp)
-    wg = N.where(( x>0 )& ( x<xp[wm]))
+    wm = np.argmax(transp)
+    wg = np.where(( x>0 )& ( x<xp[wm]))
     interp = scipy.interpolate.interp1d(trans[wg], x[wg])
     print "For sigma = %.4f, HWHM occurs at %.4f" % (sigma, interp(0.5))
 
@@ -891,13 +934,13 @@ def width_blc(desired_width, approx=None, plot=False):
     loc = desired_width
 
     if approx is None:
-        sigma = N.linspace(0, 20, 5000)
+        sigma = np.linspace(0, 20, 5000)
     else: 
-        sigma = N.linspace(approx*0.9, approx*1.1, 100000.)
-    lhs = loc* N.sqrt(1 - N.sqrt(0.5))
-    rhs = N.sin(sigma * loc) / sigma
-    diff = N.abs(lhs - rhs)
-    wmin = N.where(diff == N.nanmin(diff))
+        sigma = np.linspace(approx*0.9, approx*1.1, 100000.)
+    lhs = loc* np.sqrt(1 - np.sqrt(0.5))
+    rhs = np.sin(sigma * loc) / sigma
+    diff = np.abs(lhs - rhs)
+    wmin = np.where(diff == np.nanmin(diff))
     sig_ans = sigma[wmin][0]
 
     if approx: 
@@ -907,11 +950,11 @@ def width_blc(desired_width, approx=None, plot=False):
         sig_ans = width_blc(loc, sig_ans)
 
     if plot:
-        check =  (1-  (N.sin(sig_ans * loc)/sig_ans/loc)**2)**2
-        #P.plot(sigma, lhs)
-        P.clf()
-        P.plot(sigma, rhs)
-        P.axhline(lhs)
+        check =  (1-  (np.sin(sig_ans * loc)/sig_ans/loc)**2)**2
+        #plt.plot(sigma, lhs)
+        plt.clf()
+        plt.plot(sigma, rhs)
+        plt.axhline(lhs)
 
         print "sigma = %f implies HWHM = %f" % (sig_ans, loc)
         print " check: 0.5 == %f" % (check)
@@ -927,14 +970,14 @@ def calc_blc_wedge(deg=4, wavelength=2.1e-6):
 
     """
     import scipy
-    r = N.linspace(2, 6, 161)
-    difflim = wavelen / 6.5 * 180.*60*60/N.pi 
+    r = np.linspace(2, 6, 161)
+    difflim = wavelen / 6.5 * 180.*60*60/np.pi 
     sigs = [width_blc(difflim * ri) for ri in r]
 
     pcs = scipy.polyfit(r, sigs, deg)
     p = scipy.poly1d(pcs)
-    P.plot(r, sigs, 'b')
-    P.plot(r, p(r), "r--")
+    plt.plot(r, sigs, 'b')
+    plt.plot(r, p(r), "r--")
     diffs = (sigs - p(r))
     print "Poly fit:" +repr(pcs)
     print "  fit rms: "+str(diffs.std())
@@ -952,8 +995,8 @@ def test_blc(oversample=2, verbose=True, wavelength=2.1e-6, angle=0, kind='nirca
     #blcphase = blc.getPhasor(wf)
 
 
-    P.clf()
-    #P.subplot(121)
+    plt.clf()
+    #plt.subplot(121)
     blc.display()
 
     #stop()
@@ -975,7 +1018,7 @@ def test_blc_corons(oversample=2, verbose=True, wavelength=2e-6, angle=0, kind='
     osys.addPupil('Circle', radius=6.5/2.5)
     osys.addDetector(pixelscale=pixelscale, fov_arcsec=3.0)
     
-    P.clf()
+    plt.clf()
     poppy._FLUXCHECK=True
     poppy._USE_FFTW3 = False
 
@@ -1025,8 +1068,8 @@ def test_defocus():
 
     waves = [0, 0.5, 1, 2, 4, 8]
     nsteps = len(waves)
-    P.clf()
-    fig, axarr = P.subplots(1,nsteps, squeeze=True, num=1)
+    plt.clf()
+    fig, axarr = plt.subplots(1,nsteps, squeeze=True, num=1)
     psfs = []
     #for nwaves in range(nsteps):
     for i, nwaves in enumerate(waves):
@@ -1050,7 +1093,6 @@ def test_defocus():
 
 
     stop()
-
 
 
 if __name__== "__main__":

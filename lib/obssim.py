@@ -10,9 +10,9 @@ obssim.py
 """
 import os
 import numbers
-import numpy as N
+import numpy as np
 import scipy.interpolate, scipy.ndimage
-import pylab as P
+import matplotlib.pyplot as plt
 import matplotlib
 import pysynphot
 import atpy
@@ -123,15 +123,15 @@ class TargetScene(object):
                 instrument.options['source_offset_theta'] = obj['PA'] - image_PA
             else:
                 # combine the actual source position with the image offset position.
-                obj_x = obj['separation'] * N.cos(obj['PA'] * N.pi/180)
-                obj_y = obj['separation'] * N.sin(obj['PA'] * N.pi/180)
-                offset_x = offset_r * N.cos(offset_PA * N.pi/180)
-                offset_y = offset_r * N.sin(offset_PA * N.pi/180)
+                obj_x = obj['separation'] * np.cos(obj['PA'] * np.pi/180)
+                obj_y = obj['separation'] * np.sin(obj['PA'] * np.pi/180)
+                offset_x = offset_r * np.cos(offset_PA * np.pi/180)
+                offset_y = offset_r * np.sin(offset_PA * np.pi/180)
 
                 src_x = obj_x + offset_x
                 src_y = obj_y + offset_y
-                src_r = N.sqrt(src_x**2+src_y**2)
-                src_pa = N.arctan2(src_y, src_x) * 180/N.pi
+                src_r = np.sqrt(src_x**2+src_y**2)
+                src_pa = np.arctan2(src_y, src_x) * 180/np.pi
                 instrument.options['source_offset_r'] = src_r
                 instrument.options['source_offset_theta'] = src_pa - image_PA
                 #stop()
@@ -209,13 +209,13 @@ class TargetScene(object):
         return sum_image
 
     def display(self):
-        P.clf()
+        plt.clf()
         for obj in self.sources:
-            X = obj['separation'] * -N.sin(obj['PA'] * N.pi/180)
-            Y = obj['separation'] * N.cos(obj['PA'] * N.pi/180)
+            X = obj['separation'] * -np.sin(obj['PA'] * np.pi/180)
+            Y = obj['separation'] * np.cos(obj['PA'] * np.pi/180)
 
-            P.plot([X],[Y],'*')
-            P.text(X,Y, obj['name'])
+            plt.plot([X],[Y],'*')
+            plt.text(X,Y, obj['name'])
 
 
 
