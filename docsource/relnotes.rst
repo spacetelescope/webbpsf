@@ -47,7 +47,7 @@ Version 0.2.6
 
 Released November 7, 2011
 
-* Updated & renamed TFI -> NIRISS. 
+* Updated & renamed TFI -> :py:class:`NIRISS`. 
 
   * Removed etalon code.
   * Added in filters transmissions copied from NIRCam
@@ -58,15 +58,16 @@ Released November 7, 2011
 * Added GUI options for flat spectra in F_nu and F_lambda. (Thanks to Christopher Willmer at Steward Observatory for this suggestion)
 * "display_psf" function renamed to "display_PSF" for consistency with all-uppercase use of PSF in all function names.
 * numpy and pylab imports changed to 'np' and 'plt' for consistency with astropy guidelines (http://astropy.wikispaces.com/Astropy+Coding+Guidelines)
-* poppy.py library updates: 
+* poppy.py library updates (thanks to Anand Sivaramakrishnan for useful discussions leading to several of these improvements): 
 
-  * Rotations can be specified in either degrees or radians. Added units parameters to Rotations.__init__
-  * optics created from FITS files use the filename as a default optic name.
-  * FITSOpticalElement created, to separate FITS file reading functionality from the base OpticalElement class.
-    Also adds 'pixelscale' keyword to directly specify the pixel scale for such a file, if not present in the FITS header.
-  * Removed redundant 'pupil_scale' attribute: pixelscale now used for both image and pupil plane pixel scales. 
-  * unit test code updates & improvements
+  * :py:class:`Rotation` angles can be specified in either degrees or radians. Added units parameters to Rotations.__init__
+  * :py:class:`OpticalElement` objects created from FITS files use the filename as a default optic name instead of "unnamed optic".
+  * :py:class:`FITSOpticalElement` class created, to separate FITS file reading functionality from the base OpticalElement class.
+    This class also adds a 'pixelscale' keyword to directly specify the pixel scale for such a file, if not present in the FITS header.
+  * Removed redundant 'pupil_scale' attribute: 'pixelscale' is now used for both image and pupil plane pixel scales. 
+  * unit test code updates & improvements.
 
+* Miscellaneous minor documentation improvements.
 
 
 

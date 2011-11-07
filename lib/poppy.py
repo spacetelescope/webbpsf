@@ -2149,7 +2149,7 @@ class Detector(OpticalElement):
         Pixel scale in arcsec/pixel
     fov_pixels, fov_arcsec : float
         The field of view may be specified either in arcseconds or by a number of pixels. Either is acceptable
-        and the pixel scale is used to convert as needed.
+        and the pixel scale is used to convert as needed. You may specify a non-square FOV by providing two elements in an iterable.
     oversample : int
         Oversampling factor beyond the detector pixel scale
     offset : tuple (X,Y)
@@ -2172,12 +2172,12 @@ class Detector(OpticalElement):
         else:
             # set field of view to closest value possible to requested,
             # consistent with having an integer number of pixels
-            self.fov_pixels = round(fov_arcsec / self.pixelscale)
+            self.fov_pixels = np.round(np.asarray(fov_arcsec) / self.pixelscale)
             self.fov_arcsec = self.fov_pixels * self.pixelscale
         if hasattr(self.fov_pixels, '__getitem__'):
-            self.shape = self.fov_pixels[0:2]
+            self.shape = self.fov_pixels[0:2]  # rectangular
         else:
-            self.shape = (self.fov_pixels, self.fov_pixels)
+            self.shape = (self.fov_pixels, self.fov_pixels) # square
 
         self.amplitude = 1
         self.opd = 0
@@ -2346,8 +2346,8 @@ class OpticalSystem():
         self.planes.append(optic)
         if self.verbose: _log.info("Added image plane: "+self.planes[-1].name)
 
-    def addRotation(self, **kwargs):
-        self.planes.append(Rotation(**kwargs))
+    def addRotation(self, *args, **kwargs):
+        self.planes.append(Rotation(*args, **kwargs))
         if self.verbose: _log.info("Added rotation plane: "+self.planes[-1].name)
 
 
