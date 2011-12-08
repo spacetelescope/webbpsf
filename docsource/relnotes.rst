@@ -41,18 +41,40 @@ Plans for Future Releases
 * Possibly: separate handling of pre- and post- coronagraphic WFE in instruments, if this appears likely to be significant. 
 * Python 3 support will be added as soon as it is needed, but is not an immediate priority. Any users who would like to run webbpsf under python 3, please let me know.
 
+Version 0.2.7
+-----------------
+
+Released December 6, 2011
+
+* Bug fix for installation problems in previous release 0.2.6 (thanks to Anand Sivaramakrishnan and Kevin Flaherty for bringing the problem to my attention). 
+
+* Updated FITS keywords for consistency with JWST Data Management System (DMS) based on DMS Software Design Review 1.
+
+  * "PUPIL" keyword now is used for pupil mechanisms instead of OTE pupil intensity filename; the filename is available in "PUPILINT" now, for consistency with the OPD filename in "PUPILOPD" now. 
+  * "CORONMSK" instead of CORON
+  * Some minor instrument-specific FITS keywords added via new _instrument_fits_header() functions for each instrument object.
+  * For instance, NIRCam PSFs now have "MODULE" and "CHANNEL" keywords (eg. "MODULE = A", "CHANNEL = Short"). Note that there is no optical difference between modules A and B in this version of webbpsf. 
+
+* Added support for weak lenses in NIRCam. Note that the +4 lens is in the filter wheel and is coated with a narrowband interference filter similar to but wider than F212N. 
+  WebbPSF currently does not model this, and will let you simulate weak lens observations with any filter you want. As always, it's up to the user to determine whether
+  a given webbpsf configuration corresponds to an actual physically realizable instrument mode.
+
+
 
 Version 0.2.6
 -----------------
 
 Released November 7, 2011
 
-* Updated & renamed TFI -> :py:class:`NIRISS`. 
+* Updated & renamed TFI -> NIRISS. 
 
   * Removed etalon code.
   * Added in filters transmissions copied from NIRCam
   * Removed coronagraphic Lyot pupils. Note: the coronagraphic occulting spots are machined into the pickoff mirror so will still fly, and thus are retained in the NIRISS model. 
   * Slitless spectroscopy not yet supported; check back in a future version.
+  * Fix to FITS header comments for NIRISS NRM mask file for correct provenance information.
+
+  * TFI class still exists for back compatibility but will no longer be maintained, and may be removed in a future version of webbpsf.
 
 * Strehl measurement code caches computed perfect PSFs for improved speed when measuring many files.
 * Added GUI options for flat spectra in F_nu and F_lambda. (Thanks to Christopher Willmer at Steward Observatory for this suggestion)

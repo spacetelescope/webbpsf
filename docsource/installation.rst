@@ -45,7 +45,7 @@ Obtaining WebbPSF
 
 Download the following files:
 
-* `webbpsf-0.2.6.tar.gz <http://www.stsci.edu/~mperrin/software/webbpsf/webbpsf-0.2.6.tar.gz>`_
+* `webbpsf-0.2.7.tar.gz <http://www.stsci.edu/~mperrin/software/webbpsf/webbpsf-0.2.6.tar.gz>`_
 * `webbpsf-data-0.2.6.tar.gz <http://www.stsci.edu/~mperrin/software/webbpsf/webbpsf-data-0.2.6.tar.gz>`_  [417 MB]
 
 Installing WebbPSF

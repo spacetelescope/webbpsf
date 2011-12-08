@@ -15,6 +15,8 @@ several places where the current models or available files are limited in some
 manner that might be improved in a future release. 
 
 
+*Note: The WebbPSF software and all of its associated data files are entirely ITAR-free.*
+
 OTE
 ----
 
@@ -58,16 +60,17 @@ NIRSpec
 --------
 NIRspec field of view rotation: 41.5 degrees. Matt Lallo, draft SIAF information; and Ball SI Fields for WFS&C document, J. Scott Knight
 
-Occulting spots: Assumed to be perfect circles with diameters 0.58, 0.75, 1.5, and 2.0 arcsec. Doyon et al. 2010 SPIE 7731. While these
-are not likely to see extensive use with NIRISS, they are indeed still present in the hardware, so we retain the ability to simulate them. 
-
-NRM occulter mask: Provided by Anand Sivaramakrishnan. 
-
 
 NIRISS
 -------
 
 NIRISS filter bandpasses are assumed to be precisely identical to NIRCam for the filters in common. 
+
+Occulting spots: Assumed to be perfect circles with diameters 0.58, 0.75, 1.5, and 2.0 arcsec. Doyon et al. 2010 SPIE 7731. While these
+are not likely to see extensive use with NIRISS, they are indeed still present in the hardware, so we retain the ability to simulate them. 
+
+NRM occulter mask: Provided by Anand Sivaramakrishnan. 
+
 
 
 MIRI
