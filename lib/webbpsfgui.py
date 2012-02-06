@@ -9,7 +9,12 @@ import tkMessageBox
 import tkFileDialog
 import logging
 #from Tkinter import N,E,S,W
+import logging
+_log = logging.getLogger('webbpsfgui')
+_log.setLevel(logging.INFO)
 
+
+from _version import __version__
 
 try:
     import ttk
@@ -41,7 +46,7 @@ class WebbPSF_GUI(object):
     Documentation TBD!
 
     """
-    def __init__(self):
+    def __init__(self, opdserver=None):
         # init the object and subobjects
         self.instrument = {}
         self.widgets = {}
@@ -50,7 +55,15 @@ class WebbPSF_GUI(object):
         insts = ['NIRCam', 'NIRSpec','NIRISS', 'MIRI', 'FGS']
         for i in insts:
             self.instrument[i] = webbpsf.Instrument(i)
+        #invoke link to ITM server if provided?
+        if opdserver is not None:
+            self._enable_opdserver = True
+            self._opdserver = opdserver
+        else:
+            self._enable_opdserver = False
 
+        
+        # create widgets & run
         if _use_ttk:
             self._create_widgets_py27()
         else:
@@ -157,7 +170,7 @@ class WebbPSF_GUI(object):
 
 
             #if  iname != 'TFI':
-            self._add_labeled_dropdown(iname+"_filter", page, label='    Filter:', values=self.instrument[iname].filter_list, default=self.instrument[iname].filter, width=10, position=(1,0), sticky='W')
+            self._add_labeled_dropdown(iname+"_filter", page, label='    Filter:', values=self.instrument[iname].filter_list, default=self.instrument[iname].filter, width=12, position=(1,0), sticky='W')
             #else:
                 #ttk.Label(page, text='Etalon wavelength: ' , state='disabled').grid(row=1, column=0, sticky='W')
                 #self.widgets[iname+"_wavelen"] = ttk.Entry(page, width=7) #, disabledforeground="#A0A0A0")
@@ -194,7 +207,7 @@ class WebbPSF_GUI(object):
                 masks = self.instrument[iname].image_mask_list
                 masks.insert(0, "")
  
-                self._add_labeled_dropdown(iname+"_coron", page, label='    Coron:', values=masks,  width=10, position=(2,0), sticky='W')
+                self._add_labeled_dropdown(iname+"_coron", page, label='    Coron:', values=masks,  width=12, position=(2,0), sticky='W')
                 #self.vars[iname+"_coron"] = tk.StringVar()
                 #self.widgets[iname+"_coron"] = ttk.Combobox(page,textvariable =self.vars[iname+"_coron"], width=10, state='readonly')
                 #self.widgets[iname+"_coron"]['values'] = masks
@@ -220,7 +233,7 @@ class WebbPSF_GUI(object):
             if len(self.instrument[iname].image_mask_list) >0 :
                 masks = self.instrument[iname].pupil_mask_list
                 masks.insert(0, "")
-                self._add_labeled_dropdown(iname+"_pupil", page, label='    Pupil:', values=masks,  width=10, position=(3,0), sticky='W')
+                self._add_labeled_dropdown(iname+"_pupil", page, label='    Pupil:', values=masks,  width=12, position=(3,0), sticky='W')
 
                 fr2 = ttk.Frame(page)
                 self._add_labeled_entry(iname+"_pupilshift_x", fr2, label='  pupil shift in X:', value='0', width=3, position=(3,4), sticky='W')
@@ -235,8 +248,9 @@ class WebbPSF_GUI(object):
 
             opd_list =  self.instrument[iname].opd_list
             opd_list.insert(0,"Zero OPD (perfect)")
-            if os.getenv("WEBBPSF_ITM") or 1:  
-                opd_list.append("ITM Server")
+            #if os.getenv("WEBBPSF_ITM") or 1:  
+            if self._enable_opdserver:
+                opd_list.append("OPD from ITM Server")
             default_opd = self.instrument[iname].pupilopd if self.instrument[iname].pupilopd is not None else "Zero OPD (perfect)"
             self._add_labeled_dropdown(iname+"_opd", fr2, label='    OPD File:', values=opd_list, default=default_opd, width=21, position=(0,0), sticky='W')
 
@@ -254,7 +268,9 @@ class WebbPSF_GUI(object):
 
             fr2.grid(row=5, column=0, columnspan=4,sticky='S')
 
-            # ITM interface here
+
+
+            # ITM interface here - build the widgets now but they will be hidden by default until the ITM option is selected
             fr2 = ttk.Frame(page)
             self._add_labeled_entry(iname+"_coords", fr2, label='    Source location:', value='0, 0', width=12, position=(1,0), sticky='W')
             units_list = ['V1,V2 coords', 'detector pixels']
@@ -318,7 +334,6 @@ class WebbPSF_GUI(object):
         addbutton(self,lf,'Save PSF As...', self.ev_SaveAs, 3, disabled=True)
         addbutton(self,lf,'More options...', self.ev_options, 4, disabled=False)
 
-        #ttk.Button(lf, text='Display Optics', command=self.ev_displayOptics ).grid(column=4, row=0)
         ttk.Button(lf, text='Quit', command=self.quit).grid(column=5, row=0)
         lf.columnconfigure(2, weight=1)
         lf.columnconfigure(4, weight=1)
@@ -582,7 +597,6 @@ class WebbPSF_GUI(object):
         self.root.rowconfigure(0, weight=1)
 
 
-
     def quit(self):
         " Quit the GUI"
         if tkMessageBox.askyesno( message='Are you sure you want to quit WebbPSF?', icon='question', title='Confirm quit') :
@@ -673,16 +687,14 @@ class WebbPSF_GUI(object):
 
         ax1.set_xbound(0.1, 100)
 
+	self._refresh_window()
 
-        #speclib.specFromSpectralType(sptype)
-        #plt.loglog(spectrum['wavelength_um'],spectrum['flux']/spectrum['flux'].max(),label=sptype+" star")
-        #plt.xlabel("Wavelength [$\mu$m]")
-        #plt.ylabel("Flux [$erg s^{-1} cm^{-2} \AA^{-1} \\times$ arbitrary scale factor ]")
-
-        #filt = self.instrument[iname].getFilter(filter)
-        #plt.plot(filt.WAVELENGTH, filt.THROUGHPUT+1e-9, "--" ,label=filter+" filter")
-        #plt.gca().set_ybound(1e-6,10)
-        #plt.legend(loc="upper left")
+    def _refresh_window(self):
+	""" Force the window to refresh, and optionally to show itself if hidden (for recent matplotlibs)"""
+        plt.draw()
+	from distutils.version import StrictVersion
+	if StrictVersion(matplotlib.__version__) >= StrictVersion('1.1'):
+		plt.show(block=False)
 
     def ev_calcPSF(self):
         "Event handler for PSF Calculations"
@@ -700,6 +712,8 @@ class WebbPSF_GUI(object):
         #self.PSF_HDUlist.display()
         for w in ['Display PSF', 'Display profiles', 'Save PSF As...']:
            self.widgets[w].state(['!disabled'])
+	self._refresh_window()
+	_log.info("PSF calculation complete")
 
     def ev_displayPSF(self):
         "Event handler for Displaying the PSF"
@@ -708,51 +722,52 @@ class WebbPSF_GUI(object):
         plt.clf()
         webbpsf.display_PSF(self.PSF_HDUlist, vmin = self.advanced_options['psf_vmin'], vmax = self.advanced_options['psf_vmax'], 
                 scale = self.advanced_options['psf_scale'], cmap= self.advanced_options['psf_cmap'], normalize=self.advanced_options['psf_normalize'])
+	self._refresh_window()
 
     def ev_displayProfiles(self):
         "Event handler for Displaying the PSF"
         #self._updateFromGUI()
         webbpsf.display_profiles(self.PSF_HDUlist)        
+	self._refresh_window()
 
     def ev_displayOptics(self):
         "Event handler for Displaying the optical system"
         self._updateFromGUI()
+        _log.info("Selected OPD is "+str(self.opd_name))
+
         plt.clf()
         self.inst.display()
+	self._refresh_window()
 
     def ev_displayOPD(self):
         self._updateFromGUI()
         if self.inst.pupilopd is None:
             tkMessageBox.showwarning( message="You currently have selected no OPD file (i.e. perfect telescope) so there's nothing to display.", title="Can't Display") 
         else:
-            opd = pyfits.getdata(self.inst.pupilopd[0])
+            if self._enable_opdserver and 'ITM' in self.opd_name:
+                opd = self.inst.pupilopd   # will contain the actual OPD loaded in _updateFromGUI just above
+            else:
+                opd = pyfits.getdata(self.inst.pupilopd[0])     # in this case self.inst.pupilopd is a tuple with a string so we have to load it here. 
 
-            opd = opd[self.opd_i,:,:] # grab correct slice
+            if len(opd.shape) >2:
+                opd = opd[self.opd_i,:,:] # grab correct slice
 
             masked_opd = np.ma.masked_equal(opd,  0) # mask out all pixels which are exactly 0, outside the aperture
             cmap = matplotlib.cm.jet
             cmap.set_bad('k', 0.8)
             plt.clf()
             plt.imshow(masked_opd, cmap=cmap, interpolation='nearest', vmin=-0.5, vmax=0.5)
-            plt.title("OPD from %s, #%d" %( os.path.basename(self.opd), self.opd_i))
+            plt.title("OPD from %s, #%d" %( os.path.basename(self.opd_name), self.opd_i))
             cb = plt.colorbar(orientation='vertical')
             cb.set_label('microns')
 
             f = plt.gcf()
             plt.text(0.4, 0.02, "OPD WFE = %6.2f nm RMS" % (masked_opd.std()*1000.), transform=f.transFigure)
 
-    def ev_update_ifu_label(self, iname):
-        pass
-        # FIXME
-        # I no longer remember what the point of this function was... it doesn't appear to do anything??
-        # Disabling for now - remove in future version?
-
-        #newfilt = self.widgets[iname+"_filter"].get()
-        #print "Updating IFU label for "+iname+", filt="+newfilt
+	self._refresh_window()
 
     def ev_launch_ITM_dialog(self):
         tkMessageBox.showwarning( message="ITM dialog box not yet implemented", title="Can't Display") 
-
 
     def ev_update_OPD_labels(self):
         "Update the descriptive text for all OPD files"
@@ -761,34 +776,40 @@ class WebbPSF_GUI(object):
 
     def ev_update_OPD_label(self, widget_combobox, widget_label, iname):
         "Update the descriptive text displayed about one OPD file"
-        #print "Here! for "+iname
+        showitm=False # default is do not show
         filename = self.instrument[iname]._datapath +os.sep+ 'OPD'+ os.sep+widget_combobox.get()
         if filename.endswith(".fits"):
             header_summary = pyfits.getheader(filename)['SUMMARY']
             self.widgets[iname+"_opd_i"]['state'] = 'readonly'
-            self.widgets[iname+"_itm_coords"].grid_remove()  # hide ITM options
         else:  # Special options for non-FITS file inputs
             self.widgets[iname+"_opd_i"]['state'] = 'disabled'
             if 'Zero' in widget_combobox.get():
                 header_summary = " 0 nm RMS"
-                self.widgets[iname+"_itm_coords"].grid_remove()  # hide ITM options
-            elif 'ITM' in widget_combobox.get():
+            elif 'ITM' in widget_combobox.get() and self._enable_opdserver:
                 header_summary= "Get OPD from ITM Server"
-
-                self.widgets[iname+"_itm_coords"].grid() # re-show
-            else:
+                showitm=True
+            elif 'ITM' in widget_combobox.get() and not self._enable_opdserver:
+                header_summary = "ITM Server is not running or otherwise unavailable."
+            else: # other??
                 header_summary = "   "
-                self.widgets[iname+"_itm_coords"].grid_remove()  # hide
 
         widget_label.configure(text=header_summary, width=30)
+
+
+        if showitm:
+            self.widgets[iname+"_itm_coords"].grid() # re-show ITM options
+        else:
+            self.widgets[iname+"_itm_coords"].grid_remove()  # hide ITM options
 
     def _updateFromGUI(self):
         # get GUI values
         if _HAS_PYSYNPHOT:
             self.sptype = self.widgets['SpType'].get()
         self.iname = self.widgets[self.widgets['tabset'].select()]
-        self.opd= self.widgets[self.iname+"_opd"].get()
-        self.opd_i= int(self.widgets[self.iname+"_opd_i"].get())
+
+
+ 
+
         try:
             self.nlambda= int(self.widgets['nlambda'].get())
         except:
@@ -814,20 +835,29 @@ class WebbPSF_GUI(object):
 
         # configure the relevant instrument object
         self.inst = self.instrument[self.iname]
-        if self.iname != 'TFI':
-            self.filter = self.widgets[self.iname+"_filter"].get()
-            self.inst.filter = self.filter
-        else:
-            self.wavelen = float(self.widgets[self.iname+"_wavelen"].get())
-            self.inst.etalon_wavelength = self.wavelen
-            self.filter = '%.3fum' % self.wavelen # save for use in save as filename
+        self.filter = self.widgets[self.iname+"_filter"].get() # save for use in default filenames, etc.
+        self.inst.filter = self.filter
 
-            
-        if self.opd == "Zero OPD (perfect)": 
-            self.opd = None
+        self.opd_name = self.widgets[self.iname+"_opd"].get()
+        if self._enable_opdserver and 'ITM' in self.opd_name:
+            # get from ITM server
+            self.opd_i= 0
+            self.inst.pupilopd = self._opdserver.get_OPD(return_as="FITS")
+            self.opd_name = "OPD from ITM OPD GUI"
+
+        elif self.opd_name == "Zero OPD (perfect)": 
+            # perfect OPD
+            self.opd_name = "Perfect"
             self.inst.pupilopd = None
         else:
-            self.inst.pupilopd = (self.inst._datapath+os.sep+"OPD"+os.sep+self.opd,self.opd_i)  #filename, slice
+            # Regular FITS file version
+            self.opd_name= self.widgets[self.iname+"_opd"].get()
+            self.opd_i= int(self.widgets[self.iname+"_opd_i"].get())
+            self.inst.pupilopd = (self.inst._datapath+os.sep+"OPD"+os.sep+self.opd_name,self.opd_i)  #filename, slice
+
+        _log.info("Selected OPD is "+str(self.opd_name))
+
+
         if self.iname+"_coron" in self.widgets:
             self.inst.image_mask = self.widgets[self.iname+"_coron"].get()
             self.inst.pupil_mask = self.widgets[self.iname+"_pupil"].get()
@@ -1068,69 +1098,135 @@ def synplot(thing, waveunit='micron', **kwargs):
 
 
     if isinstance(thing, pysynphot.spectrum.SourceSpectrum):
-        plt.loglog(wave, thing.flux, label=thing.name, **kwargs)
+        artist = plt.loglog(wave, thing.flux, label=thing.name, **kwargs)
         plt.xlabel("Wavelength [%s]" % waveunit)
         if str(thing.fluxunits) == 'flam':
             plt.ylabel("Flux [%s]" % ' erg cm$^{-2}$ s$^{-1}$ Ang$^{-1}$' )
         else:
             plt.ylabel("Flux [%s]" % thing.fluxunits)
     elif isinstance(thing, pysynphot.spectrum.SpectralElement):
-        plt.plot(wave, thing.throughput,label=thing.name, **kwargs)
+        artist = plt.plot(wave, thing.throughput,label=thing.name, **kwargs)
         plt.xlabel("Wavelength [%s]" % waveunit)
         plt.ylabel("Throughput")
         plt.gca().set_ylim(0,1)
     else:
-        print "Don't know how to plot that object..."
+        _log.error( "Don't know how to plot that object...")
+        artist = None
+    return artist
 
 
 
-def specFromSpectralType(sptype, return_list=False):
+def specFromSpectralType(sptype, return_list=False, catalog='ck04'):
     """Get Pysynphot Spectrum object from a spectral type string.
 
-    """
-    lookuptable = {
-        "O3V":   (50000, 0.0, 5.0),
-        "O5V":   (45000, 0.0, 5.0),
-        "O6V":   (40000, 0.0, 4.5),
-        "O8V":   (35000, 0.0, 4.0),
-        "O5I":   (40000, 0.0, 4.5),
-        "O6I":   (40000, 0.0, 4.5),
-        "O8I":   (34000, 0.0, 4.0),
-        "B0V":   (30000, 0.0, 4.0),
-        "B3V":   (19000, 0.0, 4.0),
-        "B5V":   (15000, 0.0, 4.0),
-        "B8V":   (12000, 0.0, 4.0),
-        "B0III": (29000, 0.0, 3.5),
-        "B5III": (15000, 0.0, 3.5),
-        "B0I":   (26000, 0.0, 3.0),
-        "B5I":   (14000, 0.0, 2.5),
-        "A0V":   (9500, 0.0, 4.0),
-        "A5V":   (8250, 0.0, 4.5),
-        "A0I":   (9750, 0.0, 2.0),
-        "A5I":   (8500, 0.0, 2.0),
-        "F0V":   (7250, 0.0, 4.5),
-        "F5V":   (6500, 0.0, 4.5),
-        "F0I":   (7750, 0.0, 2.0),
-        "F5I":   (7000, 0.0, 1.5),
-        "G0V":   (6000, 0.0, 4.5),
-        "G5V":   (5750, 0.0, 4.5),
-        "G0III": (5750, 0.0, 3.0),
-        "G5III": (5250, 0.0, 2.5),
-        "G0I":   (5500, 0.0, 1.5),
-        "G5I":   (4750, 0.0, 1.0),
-        "K0V":   (5250, 0.0, 4.5),
-        "K5V":   (4250, 0.0, 4.5),
-        "K0III": (4750, 0.0, 2.0),
-        "K5III": (4000, 0.0, 1.5),
-        "K0I":   (4500, 0.0, 1.0),
-        "K5I":   (3750, 0.0, 0.5),
-        "M0V":   (3750, 0.0, 4.5),
-        "M2V":   (3500, 0.0, 4.5),
-        "M5V":   (3500, 0.0, 5.0),
-        "M0III": (3750, 0.0, 1.5),
-        "M0I":   (3750, 0.0, 0.0),
-        "M2I":   (3500, 0.0, 0.0)}
 
+    Parameters
+    -----------
+    catalog: str
+        'ck04' for Castelli & Kurucz 2004, 'phoenix' for Phoenix models
+
+    """
+
+    if catalog.lower()  =='ck04':
+        catname='ck04models'
+
+        # Recommended lookup table into the CK04 models (from 
+        # the documentation of that catalog?)
+        lookuptable = {
+            "O3V":   (50000, 0.0, 5.0),
+            "O5V":   (45000, 0.0, 5.0),
+            "O6V":   (40000, 0.0, 4.5),
+            "O8V":   (35000, 0.0, 4.0),
+            "O5I":   (40000, 0.0, 4.5),
+            "O6I":   (40000, 0.0, 4.5),
+            "O8I":   (34000, 0.0, 4.0),
+            "B0V":   (30000, 0.0, 4.0),
+            "B3V":   (19000, 0.0, 4.0),
+            "B5V":   (15000, 0.0, 4.0),
+            "B8V":   (12000, 0.0, 4.0),
+            "B0III": (29000, 0.0, 3.5),
+            "B5III": (15000, 0.0, 3.5),
+            "B0I":   (26000, 0.0, 3.0),
+            "B5I":   (14000, 0.0, 2.5),
+            "A0V":   (9500, 0.0, 4.0),
+            "A5V":   (8250, 0.0, 4.5),
+            "A0I":   (9750, 0.0, 2.0),
+            "A5I":   (8500, 0.0, 2.0),
+            "F0V":   (7250, 0.0, 4.5),
+            "F5V":   (6500, 0.0, 4.5),
+            "F0I":   (7750, 0.0, 2.0),
+            "F5I":   (7000, 0.0, 1.5),
+            "G0V":   (6000, 0.0, 4.5),
+            "G5V":   (5750, 0.0, 4.5),
+            "G0III": (5750, 0.0, 3.0),
+            "G5III": (5250, 0.0, 2.5),
+            "G0I":   (5500, 0.0, 1.5),
+            "G5I":   (4750, 0.0, 1.0),
+            "K0V":   (5250, 0.0, 4.5),
+            "K5V":   (4250, 0.0, 4.5),
+            "K0III": (4750, 0.0, 2.0),
+            "K5III": (4000, 0.0, 1.5),
+            "K0I":   (4500, 0.0, 1.0),
+            "K5I":   (3750, 0.0, 0.5),
+            "M0V":   (3750, 0.0, 4.5),
+            "M2V":   (3500, 0.0, 4.5),
+            "M5V":   (3500, 0.0, 5.0),
+            "M0III": (3750, 0.0, 1.5),
+            "M0I":   (3750, 0.0, 0.0),
+            "M2I":   (3500, 0.0, 0.0)}
+    elif catalog.lower() =='phoenix':
+        catname='phoenix'
+        # lookup table used in JWST ETCs
+        lookuptable = {
+            "O3V":   (45000, 0.0, 4.0),
+            "O5V":   (41000, 0.0, 4.5),
+            "O7V":   (37000, 0.0, 4.0),
+            "O9V":   (33000, 0.0, 4.0),
+            "B0V":   (30000, 0.0, 4.0),
+            "B1V":   (25000, 0.0, 4.0),
+            "B3V":   (19000, 0.0, 4.0),
+            "B5V":   (15000, 0.0, 4.0),
+            "B8V":   (12000, 0.0, 4.0),
+            "A0V":   (9500, 0.0, 4.0),
+            "A1V":   (9250, 0.0, 4.0),
+            "A3V":   (8250, 0.0, 4.0),
+            "A5V":   (8250, 0.0, 4.0),
+            "F0V":   (7250, 0.0, 4.0),
+            "F2V":   (7000, 0.0, 4.0),
+            "F5V":   (6500, 0.0, 4.0),
+            "F8V":   (6250, 0.0, 4.5),
+            "G0V":   (6000, 0.0, 4.5),
+            "G2V":   (5750, 0.0, 4.5),
+            "G5V":   (5750, 0.0, 4.5),
+            "G8V":   (5500, 0.0, 4.5),
+            "K0V":   (5250, 0.0, 4.5),
+            "K2V":   (4750, 0.0, 4.5),
+            "K5V":   (4250, 0.0, 4.5),
+            "K7V":   (4000, 0.0, 4.5),
+            "M0V":   (3750, 0.0, 4.5),
+            "M2V":   (3500, 0.0, 4.5),
+            "M5V":   (3500, 0.0, 5.0),
+            "B0III": (29000, 0.0, 3.5),
+            "B5III": (15000, 0.0, 3.5),
+            "G0III": (5750, 0.0, 3.0),
+            "G5III": (5250, 0.0, 2.5),
+            "K0III": (4750, 0.0, 2.0),
+            "K5III": (4000, 0.0, 1.5),
+            "M0III": (3750, 0.0, 1.5),
+            "O6I":   (39000, 0.0, 4.5),
+            "O8I":   (34000, 0.0, 4.0),
+            "B0I":   (26000, 0.0, 3.0),
+            "B5I":   (14000, 0.0, 2.5),
+            "A0I":   (9750, 0.0, 2.0),
+            "A5I":   (8500, 0.0, 2.0),
+            "F0I":   (7750, 0.0, 2.0),
+            "F5I":   (7000, 0.0, 1.5),
+            "G0I":   (5500, 0.0, 1.5),
+            "G5I":   (4750, 0.0, 1.0),
+            "K0I":   (4500, 0.0, 1.0),
+            "K5I":   (3750, 0.0, 0.5),
+            "M0I":   (3750, 0.0, 0.0),
+            "M2I":   (3500, 0.0, 0.0)}
 
     if return_list:
         sptype_list = lookuptable.keys()
@@ -1148,22 +1244,29 @@ def specFromSpectralType(sptype, return_list=False):
         sptype_list.insert(0,"Flat spectrum in F_lambda")
         return sptype_list
 
-    try:
-        keys = lookuptable[sptype]
-        return pysynphot.Icat('ck04models',keys[0], keys[1], keys[2])
-    except:
-        if "Flat" in sptype:
-            if sptype == "Flat spectrum in F_nu":    spec = pysynphot.FlatSpectrum( 1, fluxunits = 'fnu')
-            elif sptype == "Flat spectrum in F_lambda":  spec= pysynphot.FlatSpectrum( 1, fluxunits = 'flam')
-            spec.convert('flam')
-            return spec/spec.flux.mean()
-        else: raise LookupError("Lookup table does not include spectral type %s" % sptype)
+
+    if "Flat" in sptype:
+        if sptype == "Flat spectrum in F_nu":    spec = pysynphot.FlatSpectrum( 1, fluxunits = 'fnu')
+        elif sptype == "Flat spectrum in F_lambda":  spec= pysynphot.FlatSpectrum( 1, fluxunits = 'flam')
+        spec.convert('flam')
+        return spec/spec.flux.mean()
+    else: 
+        try:
+            keys = lookuptable[sptype]
+            return pysynphot.Icat('ck04models',keys[0], keys[1], keys[2])
+        except:
+            else: raise LookupError("Error creating Spectrum object for spectral type %s. Check that is a valid name in the lookup table, and/or that pysynphot is installed properly." % sptype)
 
 
 
 
-def gui():
+def gui(fignum=1):
+    # enable log message printout
+    logging.basicConfig(level=logging.INFO,format='%(name)-10s: %(levelname)-8s %(message)s')
+    # start the GUI
     gui = WebbPSF_GUI()
+    plt.figure(fignum)
+    #plt.show(block=False)
     gui.mainloop()
 
 

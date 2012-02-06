@@ -1,5 +1,6 @@
 from webbpsf import *
-from webbpsfgui import gui
+from webbpsfgui import gui  # quick function to start the GUI and run it instantly
+from webbpsfgui import WebbPSF_GUI  # actual GUI class 
 
 #from webbpsf import __version__
-__version__ = '0.2.5'
+from _version import __version__

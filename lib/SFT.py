@@ -358,12 +358,12 @@ def SFT3rect(pupil, nlamD, npix, offset=(0.0,0.0), inverse=False, **kwargs):
 
     npupY, npupX = pupil.shape[0:2]
 
-    if hasattr(npix, '__getitem__'):
-        npixY, npixX = npix[0:2]   
-    else:
+    if np.isscalar(npix): #hasattr(npix, '__len__'):
         npixY, npixX = npix, npix
+    else:
+        npixY, npixX = npix[0:2]   
 
-    if hasattr(nlamD, '__getitem__'):
+    if not np.isscalar(nlamD):  #hasattr(nlamD, '__getitem__'):
         nlamDY, nlamDX = nlamD[0:2]
     else:
         nlamDY, nlamDX = nlamD, nlamD

@@ -38,7 +38,7 @@ import pyfits
 import poppy
 from fwcentroid import fwcentroid
 
-__version__ = poppy.__version__
+from _version import __version__
 
 
 try: 
@@ -52,7 +52,6 @@ import logging
 _log = logging.getLogger('webbpsf')
 _log.setLevel(logging.DEBUG)
 _log.setLevel(logging.INFO)
-#_log.addHandler(logging.NullHandler())
 
 
 
@@ -96,10 +95,12 @@ class JWInstrument(object):
         self._image_mask = None
         self._pupil_mask = None
         self.pupil = os.path.abspath(self._datapath+"../pupil_RevV.fits")
-        "Filename for JWST pupil mask. Usually there is no need to change this."
+        "Filename *or* pyfits.HDUList for JWST pupil mask. Usually there is no need to change this."
         self.pupilopd = None   # This can optionally be set to a tuple indicating (filename, slice in datacube)
-        """Filename for JWST pupil OPD. This can be either a full absolute filename, or a relative name in which case it is
-        assumed to be within the instrument's `data/OPDs/` directory.
+        """Filename *or* pyfits.HDUList for JWST pupil OPD. 
+        
+        This can be either a full absolute filename, or a relative name in which case it is
+        assumed to be within the instrument's `data/OPDs/` directory, or an actual pyfits.HDUList object corresponding to such a file.
         If the file contains a datacube, you may set this to a tuple (filename, slice) to select a given slice, or else
         the first slice will be used."""
 
@@ -121,13 +122,14 @@ class JWInstrument(object):
             For output files, write an additional FITS extension including a version of the output array 
             rebinned down to the actual detector pixel scale?
         jitter : string
-            Type of jitter model to apply.
+            Type of jitter model to apply. Currently not implemented
         parity : string "even" or "odd"
             You may wish to ensure that the output PSF grid has either an odd or even number of pixels.
             Setting this option will force that to be the case by increasing npix by one if necessary.
         force_coron : bool
             Set this to force full coronagraphic optical propagation when it might not otherwise take place
-            (e.g. calculate the non-coronagraphic images in the same way as coronagraphy is done, rather than
+            (e.g. calculate the non-coronagraphic images via explicit propagation to all optical surfaces, FFTing 
+            to intermediate pupil and image planes whether or not they contain any actual optics, rather than
             taking the straight-to-MFT shortcut)
         no_sam : bool
             Set this to prevent the SemiAnalyticMethod coronagraph mode from being used when possible, and instead do
@@ -228,10 +230,14 @@ class JWInstrument(object):
     def __str__(self):
         return "JWInstrument name="+self.name
 
+    def _instrument_fits_header(self, hdulist):
+        """ Set instrument-specific FITS header keywords """
+        pass
+
     #----- actual optical calculations follow here -----
     def calcPSF(self, outfile=None, source=None, filter=None,  nlambda=None, monochromatic=None ,
             fov_arcsec=None, fov_pixels=None,  oversample=None, detector_oversample=None, calc_oversample=None, rebin=True,
-            clobber=True, display=False, save_intermediates=False):
+            clobber=True, display=False, save_intermediates=False, return_intermediates=False):
         """ Compute a PSF.
         The result can either be written to disk (set outfile="filename") or else will be returned as
         a pyfits HDUlist object.
@@ -283,6 +289,10 @@ class JWInstrument(object):
             overwrite output FITS file if it already exists?
         display : bool
             Whether to display the PSF when done or not.
+
+        save_intermediates, return_intermediates : bool
+            Options for saving to disk or returning to the calling function the intermediate optical planes during the propagation. 
+            This is useful if you want to e.g. examine the intensity in the Lyot plane for a coronagraphic propagation.
 
         Returns
         -------
@@ -355,24 +365,34 @@ class JWInstrument(object):
         #if _USE_MULTIPROC and monochromatic is None :
             #result = self.optsys.calcPSFmultiproc(source, nprocesses=_MULTIPROC_NPROCESS) # no fancy display args for multiproc.
         #else:
-        result = self.optsys.calcPSF(wavelens, weights, display_intermediates=display, save_intermediates=save_intermediates, display=display)
+        result = self.optsys.calcPSF(wavelens, weights, display_intermediates=display, display=display, save_intermediates=save_intermediates, return_intermediates=return_intermediates)
+
+        if return_intermediates: # this implies we got handed back a tuple, so split it apart
+            result, intermediates = result
 
 
         #---  update FITS header, display, and output.
-        result[0].header.update('PUPIL', os.path.basename(self.pupil))
+        result[0].header.update('PUPILINT', os.path.basename(self.pupil), 'Pupil intensity file')
         if self.pupilopd is None:
-            result[0].header.update('PUPILOPD', "NONE - perfect telescope! ")
-        else:
-            if isinstance(self.pupilopd, basestring):
-                result[0].header.update('PUPILOPD', os.path.basename(self.pupilopd))
-            else:
-                result[0].header.update('PUPILOPD', "%s slice %d" % (os.path.basename(self.pupilopd[0]), self.pupilopd[1]))
-        result[0].header.update('INSTRUME', self.name)
-        result[0].header.update('FILTER', self.filter)
+            opdstring = "NONE - perfect telescope! "
+        elif isinstance( self.pupilopd, basestring):
+            opdstring = os.path.basename(self.pupilopd)
+        elif isinstance( self.pupilopd, pyfits.HDUList):
+            opdstring = 'OPD from supplied pyfits object'
+        else: # tuple?
+            opdstring =  "%s slice %d" % (os.path.basename(self.pupilopd[0]), self.pupilopd[1])
+        result[0].header.update('PUPILOPD', opdstring,  'Pupil wavefront OPD file')
+        #else:
+            #if isinstance(self.pupilopd, basestring):
+                #result[0].header.update('PUPILOPD', os.path.basename(self.pupilopd), 'Pupil wavefront OPD file')
+            #else:
+                #result[0].header.update('PUPILOPD', "%s slice %d" % (os.path.basename(self.pupilopd[0]), self.pupilopd[1]), 'Pupil wavefront OPD file')
+        result[0].header.update('INSTRUME', self.name, 'Instrument')
+        result[0].header.update('FILTER', self.filter, 'Filter name')
         if self.image_mask is not None:
-            result[0].header.update('CORON', self.image_mask)
+            result[0].header.update('CORONMSK', self.image_mask)
         if self.pupil_mask is not None:
-            result[0].header.update('LYOTMASK', self.pupil_mask)
+            result[0].header.update('PUPIL', self.pupil_mask)
         result[0].header.update('EXTNAME', 'OVERSAMP')
         result[0].header.add_history('Created by WebbPSF version '+__version__)
         result[0].header.update('OVERSAMP', calc_oversample, 'Oversampling factor for FFTs in computation')
@@ -394,6 +414,8 @@ class JWInstrument(object):
             result.append(rebinned_result)
 
 
+        self._instrument_fits_header(result)
+
         if display:
             f = plt.gcf()
             #p.text( 0.1, 0.95, "%s, filter= %s" % (self.name, self.filter), transform=f.transFigure, size='xx-large')
@@ -405,7 +427,11 @@ class JWInstrument(object):
                            comment="Name of this file")
             result.writeto(outfile, clobber=clobber)
             _log.info("Saved result to "+outfile)
-        return result
+
+        if return_intermediates:
+            return result, intermediates
+        else:
+            return result
 
     def _getSpecCacheKey(self, source, nlambda):
         """ return key for the cache of precomputed spectral weightings.
@@ -569,19 +595,37 @@ class JWInstrument(object):
         if 'source_offset_r' in self.options.keys(): optsys.source_offset_r = self.options['source_offset_r']
         if 'source_offset_theta' in self.options.keys(): optsys.source_offset_theta = self.options['source_offset_theta']
 
-        if isinstance(self.pupilopd, str):
-            full_opd_path = self.pupilopd if os.path.exists( self.pupilopd) else os.path.join(self._datapath, "OPD",self.pupilopd)
-        elif hasattr(self.pupilopd, '__getitem__'):
-            full_opd_path =  (self.pupilopd[0] if os.path.exists( self.pupilopd[0]) else os.path.join(self._datapath, "OPD",self.pupilopd[0]), self.pupilopd[1])
-        elif self.pupilopd is None: full_opd_path = None
 
-        full_pupil_path = self.pupil if os.path.exists( self.pupil) else os.path.join(self._WebbPSF_basepath,self.pupil)
+        #---- set pupil OPD
+        if isinstance(self.pupilopd, str):  # simple filename
+            full_opd_path = self.pupilopd if os.path.exists( self.pupilopd) else os.path.join(self._datapath, "OPD",self.pupilopd)
+        elif hasattr(self.pupilopd, '__getitem__') and isinstance(self.pupilopd[0], basestring): # tuple with filename and slice
+            full_opd_path =  (self.pupilopd[0] if os.path.exists( self.pupilopd[0]) else os.path.join(self._datapath, "OPD",self.pupilopd[0]), self.pupilopd[1])
+        elif isinstance(self.pupilopd, pyfits.HDUList): # OPD supplied as FITS object
+            full_opd_path = self.pupilopd # not a path per se but this works correctly to pass it to poppy
+        elif self.pupilopd is None: 
+            full_opd_path = None
+        else:
+            raise TypeError("Not sure what to do with a pupilopd of that type:"+str(type(self.pupilopd)))
+
+        #---- set pupil intensity
+        if isinstance(self.pupil, str): # simple filename
+            full_pupil_path = self.pupil if os.path.exists( self.pupil) else os.path.join(self._WebbPSF_basepath,self.pupil)
+        elif isinstance(self.pupil, pyfits.HDUList): # pupil supplied as FITS object
+            full_pupil_path = self.pupil
+        else: 
+            raise TypeError("Not sure what to do with a pupil of that type:"+str(type(self.pupil)))
+
+
+        #---- apply pupil intensity and OPD to the optical model
         optsys.addPupil(name='JWST Pupil', transmission=full_pupil_path, opd=full_opd_path, opdunits='micron', rotation=self._rotation)
 
+        #---- add coronagraphy if requested, and flag to invoke semi-analytic coronagraphic propagation
         if self.image_mask is not None or self.pupil_mask is not None or ('force_coron' in self.options.keys() and self.options['force_coron']):
             optsys, trySAM, SAM_box_size = self._addCoronagraphOptics(optsys, oversample=calc_oversample)
         else: trySAM = False
 
+        #--- add the detector element. 
         if fov_pixels is None:
             fov_pixels = np.round(fov_arcsec/self.pixelscale)
             if 'parity' in self.options.keys():
@@ -590,6 +634,7 @@ class JWInstrument(object):
 
         optsys.addDetector(self.pixelscale, fov_pixels = fov_pixels, oversample = detector_oversample, name=self.name+" detector")
 
+        #---  invoke semi-analytic coronagraphic propagation
         if trySAM and not ('no_sam' in self.options.keys() and self.options['no_sam']): # if this flag is set, try switching to SemiAnalyticCoronagraph mode. 
             _log.info("Trying to invoke switch to Semi-Analytic Coronagraphy algorithm")
             try: 
@@ -609,8 +654,17 @@ class JWInstrument(object):
 
     def display(self):
         """Display the currently configured optical system on screen """
+        #if coronagraphy is set, then we have to temporarily disable semi-analytic coronagraphic mode
+        # to get a regular displayable optical system
+        try:
+            old_no_sam = self.options['no_sam']
+            self.options['no_sam'] = True
+        except:
+            old_no_sam = None
+        
         optsys = self._getOpticalSystem()
         optsys.display(what='both')
+        if old_no_sam is not None: self.options['no_sam'] = old_no_sam
 
     def _addCoronagraphOptics(self,optsys, oversample=2):
         """Add coronagraphic optics to an optical system. 
@@ -660,12 +714,6 @@ class MIRI(JWInstrument):
             # The pixels are not square.
 
         self._default_aperture='MIRIM_center' # reference into SIAF for ITM simulation V/O coords
-        self.apertures =  [ {'name': 'Imager', 'size': (768,1024), 'avail_filt': [f for f in self.filter_list if 'C' in f]},
-                {'name': 'Cor-1065', 'size': (256,256), 'avail_filt': ['F1065C']},
-                {'name': 'Cor-1140', 'size': (256,256), 'avail_filt': ['F1140C']},
-                {'name': 'Cor-1150', 'size': (256,256), 'avail_filt': ['F1550C']},
-                {'name': 'Cor-2300', 'size': (256,256), 'avail_filt': ['F2300C']},
-                {'name': 'MRS', 'size': (100,100), 'avail_filt': 'IFU'}]
 
 
     def _validate_config(self):
@@ -711,7 +759,11 @@ class MIRI(JWInstrument):
         # un-rotate the primary that was already created in _getOpticalSystem.
 
         defaultpupil = optsys.planes.pop() # throw away the rotated pupil we just previously added
-        optsys.addPupil(name='JWST Pupil', transmission=defaultpupil.amplitude_file, opd=defaultpupil.opd_file, opdunits='micron', rotation=None)
+        _log.debug('Amplitude:'+str(defaultpupil.amplitude_file))
+        _log.debug('OPD:'+str(defaultpupil.opd_file))
+        opd = defaultpupil.opd_file
+        if hasattr(defaultpupil,'opd_slice'): opd = (defaultpupil.opd_file, defaultpupil.opd_slice) # rebuild tuple if needed to slice
+        optsys.addPupil(name='JWST Pupil', transmission=defaultpupil.amplitude_file, opd=opd, opdunits='micron', rotation=None)
         #optsys.addPupil('Circle', radius=6.5/2)
 
 
@@ -769,21 +821,35 @@ class MIRI(JWInstrument):
         # add pupil plane mask
         if ('pupil_shift_x' in self.options.keys() and self.options['pupil_shift_x'] != 0) or \
            ('pupil_shift_y' in self.options.keys() and self.options['pupil_shift_y'] != 0):
+
             shift = (self.options['pupil_shift_x'], self.options['pupil_shift_y'])
-        else: shift = None
+            _log.info("Setting Lyot pupil shift to %s" % (str(shift)))
+        else: 
+            shift = None
+            #_log.info('no pupil shift!')
+
 
         #optsys.addPupil('Circle', radius=6.5/2)
 
         if self.pupil_mask == 'MASKFQPM':
-            optsys.addPupil(transmission=self._datapath+"/coronagraph/MIRI_FQPMLyotStop.fits", name=self.pupil_mask, shift=shift)
+            optsys.addPupil(transmission=self._datapath+"/coronagraph/MIRI_FQPMLyotStop.fits.gz", name=self.pupil_mask, shift=shift)
         elif self.pupil_mask == 'MASKLYOT':
-            optsys.addPupil(transmission=self._datapath+"/coronagraph/MIRI_LyotLyotStop.fits", name=self.pupil_mask, shift=shift)
+            optsys.addPupil(transmission=self._datapath+"/coronagraph/MIRI_LyotLyotStop.fits.gz", name=self.pupil_mask, shift=shift)
         else: # all the MIRI filters have a tricontagon outline, even the non-coron ones.
             optsys.addPupil(transmission=self._WebbPSF_basepath+"/tricontagon.fits", name = 'filter cold stop', shift=shift)
 
         optsys.addRotation(self._rotation)
 
         return (optsys, trySAM, SAM_box_size)
+
+    def _instrument_fits_header(self, hdulist):
+        """ Format MIRI-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
+        hdulist[0].header.update('GRATNG14','None', 'MRS Grating for channels 1 and 4')
+        hdulist[0].header.update('GRATNG23','None', 'MRS Grating for channels 2 and 3')
+        hdulist[0].header.update('FLATTYPE','?', 'Type of flat field to be used: all, one, principal')
+        hdulist[0].header.update('CCCSTATE','open', 'Contamination Control Cover state: open, closed, locked')
+        if self.image_mask is not None:
+            hdulist[0].header.update('TACQNAME','None', 'Target acquisition file name')
 
 
 class NIRCam(JWInstrument):
@@ -796,6 +862,7 @@ class NIRCam(JWInstrument):
  
     """
     def __init__(self):
+        self.module='A'          # NIRCam A or B?
         self.pixelscale = 0.0317 # for short-wavelen channels
         self._pixelscale_short = 0.0317 # for short-wavelen channels
         self._pixelscale_long = 0.0648 # for short-wavelen channels
@@ -805,18 +872,11 @@ class NIRCam(JWInstrument):
         #self.image_mask_list = ['BLC2100','BLC3350','BLC4300','WEDGESW','WEDGELW']
         self.image_mask_list = ['MASKLWB','MASKSWB','MASK210R','MASK335R','MASK430R']
 
-        self.pupil_mask_list = ['CIRCLYOT','WEDGELYOT']
+        self.pupil_mask_list = ['CIRCLYOT','WEDGELYOT', 'WEAK LENS +4', 'WEAK LENS +8', 'WEAK LENS -8', 'WEAK LENS +12 (=4+8)','WEAK LENS -4 (=4-8)']
 
         self.filter = 'F200W' # default
         self._default_aperture='NIRCam A1 center' # reference into SIAF for ITM simulation V/O coords
 
-        self.apertures = [
-            {'name': 'Imager-SW A', 'size': (2048,2048), 'avail_filt': self.filter_list}, 
-            {'name': 'Imager-SW B', 'size': (2048,2048), 'avail_filt': self.filter_list}, 
-            {'name': 'Imager-LW A', 'size': (2048,2048), 'avail_filt': self.filter_list}, 
-            {'name': 'Imager-LW B', 'size': (2048,2048), 'avail_filt': self.filter_list}, 
-            {'name': 'Coron-BLC 2.1', 'size': (256,256), 'avail_filt': self.filter_list}, 
-            {'name': 'Coron-BLC 2.1', 'size': (256,256), 'avail_filt': self.filter_list}]
 
 
     def _validate_config(self):
@@ -863,6 +923,8 @@ class NIRCam(JWInstrument):
             430R should have sigma = 2.588496
 
 
+        Since the Weak Lenses go in the pupil too, this function provides a convenient place to implement those as well.
+
         """
 
         #optsys.addImage(name='null for debugging NIRcam _addCoron') # for debugging
@@ -881,11 +943,11 @@ class NIRCam(JWInstrument):
             SAM_box_size = 5.0
         elif self.image_mask == 'MASKSWB':
             optsys.addImage(function='BandLimitedCoron', kind='nircamwedge', wavelength=2.1e-6, name=self.image_mask)
-            trySAM = True
+            trySAM = False #True FIXME
             SAM_box_size = [5,20]
         elif self.image_mask == 'MASKLWB':
             optsys.addImage(function='BandLimitedCoron', kind='nircamwedge', wavelength=4.6e-6, name=self.image_mask)
-            trySAM = True
+            trySAM = False #True FIXME
             SAM_box_size = [5,20]
         else:
             # no occulter selected but coronagraphic mode anyway.
@@ -904,10 +966,36 @@ class NIRCam(JWInstrument):
             optsys.addPupil(transmission=self._datapath+"/coronagraph/NIRCam_Lyot_Somb.fits", name=self.pupil_mask, shift=shift)
         elif self.pupil_mask == 'WEDGELYOT':
             optsys.addPupil(transmission=self._datapath+"/coronagraph/NIRCam_Lyot_Sinc.fits", name=self.pupil_mask, shift=shift)
+        elif self.pupil_mask == 'WEAK LENS +4':
+            optsys.addPupil(poppy.ThinLens(name='Weak Lens +4', nwaves=4, reference_wavelength=2e-6))
+        elif self.pupil_mask == 'WEAK LENS +8':
+            optsys.addPupil(poppy.ThinLens(name='Weak Lens +8', nwaves=8, reference_wavelength=2e-6))
+        elif self.pupil_mask == 'WEAK LENS -8':
+            optsys.addPupil(poppy.ThinLens(name='Weak Lens -8', nwaves=-8, reference_wavelength=2e-6))
+        elif self.pupil_mask == 'WEAK LENS +12 (=4+8)':
+            stack = poppy.CompoundAnalyticOptic(name='Weak Lens Stack +12', opticslist=[
+                poppy.ThinLens(name='Weak Lens +4', nwaves=4, reference_wavelength=2e-6),
+                poppy.ThinLens(name='Weak Lens +8', nwaves=8, reference_wavelength=2e-6)])
+            optsys.addPupil(stack)
+        elif self.pupil_mask == 'WEAK LENS -4 (=4+8)':
+            stack = poppy.CompoundAnalyticOptic(name='Weak Lens Stack -4', opticslist=[
+                poppy.ThinLens(name='Weak Lens +4', nwaves=4, reference_wavelength=2e-6),
+                poppy.ThinLens(name='Weak Lens -8', nwaves=-8, reference_wavelength=2e-6)])
+            optsys.addPupil(stack)
+
+
         elif (self.pupil_mask is None and self.image_mask is not None):
             optsys.addPupil(name='No Lyot Mask Selected!')
 
         return (optsys, trySAM, SAM_box_size)
+
+    def _instrument_fits_header(self, hdulist):
+        """ Format NIRCam-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
+        hdulist[0].header.update('MODULE',self.module, 'NIRCam module: A or B')
+        hdulist[0].header.update('CHANNEL', 'Short' if self.pixelscale == self._pixelscale_short else 'Long', 'NIRCam channel: long or short')
+        # filter, pupil added by calcPSF header code
+        hdulist[0].header.update('PILIN', 'False', 'Pupil imaging lens in optical path: T/F')
+
 
 
 class NIRSpec(JWInstrument):
@@ -945,6 +1033,13 @@ class NIRSpec(JWInstrument):
 
     def _validate_config(self):
         if self.filter.startswith("IFU"): raise NotImplementedError("The NIRSpec IFU is not yet implemented.")
+
+
+    def _instrument_fits_header(self, hdulist):
+        """ Format NIRSpec-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
+        hdulist[0].header.update('GRATING', 'None', 'NIRSpec grating element name')
+        hdulist[0].header.update('APERTURE', 'None', 'NIRSpec slit aperture name')
+
 
 class NIRISS(JWInstrument):
     """ A class modeling the optics of the Near-IR Imager and Slit Spectrograph
@@ -1004,15 +1099,21 @@ class NIRISS(JWInstrument):
         #elif self.pupil_mask == 'MASKC71N':
             #optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKC71np.fits", name=self.pupil_mask, shift=shift)
         if self.pupil_mask == 'MASK_NRM':
-            optsys.addPupil(transmission=self._datapath+"/coronagraph/MASK_NRM.fits", name=self.pupil_mask, shift=shift)
+            optsys.addPupil(transmission=self._datapath+"/coronagraph/MASK_NRM.fits.gz", name=self.pupil_mask, shift=shift)
         elif self.pupil_mask == 'CLEAR':
-            optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKCLEAR.fits", name=self.pupil_mask, shift=shift)
+            optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKCLEAR.fits.gz", name=self.pupil_mask, shift=shift)
         elif (self.pupil_mask  is None and self.image_mask is not None):
             optsys.addPupil(name='No Lyot Mask Selected!')
 
         return (optsys, trySAM, radius+0.05) # always attempt to cast this to a SemiAnalyticCoronagraph
 
- 
+    def _instrument_fits_header(self, hdulist):
+        """ Format NIRISS-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
+        if self.image_mask is not None:
+            hdulist[0].header.update('CORONPOS', self.image_mask, 'NIRISS coronagraph spot location')
+        hdulist[0].header.update('FOCUSPOS',0,'NIRISS focus mechanism not yet modeled.')
+
+
 class TFI(JWInstrument):
     """ A class modeling the optics of the Tunable Filter Imager
 
@@ -1078,15 +1179,15 @@ class TFI(JWInstrument):
         else: shift = None
 
         if self.pupil_mask == 'MASKC21N':
-            optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKC21np.fits", name=self.pupil_mask, shift=shift)
+            optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKC21N.fits.gz", name=self.pupil_mask, shift=shift)
         elif self.pupil_mask == 'MASKC66N':
-            optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKC66np.fits", name=self.pupil_mask, shift=shift)
+            optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKC66N.fits.gz", name=self.pupil_mask, shift=shift)
         elif self.pupil_mask == 'MASKC71N':
-            optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKC71np.fits", name=self.pupil_mask, shift=shift)
+            optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKC71N.fits.gz", name=self.pupil_mask, shift=shift)
         elif self.pupil_mask == 'MASK_NRM':
-            optsys.addPupil(transmission=self._datapath+"/coronagraph/MASK_NRM.fits", name=self.pupil_mask, shift=shift)
+            optsys.addPupil(transmission=self._datapath+"/coronagraph/MASK_NRM.fits.gz", name=self.pupil_mask, shift=shift)
         elif self.pupil_mask == 'CLEAR':
-            optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKCLEAR.fits", name=self.pupil_mask, shift=shift)
+            optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKCLEAR.fits.gz", name=self.pupil_mask, shift=shift)
         elif (self.pupil_mask  is None and self.image_mask is not None):
             optsys.addPupil(name='No Lyot Mask Selected!')
 
@@ -1149,6 +1250,11 @@ class FGS(JWInstrument):
         #TODO only one possible filter fot the FGS, too. 
     def _addCoronagraphOptics(self,optsys):
         raise NotImplementedError("No Coronagraph in FGS!")
+
+    def _instrument_fits_header(self, hdulist):
+        """ Format FGS?g-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
+        hdulist[0].header.update('FOCUSPOS',0,'FGS?g focus mechanism not yet modeled.')
+
 
 
 ###########################################################################
@@ -1371,7 +1477,8 @@ def display_PSF(HDUlist_or_filename=None, ext=0,
         else: return ax
 
 
-def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None, ext1=0, ext2=0, vmax=1e-4, title=None, imagecrop=None, adjust_for_oversampling=False, normalize=False, crosshairs=False, colorbar=True, colorbar_orientation='vertical', print_=False, ax=None, return_ax=False):
+def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None, ext1=0, ext2=0, vmax=1e-4, title=None, imagecrop=None, adjust_for_oversampling=False, crosshairs=False, colorbar=True, colorbar_orientation='vertical', print_=False, ax=None, return_ax=False, vmin=None,
+        normalize=False, normalize_to_second=False):
     """Display nicely the difference of two PSFs from given files 
     
     Parameters
@@ -1419,15 +1526,23 @@ def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
         avg_im = (im1+im2)/2
         diff_im /= avg_im
         cbtitle = 'Image difference / average  (per pixel)' #Relative intensity difference per pixel'
+    if normalize_to_second:
+        diff_im /= im2
+        cbtitle = 'Image difference / original (per pixel)' #Relative intensity difference per pixel'
     else:
         cbtitle = 'Intensity difference per pixel'
+
+    if vmin is None:
+        vmin = -vmax
+
 
 
     if print_:
         rms_diff = np.sqrt((diff_im**2).mean())
         print "RMS of difference image: %f" % rms_diff
 
-    norm=matplotlib.colors.Normalize(vmin=-vmax, vmax=vmax)
+    norm=matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
+    #print "Display range: ", vmin, vmax
     cmap = matplotlib.cm.gray
     halffov = HDUlist1[ext1].header['PIXELSCL']*HDUlist1[ext1].data.shape[0]/2
     unit="arcsec"
@@ -1458,9 +1573,9 @@ def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None,
         #ticks = np.logspace(np.log10(vmin), np.log10(vmax), np.log10(vmax/vmin)+1)
         #if vmin == 1e-8 and vmax==1e-1: 
             #ticks = [1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1]
-        ticks = [-vmax, -0.5*vmax, 0, 0.5*vmax, vmax]
-        cb.set_ticks(ticks)
-        cb.set_ticklabels(ticks)
+        #ticks = [vmin, -0.5*vmax, 0, 0.5*vmax, vmax]
+        #cb.set_ticks(ticks)
+        #cb.set_ticklabels(ticks)
         #stop()
         cb.set_label(cbtitle)
     if return_ax:
@@ -1551,7 +1666,7 @@ def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stdde
     EE : bool
         Also return encircled energy (EE) curve in addition to radial profile?
     center : tuple of floats
-        Coordinates (x,y) of PSF center. Default is image center. 
+        Coordinates (x,y) of PSF center, in pixel units. Default is image center. 
     binsize : float
         size of step for profile. Default is pixel size.
     stddev : bool
