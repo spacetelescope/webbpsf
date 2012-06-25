@@ -60,7 +60,7 @@ one can create an instance of MIRI and configure it for coronagraphic observatio
 
 
 
-Input Source Spectra:
+Input Source Spectra
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 WebbPSF attempts to calculate realistic weighted broadband PSFs taking into account both the source spectrum and the instrumental spectral response. 
@@ -83,8 +83,15 @@ To calculate a monochromatic PSF, just use the ``monochromatic`` parameter. Wave
    >>> miri.calcPSF(monochromatic=9.876e-6)
 
 
+As a convenience, webbpsf includes a function to retrieve an appropriate :py:class:`pysynphot.Spectrum` object for a given stellar spectral type from the PHOENIX or Castelli & Kurucz model libraries. 
 
-Array sizes, star positions, and centering:
+   >>> src = webbpsf.specFromSpectralType('G0V', catalog='phoenix')
+   >>> psf = miri.calcPSF(source=src)
+
+
+
+
+Array sizes, star positions, and centering
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Output array sizes may be specified either in units of arcseconds or pixels.  For instance, 
@@ -109,7 +116,7 @@ you may also just set the desired number of pixels explicitly in the call to cal
 
 
 
-Offset sources:
+Offset sources
 ^^^^^^^^^^^^^^^^^^^
 
 The PSF may also be shifted off-center by adjusting the offset of the stellar source. This is done in polar coordinates:
@@ -121,7 +128,7 @@ If these options are set, the offset is applied relative to the central coordina
 
 For coronagraphic modes, the coronagraph occulter is always assumed to be at the center of the output array. Therefore, these options let you offset the source away from the coronagraph.
 
-Pixel scales, sampling, and oversampling:
+Pixel scales, sampling, and oversampling
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The derived instrument classes all know their own instrumental pixel scales. You can change the output 
@@ -156,65 +163,19 @@ Matplotlib graphics library makes its own copy of all arrays displayed). Your av
 If you're interested in very high fidelity simulations of large fields (e.g. 1024x1024 pixels oversampled 8x) then we recommend a large multicore desktop with >16 GB RAM. 
 
 
-Advanced Usage Tricks
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-This section serves as a catch-all for other example codes, possibly more esoteric in application. 
+Output format options for sampling
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Perhaps you may want to calculate the PSF using oversampling, but to save disk space you only want to write out the PSF downsampled to detector resolution.
+As just explained, WebbPSF can easily calculate PSFs on a finer grid than the detector's native pixel scale. You can select whether the output data should include this oversampled image, a copy that has instead been rebinned down to match the detector scale, or optionally both. This is done using the ``options['output_mode']`` parameter. 
 
-   >>> result =  inst.calcPSF(args, ...)
-   >>> result['DET_SAMP'].writeto(outputfilename)
-
-Or if you really care about writing it as a primary HDU rather than an extension, replace the 2nd line with
-
-   >>> pyfits.PrimaryHDU(data=result['DET_SAMP'].data, header=result['DET_SAMP'].header).writeto(outputfilename)
-
-
-
-Perhaps you want to modify the OPD used for a given instrument, for instance to
-add a defocus. You can do this by subclassing one of the existing instrument
-classes to patch over the _getOpticalSystem function. An OpticalSystem is
-basically a list so it's straightforward to just add another optic there. In
-this example it's a lens for defocus but you could just as easily add another
-FITSOpticalElement instead to read in a disk file.
-
-
-    >>> class TF_with_defocus(webbpsf.TFI):
-    >>>         def __init__(self, \*args, \*\*kwargs):
-    >>>                 webbpsf.TFI.__init__(self, \*args, \*\*kwargs)
-    >>>                 # modify the following as needed to get your desired defocus
-    >>>                 self.defocus_waves = 0
-    >>>                 self.defocus_lambda = 4e-6
-    >>>         def _getOpticalSystem(self, \*args, \*\*kwargs):
-    >>>                 osys = webbpsf.TFI._getOpticalSystem(self, \*args, \*\*kwargs)
-    >>>                 lens = poppy.ThinLens(name='my lens', nwaves=self.defocus_waves, reference_wavelength=self.defocus_lambda)  
-    >>>                 lens.planetype=poppy.PUPIL # needed to flag plane location for the propagation algorithms
-    >>>                 osys.planes.insert(1, lens)
-    >>>                 return osys
-    >>> 
-    >>> tf2 = TF_with_defocus()
-    >>> tf2.defocus= 4  # means 4 waves of defocus at the wavelength defined by tf2.defocus_lambda
-    >>> psf = tf2.calcPSF()
-    >>> 
-
-
-Perhaps you want to calculate PSFs for all filters of a given instrument, using all 10 available simulated OPDs:
-
-    >>> def niriss_psfs():
-    >>>     niriss = webbpsf.NIRISS()
-    >>> 
-    >>>     opdname = niriss.pupilopd
-    >>> 
-    >>>     for i in range(10):
-    >>>         niriss.pupilopd = (opdname,i)
-    >>>         for filtname in niriss.filter_list:
-    >>>             niriss.filter=filtname
-    >>>             fov=18
-    >>>             outname = "PSF_NIRISS_%scen_wfe%d.fits" % (filtname, i)
-    >>>             psf = webbpsf.calc_or_load_PSF(outname, niriss, nlambda=1, oversample=4, fov_arcsec=fov, rebin=True, display=True)
-    >>> 
-
+   >>> nircam.options['output_mode'] = 'oversampled'      
+   >>> psf = nircam.calcPSF()       # the 'psf' variable will be an oversampled PSF, formatted as a FITS HDUlist
+   >>> nircam.options['output_mode'] = 'detector sampled'      
+   >>> psf2 = nircam.calcPSF()      # now 'psf2' will contain the resul as resampled onto the detector scale.
+   >>> nircam.options['output_mode'] = 'both'      
+   >>> psf3 = nircam.calcPSF()      # 'psf3' will have the oversampled image as primary HDU, and 
+   >>>                              # the detector-sampled image as the first image extension HDU.
 
 
 

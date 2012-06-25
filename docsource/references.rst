@@ -64,7 +64,7 @@ NIRspec field of view rotation: 41.5 degrees. Matt Lallo, draft SIAF information
 NIRISS
 -------
 
-NIRISS filter bandpasses are assumed to be precisely identical to NIRCam for the filters in common. 
+NIRISS filter bandpasses are assumed to be precisely identical to NIRCam for the filters in common. The exceptions are F158M, which was a TFI filter, for which I retain the cryo transmission curve as measured by the manufacturer (Barr/Materion), and F380M, which is a new filter still in process of fabrication, for which I include a nominal design filter transmission curve.
 
 Occulting spots: Assumed to be perfect circles with diameters 0.58, 0.75, 1.5, and 2.0 arcsec. Doyon et al. 2010 SPIE 7731. While these
 are not likely to see extensive use with NIRISS, they are indeed still present in the hardware, so we retain the ability to simulate them. 

@@ -12,15 +12,17 @@ Physical Optics Propagation in PYthon (POPPY)
 
 **Introduction:**
 
-This module implements an object-oriented system for modeling physical optics
+The module ``poppy`` implements an object-oriented system for modeling physical optics
 propagation with diffraction, particularly for telescopic and coronagraphic
 imaging. Right now only image and pupil planes are supported; intermediate
-planes are a future goal.
+planes are a future goal. It also 
 
-This code makes use of the python standard module 'logging' for output information. Top-level details of the
-calculation are output at level logging.INFO, while details of the propagation through each optical plane are 
-printed at level logging.DEBUG. See the Python logging documentation for an explanation of how to redirect the 'poppy' 
+This code makes use of the python standard module ``logging`` for output information. Top-level details of the
+calculation are output at level ``logging.INFO``, while details of the propagation through each optical plane are 
+printed at level ``logging.DEBUG``. See the Python logging documentation for an explanation of how to redirect the ``poppy`` 
 logger to the screen, a textfile, or any other log destination of your choice.
+
+Poppy also includes a system for modeling a complete instrument (including optical propagation, synthetic photometry, and pointing jitter), and a variety of useful utility functions for analysing and plotting PSFs, documented below. 
 
 
 **Key Concepts:**
@@ -37,7 +39,13 @@ chained together in order in an :py:class:`OpticalSystem` class. That class is c
 (with correct array size and sampling), and then performing the optical propagation onto
 the final image plane. 
 
-Poppy presently assumes that these propagation steps can be modeled using Fraunhofer diffraction (far-field), such that
+There is an even higher level class :py:class:`Instrument` which adds support
+for selectable instrument mechanisms (such as filter wheels, pupil stops, etc). In particular it adds support for computing via synthetic photometry the
+appropriate weights for multiwavelength computations through a spectral bandpass filter, and for PSF blurring due to pointing jitter (neither of which effects are modeled by :py:class:`OpticalSystem`). 
+Given a specified instrument configuration, an appropriate :py:class:`OpticalSystem` is generated, the appropriate wavelengths and weights are calculated based on the bandpass filter and target source spectrum, the PSF is calculated, and optionally is then convolved with a blurring kernel due to pointing jitter.  All of the WebbPSF instruments are implemented by subclassing ``poppy.Instrument``.
+
+
+Poppy presently assumes that optical propagation can be modeled using Fraunhofer diffraction (far-field), such that
 the relationship between pupil and image plane optics is given by two-dimensional Fourier transforms. Fresnel propagation is
 not currently supported. 
 
@@ -62,7 +70,7 @@ onto a common pixel scale) more than makes up for this and the MFT is faster.
 List of Classes
 --------
 
-.. inheritance-diagram:: poppy.Detector poppy.Wavefront poppy.OpticalSystem poppy.Rotation poppy.CircularAperture poppy.HexagonAperture poppy.SquareAperture poppy.IdealFieldStop poppy.IdealCircularOcculter poppy.IdealBarOcculter poppy.BandLimitedCoron poppy.IdealFQPM poppy.FQPM_FFT_aligner poppy.CompoundAnalyticOptic poppy.FITSOpticalElement
+.. inheritance-diagram:: poppy.Detector poppy.Wavefront poppy.OpticalSystem poppy.Rotation poppy.CircularAperture poppy.HexagonAperture poppy.SquareAperture poppy.IdealFieldStop poppy.IdealCircularOcculter poppy.IdealBarOcculter poppy.BandLimitedCoron poppy.IdealFQPM poppy.FQPM_FFT_aligner poppy.CompoundAnalyticOptic poppy.FITSOpticalElement poppy.Instrument
 
 
 
@@ -127,6 +135,17 @@ Optical Elements
 
 .. autoclass:: poppy.Detector
    :show-inheritance:
+
+.. Instrument:
+
+Instrument
+----------------
+
+.. autoclass:: poppy.Instrument
+   :members:
+
+------
+
 
 --------------
 

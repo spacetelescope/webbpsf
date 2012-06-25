@@ -41,6 +41,28 @@ Plans for Future Releases
 * Possibly: separate handling of pre- and post- coronagraphic WFE in instruments, if this appears likely to be significant. 
 * Python 3 support will be added as soon as it is needed, but is not an immediate priority. Any users who would like to run webbpsf under python 3, please let me know.
 
+Version 0.2.8
+-----------------
+
+Released May 18, 2012
+
+* Repaired functionality for saving intermediate opticals planes
+* Coronagraph pupil shear shifts now use scipy.ndimage.shift instead of numpy.roll to avoid wrapping pixels around the edge of the array.
+* Significant internal code reorganizations and cleanup:
+
+        * switched package building to use `setuptools` instead of `distutils`/`stsci_distutils_hack`
+        * `poppy` now installed as a separate package to more easily allow direct use.
+        * new `Instrument` class in poppy provides much of the functionality previously in JWInstrument, to make it
+          easier to model generic non-JWST instruments using this code. 
+        * Better packaging in general, with more attention to public/private API consistency
+        * Built-in test suite available via `python setup.py test`
+
+* Minor fix to MIRI ND filter transmission curve (Note: MIRI ND data is available on internal STScI data ditribution only)
+* Binset now specified when integrating across bandpasses in pysynphoteliminating a previous warning message for that calculation.
+* Stellar spectra are now by default drawn from the PHOENIX models catalog rather than the Castelli & Kurucz 2004 models. This is because the PHOENIX models have better spectral sampling at mid-infrared wavelengths.
+* Default centroid box sizes are now consistent for measure_centroid() and the markcenter option to display_PSF(). (Thanks to Charles Lajoie for noting the discrepancy)
+* TFI class (deprecated in version 0.2.6) now removed.
+
 Version 0.2.7
 -----------------
 

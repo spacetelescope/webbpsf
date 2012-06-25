@@ -9,9 +9,6 @@ Graphical User Interface
 ========================
 
 
-.. autoclass:: newgui.JWPSF_GUI
-   :members:
-
 
 The WebbPSF GUI provides an easy interface to most, but not quite all, of the functionality of WebbPSF. 
 (Not all of the advanced settings in the ``options`` structure for :py:class:`JWInstrument` are exposed in the GUI.)
