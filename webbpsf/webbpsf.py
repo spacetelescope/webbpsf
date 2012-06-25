@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+﻿#!/usr/bin/env python
 """
 
 =======
@@ -36,10 +36,6 @@ import atpy
 import pyfits
 
 import poppy
-#from poppy.utils import * # functions for measuring the PSF's properties, etc.
-#from fwcentroid import fwcentroid
-
-#from _version import __version__
 
 
 try: 
@@ -66,7 +62,7 @@ except:
 
 
 
-class JWInstrument(poppy.Instrument):
+class JWInstrument(poppy.instrument.Instrument):
     """ A generic JWST Instrument class.
 
     *Note*: Do not use this class directly - instead use one of the :ref:`specific_instrument` subclasses!

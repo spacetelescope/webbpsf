@@ -1,4 +1,4 @@
-# See http://packages.python.org/distribute/setuptools.html
+﻿# See http://packages.python.org/distribute/setuptools.html
 from setuptools import setup, find_packages
 
 setupargs = {
@@ -48,7 +48,7 @@ the required data tar file.
 
 # don't actually import the _version.py, for the reasons described on that web page. 
 import re
-VERSIONFILE="poppy/_version.py"
+VERSIONFILE="webbpsf/_version.py"
 verstrline = open(VERSIONFILE, "rt").read()
 VSRE = r"__version__ = ['\"]([^'\"]*)['\"]"
 mo = re.search(VSRE, verstrline, re.M)
