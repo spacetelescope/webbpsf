@@ -36,9 +36,10 @@ import atpy
 import pyfits
 
 import poppy
-from fwcentroid import fwcentroid
+#from poppy.utils import * # functions for measuring the PSF's properties, etc.
+#from fwcentroid import fwcentroid
 
-from _version import __version__
+#from _version import __version__
 
 
 try: 
@@ -63,10 +64,9 @@ except:
         pass
 
 
-_Strehl_perfect_cache = {} # dict for caching perfect images used in Strehl calcs.
 
 
-class JWInstrument(object):
+class JWInstrument(poppy.Instrument):
     """ A generic JWST Instrument class.
 
     *Note*: Do not use this class directly - instead use one of the :ref:`specific_instrument` subclasses!
@@ -201,6 +201,7 @@ class JWInstrument(object):
             raise ValueError("Instrument %s doesn't have a filter called %s." % (self.name, value))
         self._filter = value
         self._validate_config()
+
     @property
     def image_mask(self):
         'Currently selected coronagraphic image plane mask, or None for direct imaging'
@@ -213,6 +214,7 @@ class JWInstrument(object):
             if name not in self.image_mask_list:
                 raise ValueError("Instrument %s doesn't have an image mask called %s." % (self.name, name))
         self._image_mask = name
+
     @property
     def pupil_mask(self):
         'Currently selected Lyot pupil mask, or None for direct imaging'
@@ -230,13 +232,9 @@ class JWInstrument(object):
     def __str__(self):
         return "JWInstrument name="+self.name
 
-    def _instrument_fits_header(self, hdulist):
-        """ Set instrument-specific FITS header keywords """
-        pass
-
     #----- actual optical calculations follow here -----
     def calcPSF(self, outfile=None, source=None, filter=None,  nlambda=None, monochromatic=None ,
-            fov_arcsec=None, fov_pixels=None,  oversample=None, detector_oversample=None, calc_oversample=None, rebin=True,
+            fov_arcsec=None, fov_pixels=None,  oversample=None, detector_oversample=None, fft_oversample=None, rebin=True,
             clobber=True, display=False, save_intermediates=False, return_intermediates=False):
         """ Compute a PSF.
         The result can either be written to disk (set outfile="filename") or else will be returned as
@@ -247,7 +245,7 @@ class JWInstrument(object):
 
         1) Set `oversample=<number>`. This will use that oversampling factor beyond detector pixels
            for output images, and beyond Nyquist sampling for any FFTs to prior optical planes. 
-        2) set `detector_oversample=<number>` and `calc_oversample=<other_number>`. This syntax lets
+        2) set `detector_oversample=<number>` and `fft_oversample=<other_number>`. This syntax lets
            you specify distinct oversampling factors for intermediate and final planes. 
 
         By default, both oversampling factors are set equal to 2.
@@ -276,7 +274,7 @@ class JWInstrument(object):
             field of view in pixels. This is an alternative to fov_arcsec.
         outfile : string
             Filename to write. If None, then result is returned as an HDUList
-        oversample, detector_oversample, calc_oversample : int
+        oversample, detector_oversample, fft_oversample : int
             How much to oversample. Default=4. By default the same factor is used for final output 
             pixels and intermediate optical planes, but you may optionally use different factors 
             if so desired.
@@ -305,6 +303,14 @@ class JWInstrument(object):
         if filter is not None:
             self.filter = filter
 
+        local_options = self.options  # all local state should be stored in a dict, for
+                                      # ease of handing off to the various subroutines of
+                                      # calcPSF. Don't just modify the global self.options
+                                      # structure since that would pollute it with temporary
+                                      # state as well as persistent state.
+        local_options['monochromatic'] = monochromatic
+
+
     
         #----- choose # of wavelengths intelligently. Do this first before generating the source spectrum weighting.
         if nlambda is None or nlambda==0:
@@ -326,6 +332,7 @@ class JWInstrument(object):
             except:
                 nlambda=10
                 _log.warn("unrecognized filter %s. setting default nlambda=%d" % (self.filter, nlambda))
+        local_options['nlambda'] = nlambda
 
 
 
@@ -339,16 +346,20 @@ class JWInstrument(object):
         elif fov_arcsec is not None:
             fov_spec = 'arcsec = %f' % fov_arcsec
 
+        _log.debug('FOV set to '+fov_spec)
 
         #---- Implement the semi-convoluted logic for the oversampling options. See docstring above
-        if oversample is not None and detector_oversample is not None and calc_oversample is not None:
+        if oversample is not None and detector_oversample is not None and fft_oversample is not None:
             # all options set, contradictorily -> complain!
-            raise ValueError("You cannot specify simultaneously the oversample= option with the detector_oversample and calc_oversample options. Pick one or the other!")
-        elif oversample is None and detector_oversample is None and calc_oversample is None:
+            raise ValueError("You cannot specify simultaneously the oversample= option with the detector_oversample and fft_oversample options. Pick one or the other!")
+        elif oversample is None and detector_oversample is None and fft_oversample is None:
             # nothing set -> set oversample = 4
             oversample = 4
         if detector_oversample is None: detector_oversample = oversample
-        if calc_oversample is None: calc_oversample = oversample
+        if fft_oversample is None: fft_oversample = oversample
+        local_options['detector_oversample']=detector_oversample
+        local_options['fft_oversample']=fft_oversample
+
 
         _log.info("PSF calc using fov_%s, oversample = %d, nlambda = %d" % (fov_spec, detector_oversample, nlambda) )
 
@@ -359,7 +370,7 @@ class JWInstrument(object):
         #---- now at last, actually do the PSF calc:
         #  instantiate an optical system using the current parameters
         self.optsys = self._getOpticalSystem(fov_arcsec=fov_arcsec, fov_pixels=fov_pixels,
-            calc_oversample=calc_oversample, detector_oversample=detector_oversample)
+            fft_oversample=fft_oversample, detector_oversample=detector_oversample)
         # and use it to compute the PSF (the real work happens here, in code in poppy.py)
         #result = self.optsys.calcPSF(source, display_intermediates=display, save_intermediates=save_intermediates, display=display)
         #if _USE_MULTIPROC and monochromatic is None :
@@ -371,50 +382,10 @@ class JWInstrument(object):
             result, intermediates = result
 
 
-        #---  update FITS header, display, and output.
-        result[0].header.update('PUPILINT', os.path.basename(self.pupil), 'Pupil intensity file')
-        if self.pupilopd is None:
-            opdstring = "NONE - perfect telescope! "
-        elif isinstance( self.pupilopd, basestring):
-            opdstring = os.path.basename(self.pupilopd)
-        elif isinstance( self.pupilopd, pyfits.HDUList):
-            opdstring = 'OPD from supplied pyfits object'
-        else: # tuple?
-            opdstring =  "%s slice %d" % (os.path.basename(self.pupilopd[0]), self.pupilopd[1])
-        result[0].header.update('PUPILOPD', opdstring,  'Pupil wavefront OPD file')
-        #else:
-            #if isinstance(self.pupilopd, basestring):
-                #result[0].header.update('PUPILOPD', os.path.basename(self.pupilopd), 'Pupil wavefront OPD file')
-            #else:
-                #result[0].header.update('PUPILOPD', "%s slice %d" % (os.path.basename(self.pupilopd[0]), self.pupilopd[1]), 'Pupil wavefront OPD file')
-        result[0].header.update('INSTRUME', self.name, 'Instrument')
-        result[0].header.update('FILTER', self.filter, 'Filter name')
-        if self.image_mask is not None:
-            result[0].header.update('CORONMSK', self.image_mask)
-        if self.pupil_mask is not None:
-            result[0].header.update('PUPIL', self.pupil_mask)
-        result[0].header.update('EXTNAME', 'OVERSAMP')
-        result[0].header.add_history('Created by WebbPSF version '+__version__)
-        result[0].header.update('OVERSAMP', calc_oversample, 'Oversampling factor for FFTs in computation')
-        result[0].header.update('DET_SAMP', detector_oversample, 'Oversampling factor for MFT to detector plane')
-        (year, month, day, hour, minute, second, weekday, DOY, DST) =  time.gmtime()
-        result[0].header.update ("DATE", "%4d-%02d-%02dT%02d:%02d:%02d" % (year, month, day, hour, minute, second), "Date of calculation")
-        result[0].header.update ("AUTHOR", "%s@%s" % (os.getenv('USER'), os.getenv('HOST')), "username@host for calculation")
+        self._getFITSHeader(result, local_options)
 
+        self._calcPSF_format_output(result, local_options)
 
-        # Should we downsample? 
-        if rebin and detector_oversample > 1:
-            _log.info(" Downsampling to detector pixel scale.")
-            rebinned_result = result[0].copy()
-            rebinned_result.data = rebin_array(rebinned_result.data, rc=(detector_oversample, detector_oversample))
-            rebinned_result.header.update('OVERSAMP', 1, 'These data are rebinned to detector pixels')
-            rebinned_result.header.update('CALCSAMP', detector_oversample, 'This much oversampling used in calculation')
-            rebinned_result.header.update('EXTNAME', 'DET_SAMP')
-            rebinned_result.header['PIXELSCL'] *= detector_oversample
-            result.append(rebinned_result)
-
-
-        self._instrument_fits_header(result)
 
         if display:
             f = plt.gcf()
@@ -433,126 +404,35 @@ class JWInstrument(object):
         else:
             return result
 
-    def _getSpecCacheKey(self, source, nlambda):
-        """ return key for the cache of precomputed spectral weightings.
-        This is a separate function so the TFI subclass can override it.
+    def _getFITSHeader(self, result, options):
+        """ populate FITS Header keywords """
+        poppy.Instrument._getFITSHeader(self,result, options)
+        result[0].header.update('FILTER', self.filter, 'Filter name')
+        if self.image_mask is not None:
+            result[0].header.update('CORONMSK', self.image_mask)
+        if self.pupil_mask is not None:
+            result[0].header.update('PUPIL', self.pupil_mask)
+
+
+    def _calcPSF_format_output(self, result, options):
+        """ Apply desired formatting to output file:
+                 - rebin to detector pixel scale if desired
+                 - set up FITS extensions if desired
+                 - output either the oversampled, rebinned, or both
+
+            Modifies the 'result' HDUList object.
         """
-        return (self.filter, source.name, nlambda)
+        output_mode = options.get('output_mode','Both as FITS extensions')
+
+        if output_mode == 'Mock JWST DMS Output':
+            # first rebin down to detector sampling
+            # then call mockdms routines to embed in larger detector etc
+            raise NotImplementedError('Not implemented yet')
+        else:
+            poppy.Instrument._calcPSF_format_output(self, result, options)
 
 
-    def _getWeights(self, source=None, nlambda=5, monochromatic=None, verbose=False):
-        if monochromatic is not None:
-            _log.info(" monochromatic calculation requested.")
-            return (np.asarray([monochromatic]),  np.asarray([1]) )
-
-        elif _HAS_PYSYNPHOT and (isinstance(source, pysynphot.spectrum.SourceSpectrum)  or source is None):
-            """ Given a pysynphot.SourceSpectrum object, perform synthetic photometry for
-            nlambda bins spanning the wavelength range of interest.
-
-            Because this calculation is kind of slow, cache results for reuse in the frequent
-            case where one is computing many PSFs for the same spectral source.
-            """
-            if source is None:
-                try:
-                    source = pysynphot.Icat('ck04models',5700,0.0,2.0)
-                except:
-                    _log.error("Could not load Castelli & Kurucz stellar model from disk; falling back to 5700 K blackbody")
-                    source = pysynphot.Blackbody(5700)
-
-            try:
-                key = self._getSpecCacheKey(source, nlambda)
-                if key in self._spectra_cache.keys(): 
-                    return self._spectra_cache[keys]
-            except:
-                pass  # in case sourcespectrum lacks a name element - just do the below calc.
-
-            _log.info("Computing wavelength weights using synthetic photometry for %s..." % self.filter)
-            band = self._getSynphotBandpass()
-            # choose reasonable min and max wavelengths
-            w_above10 = np.where(band.throughput > 0.10*band.throughput.max())
-
-            minwave = band.wave[w_above10].min()
-            maxwave = band.wave[w_above10].max()
-            _log.debug("Min, max wavelengths = %f, %f" % (minwave/1e4, maxwave/1e4))
-            # special case: ignore red leak for MIRI F560W, which has a negligible effect in practice
-            if self.filter == 'F560W':
-                _log.debug("Special case: setting max wavelength to 6.38 um to ignore red leak")
-                maxwave = 63800.0
-            elif self.filter == 'F1280W':
-                _log.debug("Special case: setting max wavelength to 14.32 um to ignore red leak")
-                maxwave = 143200.0
- 
-            wave_bin_edges =  np.linspace(minwave,maxwave,nlambda+1)
-            wavesteps = (wave_bin_edges[:-1] +  wave_bin_edges[1:])/2
-            deltawave = wave_bin_edges[1]-wave_bin_edges[0]
-            effstims = []
-
-            #t0= time.time()
-            for wave in wavesteps:
-                if verbose: _log.info("using band centered at %f with width %f" % (wave,deltawave))
-                box = pysynphot.Box(wave, deltawave) * band
-                if box.throughput.max() == 0:  # watch out for pathological cases with no overlap (happens with MIRI FND at high nlambda)
-                    result = 0.0
-                else:
-                    result = pysynphot.Observation(source, box).effstim('counts')
-                effstims.append(result)
-            #t1 = time.time()
-            #print "  that took %f seconds for %d wavelengths" % (t1-t0, nlambda)
-
-            effstims = np.array(effstims)
-            effstims /= effstims.sum()
-            wave_m =  band.waveunits.Convert(wavesteps,'m') # convert to meters
-
-            #newsource = {'wavelengths': wave_m, 'weights':effstims}
-            newsource = (wave_m, effstims)
-            if verbose: print newsource
-            self._spectra_cache[ self._getSpecCacheKey(source,nlambda)] = newsource
-            return newsource
-
-        else:  #Fallback simple code for if we don't have pysynphot.
-            _log.warning("Pysynphot unavailable (or invalid source supplied)!   Assuming flat # of counts versus wavelength.")
-            # compute a source spectrum weighted by the desired filter curves.
-            # TBD this will eventually use pysynphot, so don't write anything fancy for now!
-            wf = np.where(self.filter == np.asarray(self.filter_list))[0]
-            # The existing FITS files all have wavelength in ANGSTROMS since that is the pysynphot convention...
-            filterdata = atpy.Table(self._filter_files[wf], type='fits')
-            _log.warn("CAUTION: Just interpolating rather than integrating filter profile, over %d steps" % nlambda)
-            wtrans = np.where(filterdata.THROUGHPUT > 0.4)
-            if self.filter == 'FND':  # special case MIRI's ND filter since it is < 0.1% everywhere...
-                wtrans = np.where(  ( filterdata.THROUGHPUT > 0.0005)  & (filterdata.WAVELENGTH > 7e-6*1e10) & (filterdata.WAVELENGTH < 26e-6*1e10 ))
-            lrange = filterdata.WAVELENGTH[wtrans] *1e-10  # convert from Angstroms to Meters
-            lambd = np.linspace(np.min(lrange), np.max(lrange), nlambda)
-            filter_fn = scipy.interpolate.interp1d(filterdata.WAVELENGTH*1e-10, filterdata.THROUGHPUT,kind='cubic', bounds_error=False)
-            weights = filter_fn(lambd)
-            return (lambd,weights)
-            #source = {'wavelengths': lambd, 'weights': weights}
-
-
-
-    def _getSynphotBandpass(self):
-        """ Return a pysynphot.ObsBandpass object for the given desired band
-        This is split out as its own function so that the TFI subclass can override
-        it with an etalon-aware version.
-        """
-        try:
-            band = pysynphot.ObsBandpass( ('%s,im,%s'%(self.name, self.filter)).lower())
-        except:
-            # the requested band is not yet supported in synphot/CDBS. (those files are still a
-            # work in progress...). Therefore, use our local throughput files and create a synphot
-            # transmission object.
-            wf = np.where(self.filter == np.asarray(self.filter_list))[0]
-            # The existing FITS files all have wavelength in ANGSTROMS since that is the pysynphot convention...
-            filterdata = atpy.Table(self._filter_files[wf], type='fits')
-
-            _log.warn("Filter %s not supported in pysynphot/CDBS yet. Falling back to local filter transmission files" % self.filter)
-            _log.warn("These may be less accurate.")
-            band = pysynphot.spectrum.ArraySpectralElement(throughput=filterdata.THROUGHPUT,
-                                wave=filterdata.WAVELENGTH, waveunits='angstrom',name=self.filter)
-        return band
-
-
-
-    def _getOpticalSystem(self,calc_oversample=2, detector_oversample = None, fov_arcsec=2, fov_pixels=None):
+    def _getOpticalSystem(self,fft_oversample=2, detector_oversample = None, fov_arcsec=2, fov_pixels=None):
         """ Return an OpticalSystem instance corresponding to the instrument as currently configured.
 
         When creating such an OpticalSystem, you must specify the parameters needed to define the 
@@ -562,7 +442,7 @@ class JWInstrument(object):
         Parameters
         ----------
 
-        calc_oversample : int
+        fft_oversample : int
             Oversampling factor for intermediate plane calculations. Default is 2
         detector_oversample: int, optional
             By default the detector oversampling is equal to the intermediate calculation oversampling.
@@ -588,10 +468,10 @@ class JWInstrument(object):
         _log.info("Creating optical system model:")
 
 
-        if detector_oversample is None: detector_oversample = calc_oversample
+        if detector_oversample is None: detector_oversample = fft_oversample
 
-        _log.debug("Oversample: %d  %d " % (calc_oversample, detector_oversample))
-        optsys = poppy.OpticalSystem(name='JWST+'+self.name, oversample=calc_oversample)
+        _log.debug("Oversample: %d  %d " % (fft_oversample, detector_oversample))
+        optsys = poppy.OpticalSystem(name='JWST+'+self.name, oversample=fft_oversample)
         if 'source_offset_r' in self.options.keys(): optsys.source_offset_r = self.options['source_offset_r']
         if 'source_offset_theta' in self.options.keys(): optsys.source_offset_theta = self.options['source_offset_theta']
 
@@ -622,7 +502,7 @@ class JWInstrument(object):
 
         #---- add coronagraphy if requested, and flag to invoke semi-analytic coronagraphic propagation
         if self.image_mask is not None or self.pupil_mask is not None or ('force_coron' in self.options.keys() and self.options['force_coron']):
-            optsys, trySAM, SAM_box_size = self._addCoronagraphOptics(optsys, oversample=calc_oversample)
+            optsys, trySAM, SAM_box_size = self._addCoronagraphOptics(optsys, oversample=fft_oversample)
         else: trySAM = False
 
         #--- add the detector element. 
@@ -638,7 +518,7 @@ class JWInstrument(object):
         if trySAM and not ('no_sam' in self.options.keys() and self.options['no_sam']): # if this flag is set, try switching to SemiAnalyticCoronagraph mode. 
             _log.info("Trying to invoke switch to Semi-Analytic Coronagraphy algorithm")
             try: 
-                SAM_optsys = poppy.SemiAnalyticCoronagraph(optsys, oversample=calc_oversample, occulter_box = SAM_box_size )
+                SAM_optsys = poppy.SemiAnalyticCoronagraph(optsys, oversample=fft_oversample, occulter_box = SAM_box_size )
                 _log.info("SAC OK")
                 return SAM_optsys
             except ValueError as err: 
@@ -650,21 +530,6 @@ class JWInstrument(object):
 
 
         return optsys
-
-
-    def display(self):
-        """Display the currently configured optical system on screen """
-        #if coronagraphy is set, then we have to temporarily disable semi-analytic coronagraphic mode
-        # to get a regular displayable optical system
-        try:
-            old_no_sam = self.options['no_sam']
-            self.options['no_sam'] = True
-        except:
-            old_no_sam = None
-        
-        optsys = self._getOpticalSystem()
-        optsys.display(what='both')
-        if old_no_sam is not None: self.options['no_sam'] = old_no_sam
 
     def _addCoronagraphOptics(self,optsys, oversample=2):
         """Add coronagraphic optics to an optical system. 
@@ -682,6 +547,30 @@ class JWInstrument(object):
 
         """
         raise NotImplementedError("needs to be subclassed.")
+
+    def _getSynphotBandpass(self, filtername):
+        """ Return a pysynphot.ObsBandpass object for the given desired band. 
+
+        By subclassing this, you can define whatever custom bandpasses are appropriate for your instrument
+
+        """
+        try:
+            band = pysynphot.ObsBandpass( ('%s,im,%s'%(self.name, filtername)).lower())
+        except:
+            # the requested band is not yet supported in synphot/CDBS. (those files are still a
+            # work in progress...). Therefore, use our local throughput files and create a synphot
+            # transmission object.
+            wf = np.where(filtername == np.asarray(self.filter_list))[0]
+            # The existing FITS files all have wavelength in ANGSTROMS since that is the pysynphot convention...
+            filterdata = atpy.Table(self._filter_files[wf], type='fits')
+
+            _log.warn("Filter %s not supported in pysynphot/CDBS yet. Falling back to local filter transmission files" % filtername)
+            _log.warn("These may be less accurate.")
+            band = pysynphot.spectrum.ArraySpectralElement(throughput=filterdata.THROUGHPUT,
+                                wave=filterdata.WAVELENGTH, waveunits='angstrom',name=filtername)
+        return band
+
+
 
 ###########
 
@@ -842,8 +731,10 @@ class MIRI(JWInstrument):
 
         return (optsys, trySAM, SAM_box_size)
 
-    def _instrument_fits_header(self, hdulist):
+    def _getFITSHeader(self, hdulist, options):
         """ Format MIRI-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
+        JWInstrument._getFITSHeader(self, hdulist, options)
+
         hdulist[0].header.update('GRATNG14','None', 'MRS Grating for channels 1 and 4')
         hdulist[0].header.update('GRATNG23','None', 'MRS Grating for channels 2 and 3')
         hdulist[0].header.update('FLATTYPE','?', 'Type of flat field to be used: all, one, principal')
@@ -989,8 +880,10 @@ class NIRCam(JWInstrument):
 
         return (optsys, trySAM, SAM_box_size)
 
-    def _instrument_fits_header(self, hdulist):
+    def _getFITSHeader(self, hdulist, options):
         """ Format NIRCam-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
+        JWInstrument._getFITSHeader(self,hdulist, options)
+
         hdulist[0].header.update('MODULE',self.module, 'NIRCam module: A or B')
         hdulist[0].header.update('CHANNEL', 'Short' if self.pixelscale == self._pixelscale_short else 'Long', 'NIRCam channel: long or short')
         # filter, pupil added by calcPSF header code
@@ -1035,8 +928,9 @@ class NIRSpec(JWInstrument):
         if self.filter.startswith("IFU"): raise NotImplementedError("The NIRSpec IFU is not yet implemented.")
 
 
-    def _instrument_fits_header(self, hdulist):
+    def _getFITSHeader(self, hdulist, options):
         """ Format NIRSpec-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
+        JWInstrument._getFITSHeader(self, hdulist, options)
         hdulist[0].header.update('GRATING', 'None', 'NIRSpec grating element name')
         hdulist[0].header.update('APERTURE', 'None', 'NIRSpec slit aperture name')
 
@@ -1107,8 +1001,10 @@ class NIRISS(JWInstrument):
 
         return (optsys, trySAM, radius+0.05) # always attempt to cast this to a SemiAnalyticCoronagraph
 
-    def _instrument_fits_header(self, hdulist):
+    def _getFITSHeader(self, hdulist, options):
         """ Format NIRISS-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
+        JWInstrument._getFITSHeader(self, hdulist, options)
+
         if self.image_mask is not None:
             hdulist[0].header.update('CORONPOS', self.image_mask, 'NIRISS coronagraph spot location')
         hdulist[0].header.update('FOCUSPOS',0,'NIRISS focus mechanism not yet modeled.')
@@ -1193,11 +1089,12 @@ class TFI(JWInstrument):
 
         return (optsys, trySAM, radius+0.05) # always attempt to cast this to a SemiAnalyticCoronagraph
 
-    def _getSynphotBandpass(self):
+    def _getSynphotBandpass(self, filtername):
         """ Return a pysynphot.ObsBandpass object for the given desired band.
         This uses a lookup table to predict the properties of the TFI tunable filter etalon.
         """
 
+        # filter name parameter is ignored, instead this uses etalon_wavelength
         
         if (self.etalon_wavelength < 1.5 or self.etalon_wavelength > 5.0 or
             (self.etalon_wavelength > 2.7 and self.etalon_wavelength < 3.0)):
@@ -1251,9 +1148,10 @@ class FGS(JWInstrument):
     def _addCoronagraphOptics(self,optsys):
         raise NotImplementedError("No Coronagraph in FGS!")
 
-    def _instrument_fits_header(self, hdulist):
-        """ Format FGS?g-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
-        hdulist[0].header.update('FOCUSPOS',0,'FGS?g focus mechanism not yet modeled.')
+    def _getFITSHeader(self, hdulist, options):
+        """ Format FGS-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
+        JWInstrument._getFITSHeader(self, hdulist, options)
+        hdulist[0].header.update('FOCUSPOS',0,'FGS focus mechanism not yet modeled.')
 
 
 
@@ -1345,755 +1243,7 @@ def MakePSF(self, instrument=None, pupil_file=None, phase_file=None, output=None
 
 
 
-###########################################################################
-#
-#    Display and PSF evaluation functions follow..
-#
-def display_PSF(HDUlist_or_filename=None, ext=0,
-    vmin=1e-8,vmax=1e-1, scale='log', cmap = matplotlib.cm.jet, 
-        title=None, imagecrop=None, adjust_for_oversampling=False, normalize='None', crosshairs=False, markcentroid=False, colorbar=True, colorbar_orientation='vertical',
-        pixelscale='PIXELSCL', ax=None, return_ax=False):
-    """Display nicely a PSF from a given HDUlist or filename 
 
-    This is extensively configurable. In addition to making an attractive display, for
-    interactive usage this function provides a live display of the pixel value at a
-    given (x,y) as you mouse around the image. 
-    
-    Parameters
-    ----------
-    HDUlist_or_filename : pyfits.HDUlist or string
-        FITS file containing image to display.
-    ext : int
-        FITS extension. default = 0
-    vmin, vmax : float
-        min and max for image display scaling
-    scale : str
-        'linear' or 'log', default is log
-    cmap : matplotlib.cm.Colormap instance
-        Colormap to use. Default is matplotlib.cm.jet
-    ax : matplotlib.Axes instance
-        Axes to display into.
-    title : string, optional
-    imagecrop : float
-        size of region to display (default is whole image)
-    adjust_for_oversampling : bool
-        rescale to conserve surface brightness for oversampled PSFs? 
-        (making this True conserves surface brightness but not total flux)
-        default is False, to conserve total flux.
-    markcentroid : bool
-        Draw a crosshairs at the image centroid location?
-        Centroiding is computed with the JWST-standard moving box algorithm.
-    colorbar : bool
-        Draw a colorbar?
-    colorbar_orientation : str
-        either 'horizontal' or 'vertical'; default is vertical.
-    pixelscale : str or float
-        if str, interpreted as the FITS keyword name for the pixel scale in arcsec/pixels.
-        if float, used as the pixelscale directly.
-
-
-
-    """
-    if isinstance(HDUlist_or_filename, str):
-        HDUlist = pyfits.open(HDUlist_or_filename)
-    elif isinstance(HDUlist_or_filename, pyfits.HDUList):
-        HDUlist = HDUlist_or_filename
-    else: raise ValueError("input must be a filename or HDUlist")
-
-    if adjust_for_oversampling:
-
-        try:
-            scalefactor = HDUlist[ext].header['OVERSAMP']**2
-        except:
-            _log.error("Could not determine oversampling scale factor; therefore NOT rescaling fluxes.")
-            scalefactor=1
-        im = HDUlist[ext].data *scalefactor
-    else: im = HDUlist[ext].data
-
-    if normalize.lower() == 'peak':
-        _log.debug("Displaying image normalized to peak = 1")
-        im /= im.max()
-    elif normalize.lower() =='total':
-        _log.debug("Displaying image normalized to PSF total = 1")
-        im /= im.sum()
-
-    if scale == 'linear':
-        norm=matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
-    else: 
-        norm=matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax)
-
-    if type(pixelscale) is str:
-        halffov = HDUlist[ext].header[pixelscale]*HDUlist[ext].data.shape[0]/2
-    else:
-        try: 
-            pixelscale = float(pixelscale)
-        except:
-            _log.warning("Provided pixelscale is neither float nor str; cannot use it. Using default=1 instead.")
-            pixelscale = 1.0
-        halffov = pixelscale*HDUlist[ext].data.shape[0]/2
-    unit="arcsec"
-    extent = [-halffov, halffov, -halffov, halffov]
-
-
-    ax = poppy.imshow_with_mouseover( im   ,extent=extent,cmap=cmap, norm=norm, ax=ax)
-    if imagecrop is not None:
-        halffov = min( (imagecrop/2, halffov))
-    ax.set_xbound(-halffov, halffov)
-    ax.set_ybound(-halffov, halffov)
-    if crosshairs: 
-        ax.axhline(0,ls=":", color='k')
-        ax.axvline(0,ls=":", color='k')
-
-
-    if title is None:
-        try:
-            fspec = "%s, %s" % (HDUlist[ext].header['INSTRUME'], HDUlist[ext].header['FILTER'])
-        except: 
-            fspec= str(HDUlist_or_filename)
-        title="PSF sim for "+fspec
-    ax.set_title(title)
-
-    if colorbar:
-        cb = plt.colorbar(ax.images[0], ax=ax, orientation=colorbar_orientation)
-        if scale.lower() =='log':
-            ticks = np.logspace(np.log10(vmin), np.log10(vmax), np.log10(vmax/vmin)+1)
-            if colorbar_orientation=='horizontal' and vmax==1e-1 and vmin==1e-8: ticks = [1e-8, 1e-6, 1e-4,  1e-2, 1e-1] # looks better
-            cb.set_ticks(ticks)
-            cb.set_ticklabels(ticks)
-        if normalize.lower() == 'peak':
-            cb.set_label('Intensity relative to peak pixel')
-        else: 
-            cb.set_label('Fractional intensity per pixel')
-
-    if markcentroid:
-        _log.info("measuring centroid to mark on plot...")
-        ceny, cenx = measure_centroid(HDUlist, ext=ext, units='arcsec', relativeto='center', boxsize=20, threshhold=0.1)
-        ax.plot(cenx, ceny, 'k+', markersize=15, markeredgewidth=1)
-        _log.info("centroid: (%f, %f) " % (cenx, ceny))
-        plt.draw()
-
-    if return_ax:
-        if colorbar: return (ax, cb)
-        else: return ax
-
-
-def display_PSF_difference(HDUlist_or_filename1=None, HDUlist_or_filename2=None, ext1=0, ext2=0, vmax=1e-4, title=None, imagecrop=None, adjust_for_oversampling=False, crosshairs=False, colorbar=True, colorbar_orientation='vertical', print_=False, ax=None, return_ax=False, vmin=None,
-        normalize=False, normalize_to_second=False):
-    """Display nicely the difference of two PSFs from given files 
-    
-    Parameters
-    ----------
-    HDUlist_or_filename1,2 : pyfits.HDUlist or string
-        FITS files containing image to difference
-    ext1, ext2 : int
-        FITS extension. default = 0
-    vmax : float
-        for the  scaling
-    title : string, optional
-    imagecrop : float
-        size of region to display (default is whole image)
-    normalize : bool
-        Display (difference image)/(mean image) instead of just the difference image.
-    adjust_for_oversampling : bool
-        rescale to conserve surface brightness for oversampled PSFs? 
-        (making this True conserves surface brightness but not total flux)
-        default is False, to conserve total flux.
-    """
-    if isinstance(HDUlist_or_filename1, str):
-        HDUlist1 = pyfits.open(HDUlist_or_filename1)
-    elif isinstance(HDUlist_or_filename1, pyfits.HDUList):
-        HDUlist1 = HDUlist_or_filename1
-    else: raise ValueError("input must be a filename or HDUlist")
-    if isinstance(HDUlist_or_filename2, str):
-        HDUlist2 = pyfits.open(HDUlist_or_filename2)
-    elif isinstance(HDUlist_or_filename2, pyfits.HDUList):
-        HDUlist2 = HDUlist_or_filename2
-    else: raise ValueError("input must be a filename or HDUlist")
-
-
-    if adjust_for_oversampling:
-        scalefactor = HDUlist1[ext1].header['OVERSAMP']**2
-        im1 = HDUlist1[ext1].data *scalefactor
-        scalefactor = HDUlist2[ext2].header['OVERSAMP']**2
-        im2 = HDUlist1[ext2].data *scalefactor
-    else: 
-        im1 = HDUlist1[ext1].data
-        im2 = HDUlist2[ext2].data
-
-    diff_im = im1-im2
-
-    if normalize:
-        avg_im = (im1+im2)/2
-        diff_im /= avg_im
-        cbtitle = 'Image difference / average  (per pixel)' #Relative intensity difference per pixel'
-    if normalize_to_second:
-        diff_im /= im2
-        cbtitle = 'Image difference / original (per pixel)' #Relative intensity difference per pixel'
-    else:
-        cbtitle = 'Intensity difference per pixel'
-
-    if vmin is None:
-        vmin = -vmax
-
-
-
-    if print_:
-        rms_diff = np.sqrt((diff_im**2).mean())
-        print "RMS of difference image: %f" % rms_diff
-
-    norm=matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
-    #print "Display range: ", vmin, vmax
-    cmap = matplotlib.cm.gray
-    halffov = HDUlist1[ext1].header['PIXELSCL']*HDUlist1[ext1].data.shape[0]/2
-    unit="arcsec"
-    extent = [-halffov, halffov, -halffov, halffov]
-
-
-    ax = poppy.imshow_with_mouseover( diff_im   ,extent=extent,cmap=cmap, norm=norm, ax=ax)
-    if imagecrop is not None:
-        halffov = min( (imagecrop/2, halffov))
-    ax.set_xbound(-halffov, halffov)
-    ax.set_ybound(-halffov, halffov)
-    if crosshairs: 
-        ax.axhline(0,ls=":", color='k')
-        ax.axvline(0,ls=":", color='k')
-
-
-    if title is None:
-        try:
-            fspec= str(HDUlist_or_filename1) +"-"+str(HDUlist_or_filename2)
-            #fspec = "Difference Image " # "%s, %s" % (HDUlist[ext].header['INSTRUME'], HDUlist[ext].header['FILTER'])
-        except: 
-            fspec= str(HDUlist_or_filename1) +"-"+str(HDUlist_or_filename2)
-        title="Difference of "+fspec
-    ax.set_title(title)
-
-    if colorbar:
-        cb = plt.colorbar(ax.images[0], ax=ax, orientation=colorbar_orientation)
-        #ticks = np.logspace(np.log10(vmin), np.log10(vmax), np.log10(vmax/vmin)+1)
-        #if vmin == 1e-8 and vmax==1e-1: 
-            #ticks = [1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1]
-        #ticks = [vmin, -0.5*vmax, 0, 0.5*vmax, vmax]
-        #cb.set_ticks(ticks)
-        #cb.set_ticklabels(ticks)
-        #stop()
-        cb.set_label(cbtitle)
-    if return_ax:
-        if colorbar: return (ax, cb)
-        else: return ax
-
-
-
-def display_EE(HDUlist_or_filename=None,ext=0, overplot=False, ax=None, mark_levels=True ):
-    """ Display Encircled Energy curve for a PSF
-
-    """
-    if isinstance(HDUlist_or_filename, str):
-        HDUlist = pyfits.open(HDUlist_or_filename,ext=ext)
-    elif isinstance(HDUlist_or_filename, pyfits.HDUList):
-        HDUlist = HDUlist_or_filename
-    else: raise ValueError("input must be a filename or HDUlist")
-
-
-    radius, profile, EE = radial_profile(HDUlist, EE=True)
-
-    if not overplot:
-        if ax is None: 
-            plt.clf()
-            ax = plt.subplot(111)
-
-    ax.plot(radius, EE) #, nonposy='clip')
-    if not overplot:
-        ax.set_xlabel("Radius [arcsec]")
-        ax.set_ylabel("Encircled Energy")
-
-    if mark_levels:
-        for level in [0.5, 0.8, 0.95]:
-            EElev = radius[np.where(EE > level)[0][0]]
-            yoffset = 0 if level < 0.9 else -0.05 
-            plt.text(EElev+0.1, level+yoffset, 'EE=%2d%% at r=%.3f"' % (level*100, EElev))
-
-
-
-def display_profiles(HDUlist_or_filename=None,ext=0, overplot=False ):
-    if isinstance(HDUlist_or_filename, str):
-        HDUlist = pyfits.open(HDUlist_or_filename,ext=ext)
-    elif isinstance(HDUlist_or_filename, pyfits.HDUList):
-        HDUlist = HDUlist_or_filename
-    else: raise ValueError("input must be a filename or HDUlist")
-
-
-    radius, profile, EE = radial_profile(HDUlist, EE=True)
-
-    if not overplot:
-        plt.clf()
-        plt.title("PSF sim for %s, %s" % (HDUlist[ext].header['INSTRUME'], HDUlist[ext].header['FILTER']))
-        plt.xlabel("Radius [arcsec]")
-        plt.ylabel("PSF radial profile")
-    plt.subplot(2,1,1)
-    plt.semilogy(radius, profile)
-
-    fwhm = 2*radius[np.where(profile < profile[0]*0.5)[0][0]]
-    plt.text(fwhm, profile[0]*0.5, 'FWHM = %.3f"' % fwhm)
-
-    plt.subplot(2,1,2)
-    #plt.semilogy(radius, EE, nonposy='clip')
-    plt.plot(radius, EE, color='r') #, nonposy='clip')
-    if not overplot:
-        plt.xlabel("Radius [arcsec]")
-        plt.ylabel("Encircled Energy")
-
-    for level in [0.5, 0.8, 0.95]:
-        EElev = radius[np.where(EE > level)[0][0]]
-        yoffset = 0 if level < 0.9 else -0.05 
-        plt.text(EElev+0.1, level+yoffset, 'EE=%2d%% at r=%.3f"' % (level*100, EElev))
-
-
-def radial_profile(HDUlist_or_filename=None, ext=0, EE=False, center=None, stddev=False, binsize=None, maxradius=None):
-    """ Compute a radial profile of the image. 
-
-    This computes a discrete radial profile evaluated on the provided binsize. For a version
-    interpolated onto a continuous curve, see measure_radial().
-
-    Code taken pretty much directly from pydatatut.pdf
-
-    Parameters
-    ----------
-    HDUlist_or_filename : string
-        what it sounds like.
-    ext : int
-        Extension in FITS file
-    EE : bool
-        Also return encircled energy (EE) curve in addition to radial profile?
-    center : tuple of floats
-        Coordinates (x,y) of PSF center, in pixel units. Default is image center. 
-    binsize : float
-        size of step for profile. Default is pixel size.
-    stddev : bool
-        Compute standard deviation in each radial bin, not average?
-
-
-    Returns
-    --------
-    results : tuple
-        Tuple containing (radius, profile) or (radius, profile, EE) depending on what is requested.
-        The radius gives the center radius of each bin, while the EE is given inside the whole bin
-        so you should use (radius+binsize/2) for the radius of the EE curve if you want to be
-        as precise as possible.
-    """
-    if isinstance(HDUlist_or_filename, str):
-        HDUlist = pyfits.open(HDUlist_or_filename)
-    elif isinstance(HDUlist_or_filename, pyfits.HDUList):
-        HDUlist = HDUlist_or_filename
-    else: raise ValueError("input must be a filename or HDUlist")
-
-    image = HDUlist[ext].data
-    pixelscale = HDUlist[ext].header['PIXELSCL']
-
-
-    if maxradius is not None:
-        raise NotImplemented("add max radius")
-        stop()
-
-
-    if binsize is None:
-        binsize=pixelscale
-
-    y,x = np.indices(image.shape)
-    if center is None:
-        # get exact center of image
-        #center = (image.shape[1]/2, image.shape[0]/2)
-        center = tuple( (a-1)/2.0 for a in image.shape[::-1])
-
-    r = np.sqrt( (x-center[0])**2 + (y-center[1])**2) *pixelscale / binsize # radius in bin size steps
-    ind = np.argsort(r.flat)
-
-
-    sr = r.flat[ind]
-    sim = image.flat[ind]
-    ri = sr.astype(int)
-    deltar = ri[1:]-ri[:-1] # assume all radii represented (more work if not)
-    rind = np.where(deltar)[0]
-    nr = rind[1:] - rind[:-1] # number in radius bin
-    csim = np.cumsum(sim, dtype=float) # cumulative sum to figure out sums for each bin
-    tbin = csim[rind[1:]] - csim[rind[:-1]] # sum for image values in radius bins
-    radialprofile=tbin/nr
-
-    #pre-pend the initial element that the above code misses.
-    radialprofile2 = np.empty(len(radialprofile)+1)
-    if rind[0] != 0:
-        radialprofile2[0] =  csim[rind[0]] / (rind[0]+1)  # if there are multiple elements in the center bin, average them
-    else:
-        radialprofile2[0] = csim[0]                       # otherwise if there's just one then just take it. 
-    radialprofile2[1:] = radialprofile
-    rr = np.arange(len(radialprofile2))*binsize + binsize*0.5  # these should be centered in the bins, so add a half.
-
-    if stddev:
-        stddevs = np.zeros_like(radialprofile2)
-        r_pix = r * binsize
-        for i, radius in enumerate(rr):
-            if i == 0: wg = np.where(r < radius+ binsize/2)
-            else: 
-                wg = np.where( (r_pix >= (radius-binsize/2)) &  (r_pix < (radius+binsize/2)))
-                #print radius-binsize/2, radius+binsize/2, len(wg[0])
-                #wg = np.where( (r >= rr[i-1]) &  (r <rr[i] )))
-            stddevs[i] = image[wg].std()
-        #stop()
-        return (rr, stddevs)
-
-    if not EE:
-        return (rr, radialprofile2)
-    else:
-        #weighted_profile = radialprofile2*2*np.pi*(rr/rr[1])
-        #EE = np.cumsum(weighted_profile)
-        EE = csim[rind]
-        return (rr, radialprofile2, EE) 
-
-
-def measure_EE(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
-    """ Returns a function object which when called returns the Encircled Energy inside a given radius.
-
-
-
-    Parameters
-    ----------
-    HDUlist_or_filename : string
-        what it sounds like.
-    ext : int
-        Extension in FITS file
-    center : tuple of floats
-        Coordinates (x,y) of PSF center. Default is image center. 
-    binsize: 
-        size of step for profile. Default is pixel size.
-
-    Returns
-    --------
-    encircled_energy: function
-        A function which will return the encircled energy interpolated to any desired radius.
-
-
-    Examples
-    --------
-    >>> EE = measure_EE("someimage.fits")
-    >>> print "The EE at 0.5 arcsec is ", EE(0.5)
-
-    """
-
-    rr, radialprofile2, EE = radial_profile(HDUlist_or_filename, ext, EE=True, center=center, binsize=binsize)
-
-    # append the zero at the center
-    rr_EE = rr + (rr[1]-rr[0])/1  # add half a binsize to this, because the EE is measured inside the
-                                  # outer edge of each annulus. 
-    rr0 = np.concatenate( ([0], rr_EE)) 
-    EE0 = np.concatenate( ([0], EE))
-
-
-    EE_fn = scipy.interpolate.interp1d(rr0, EE0,kind='cubic', bounds_error=False)
-
-    return EE_fn
-    
-
-def measure_radial(HDUlist_or_filename=None, ext=0, center=None, binsize=None):
-    """ Returns a function object which when called returns the mean value at a given radius.
-
-    Parameters
-    ----------
-    HDUlist_or_filename : string
-        what it sounds like.
-    ext : int
-        Extension in FITS file
-    center : tuple of floats
-        Coordinates (x,y) of PSF center. Default is image center. 
-    binsize: 
-        size of step for profile. Default is pixel size.
-
-    Returns
-    --------
-    radial_profile: function
-        A function which will return the mean PSF value at any desired radius.
-
-
-    Examples
-    --------
-    >>> rp = measure_radial("someimage.fits")
-    >>> radius = np.linspace(0, 5.0, 100)
-    >>> plot(radius, rp(radius), label="PSF")
-
-    """
-
-    rr, radialprofile, EE = radial_profile(HDUlist_or_filename, ext, EE=True, center=center, binsize=binsize)
-
-    radial_fn = scipy.interpolate.interp1d(rr, radialprofile,kind='cubic', bounds_error=False)
-
-    return radial_fn
-    
-
-def measure_fwhm(HDUlist_or_filename=None, ext=0, center=None, level=0.5):
-    """ Measure FWHM* by interpolation of the radial profile 
-    (* or full width at some other fraction of max.)
-
-    Parameters
-    ----------
-    HDUlist_or_filename, ext : string, int
-        Same as above
-    center : tuple
-        center to compute around.  Default is image center.
-    level : float
-        Fraction of max to compute for; default is 0.5 for Half Max. 
-        You can also measure widths at other levels e.g. FW at 10% max
-        by setting level=0.1
-
-
-    """
-
-    rr, radialprofile, EE = radial_profile(HDUlist_or_filename, ext, EE=True, center=center)
-    rpmax = radialprofile.max()
-
-    wlower = np.where(radialprofile < rpmax *level)
-    wmin = np.min(wlower[0])
-    # go just a bit beyond the half way mark
-    winterp = np.arange(0, wmin+2, dtype=int)[::-1]
-
-    if len(winterp) < 6: kind='linear'
-    else: kind = 'cubic'
-
-    interp_hw = scipy.interpolate.interp1d(radialprofile[winterp], rr[winterp], kind=kind)
-    return 2*interp_hw(rpmax*level)
- 
-
-def measure_sharpness(HDUlist_or_filename=None, ext=0):
-    """ Compute image sharpness, the sum of pixel squares.
-
-    See Makidon et al. JWST-STScI-001157 for a discussion of this image metric
-    and its relationship to noise equivalent pixels.
-
-    Parameters
-    ----------
-    HDUlist_or_filename, ext : string, int
-        Same as above
- 
-    """
-    if isinstance(HDUlist_or_filename, str):
-        HDUlist = pyfits.open(HDUlist_or_filename)
-    elif isinstance(HDUlist_or_filename, pyfits.HDUList):
-        HDUlist = HDUlist_or_filename
-    else: raise ValueError("input must be a filename or HDUlist")
-
-
-    # TODO or check that the oversampling factor is 1
-    try:
-        detpixels = HDUlist['DET_SAMP']
-    except:
-        raise ValueError("You can only measure sharpness for an image with an extension giving the rebinned actual detector pixel values.""")
-
-    sharpness =  (detpixels.data**2).sum()
-    return sharpness
-
-def measure_centroid(HDUlist_or_filename=None, ext=0, slice=0, boxsize=50, print_=False, units='pixels', relativeto='origin', **kwargs):
-    """ Measure the center of an image via center-of-mass
-
-    Parameters
-    ----------
-    HDUlist_or_filename, ext : string, int
-        Same as above
-    boxsize : int
-        Half box size for centroid
-
-    relativeto : string
-        either 'origin' for relative to pixel (0,0) or 'center' for relative to image center. Default is 'origin'
-    units : string
-        either 'pixels' for position in pixels or 'arcsec' for arcseconds. 
-        Relative to the relativeto parameter point in either case.
- 
-
-    Returns
-    -------
-    CoM : array_like
-        [Y, X] coordinates of center of mass.
-
-    """
-    if isinstance(HDUlist_or_filename, str):
-        HDUlist = pyfits.open(HDUlist_or_filename)
-    elif isinstance(HDUlist_or_filename, pyfits.HDUList):
-        HDUlist = HDUlist_or_filename
-    else: raise ValueError("input must be a filename or HDUlist")
-
-    image = HDUlist[ext].data
-    
-    if image.ndim >=3:  # handle datacubes gracefully
-        image = image[slice,:,:]
-
-
-    if 0: 
-        y, x= np.indices(image.shape)
-        wpeak = np.where(image == image.max())
-        cy, cx = y[wpeak][0], x[wpeak][0]
-        print "Peak pixel: (%d, %d)" % (cx, cy)
-
-
-        cutout = image[cy-boxsize:cy+boxsize+1, cx-boxsize:cx+boxsize+1]
-        cent_of_mass_cutout = np.asarray(scipy.ndimage.center_of_mass(cutout))
-        cent_of_mass =  cent_of_mass_cutout + np.array([cy-boxsize, cx-boxsize])
-    else:
-        cent_of_mass = fwcentroid(image, halfwidth=boxsize, **kwargs)
-
-    if print_: print("Center of mass: (%.4f, %.4f)" % (cent_of_mass[1], cent_of_mass[0]))
-
-    if relativeto == 'center':
-        imcen = np.array([ (image.shape[0]-1)/2., (image.shape[1]-1)/2. ])
-        cent_of_mass  = tuple( np.array(cent_of_mass) -  imcen)
-
-
-    if units == 'arcsec':
-        pixelscale = HDUlist[ext].header['PIXELSCL']
-        cent_of_mass = tuple( np.array(cent_of_mass) *pixelscale)
-
-    return cent_of_mass
-
-
-def measure_strehl(HDUlist_or_filename=None, ext=0, center=None, display=True, print_=True, cache_perfect=False):
-    """ Estimate the Strehl ratio for a PSF.
-    
-    This requires computing a simulated PSF with the same
-    properties as the one under analysis.
-
-    Note that this calculation will not be very accurate unless both PSFs are well sampled,
-    preferably several times better than Nyquist. See 
-    `Roberts et al. 2004 SPIE 5490 <http://adsabs.harvard.edu/abs/2004SPIE.5490..504R>`_
-    for a discussion of the various possible pitfalls when calculating Strehl ratios. 
-
-    Parameters
-    ----------
-    HDUlist_or_filename, ext : string, int
-        Same as above
-
-    center : tuple
-        center to compute around.  Default is image center. If the center is on the
-        crosshairs between four pixels, then the mean of those four pixels is used.
-        Otherwise, if the center is in a single pixel, then that pixel is used. 
-
-    print_, display : bool
-        control whether to print the results or display plots on screen. 
-
-    cache_perfect : bool
-        use caching for perfect images? greatly speeds up multiple calcs w/ same config
-
-    Returns
-    ---------
-    strehl : float
-        Strehl ratio as a floating point number between 0.0 - 1.0
-  
-    """
-    if isinstance(HDUlist_or_filename, str):
-        HDUlist = pyfits.open(HDUlist_or_filename)
-    elif isinstance(HDUlist_or_filename, pyfits.HDUList):
-        HDUlist = HDUlist_or_filename
-    else: raise ValueError("input must be a filename or HDUlist")
-
-    image = HDUlist[ext].data
-    header = HDUlist[ext].header
- 
-    if center is None:
-        # get exact center of image
-        #center = (image.shape[1]/2, image.shape[0]/2)
-        center = tuple( (a-1)/2.0 for a in image.shape[::-1])
-
-
-
-    # Compute a comparison image
-    _log.info("Now computing image with zero OPD for comparison...")
-    inst = Instrument(header['INSTRUME'])
-    inst.filter = header['FILTER']
-    inst.pupilopd = None # perfect image
-    inst.pixelscale = header['PIXELSCL'] * header['OVERSAMP'] # same pixel scale pre-oversampling
-    cache_key = (header['INSTRUME'], header['FILTER'], header['PIXELSCL'], header['OVERSAMP'],  header['FOV'],header['NWAVES'])
-    try:
-        comparison_psf = _Strehl_perfect_cache[cache_key]
-    except:
-        comparison_psf = inst.calcPSF(fov_arcsec = header['FOV'], oversample=header['OVERSAMP'], nlambda=header['NWAVES'])
-        if cache_perfect: _Strehl_perfect_cache[cache_key ] = comparison_psf
-
-    comparison_image = comparison_psf[0].data
-
-    if (int(center[1]) == center[1]) and (int(center[0]) == center[0]):
-        # individual pixel
-        meas_peak =           image[center[1], center[0]]
-        ref_peak = comparison_image[center[1], center[0]]
-    else:
-        # average across a group of 4
-        bot = [np.floor(f) for f in center]
-        top = [np.ceil(f)+1 for f in center]
-        meas_peak =           image[bot[1]:top[1], bot[0]:top[0]].mean()
-        ref_peak = comparison_image[bot[1]:top[1], bot[0]:top[0]].mean()
-    strehl = (meas_peak/ref_peak)
-
-    if display:
-        plt.clf()
-        plt.subplot(121)
-        display_PSF(HDUlist, title="Observed PSF")
-        plt.subplot(122)
-        display_PSF(comparison_psf, title="Perfect PSF")
-        plt.gcf().suptitle("Strehl ratio = %.3f" % strehl) 
-
-
-    if print_:
-
-        print "Measured peak:  %.3g" % meas_peak
-        print "Reference peak: %.3g" % ref_peak
-        print "  Strehl ratio = %.3f " % strehl
-
-    return strehl
-
-
-def measure_anisotropy(HDUlist_or_filename=None, ext=0, slice=0, boxsize=50):
-    pass
-
-
- 
-
-#########################3
-
-def rebin_array(a = None, rc=(2,2), verbose=False):
-	"""  
-	Perform simple-minded flux-conserving binning... clip trailing
-	size mismatch: eg a 10x3 array binned by 3 results in a 3x1 array
-
-    Parameters
-    ----------
-    a : array_like
-        input array
-    rc : two-element tuple 
-        (nrows, ncolumns) desired for rebinned array
-    verbose : bool
-        print additional status text?
-
-
-	anand@stsci.edu
-
-	"""
-
-	r, c = rc
-
-	R = a.shape[0]
-	C = a.shape[1]
-
-	nr = int(R / r)
-	nc = int(C / c)
-
-	b = a[0:nr, 0:nc].copy()
-	b = b * 0
-
-	for ri in range(0, nr):
-		Rlo = ri * r
-		if verbose:
-			print "row loop"
-		for ci in range(0, nc):
-			Clo = ci * c
-			b[ri, ci] = np.add.reduce(a[Rlo:Rlo+r, Clo:Clo+c].copy().flat)
-			if verbose:
-				print "    [%d:%d, %d:%d]" % (Rlo,Rlo+r, Clo,Clo+c),
-				print "%4.0f"  %   np.add.reduce(a[Rlo:Rlo+r, Clo:Clo+c].copy().flat)
-	return b
 
 
 def makeFakeFilter(filename, lcenter, dlam, instrument='NIRCam', name='filter', source='Fake top hat filter', clobber=False):

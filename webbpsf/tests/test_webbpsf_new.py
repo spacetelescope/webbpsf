@@ -1,74 +1,23 @@
-﻿import os
+﻿import sys, os
+if "../lib" not in sys.path: sys.path.append(os.path.abspath('../lib'))
+import webbpsf
+import webbpsf as jw
 import poppy
 import unittest
 import numpy as np
 import matplotlib.pyplot as plt
 try:
     __IPYTHON__
-    from IPython.core.debugger import Tracer; stop = Tracer()
+    from IPython.Debugger import Tracer; stop = Tracer()
 except:
     pass
 
 
-from .. import webbpsf
-
 import logging
-_log = logging.getLogger('test_webbpsf')
+_log = logging.getLogger('test_webbpsf2')
 _log.addHandler(logging.NullHandler())
 
-_log.setLevel(logging.INFO)
-
-
-def make_fig_instrument_comparison():
-    """ Make the instrument comparison figure for the webbPSF web page.
-    Argh I already wrote this once, now I need to write it again 'cause I can't find it...
-    """
-
-    # make figure size = array([ 14.325,   2.975]) in inches
-
-    
-    plt.clf()
-    f, axarr = plt.subplots(1, 6, sharex=True, num=1, sharey=True)
-
-    nc = webbpsf.NIRCam()
-    nc.filter='F210M'
-    webbpsf.calc_or_load_PSF('NIRCam_demo_F212.fits', nc, oversample=4, rebin=True, fov_arcsec=5)
-    poppy.display_PSF('NIRCam_demo_F212.fits', ext=1, ax= axarr[0], colorbar=False, title="NIRCam F210M")
-
-    nc = webbpsf.NIRCam()
-    nc.filter='F444W'
-    webbpsf.calc_or_load_PSF('NIRCam_demo_F444.fits', nc, oversample=4, rebin=True, fov_arcsec=5)
-    poppy.display_PSF('NIRCam_demo_F444.fits', ext=1, ax= axarr[1], colorbar=False, title="NIRCam F444W")
-
-    ns = webbpsf.NIRSpec()
-    ns.filter='F110W'
-    webbpsf.calc_or_load_PSF('NIRSpec_demo.fits', ns, oversample=4, rebin=True, fov_arcsec=5)
-    poppy.display_PSF('NIRSpec_demo.fits', ext=1, ax= axarr[2], colorbar=False, title="NIRspec F110W")
-
-    ni = webbpsf.NIRISS()
-    ni.filter='F380M'
-    webbpsf.calc_or_load_PSF('NIRISS_demo.fits', ni, oversample=4, rebin=True, fov_arcsec=5)
-    poppy.display_PSF('NIRISS_demo.fits', ext=1, ax= axarr[3], colorbar=False, title="NIRISS F380M")
-
-
-    mi = webbpsf.MIRI()
-    mi.filter='F1000W'
-    webbpsf.calc_or_load_PSF('MIRI_demo.fits', mi, oversample=4, rebin=True, fov_arcsec=5)
-    poppy.display_PSF('MIRI_demo.fits', ext=1, ax= axarr[4], colorbar=False, title="MIRI F1000W")
-
-    fg = webbpsf.FGS()
-    webbpsf.calc_or_load_PSF('FGS_demo.fits', fg, oversample=4, rebin=True, fov_arcsec=5)
-    poppy.display_PSF('FGS_demo.fits', ext=1, ax= axarr[5], colorbar=False, title="FGS")
-
-
-    plt.subplots_adjust(hspace=0.01)
-    for ax in axarr:
-        ax.set_ylim(-2.5, 2.5)
-        ax.set_xlim(-2.5, 2.5)
-
-
-    plt.savefig('fig_instrument_comparison.pdf')
-    #plt.tight_layout()
+poppy._log.setLevel(logging.INFO)
 
 
 class Test_Image_Size(unittest.TestCase):
@@ -103,10 +52,6 @@ class Test_Image_Size(unittest.TestCase):
         inst.options['parity'] = 'odd'
         PSF = inst.calcPSF(nlambda=1, fov_arcsec = fov_arcsec, oversample=3)
         self.assertTrue( np.remainder(PSF[0].data.shape[0],2) == 1)
-
-
-
-        
     test_nircam = lambda self : self.generic_test('NIRCam')
     test_miri= lambda self : self.generic_test('MIRI')
     test_nirspec= lambda self : self.generic_test('NIRSpec')
@@ -133,9 +78,9 @@ class Test_Source_Offset(unittest.TestCase):
             shift_req.append(nc.options['source_offset_r'])
             psfs.append(  nc.calcPSF(nlambda=1, oversample=oversample) )
 
-        poppy.display_PSF(psfs[0])
+        webbpsf.display_PSF(psfs[0])
 
-        cent0 = np.asarray(poppy.measure_centroid(psfs[0]))
+        cent0 = np.asarray(webbpsf.measure_centroid(psfs[0]))
         center_pix = (psfs[0][0].data.shape[0]-1)/2.0
         self.assertAlmostEqual(cent0[0], center_pix, 3)
         self.assertAlmostEqual(cent0[1], center_pix, 3)
@@ -143,8 +88,8 @@ class Test_Source_Offset(unittest.TestCase):
 
 
         for i in range(1, nsteps+1):
-            poppy.display_PSF(psfs[i])
-            cent = poppy.measure_centroid(psfs[i])
+            webbpsf.display_PSF(psfs[i])
+            cent = webbpsf.measure_centroid(psfs[i])
             rx = shift_req[i] * (-np.sin(theta*np.pi/180))
             ry = shift_req[i] * (np.cos(theta*np.pi/180))
             _log.info("   Shift_requested:\t(%10.3f, %10.3f)" % (rx, ry))
@@ -158,7 +103,6 @@ class Test_Source_Offset(unittest.TestCase):
 
     test_miri_00 = lambda self : self.do_test_source_offset('MIRI', theta=0.0)
     test_miri_45 = lambda self : self.do_test_source_offset('MIRI', theta=45.0)
-
 
 class Test_MIRI_FQPM(unittest.TestCase):
     def test_fqpm(self, theta=0.0, clobber=True):
@@ -224,12 +168,24 @@ class Test_nircam_coron(unittest.TestCase):
                     psf.writeto(fnout, clobber=clobber)
  
         _log.info("Lots of test files output as test_nircam_*.fits")
+#--------------------------------------------------------------------------------
 
+
+class Test_generic_instrument(unittest.TestCase):
+    " Test generic instrument by computing some models "
+
+    def test_basic_functionality(self):
+        inst = webbpsf.Instrument(radius=1.2)
+        inst.filter='V'
+        psf = inst.calcPSF(nlambda=10, display=True)
+ 
+
+
+#--------------------------------------------------------------------------------
 
 def test_run(index=None, wavelength=2e-6):
     """ This function provides a simple interface for running all available tests, or just one """
     #tests = [TestPupils, TestPoppy, Test1, Test2, Test3, Test4, Test5]
-    logging.basicConfig(level=logging.DEBUG,format='%(name)-10s: %(levelname)-8s %(message)s')
     tests = [Test_nircam_coron, Test_MIRI_FQPM, Test_Source_Offset, Test_Image_Size]
 
     if index is not None:
@@ -240,6 +196,7 @@ def test_run(index=None, wavelength=2e-6):
     for t in tests:
         suite.addTest( unittest.TestLoader().loadTestsFromTestCase( t) )
     unittest.TextTestRunner(verbosity=2).run(suite)
+
 
 
 if __name__== "__main__":

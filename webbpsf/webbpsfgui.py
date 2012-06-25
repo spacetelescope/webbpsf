@@ -14,7 +14,7 @@ _log = logging.getLogger('webbpsfgui')
 _log.setLevel(logging.INFO)
 
 
-from _version import __version__
+
 
 try:
     import ttk
@@ -22,12 +22,6 @@ try:
 except:
     _use_ttk = False
 
-
-try:
-    __IPYTHON__
-    from IPython.Debugger import Tracer; stop = Tracer()
-except:
-    pass
 
 
 try:
@@ -37,8 +31,8 @@ except:
     _HAS_PYSYNPHOT=False
 
 
+import poppy
 import webbpsf
-__version__ = webbpsf.__version__
 
 class WebbPSF_GUI(object):
     """ A GUI for the PSF Simulator 
@@ -117,7 +111,7 @@ class WebbPSF_GUI(object):
         lf = ttk.LabelFrame(frame, text='Source Properties')
 
         if _HAS_PYSYNPHOT:
-            self._add_labeled_dropdown("SpType", lf, label='    Spectral Type:', values=specFromSpectralType("",return_list=True), default='G0V', width=20, position=(0,0), sticky='W')
+            self._add_labeled_dropdown("SpType", lf, label='    Spectral Type:', values=poppy.specFromSpectralType("",return_list=True), default='G0V', width=25, position=(0,0), sticky='W')
             ttk.Button(lf, text='Plot spectrum', command=self.ev_plotspectrum).grid(row=0,column=2,sticky='E',columnspan=4)
 
         r = 1
@@ -309,12 +303,14 @@ class WebbPSF_GUI(object):
 
 
         r+=1
-        self._add_labeled_entry('calc_oversampling', lf, label='Coronagraph Oversampling:',  width=3, value='2', postlabel='x finer than Nyquist', position=(r,0))
+        self._add_labeled_entry('fft_oversampling', lf, label='Coronagraph FFT Oversampling:',  width=3, value='2', postlabel='x finer than Nyquist', position=(r,0))
         r+=1
         self._add_labeled_entry('nlambda', lf, label='# of wavelengths:',  width=3, value='', position=(r,0), postlabel='Leave blank for autoselect')
         r+=1
 
         self._add_labeled_dropdown("jitter", lf, label='Jitter model:', values=  ['Just use OPDs' ], width=20, position=(r,0), sticky='W', columnspan=2)
+        r+=1
+        self._add_labeled_dropdown("output_format", lf, label='Output Format:', values=  ['Oversampled image','Detector sampled image','Both as FITS extensions', 'Mock JWST DMS Output' ], width=30, position=(r,0), sticky='W', columnspan=2)
         #self._add_labeled_dropdown("jitter", lf, label='Jitter model:', values=  ['Just use OPDs', 'Gaussian blur', 'Accurate yet SLOW grid'], width=20, position=(r,0), sticky='W', columnspan=2)
 
         lf.grid(row=4, sticky='E,W', padx=10, pady=5)
@@ -545,9 +541,9 @@ class WebbPSF_GUI(object):
 
         r+=1
         ttk.Label(lf, text='Coronagraph Oversampling:').grid(row=r, sticky='W')
-        self.widgets['calc_oversampling'] = ttk.Entry(lf, width=3)
-        self.widgets['calc_oversampling'].grid(row=r,column=1, sticky='E')
-        self.widgets['calc_oversampling'].insert(0,'2')
+        self.widgets['fft_oversampling'] = ttk.Entry(lf, width=3)
+        self.widgets['fft_oversampling'].grid(row=r,column=1, sticky='E')
+        self.widgets['fft_oversampling'].insert(0,'2')
         ttk.Label(lf, text='x finer than Nyquist' ).grid(row=r, column=2, sticky='W', columnspan=2)
 
 
@@ -634,15 +630,18 @@ class WebbPSF_GUI(object):
         plt.clf()
 
         ax1 = plt.subplot(311)
-        spectrum = specFromSpectralType(self.sptype)
+        spectrum = poppy.specFromSpectralType(self.sptype)
         synplot(spectrum)
         ax1.set_ybound(1e-6, 1e8) # hard coded for now
         ax1.yaxis.set_major_locator(matplotlib.ticker.LogLocator(base=1000))
+        legend_font = matplotlib.font_manager.FontProperties(size=10)
+        ax1.legend(loc='lower right', prop=legend_font)
+
 
         ax2 = plt.subplot(312, sharex=ax1)
         ax2.set_ybound(0,1.1)
         #try:
-        band = self.inst._getSynphotBandpass() #pysynphot.ObsBandpass(obsname)
+        band = self.inst._getSynphotBandpass(self.inst.filter) #pysynphot.ObsBandpass(obsname)
         band.name = "%s %s" % (self.iname, self.inst.filter)
         synplot(band) #, **kwargs)
         legend_font = matplotlib.font_manager.FontProperties(size=10)
@@ -701,13 +700,13 @@ class WebbPSF_GUI(object):
         self._updateFromGUI()
 
         if _HAS_PYSYNPHOT:
-            source = specFromSpectralType(self.sptype)
+            source = poppy.specFromSpectralType(self.sptype)
         else:
             source=None # generic flat spectrum
 
         self.PSF_HDUlist = self.inst.calcPSF(source=source, 
                 detector_oversample= self.detector_oversampling,
-                calc_oversample=self.calc_oversampling,
+                fft_oversample=self.fft_oversampling,
                 fov_arcsec = self.FOV,  nlambda = self.nlambda, display=True)
         #self.PSF_HDUlist.display()
         for w in ['Display PSF', 'Display profiles', 'Save PSF As...']:
@@ -815,7 +814,7 @@ class WebbPSF_GUI(object):
         except:
             self.nlambda = None # invoke autoselect for nlambda
         self.FOV= float(self.widgets['FOV'].get())
-        self.calc_oversampling= int(self.widgets['calc_oversampling'].get())
+        self.fft_oversampling= int(self.widgets['fft_oversampling'].get())
         self.detector_oversampling= int(self.widgets['detector_oversampling'].get())
 
         self.output_type = self.widgets['output_type'].get()
@@ -1086,7 +1085,7 @@ class WebbPSFOptionsDialog(Dialog):
 
 #-------------------------------------------------------------------------
 
-def synplot(thing, waveunit='micron', **kwargs):
+def synplot(thing, waveunit='micron', label=None, **kwargs):
     """ Plot a single PySynPhot object (either SpectralElement or SourceSpectrum)
     versus wavelength, with nice axes labels.
 
@@ -1097,15 +1096,19 @@ def synplot(thing, waveunit='micron', **kwargs):
     wave = thing.waveunits.Convert(thing.wave,waveunit)
 
 
+    if label is None:
+        label = thing.name
+
+
     if isinstance(thing, pysynphot.spectrum.SourceSpectrum):
-        artist = plt.loglog(wave, thing.flux, label=thing.name, **kwargs)
+        artist = plt.loglog(wave, thing.flux, label=label, **kwargs)
         plt.xlabel("Wavelength [%s]" % waveunit)
         if str(thing.fluxunits) == 'flam':
             plt.ylabel("Flux [%s]" % ' erg cm$^{-2}$ s$^{-1}$ Ang$^{-1}$' )
         else:
             plt.ylabel("Flux [%s]" % thing.fluxunits)
     elif isinstance(thing, pysynphot.spectrum.SpectralElement):
-        artist = plt.plot(wave, thing.throughput,label=thing.name, **kwargs)
+        artist = plt.plot(wave, thing.throughput,label=label, **kwargs)
         plt.xlabel("Wavelength [%s]" % waveunit)
         plt.ylabel("Throughput")
         plt.gca().set_ylim(0,1)
@@ -1113,149 +1116,6 @@ def synplot(thing, waveunit='micron', **kwargs):
         _log.error( "Don't know how to plot that object...")
         artist = None
     return artist
-
-
-
-def specFromSpectralType(sptype, return_list=False, catalog='ck04'):
-    """Get Pysynphot Spectrum object from a spectral type string.
-
-
-    Parameters
-    -----------
-    catalog: str
-        'ck04' for Castelli & Kurucz 2004, 'phoenix' for Phoenix models
-
-    """
-
-    if catalog.lower()  =='ck04':
-        catname='ck04models'
-
-        # Recommended lookup table into the CK04 models (from 
-        # the documentation of that catalog?)
-        lookuptable = {
-            "O3V":   (50000, 0.0, 5.0),
-            "O5V":   (45000, 0.0, 5.0),
-            "O6V":   (40000, 0.0, 4.5),
-            "O8V":   (35000, 0.0, 4.0),
-            "O5I":   (40000, 0.0, 4.5),
-            "O6I":   (40000, 0.0, 4.5),
-            "O8I":   (34000, 0.0, 4.0),
-            "B0V":   (30000, 0.0, 4.0),
-            "B3V":   (19000, 0.0, 4.0),
-            "B5V":   (15000, 0.0, 4.0),
-            "B8V":   (12000, 0.0, 4.0),
-            "B0III": (29000, 0.0, 3.5),
-            "B5III": (15000, 0.0, 3.5),
-            "B0I":   (26000, 0.0, 3.0),
-            "B5I":   (14000, 0.0, 2.5),
-            "A0V":   (9500, 0.0, 4.0),
-            "A5V":   (8250, 0.0, 4.5),
-            "A0I":   (9750, 0.0, 2.0),
-            "A5I":   (8500, 0.0, 2.0),
-            "F0V":   (7250, 0.0, 4.5),
-            "F5V":   (6500, 0.0, 4.5),
-            "F0I":   (7750, 0.0, 2.0),
-            "F5I":   (7000, 0.0, 1.5),
-            "G0V":   (6000, 0.0, 4.5),
-            "G5V":   (5750, 0.0, 4.5),
-            "G0III": (5750, 0.0, 3.0),
-            "G5III": (5250, 0.0, 2.5),
-            "G0I":   (5500, 0.0, 1.5),
-            "G5I":   (4750, 0.0, 1.0),
-            "K0V":   (5250, 0.0, 4.5),
-            "K5V":   (4250, 0.0, 4.5),
-            "K0III": (4750, 0.0, 2.0),
-            "K5III": (4000, 0.0, 1.5),
-            "K0I":   (4500, 0.0, 1.0),
-            "K5I":   (3750, 0.0, 0.5),
-            "M0V":   (3750, 0.0, 4.5),
-            "M2V":   (3500, 0.0, 4.5),
-            "M5V":   (3500, 0.0, 5.0),
-            "M0III": (3750, 0.0, 1.5),
-            "M0I":   (3750, 0.0, 0.0),
-            "M2I":   (3500, 0.0, 0.0)}
-    elif catalog.lower() =='phoenix':
-        catname='phoenix'
-        # lookup table used in JWST ETCs
-        lookuptable = {
-            "O3V":   (45000, 0.0, 4.0),
-            "O5V":   (41000, 0.0, 4.5),
-            "O7V":   (37000, 0.0, 4.0),
-            "O9V":   (33000, 0.0, 4.0),
-            "B0V":   (30000, 0.0, 4.0),
-            "B1V":   (25000, 0.0, 4.0),
-            "B3V":   (19000, 0.0, 4.0),
-            "B5V":   (15000, 0.0, 4.0),
-            "B8V":   (12000, 0.0, 4.0),
-            "A0V":   (9500, 0.0, 4.0),
-            "A1V":   (9250, 0.0, 4.0),
-            "A3V":   (8250, 0.0, 4.0),
-            "A5V":   (8250, 0.0, 4.0),
-            "F0V":   (7250, 0.0, 4.0),
-            "F2V":   (7000, 0.0, 4.0),
-            "F5V":   (6500, 0.0, 4.0),
-            "F8V":   (6250, 0.0, 4.5),
-            "G0V":   (6000, 0.0, 4.5),
-            "G2V":   (5750, 0.0, 4.5),
-            "G5V":   (5750, 0.0, 4.5),
-            "G8V":   (5500, 0.0, 4.5),
-            "K0V":   (5250, 0.0, 4.5),
-            "K2V":   (4750, 0.0, 4.5),
-            "K5V":   (4250, 0.0, 4.5),
-            "K7V":   (4000, 0.0, 4.5),
-            "M0V":   (3750, 0.0, 4.5),
-            "M2V":   (3500, 0.0, 4.5),
-            "M5V":   (3500, 0.0, 5.0),
-            "B0III": (29000, 0.0, 3.5),
-            "B5III": (15000, 0.0, 3.5),
-            "G0III": (5750, 0.0, 3.0),
-            "G5III": (5250, 0.0, 2.5),
-            "K0III": (4750, 0.0, 2.0),
-            "K5III": (4000, 0.0, 1.5),
-            "M0III": (3750, 0.0, 1.5),
-            "O6I":   (39000, 0.0, 4.5),
-            "O8I":   (34000, 0.0, 4.0),
-            "B0I":   (26000, 0.0, 3.0),
-            "B5I":   (14000, 0.0, 2.5),
-            "A0I":   (9750, 0.0, 2.0),
-            "A5I":   (8500, 0.0, 2.0),
-            "F0I":   (7750, 0.0, 2.0),
-            "F5I":   (7000, 0.0, 1.5),
-            "G0I":   (5500, 0.0, 1.5),
-            "G5I":   (4750, 0.0, 1.0),
-            "K0I":   (4500, 0.0, 1.0),
-            "K5I":   (3750, 0.0, 0.5),
-            "M0I":   (3750, 0.0, 0.0),
-            "M2I":   (3500, 0.0, 0.0)}
-
-    if return_list:
-        sptype_list = lookuptable.keys()
-        def sort_sptype(typestr):
-            letter = typestr[0]
-            lettervals = {'O':0, 'B': 10, 'A': 20,'F': 30, 'G':40, 'K': 50, 'M':60}
-            value = lettervals[letter]*1.0
-            value += int(typestr[1])
-            if "III" in typestr: value += .3
-            elif "I" in typestr: value += .1
-            elif "V" in typestr: value += .5
-            return value
-        sptype_list.sort(key=sort_sptype)
-        sptype_list.insert(0,"Flat spectrum in F_nu")
-        sptype_list.insert(0,"Flat spectrum in F_lambda")
-        return sptype_list
-
-
-    if "Flat" in sptype:
-        if sptype == "Flat spectrum in F_nu":    spec = pysynphot.FlatSpectrum( 1, fluxunits = 'fnu')
-        elif sptype == "Flat spectrum in F_lambda":  spec= pysynphot.FlatSpectrum( 1, fluxunits = 'flam')
-        spec.convert('flam')
-        return spec/spec.flux.mean()
-    else: 
-        try:
-            keys = lookuptable[sptype]
-            return pysynphot.Icat('ck04models',keys[0], keys[1], keys[2])
-        except:
-            else: raise LookupError("Error creating Spectrum object for spectral type %s. Check that is a valid name in the lookup table, and/or that pysynphot is installed properly." % sptype)
 
 
 
