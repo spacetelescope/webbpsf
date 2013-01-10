@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 #
 # JWST-PSFs documentation build configuration file, created by
 # sphinx-quickstart on Mon Nov 29 15:57:01 2010.
@@ -38,15 +38,15 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'WebbPSF'
-copyright = u'2010-2011, Marshall Perrin'
+copyright = u'2010-2012, Marshall Perrin'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
 # built documents.
 #
 # The short X.Y version.
-import poppy
-version = poppy.__version__
+import webbpsf
+version = webbpsf.__version__
 # The full version, including alpha/beta/rc tags.
 release = version+''
 

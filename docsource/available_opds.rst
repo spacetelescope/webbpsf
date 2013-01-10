@@ -22,6 +22,8 @@ Note that the trick of adding some (nonphysical) defocus to blur out the PSF is 
 representation of the true impact of image jitter. This is particularly true for coronagraphic observations. Future versions of WebbPSF will likely 
 provide higher fidelity jitter models.
 
+The units of the supplied OPD files are wavefront error in microns.
+
 
 .. table:: Rev V OPDs
 

@@ -1,4 +1,5 @@
 
+.. _more_examples:
 
 =============================
 More Examples
@@ -7,9 +8,32 @@ More Examples
 
 Any user of Webbpsf is invited to submit snippets of example code for sharing here. 
 
+The following examples all assumpe you have started with
+
+>>> import webbpsf
+>>> import numpy as np
+
 
 Typical Usage Cases
 ^^^^^^^^^^^^^^^^^^^^^^^
+
+Displaying a PSF as an image and as an encircled energy plot
+-------------------------------------------------------------
+
+>>>     #create a NIRCam instance and calculate a PSF for F210M
+>>>     nircam = webbpsf.NIRCam()
+>>>     nircam.filter = 'F210M'
+>>>     psf210 = nircam.calcPSF(oversample=2)
+>>> 
+>>>     # display the PSF and plot the encircled energy
+>>>     subplot(1,2,1)
+>>>     webbpsf.display_PSF(psf210, colorbar_orientation='horizontal')
+>>>     axis2 = subplot(1,2,2)
+>>>     webbpsf.display_EE(psf210, ax=axis2)
+>>>     
+>>>     psf210.writeto('nircam_F210M.fits')
+>>>     savefig('plot_nircam_f210m.pdf')
+
 
 
 Iterating over multiple OPDs and filters
@@ -32,19 +56,6 @@ Perhaps you want to calculate PSFs for all filters of a given instrument, using 
     >>> 
 
 
-
-NIRCam coronagraphy with an offset source
------------------------------------------
-
->>> from webbpsf import *
->>> nc = NIRCam()
->>> nc.image_mask='MASK430R'
->>> nc.pupil_mask='CIRCLYOT'
->>> nc.options['source_offset_r'] = 0.020       # source is 20 mas from center of coronagraph     
->>> nc.options['source_offset_theta'] = 45      # at a position angle of 45 deg
->>> nc.calcPSF('coronagraphic.fits', oversample=8)   # create highly oversampled output image
-
-
 Create monochromatic PSFs across an instrument's entire wavelength range
 -----------------------------------------------------------------------------
 Monochromatic PSFs with steps of 0.1 micron from 5-28.3 micron.
@@ -56,10 +67,27 @@ Monochromatic PSFs with steps of 0.1 micron from 5-28.3 micron.
 >>> m.options['parity'] = 'odd'                 # please make an output PSF with its center
 >>>                                             # aligned to the center of a single pixel
 >>>
->>> waves = N.linspace(5.0, 28.3, 234)*1e-6     # iterate over wavelengths in meters
+>>> waves = np.linspace(5.0, 28.3, 234)*1e-6     # iterate over wavelengths in meters
 >>> for w in waves:
 >>>     m.calcPSF(fov_arcsec=30, oversample=4, rebin=True, monochromatic=wavelength, display=True,
 >>>                outfile='psf_MIRI_mono_%.1fum_revV_opd1.fits' % (wavelength*1e6))
+
+
+
+Coronagraphy and Complications
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+NIRCam coronagraphy with an offset source
+-----------------------------------------
+
+>>> nc = webbpsf.NIRCam()
+>>> nc.image_mask='MASK430R'
+>>> nc.pupil_mask='CIRCLYOT'
+>>> nc.options['source_offset_r'] = 0.020       # source is 20 mas from center of coronagraph     
+>>> nc.options['source_offset_theta'] = 45      # at a position angle of 45 deg
+>>> nc.calcPSF('coronagraphic.fits', oversample=8)   # create highly oversampled output image
+
 
 
 Simulate NIRCam coronagraphic acquisition images
@@ -94,8 +122,8 @@ Simulate NIRCam coronagraphic acquisition images
     >>>         source_offset_y = param[4]
     >>> 
     >>> 
-    >>>         source_offset_r = N.sqrt(source_offset_x**2+ source_offset_y**2)
-    >>>         source_offset_theta = N.arctan2(source_offset_x, source_offset_y)*180/N.pi
+    >>>         source_offset_r = np.sqrt(source_offset_x**2+ source_offset_y**2)
+    >>>         source_offset_theta = np.arctan2(source_offset_x, source_offset_y)*180/np.pi
     >>>         nc.options['source_offset_r'] = source_offset_r
     >>>         nc.options['source_offset_theta'] = source_offset_theta
     >>> 
@@ -105,7 +133,7 @@ Simulate NIRCam coronagraphic acquisition images
     >>> 
     >>> 
 
-Iterate a calculation over all MIRI corongraphic modes
+Iterate a calculation over all MIRI coronagraphic modes
 -------------------------------------------------------
 
     >>> def miri_psfs_coron():
@@ -127,8 +155,8 @@ Iterate a calculation over all MIRI corongraphic modes
     >>>         offset_x = 0.007 # arcsec
     >>>         offset_y = 0.007 # arcsec
     >>> 
-    >>>         miri.options['source_offset_r'] = N.sqrt(offset_x**2+offset_y**2) # offset in arcsec
-    >>>         miri.options['source_offset_theta'] = N.arctan2(-offset_x, offset_y)*180/N.pi # PA in deg
+    >>>         miri.options['source_offset_r'] = np.sqrt(offset_x**2+offset_y**2) # offset in arcsec
+    >>>         miri.options['source_offset_theta'] = np.arctan2(-offset_x, offset_y)*180/np.pi # PA in deg
     >>> 
     >>> 
     >>>         outname = "PSF_MIRI_%s_x%+05.3f_y%+05.3f.fits" % (miri.image_mask, offset_x, offset_y)
@@ -180,61 +208,6 @@ Make plots of encircled energy in PSFs at various wavelengths
     >>> 
     >>> 
     >>>     pl.tight_layout()
-    >>> 
-
-Advanced Usage Tricks
-^^^^^^^^^^^^^^^^^^^^^^^
-
-This section serves as a catch-all for other example codes, possibly more esoteric in application. 
-
-Writing out only downsampled images
------------------------------------
-
-Perhaps you may want to calculate the PSF using oversampling, but to save disk space you only want to write out the PSF downsampled to detector resolution.
-
-   >>> result =  inst.calcPSF(args, ...)
-   >>> result['DET_SAMP'].writeto(outputfilename)
-
-Or if you really care about writing it as a primary HDU rather than an extension, replace the 2nd line with
-
-   >>> pyfits.PrimaryHDU(data=result['DET_SAMP'].data, header=result['DET_SAMP'].header).writeto(outputfilename)
-
-
-Providing your own OPDs from some other source
------------------------------------------------
-
-
-
-
-
-
-Modifying existing OPDs to add defocus
-----------------------------------------
-
-Perhaps you want to modify the OPD used for a given instrument, for instance to
-add a defocus. You can do this by subclassing one of the existing instrument
-classes to patch over the _getOpticalSystem function. An OpticalSystem is
-basically a list so it's straightforward to just add another optic there. In
-this example it's a lens for defocus but you could just as easily add another
-FITSOpticalElement instead to read in a disk file.
-
-
-    >>> class TF_with_defocus(webbpsf.TFI):
-    >>>         def __init__(self, \*args, \*\*kwargs):
-    >>>                 webbpsf.TFI.__init__(self, \*args, \*\*kwargs)
-    >>>                 # modify the following as needed to get your desired defocus
-    >>>                 self.defocus_waves = 0
-    >>>                 self.defocus_lambda = 4e-6
-    >>>         def _getOpticalSystem(self, \*args, \*\*kwargs):
-    >>>                 osys = webbpsf.TFI._getOpticalSystem(self, \*args, \*\*kwargs)
-    >>>                 lens = poppy.ThinLens(name='my lens', nwaves=self.defocus_waves, reference_wavelength=self.defocus_lambda)  
-    >>>                 lens.planetype=poppy.PUPIL # needed to flag plane location for the propagation algorithms
-    >>>                 osys.planes.insert(1, lens)
-    >>>                 return osys
-    >>> 
-    >>> tf2 = TF_with_defocus()
-    >>> tf2.defocus= 4  # means 4 waves of defocus at the wavelength defined by tf2.defocus_lambda
-    >>> psf = tf2.calcPSF()
     >>> 
 
 
@@ -396,6 +369,80 @@ There are two functions here, one that creates a simulated PSF for a given amoun
     >>>         return True
     >>> 
     >>> 
+    >>> 
+
+
+
+
+Advanced POPPY Usage: Output file format, OPDs, and more
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This section serves as a catch-all for other example codes, possibly more esoteric in application. 
+
+Writing out only downsampled images
+-----------------------------------
+
+Perhaps you may want to calculate the PSF using oversampling, but to save disk space you only want to write out the PSF downsampled to detector resolution.
+
+   >>> result =  inst.calcPSF(args, ...)
+   >>> result['DET_SAMP'].writeto(outputfilename)
+
+Or if you really care about writing it as a primary HDU rather than an extension, replace the 2nd line with
+
+   >>> pyfits.PrimaryHDU(data=result['DET_SAMP'].data, header=result['DET_SAMP'].header).writeto(outputfilename)
+
+
+Providing your own OPDs or pupils from some other source
+-----------------------------------------------
+
+It is straight forward to configure an Instrument object to use a pupil OPD file of your own devising, by setting the ``pupilopd`` attribute of the Instrument object:
+
+        >>> niriss = webbpsf.NIRISS()
+        >>> niriss.pupilopd = "/path/to/your/OPD_file.fits"
+
+If you have a pupil that is an array in memory but not saved on disk, you can pass it in as a fits.HDUList object :
+
+        >>> myOPD = some_function_that_returns_properly_formatted_HDUList(various, function, args...)
+        >>> niriss.pupilopd = myOPD
+
+Likewise, you can set the pupil transmission file in a similar manner by setting the ``pupil`` attribute: 
+
+        >>> niriss.pupil = "/path/to/your/OPD_file.fits"
+
+
+Please see the documentation for ``poppy.FITSOpticalElement`` for information on the required formatting of the FITS file.
+In particular you will need to set the PUPLSCALE keyword, and OPD values must be given in units of meters.
+
+
+
+
+Modifying existing OPDs to add defocus
+----------------------------------------
+
+Perhaps you want to modify the OPD used for a given instrument, for instance to
+add a defocus. You can do this by subclassing one of the existing instrument
+classes to patch over the _getOpticalSystem function. An OpticalSystem is
+basically a list so it's straightforward to just add another optic there. In
+this example it's a lens for defocus but you could just as easily add another
+FITSOpticalElement instead to read in a disk file.
+
+
+    >>> class TF_with_defocus(webbpsf.TFI):
+    >>>         def __init__(self, \*args, \*\*kwargs):
+    >>>                 webbpsf.TFI.__init__(self, \*args, \*\*kwargs)
+    >>>                 # modify the following as needed to get your desired defocus
+    >>>                 self.defocus_waves = 0
+    >>>                 self.defocus_lambda = 4e-6
+    >>>         def _getOpticalSystem(self, \*args, \*\*kwargs):
+    >>>                 osys = webbpsf.TFI._getOpticalSystem(self, \*args, \*\*kwargs)
+    >>>                 lens = poppy.ThinLens(name='my lens', nwaves=self.defocus_waves, reference_wavelength=self.defocus_lambda)  
+    >>>                 lens.planetype=poppy.PUPIL # needed to flag plane location for the propagation algorithms
+    >>>                 osys.planes.insert(1, lens)
+    >>>                 return osys
+    >>> 
+    >>> tf2 = TF_with_defocus()
+    >>> tf2.defocus= 4  # means 4 waves of defocus at the wavelength defined by tf2.defocus_lambda
+    >>> psf = tf2.calcPSF()
     >>> 
 
 

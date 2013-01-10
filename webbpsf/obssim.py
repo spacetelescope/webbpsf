@@ -15,10 +15,9 @@ import scipy.interpolate, scipy.ndimage
 import matplotlib.pyplot as plt
 import matplotlib
 import pysynphot
-import atpy
 import pyfits
 import logging
-import webbpsf
+import webbpsf_core
 
 _log = logging.getLogger('obssim')
 _log.setLevel(logging.DEBUG)
@@ -192,7 +191,7 @@ class TargetScene(object):
             _log.info(" Downsampling summed image to detector pixel scale.")
             rebinned_sum_image = sum_image[0].copy()
             detector_oversample = sum_image[0].header['DET_SAMP']
-            rebinned_sum_image.data = webbpsf.rebin_array(rebinned_sum_image.data, rc=(detector_oversample, detector_oversample))
+            rebinned_sum_image.data = poppy.rebin_array(rebinned_sum_image.data, rc=(detector_oversample, detector_oversample))
             rebinned_sum_image.header.update('OVERSAMP', 1, 'These data are rebinned to detector pixels')
             rebinned_sum_image.header.update('CALCSAMP', detector_oversample, 'This much oversampling used in calculation')
             rebinned_sum_image.header.update('EXTNAME', 'DET_SAMP')
@@ -227,7 +226,7 @@ def test_obssim(nlambda=3, clobber=False):
     s.addPointSource('K0V', name='K0V star', separation = 1.0, PA=45,  normalization=0.4)
     s.addPointSource('M0V', name='M0V star', separation = 1.5, PA=245,  normalization=0.3)
 
-    inst = webbpsf.NIRCam()
+    inst = webbpsf_core.NIRCam()
 
     for filt in ['F115W', 'F210M', 'F360M']:
         inst.filter = filt

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+﻿#!/usr/bin/env python
 """
 
 =======
@@ -32,8 +32,17 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.interpolate, scipy.ndimage
 import matplotlib
-import atpy
-import pyfits
+
+try:
+    import astropy.io.table as asciitable
+except:
+    import asciitable
+
+
+try:
+    import astropy.io.fits as fits
+except:
+    import pyfits as fits
 
 import poppy
 
@@ -52,24 +61,36 @@ _log.setLevel(logging.INFO)
 
 
 
-try:
-    __IPYTHON__
-    from IPython.Debugger import Tracer; stop = Tracer()
-except:
-    def stop(): 
-        pass
+def get_webbpsf_data_path():
+    """ Get webbpsf data path
 
+    Simply checking an environment variable is not always enough, since 
+    for packaging this code as a Mac .app bundle, environment variables are 
+    not available since .apps run outside the Terminal or X11 environments.
+
+    Therefore, check first the environment variable WEBBPSF_PATH, and secondly
+    check a configuration file ~/.webbpsf in the user's home directory.
+    """
+
+    path = os.getenv('WEBBPSF_PATH') #, default= os.path.dirname(os.path.dirname(os.path.abspath(poppy.__file__))) +os.sep+"data" )
+    if path is None:
+        import ConfigParser
+        config = ConfigParser.ConfigParser()
+        config.read(os.path.expanduser('~/.webbpsf'))
+        path =  config.get('Main','datapath')
+
+    return path
 
 
 
 class JWInstrument(poppy.instrument.Instrument):
     """ A generic JWST Instrument class.
 
-    *Note*: Do not use this class directly - instead use one of the :ref:`specific_instrument` subclasses!
+    *Note*: Do not use this class directly - instead use one of the :ref:`specific instrument <specific_instrument>` subclasses!
 
     This class provides a simple interface for modeling PSF formation through the JWST instruments, 
     with configuration options and software interface loosely resembling the configuration of the instrument 
-    mechanisms.   
+    hardware mechanisms.   
     
     This module currently only provides a modicum of error checking, and relies on the user
     being knowledgable enough to avoid trying to simulate some physically impossible or just plain silly
@@ -84,7 +105,7 @@ class JWInstrument(poppy.instrument.Instrument):
     def __init__(self, name=""):
         self.name=name
 
-        self._WebbPSF_basepath = os.getenv('WEBBPSF_PATH', default= os.path.dirname(os.path.dirname(os.path.abspath(poppy.__file__))) +os.sep+"data" )
+        self._WebbPSF_basepath = get_webbpsf_data_path()
 
         self._datapath = self._WebbPSF_basepath + os.sep + self.name + os.sep
         self._filter = None
@@ -138,7 +159,7 @@ class JWInstrument(poppy.instrument.Instrument):
         # wrapped just below to create properties with validation.
         self._filter=None
 
-        filter_table = atpy.Table(self._WebbPSF_basepath + os.sep+ 'filters.txt',type='ascii',delimiter='\t')
+        filter_table = asciitable.read(self._WebbPSF_basepath + os.sep+ 'filters.txt')
         wmatch = np.where(filter_table.instrument == self.name)
         self.filter_list = filter_table.filter[wmatch].tolist()
         "List of available filters"
@@ -147,8 +168,8 @@ class JWInstrument(poppy.instrument.Instrument):
         #self._filter_files= [os.path.abspath(f) for f in glob.glob(self._datapath+os.sep+'filters/*_thru.fits')]
         #self.filter_list=[os.path.basename(f).split("_")[0] for f in self._filter_files]
         if len(self.filter_list) ==0: 
-            self.filter_list=[''] # don't crash for FGS which lacks filters in the usual sense
-            stop()
+            #self.filter_list=[''] # don't crash for FGS which lacks filters in the usual sense
+            raise ValueError("No filters available!")
 
         def sort_filters(filtname):
             try:
@@ -233,6 +254,7 @@ class JWInstrument(poppy.instrument.Instrument):
             fov_arcsec=None, fov_pixels=None,  oversample=None, detector_oversample=None, fft_oversample=None, rebin=True,
             clobber=True, display=False, save_intermediates=False, return_intermediates=False):
         """ Compute a PSF.
+
         The result can either be written to disk (set outfile="filename") or else will be returned as
         a pyfits HDUlist object.
 
@@ -467,7 +489,7 @@ class JWInstrument(poppy.instrument.Instrument):
             full_opd_path = self.pupilopd if os.path.exists( self.pupilopd) else os.path.join(self._datapath, "OPD",self.pupilopd)
         elif hasattr(self.pupilopd, '__getitem__') and isinstance(self.pupilopd[0], basestring): # tuple with filename and slice
             full_opd_path =  (self.pupilopd[0] if os.path.exists( self.pupilopd[0]) else os.path.join(self._datapath, "OPD",self.pupilopd[0]), self.pupilopd[1])
-        elif isinstance(self.pupilopd, pyfits.HDUList): # OPD supplied as FITS object
+        elif isinstance(self.pupilopd, fits.HDUList): # OPD supplied as FITS object
             full_opd_path = self.pupilopd # not a path per se but this works correctly to pass it to poppy
         elif self.pupilopd is None: 
             full_opd_path = None
@@ -477,7 +499,7 @@ class JWInstrument(poppy.instrument.Instrument):
         #---- set pupil intensity
         if isinstance(self.pupil, str): # simple filename
             full_pupil_path = self.pupil if os.path.exists( self.pupil) else os.path.join(self._WebbPSF_basepath,self.pupil)
-        elif isinstance(self.pupil, pyfits.HDUList): # pupil supplied as FITS object
+        elif isinstance(self.pupil, fits.HDUList): # pupil supplied as FITS object
             full_pupil_path = self.pupil
         else: 
             raise TypeError("Not sure what to do with a pupil of that type:"+str(type(self.pupil)))
@@ -555,6 +577,9 @@ class JWInstrument(poppy.instrument.Instrument):
         try:
             band = pysynphot.ObsBandpass( ('%s,im,%s'%(self.name, filtername)).lower())
         except:
+            _log.warn("Filter %s not supported in available pysynphot/CDBS. Falling back to local filter transmission files" % filtername)
+            _log.warn("These may be less accurate.")
+
             # the requested band is not yet supported in synphot/CDBS. (those files are still a
             # work in progress...). Therefore, use our local throughput files and create a synphot
             # transmission object.
@@ -563,10 +588,18 @@ class JWInstrument(poppy.instrument.Instrument):
             if len(wf) != 1:
                 _log.error("Could not find a match for filter name = %s in the filters for %s." % (filtername, self.name))
             # The existing FITS files all have wavelength in ANGSTROMS since that is the pysynphot convention...
-            filterdata = atpy.Table(self._filter_files[wf], type='fits')
-
-            _log.warn("Filter %s not supported in available pysynphot/CDBS. Falling back to local filter transmission files" % filtername)
-            _log.warn("These may be less accurate.")
+            filterfits = fits.open(self._filter_files[wf])
+            filterdata = filterfits[1].data 
+            try:
+                f1 = filterdata.WAVELENGTH
+                d2 = filterdata.THROUGHPUT
+            except:
+                raise ValueError("The supplied file, %s, does not appear to be a FITS table with WAVELENGTH and THROUGHPUT columns." % self._filter_files[wf] )
+            try:
+                if filterfits[1].header['WAVEUNIT'] != 'Angstrom': raise ValueError("The supplied file, %s, does not have WAVEUNIT = Angstrom as expected." % self._filter_files[wf] )
+            except:
+                _log.warn('The supplied file, %s, does not have a WAVEUNIT keyword. Assuming it is Angstroms.' %  self._filter_files[wf])
+ 
             band = pysynphot.spectrum.ArraySpectralElement(throughput=filterdata.THROUGHPUT,
                                 wave=filterdata.WAVELENGTH, waveunits='angstrom',name=filtername)
         return band
@@ -938,9 +971,14 @@ class NIRSpec(JWInstrument):
 
 class NIRISS(JWInstrument):
     """ A class modeling the optics of the Near-IR Imager and Slit Spectrograph
-        (formerly nTFI)
+        (formerly TFI)
     
     Relevant attributes include `image_mask`, and `pupil_mask`.
+
+    Note that WebbPSF does not model spectral dispersion in any of NIRISS' slitless spectroscopy modes. This can 
+    best be simulated by using webbpsf output PSFs as input to the aXe spectroscopy code. Contact Van Dixon for
+    further information.   WebbPSF does, however, model the direct imaging and nonredundant aperture masking modes
+    of NIRISS.
 
     """
     def __init__(self):
@@ -1029,6 +1067,8 @@ class TFI(JWInstrument):
     You may also use the `monochromatic=` option to `calcPSF()` to calculate a PSF at a single wavelength.
     """
     def __init__(self):
+
+        raise DeprecationWarning("TFI is deprecated; use NIRISS instead")
         JWInstrument.__init__(self, "TFI")
         self.pixelscale = 0.064 # for TFI
 
@@ -1040,7 +1080,6 @@ class TFI(JWInstrument):
         self.etalon_wavelength = 2.0
         """ Tunable filter etalon wavelength setting """
         self.resolution_table = atpy.Table(self._datapath+os.sep+"filters/TFI_resolution.txt", type='ascii',names=('wavelength','resolution'))
-
 
 
     def _validate_config(self):
@@ -1207,7 +1246,7 @@ def calc_or_load_PSF(filename, inst, clobber=False, **kwargs):
 
     """
     if os.path.exists(filename) and not clobber:
-        return pyfits.open(filename)
+        return fits.open(filename)
     else: 
         return inst.calcPSF(outfile = filename, **kwargs)
 

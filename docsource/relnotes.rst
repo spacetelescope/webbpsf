@@ -5,7 +5,7 @@
 
 
 Release Notes
-================
+######################
 
 
 Known Issues
@@ -30,7 +30,7 @@ Known Issues
 * Any and all detector effects, including intrapixel sensitivity variations. There is no plan to include these at any point in WebbPSF itself.  Generate a subsampled PSF and use a separate detector model code instead. 
 * Instrumental wavefront errors are not modeled separately, though they are included in some of the supplied RevV OPDs. 
 * Coronagraphic masks are assumed to be perfect (i.e. the masks exactly match their design parameters.)
-* No edge effects near the center of the FQPMs.
+* No edge effects near the center of the FQPMs. (However, these are believed to be negligible in practice based on detailed simulations by Remi Soummer.)
 
 
 Plans for Future Releases
@@ -41,8 +41,29 @@ Plans for Future Releases
 * Possibly: separate handling of pre- and post- coronagraphic WFE in instruments, if this appears likely to be significant. 
 * Python 3 support will be added as soon as it is needed, but is not an immediate priority. Any users who would like to run webbpsf under python 3, please let me know.
 
+
+Version History and Change Log
+-------------------------------
+
+
+Version 0.2.9
+=================
+
+Released ?????
+
+* Requirements update:
+
+    * Either ``astropy.io.fits`` or ``pyfits`` is acceptable for FITS I/O. 
+    * Either ``astropy.io.ascii`` or ``asciitable`` is acceptable for ASCII table I/O.
+    * ``atpy`` is no longer required.
+
+* Bug fix to weak lens code for NIRCam, which previously had an incorrect scaling factor.  Added defocus option to all instruments, which can be used to simulate either internal focus mechanism moves or telescope defocus during MIMF. For example, set 'defocus_waves=3', 'defocus_wavelength=2.0e-6' to simulate 3 waves of defocus at 2 microns, equivalently 6 microns phase delay peak to valley in the wavefront.
+
+
+
+
 Version 0.2.8
------------------
+=================
 
 Released May 18, 2012
 
@@ -64,7 +85,7 @@ Released May 18, 2012
 * TFI class (deprecated in version 0.2.6) now removed.
 
 Version 0.2.7
------------------
+=================
 
 Released December 6, 2011
 
@@ -84,7 +105,7 @@ Released December 6, 2011
 
 
 Version 0.2.6
------------------
+=================
 
 Released November 7, 2011
 
@@ -117,7 +138,7 @@ Released November 7, 2011
 
 
 Version 0.2.5
---------------
+==============
 
 Initial public release, June 1 2011. Questions, comments, criticism all welcome!
 
@@ -125,7 +146,7 @@ Initial public release, June 1 2011. Questions, comments, criticism all welcome!
 * Improved display of intermediate results during calculations.
 
 Versions 0.2.1 - 0.2.3
------------------------
+=======================
 
 * Smoother installation process (thanks to Anand Sivaramakrishan for initial testing)
 * Semi-analytic coronagraphic algorithm added for TFI and NIRCam circular occulters (Soummer et al. 2007)
@@ -137,7 +158,7 @@ Versions 0.2.1 - 0.2.3
 
 
 Version 0.2
-------------
+============
 
 Initial STScI internal release, spring 2011. Questions, comments, criticism all welcome!
 
@@ -152,7 +173,7 @@ Initial STScI internal release, spring 2011. Questions, comments, criticism all 
 
 
 Version 0.1
-------------
+============
 
 Development, fall 2010.
 

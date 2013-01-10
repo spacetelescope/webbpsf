@@ -10,32 +10,35 @@ Requirements & Installation
 Software Requirements
 -----------------------
 
-**Python**:
-
-Python 2.6 or higher is required. Python 2.7 is required for the GUI (see below) and strongly recommended overall. WebbPSF is not yet Python 3 compatible.
+**Python**: Python 2.6 or higher is required. Python 2.7 is required for the GUI (see below) and strongly recommended overall. WebbPSF is not yet Python 3 compatible.
 
 
-**Python modules**:
+**Python modules**: Beyond the usual numpy/scipy/matplotlib core modules, the following are required. 
 
-Beyond the usual numpy/scipy/matplotlib core modules, the following are required:
+* **Either** `astropy <http://astropy.org>`_, in particular its ``astropy.io.fits`` and ``astropy.io.ascii`` modules, 
+* **or** the following individual python modules to provide similar functionality:
 
-* `pyfits <http://www.stsci.edu/resources/software_hardware/pyfits>`_
-* `ATPy <http://atpy.github.com/>`_, which in turn requires `vo <https://trac6.assembla.com/astrolib>`_ and `asciitable <http://cxc.harvard.edu/contrib/asciitable/>`_
+        * `pyfits <http://www.stsci.edu/resources/software_hardware/pyfits>`_
+        * `asciitable <http://cxc.harvard.edu/contrib/asciitable/>`_
 
   
-These are optional but highly recommended:
+These are optional but recommended:
 
 * `pysynphot <https://trac6.assembla.com/astrolib>`_ enables the simulation of PSFs with proper spectral response to realistic source spectra.  Without this, PSF fidelity is reduced. See below for installation instructions.
-* `pyFFTW3 <http://pypi.python.org/pypi/PyFFTW3/0.2.1>`_. The FFTW library will significantly speed up the FFTs used in coronagraphic simulations -- though since direct imaging simulations use a discrete matrix FT instead, direct imaging simulation speed is unchanged. 
+* `pyFFTW3 <http://pypi.python.org/pypi/PyFFTW3/0.2.1>`_. The FFTW library will significantly speed up the FFTs used in coronagraphic simulations. Since direct imaging simulations use a discrete matrix FT instead, direct imaging simulation speed is unchanged.  pyFFTW3 is highly recommended if you expect to perform many coronagraphic calculations.
 
-Additional requirement for the GUI: 
+**Additional requirement for the GUI:** The :ref:`graphical user interface<gui>` requires 
 
-* The graphical user interface requires the ``ttk`` enhanced version of the ``Tkinter`` widget library. 
+* **Either** the `ttk <http://docs.python.org/2/library/ttk.html>`_ enhanced version of the ``Tkinter`` widget library. 
+  (``ttk`` is not included by default on some installations of Python, for instance Mac OS 10.6's default of Python 2.6. 
+  You may wish to either upgrade to a more current Python, or else compile and install ``ttk`` for your platform. ``WebbPSF``
+  was developed using Python 2.7, which includes ``ttk`` by default, but it ought to work fine on any installations of
+  Python 2.5 or 2.6 provided ``ttk`` is available.)
+* **or** the `wxpython <http://www.wxpython.org>`_ interface to the ``wxwidgets`` widget library. 
+  
 
-``ttk`` is not included by default on some installations of Python, for instance Mac OS 10.6's default of Python 2.6. 
-You may wish to either upgrade to a more current Python, or else compile and install ``ttk`` for your platform. ``WebbPSF``
-was developed using Python 2.7, which includes ``ttk`` by default, but it ought to work fine on any installations of
-Python 2.5 or 2.6 provided ``ttk`` is available. Alternatively, you can just skip using the GUI; the optical modeling classes
+Essentially identical GUIs are implemented in both widget tool kits. Future development may concentrate on the wxpython toolkit, but for now both are supported. 
+Alternatively, you can just skip using the GUI; the optical modeling classes
 themselves have no dependency on these widgets.
 
 
@@ -46,12 +49,13 @@ Installing WebbPSF via PYPI
 As of version 0.2.8, WebbPSF and its underlying optical library ``poppy`` are both
 installable from the `Python Package Index <http://pypi.python.org/pypi>`_ via
 the standard toolchain using `pip
-<http://www.pip-installer.org/en/latest/index.html>`_ or `easy_install <http://pypi.python.org/pypi/setuptools>`_. 
+<http://www.pip-installer.org/en/latest/index.html>`_ or `easy_install <http://pypi.python.org/pypi/setuptools>`_.  This is the recommended installation
+method if you already have a working copy of python, numpy, and matplotlib on your computer. 
 
 1. Invoke pip in the usual manner::
 
    $ pip install webbpsf
-   ``[... progress report ...]``
+   [... progress report ...]
 
    ``Successfully installed webbpsf``
 
@@ -68,14 +72,20 @@ Installing WebbPSF manually
 If you do not wish to use PYPI, or do not have pip or easy_install available on your system, you can just install the source file directly:
 
 
-1. Download the following file: `webbpsf-0.2.7.tar.gz <http://www.stsci.edu/~mperrin/software/webbpsf/webbpsf-0.2.7.tar.gz>`_
-2. Untar ``webbpsf-0.6.x.tar.gz`` into a temporary working directory. 
+1. Download the following file: `webbpsf-0.2.9.tar.gz <http://www.stsci.edu/~mperrin/software/webbpsf/webbpsf-0.2.9.tar.gz>`_
+2. Untar ``webbpsf-0.2.9.tar.gz`` into a temporary working directory. 
 3. Run ``python setup.py install`` in that directory. This will install ``webbpsf`` into your Python path. 
 
    If you lack the filesystem permissions to write into the system python directory 
    (for instance, on a machine you don't have root on), you can do ``python setup.py install --user`` to install locally
    in your home directory.
 4. You should now be able to do ``import webbpsf`` in a Python session. 
+
+
+
+Installing WebbPSF development versions, and/or contributing to its development
+---------------------------------------------------------------------------------
+As of version 0.2.8, the webbpsf source code repository is hosted at GitHub: `webbpsf <https://github.com/mperrin/webbpsf>`_, as is the repository for `poppy <https://github.com/mperrin/poppy>`_. Users may clone, fork, and pull diffs in the usual manner. Pull requests with code enhancements welcomed!  
 
 
 Installing the Required Data Files

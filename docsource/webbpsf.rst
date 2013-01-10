@@ -1,8 +1,3 @@
-.. JWST-PSFs documentation master file, created by
-   sphinx-quickstart on Mon Nov 29 15:57:01 2010.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
 
 .. module:: webbpsf
 
@@ -14,7 +9,7 @@ The WebbPSF module
 This module provides the primary interface, both for programmers and for interactive non-GUI use. It provides 
 five classes corresponding to the JWST instruments, with consistent interfaces.  See below for the detailed API; for now let's dive into some example code.
 
-
+:ref:`Additional code examples <more_examples>` are available later in this documentation.
 
 
 Usage and Examples
@@ -65,7 +60,7 @@ Input Source Spectra
 
 WebbPSF attempts to calculate realistic weighted broadband PSFs taking into account both the source spectrum and the instrumental spectral response. 
 
-The default source spectrum is, if :py:mod:`pysynphot` is installed, a G2V star spectrum from Castelli & Kurucz 2004. Without :py:mod:`pysynphot`, the default is a flat spectrum in :math:`F_\nu` such that the same number of photons are detected at each wavelength.
+The default source spectrum is, if :py:mod:`pysynphot` is installed, a G2V star spectrum from Castelli & Kurucz 2004. Without :py:mod:`pysynphot`, the default is a simple flat spectrum such that the same number of photons are detected at each wavelength.
 
 You may choose a different illuminating source spectrum by specifying a ``source`` parameter in the call to ``calcPSF()``. The following are valid sources:
 
@@ -88,6 +83,17 @@ As a convenience, webbpsf includes a function to retrieve an appropriate :py:cla
    >>> src = webbpsf.specFromSpectralType('G0V', catalog='phoenix')
    >>> psf = miri.calcPSF(source=src)
 
+Input Source position offsets
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The PSF may be shifted off-center by adjusting the offset of the stellar source. This is done in polar coordinates:
+
+>>> instrument.options['source_offset_r'] = 0.3         # offset in arcseconds
+>>> instrument.options['source_offset_theta'] = 45.     # degrees counterclockwise from instrumental +Y in the science frame
+
+If these options are set, the offset is applied relative to the central coordinates as defined by the output array size and parity (described just below).
+
+For coronagraphic modes, the coronagraph occulter is always assumed to be at the center of the output array. Therefore, these options let you offset the source away from the coronagraph.
 
 
 
@@ -99,6 +105,8 @@ Output array sizes may be specified either in units of arcseconds or pixels.  Fo
 >>> mynircam = NIRCam()
 >>> result = mynircam.calcPSF(fov_arcsec=7, oversample=2, filter='F250M')
 >>> result2= mynircam.calcPSF(fov_pixels=512, oversample=2, filter='F250M')
+
+In the latter example, you will in fact get an array which is 1024 pixels on a side: 512 physical detector pixels, times an oversampling of 2.
 
 
 By default, the PSF will be centered at the exact center of the output array. This means that if the PSF is computed on an array with an odd number of pixels, the
@@ -114,19 +122,17 @@ you may also just set the desired number of pixels explicitly in the call to cal
 >>>  instrument.calcPSF(fov_npixels = 512)
 
 
+.. warning::
+
+    Please note that these parity options apply to the number of *detector
+    pixels* in your simulation. If you request oversampling, then the number of
+    pixels in the output file for an oversampled array will be
+    ``fov_npixels`` times ``oversampling``. Hence, if you request an odd
+    parity with an even oversampling of, say, 4, then you would get an array
+    with a total number of data pixels that is even, but that correctly represents
+    the PSF located at the center of an odd number of detector pixels.
 
 
-Offset sources
-^^^^^^^^^^^^^^^^^^^
-
-The PSF may also be shifted off-center by adjusting the offset of the stellar source. This is done in polar coordinates:
-
->>> instrument.options['source_offset_r'] = 0.3         # offset in arcseconds
->>> instrument.options['source_offset_theta'] = 45.     # degrees counterclockwise from instrumental +Y in the science frame
-
-If these options are set, the offset is applied relative to the central coordinates as defined by the output array parity.
-
-For coronagraphic modes, the coronagraph occulter is always assumed to be at the center of the output array. Therefore, these options let you offset the source away from the coronagraph.
 
 Pixel scales, sampling, and oversampling
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -171,13 +177,16 @@ As just explained, WebbPSF can easily calculate PSFs on a finer grid than the de
 
    >>> nircam.options['output_mode'] = 'oversampled'      
    >>> psf = nircam.calcPSF()       # the 'psf' variable will be an oversampled PSF, formatted as a FITS HDUlist
+   >>>
    >>> nircam.options['output_mode'] = 'detector sampled'      
-   >>> psf2 = nircam.calcPSF()      # now 'psf2' will contain the resul as resampled onto the detector scale.
+   >>> psf2 = nircam.calcPSF()      # now 'psf2' will contain the result as resampled onto the detector scale.
+   >>>
    >>> nircam.options['output_mode'] = 'both'      
    >>> psf3 = nircam.calcPSF()      # 'psf3' will have the oversampled image as primary HDU, and 
    >>>                              # the detector-sampled image as the first image extension HDU.
 
 
+The default behavior is 'both'. Note that at some point in the future, this default is likely to change to detector sampling. 
 
 
 
@@ -185,14 +194,14 @@ As just explained, WebbPSF can easily calculate PSFs on a finer grid than the de
 The JWInstrument generic class
 --------------------------------
 
-.. inheritance-diagram:: webbpsf.NIRCam webbpsf.NIRSpec webbpsf.MIRI webbpsf.TFI webbpsf.NIRISS webbpsf.FGS
+.. inheritance-diagram:: webbpsf.NIRCam webbpsf.NIRSpec webbpsf.MIRI webbpsf.NIRISS webbpsf.FGS
 
 
 .. autoclass:: webbpsf.JWInstrument
    :members:
 
 
-.. specific_instrument:
+.. _specific_instrument:
 
 Notes on Specific Instruments
 -------------------------------
@@ -230,7 +239,7 @@ MIRI
    rotating the pupil mask and OPD file prior to the Fourier propagation. For MIRI coronagraphy on the other hand, the rotation is performed as the 
    last step prior to the detector. 
    
-   Technical aside: Note that for computational reasons having to do with accurately simulating PSF centering on an FQPM, MIRI corongraphic
+   Technical aside: Note that for computational reasons having to do with accurately simulating PSF centering on an FQPM, MIRI coronagraphic
    simulations will include two 'virtual optics' called 'FQPM FFT aligners' that  will show up in the display window for such calculations. These 
    can be ignored by most end users of this software; interested readers should consult the  :py:mod:`POPPY <poppy>` documentation for more detail.
 
@@ -240,6 +249,8 @@ NIRISS
 .. autoclass:: webbpsf.NIRISS
 
         See methods under :py:class:`JWInstrument` 
+
+
 
 
 FGS
@@ -253,11 +264,7 @@ FGS
 TFI
 ^^^^
 
-Deprecated in favor of NIRISS.  The TFI class is still included in this version of WebbPSF for compatibility with existing code, just
-to be on the safe side, but is likely to go away in the next release. 
-
-.. autoclass:: webbpsf.TFI
-
+Deprecated in favor of NIRISS.  
 
 Utility Functions for Display and Plotting
 -------------------------------------------
