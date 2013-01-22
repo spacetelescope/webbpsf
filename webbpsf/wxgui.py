@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python
+#!/usr/bin/env python
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -1062,9 +1062,14 @@ class LogFrame(wx.Frame):
         hdlr = WxLog(log)
         hdlr.setFormatter(logging.Formatter('%(name)-8s %(levelname)-8s: %(message)s'))
 
+        self.hdlr = hdlr # save for later deletion
+
         logging.getLogger('webbpsf').addHandler(hdlr)
         logging.getLogger('poppy').addHandler(hdlr)
         
+    def __del__(self):
+        logging.getLogger('webbpsf').removeHandler(self.hdlr)
+        logging.getLogger('poppy').removeHandler(self.hdlr)
 
 #-------------------------------------------------------------------------
 
