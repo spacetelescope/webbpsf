@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python
+#!/usr/bin/env python
 """
 
 =======
@@ -76,9 +76,8 @@ def get_webbpsf_data_path():
     if path is None:
         import ConfigParser
         config = ConfigParser.ConfigParser()
-        config.read(os.path.expanduser('~/.webbpsf'))
+        config.read(os.path.join( _get_webbpsf_config_path(), 'webbpsf.ini'))
         path =  config.get('Main','datapath')
-
     return path
 
 
@@ -511,7 +510,7 @@ class JWInstrument(poppy.instrument.Instrument):
         #---- Add defocus if requested
         if 'defocus_waves' in options.keys(): 
            defocus_waves = options['defocus_waves'] 
-           defocus_wavelength = options['defocus_wavelength'] if 'defocus_wavelength' in options.keys() else 2.0e-6
+           defocus_wavelength = float(options['defocus_wavelength']) if 'defocus_wavelength' in options.keys() else 2.0e-6
            _log.info("Adding defocus of %d waves at %.2f microns" % (defocus_waves, defocus_wavelength *1e6))
            lens = poppy.ThinLens(name='Defocus', nwaves=defocus_waves, reference_wavelength=defocus_wavelength)
            optsys.addPupil(optic=lens)
