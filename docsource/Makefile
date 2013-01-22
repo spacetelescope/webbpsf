@@ -43,6 +43,13 @@ htmlstsci:
 	@echo "try :"
 	@echo "   open http://www.stsci.edu/~mperrin/software/webbpsf/"
 
+htmlprerelease:
+	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) ../Documentation/html
+	rsync -av ../Documentation/html/ nemesis.stsci.edu:web/software/webbpsf_prerelease/
+	@echo "Software built and copied to STScI prerelease"
+	@echo "try :"
+	@echo "   open http://www.stsci.edu/~mperrin/software/webbpsf_prerelease/"
+
 
 
 dirhtml:

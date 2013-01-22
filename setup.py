@@ -3,6 +3,7 @@ from setuptools import setup, find_packages
 
 setupargs = {
     'name'          :       'webbpsf',
+    'app'           :       'WebbPSF',
     'version'       :      	"0.0.0",  # will be replaced below
     'description'   :       'Create simulated point spread functions for the James Webb Space Telescope',
     'fullname'      :       'WebbPSF',
@@ -11,7 +12,7 @@ setupargs = {
     'url'           :  		"http://www.stsci.edu/~mperrin/software/webbpsf",
     'download_url'           :  		"http://www.stsci.edu/~mperrin/software/webbpsf/webbpsf-0.0.0.tar.gz",  # will be replaced below
     'platforms'     :      	["Linux","Mac OS X", "Win"],
-    'requires'      :       ['pyfits','numpy', 'matplotlib', 'scipy', 'atpy','asciitable', 'poppy'],
+    'requires'      :       ['pyfits','numpy', 'matplotlib', 'scipy', 'asciitable', 'poppy'],
     'packages'      :       ['webbpsf'],
     'entry_points'  :       {'gui_scripts': ['webbpsfgui = webbpsf.gui',]}, # should create exe file on Windows?
     'classifiers'   :   [
@@ -60,6 +61,17 @@ else:
 
 
 
+
+
+
+PY2APP_OPTIONS = {'argv_emulation': True, 
+                'iconfile': 'webbpsf_icon.icns'}
+
+
+
+
 # Now actually call setup
 
-setup(**setupargs)
+setup(  options={'py2app':PY2APP_OPTIONS},
+        setup_requires=['py2app'],
+        **setupargs)

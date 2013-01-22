@@ -1051,7 +1051,7 @@ class WxLog(logging.Handler):
 
 class LogFrame(wx.Frame):
     def __init__(self, parent=None, id=-1, pos=None, size=(600,300)):
-        wx.Frame.__init__(self, parent, id=id, title="logging test", size=size,pos=pos)
+        wx.Frame.__init__(self, parent, id=id, title="WebbPSF tasks log", size=size,pos=pos)
         #self.level = 4
         log = wx.TextCtrl(self, style=wx.TE_MULTILINE)
         sizer = wx.BoxSizer(wx.VERTICAL)

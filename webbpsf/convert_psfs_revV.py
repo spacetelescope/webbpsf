@@ -1,11 +1,8 @@
-#!/usr/bin/env python
+﻿#!/usr/bin/env python
 import os, sys
 import numpy as np
 import matplotlib.pyplot as plt
 import pywcs, pyfits
-#import aplpy, atpy
-#import RO.DS9
-#from IPython.Debugger import Tracer; stop = Tracer()
 
 import poppy
 
