@@ -15,14 +15,21 @@ Physical Optics Propagation in PYthon (POPPY)
 The module ``poppy`` implements an object-oriented system for modeling physical optics
 propagation with diffraction, particularly for telescopic and coronagraphic
 imaging. Right now only image and pupil planes are supported; intermediate
-planes are a future goal. It also 
+planes are a future goal.  
 
-This code makes use of the python standard module ``logging`` for output information. Top-level details of the
-calculation are output at level ``logging.INFO``, while details of the propagation through each optical plane are 
-printed at level ``logging.DEBUG``. See the Python logging documentation for an explanation of how to redirect the ``poppy`` 
-logger to the screen, a textfile, or any other log destination of your choice.
+Poppy also includes a system for modeling a complete instrument (including
+optical propagation, synthetic photometry, and pointing jitter), and a variety
+of useful utility functions for analysing and plotting PSFs, documented below. 
 
-Poppy also includes a system for modeling a complete instrument (including optical propagation, synthetic photometry, and pointing jitter), and a variety of useful utility functions for analysing and plotting PSFs, documented below. 
+.. note::
+
+        This code makes use of the python standard module ``logging`` for
+        output information. Top-level details of the calculation are output at
+        level ``logging.INFO``, while details of the propagation through each
+        optical plane are printed at level ``logging.DEBUG``. See the Python
+        logging documentation for an explanation of how to redirect the
+        ``poppy`` logger to the screen, a textfile, or any other log
+        destination of your choice.
 
 
 **Key Concepts:**

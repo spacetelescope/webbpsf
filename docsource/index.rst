@@ -46,13 +46,28 @@ There are three main Python modules in this distribution: a lower-level
 optical propagation library (:py:mod:`POPPY <poppy>`), an implementation of the
 JWST instruments using that library (:py:mod:`WebbPSF <webbpsf>`), and a graphical user interface (:py:mod:`WebbPSFgui <webbpsfgui>`).  This documentation explains the programming interface and provides usage examples for each of those three module. 
 
-Further information from an optical modeling perspective
-may be found in  `Improved PSF Simulations for JWST: Methods, Algorithms, and Validation <Improved_PSFs_for_Webb.pdf>`_ , M. D. Perrin 2011, JWST Technical report JWST-STScI-002469. 
-That document describes in more detail the relevant optical physics, explains design decisions and motivation for WebbPSF's architecture, and presents
-extensive validation tests demonstrating consistency between WebbPSF and other PSF simulation packages used throughout the JWST project.
+
+.. note::
 
 
-The current version of WebbPSF is version 0.2.8, released Nov 7, 2011. If you would like to receive email announcements of future versions, please contact Marshall Perrin.
+
+    In addition to this documentation, WebbPSF is described in `Perrin et al. 2012, 
+    "Simulating point spread functions for the James Webb Space Telescope with WebbPSF", <http://adsabs.harvard.edu/abs/2012SPIE.8442E..3DP>`_, Proc SPIE 8842, 
+    and in Perrin 2011, `Improved PSF Simulations for JWST: Methods, Algorithms, and Validation <Improved_PSFs_for_Webb.pdf>`_ , JWST Technical report JWST-STScI-002469.
+    
+    Users of WebbPSF are encouraged to cite one of those references. 
+
+    In particular, the technical report document describes in more detail the
+    relevant optical physics, explains design decisions and motivation for
+    WebbPSF's architecture, and presents extensive validation tests
+    demonstrating consistency between WebbPSF and other PSF simulation packages
+    used throughout the JWST project.
+
+
+**Version Information**
+
+The current version of WebbPSF is version 0.2.8, released Nov 7, 2011. If you would like to receive email announcements of future versions, please contact Marshall Perrin, 
+or send an email to "webbpsf-users-request@stsci.edu" containing the message "subscribe".
 
 
 Contents

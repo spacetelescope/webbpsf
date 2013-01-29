@@ -68,7 +68,7 @@ Monochromatic PSFs with steps of 0.1 micron from 5-28.3 micron.
 >>>                                             # aligned to the center of a single pixel
 >>>
 >>> waves = np.linspace(5.0, 28.3, 234)*1e-6     # iterate over wavelengths in meters
->>> for w in waves:
+>>> for wavelength in waves:
 >>>     m.calcPSF(fov_arcsec=30, oversample=4, rebin=True, monochromatic=wavelength, display=True,
 >>>                outfile='psf_MIRI_mono_%.1fum_revV_opd1.fits' % (wavelength*1e6))
 

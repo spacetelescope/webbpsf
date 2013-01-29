@@ -17,8 +17,8 @@ Usage and Examples
 
 Simple PSFs are easily obtained: 
 
->>> from webbpsf import *
->>> nc = NIRCam()
+>>> import webbpsf
+>>> nc = webbpsf.NIRCam()
 >>> nc.filter =  'F200W'
 >>> psf = nc.calcPSF(oversample=4)      # returns a pyfits.HDUlist containing PSF and header
 >>> pylab.imshow(psf[0].data]           # display it on screen yourself, or
@@ -42,7 +42,7 @@ For interactive use, you can have the PSF displayed as it is computed:
 More complicated instrumental configurations are available by setting the instrument's attributes. For instance,
 one can create an instance of MIRI and configure it for coronagraphic observations, thus:
 
->>> miri = MIRI()
+>>> miri = webbpsf.MIRI()
 >>> miri.filter = 'F1065C'
 >>> miri.image_mask = 'FQPM1065'
 >>> miri.pupil_mask = 'MASKFQPM'
@@ -52,6 +52,14 @@ one can create an instance of MIRI and configure it for coronagraphic observatio
    :scale: 75%
    :align: center
    :alt: Sample PSF image
+
+
+WebbPSF can output a log of calculation steps while it runs, which can be optionally saved to a file. 
+This is useful for verifying or debugging calculations.  To turn on log display, just run
+
+>>> webbpsf.setup_logging()
+
+If you want to save log results to a file, simply provide a filename argument to that function call. See :py:func:`setup_logging` for details.
 
 
 
@@ -102,7 +110,7 @@ Array sizes, star positions, and centering
 
 Output array sizes may be specified either in units of arcseconds or pixels.  For instance, 
 
->>> mynircam = NIRCam()
+>>> mynircam = webbpsf.NIRCam()
 >>> result = mynircam.calcPSF(fov_arcsec=7, oversample=2, filter='F250M')
 >>> result2= mynircam.calcPSF(fov_pixels=512, oversample=2, filter='F250M')
 
@@ -122,7 +130,7 @@ you may also just set the desired number of pixels explicitly in the call to cal
 >>>  instrument.calcPSF(fov_npixels = 512)
 
 
-.. warning::
+.. note::
 
     Please note that these parity options apply to the number of *detector
     pixels* in your simulation. If you request oversampling, then the number of
@@ -189,13 +197,19 @@ As just explained, WebbPSF can easily calculate PSFs on a finer grid than the de
 The default behavior is 'both'. Note that at some point in the future, this default is likely to change to detector sampling. 
 
 
+Detailed WebbPSF API Reference
+-------------------------------
 
+Class hierarchy
+^^^^^^^^^^^^^^^^
 
-The JWInstrument generic class
---------------------------------
 
 .. inheritance-diagram:: webbpsf.NIRCam webbpsf.NIRSpec webbpsf.MIRI webbpsf.NIRISS webbpsf.FGS
 
+
+
+The JWInstrument generic class
+#################################
 
 .. autoclass:: webbpsf.JWInstrument
    :members:
@@ -204,9 +218,9 @@ The JWInstrument generic class
 .. _specific_instrument:
 
 Notes on Specific Instruments
--------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 NIRCam
-^^^^^^
+#######
 
 .. autoclass:: webbpsf.NIRCam
 
@@ -214,14 +228,14 @@ NIRCam
         
 
 NIRSpec
-^^^^^^^^
+###########
 
 .. autoclass:: webbpsf.NIRSpec
 
         See methods under :py:class:`JWInstrument` 
 
 MIRI
-^^^^^
+######
 
 .. autoclass:: webbpsf.MIRI
 
@@ -244,7 +258,7 @@ MIRI
    can be ignored by most end users of this software; interested readers should consult the  :py:mod:`POPPY <poppy>` documentation for more detail.
 
 NIRISS
-^^^^^^^
+#######
 
 .. autoclass:: webbpsf.NIRISS
 
@@ -254,7 +268,7 @@ NIRISS
 
 
 FGS
-^^^^
+#####
 
 .. autoclass:: webbpsf.FGS
 
@@ -262,24 +276,28 @@ FGS
 
 
 TFI
-^^^^
+#####
 
 Deprecated in favor of NIRISS.  
 
 Utility Functions for Display and Plotting
--------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+.. autofunction:: webbpsf.setup_logging
 
 .. autofunction:: webbpsf.Instrument
 
 Display Functions
-^^^^^^^^^^^^^^^^^^
+#####################
 
 .. autofunction:: display_PSF
 .. autofunction:: display_PSF_difference
+.. autofunction:: display_EE
 .. autofunction:: display_profiles
 
 Metrics of PSF Quality
-^^^^^^^^^^^^^^^^^^^^^^^
+#########################
 
 .. autofunction:: radial_profile
 .. autofunction:: measure_EE
@@ -290,4 +308,5 @@ Metrics of PSF Quality
 --------------
 
 Documentation last updated on |today|
+
 

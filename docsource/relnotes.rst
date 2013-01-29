@@ -21,22 +21,24 @@ Known Issues
 
   These can safely be ignored. 
 
+* Calculations at large radii (> 500 lambda/D ~ 30 arcsec for 2 microns) will show numerical artifacts from Fourier aliasing and the implicit repetition of 
+  the pupil entrance aperture in the discrete Fourier transform. If you need accurate PSF information at such large radii, please contact Marshall Perrin for
+  higher resolution pupil data. 
 
 
 **The following factors are NOT included in these simulations:**
 
 * PSF variations across the field of view of any instrument (though each one has its own distinct OPDs for the center of its FOV).
 * Optical distortions.
-* Any and all detector effects, including intrapixel sensitivity variations. There is no plan to include these at any point in WebbPSF itself.  Generate a subsampled PSF and use a separate detector model code instead. 
 * Instrumental wavefront errors are not modeled separately, though they are included in some of the supplied RevV OPDs. 
 * Coronagraphic masks are assumed to be perfect (i.e. the masks exactly match their design parameters.)
 * No edge effects near the center of the FQPMs. (However, these are believed to be negligible in practice based on detailed simulations by Remi Soummer.)
-
+* Any and all detector effects, including intrapixel sensitivity variations. There is no plan to include these at any point in WebbPSF itself.  Generate a subsampled PSF and use a separate detector model code instead. 
 
 Plans for Future Releases
 --------------------------
-* Full support for the NIRSpec and MIRI IFUs will be added in a future release. Likewise for grisms.
-* Realistic (but time consuming) jitter models (This code now available in beta form if you need it now; contact Marshall.)
+* Full support for the NIRSpec and MIRI IFUs may be added in a future release. Likewise for grisms.
+* Realistic (but time consuming) jitter models (This code now available in beta form if you need it; contact Marshall.)
 * Integration with OPD generation software and detector noise models.
 * Possibly: separate handling of pre- and post- coronagraphic WFE in instruments, if this appears likely to be significant. 
 * Python 3 support will be added as soon as it is needed, but is not an immediate priority. Any users who would like to run webbpsf under python 3, please let me know.
@@ -51,15 +53,63 @@ Version 0.2.9
 
 Released ?????
 
-* Requirements update:
+
+**Changes and Updates to the optics models**:
+
+
+
+ * Bug fix to weak lens code for NIRCam, which previously had an incorrect scaling factor.  
+ * Added defocus option to all instruments, which can be used to simulate either internal focus mechanism moves or telescope defocus during MIMF. For example, set ::
+ 
+    >> defocus_waves=3
+    >> defocus_wavelength=2.0e-6
+    
+   to simulate 3 waves of defocus at 2 microns, equivalently 6 microns phase delay peak-to-valley in the wavefront.
+
+ * Added new option to offset intermediate pupils (e.g. coronagraphic Lyot stops, spectrograph prisms/grisms, etc) in rotation as well as in centering::
+
+    >> niriss.options['pupil_rotation'] = 2  # degrees counterclockwise  
+
+ * Added support for rectangular subarray calculations. You can invoke these by setting fov_pixels or fov_arcsec with a 2-element iterable::
+
+    >> nc = webbpsf.NIRCam()
+    >> nc.calcPSF('F212N', fov_arcsec=[3,6])
+    >> nc.calcPSF('F187N', fov_pixels=(300,100) )
+
+   Those two elements give the desired field size as (Y,X) following the usual Python axis order convention.
+
+.. comment
+  * Added a new model for NIRISS single-object slitless spectroscopy (SOSS).  Wide field slitless 
+
+
+**Software Infrastructure Updates**: 
+
+
+* Required Python modules updated, now with support for `astropy <http::/www.astropy.org>`_:
 
     * Either ``astropy.io.fits`` or ``pyfits`` is acceptable for FITS I/O. 
     * Either ``astropy.io.ascii`` or ``asciitable`` is acceptable for ASCII table I/O.
     * ``atpy`` is no longer required.
 
-* Bug fix to weak lens code for NIRCam, which previously had an incorrect scaling factor.  Added defocus option to all instruments, which can be used to simulate either internal focus mechanism moves or telescope defocus during MIMF. For example, set 'defocus_waves=3', 'defocus_wavelength=2.0e-6' to simulate 3 waves of defocus at 2 microns, equivalently 6 microns phase delay peak to valley in the wavefront.
+
+* New GUI using the wxpython widget toolkit in place of the older/less function Tkinter tool kit. Thanks to Klaus Pontoppidan for useful advice in wxpython. This should offer 
+  better cross-platform support and improved long term extensibility. (For now, the existing Tkinter GUI remains in place but is deprecated and further development is not planned.) 
+
+    * The advanced options dialog box now has an option to toggle between monochromatic and broadband calculations. In monochromatic mode, the "# of wavelengths" field is 
+      replaced by a "wavelength in microns" field. 
+    * There is also an option to toggle the field of view size between arcseconds and pixels. 
+    * Log messages giving details of calculations are now displayed in a window as part of the GUI as well. 
+    * The wx gui supports rectangular fields of view. Simply enter 2 elements separated by a comma in the 'Field of view' text box. As a convenience, these 
+      are interpreted as (X,Y) sizes. (Note that this is opposite of the convention used in the programming interface noted above; this is potentially confusing but 
+      seems a reasonable compromise for users of the webbpsf GUI who do not care to think about Python conventions in axis ordering.)
 
 
+* New function webbpsf.setup_logging() adds some more user-friendliness to the underlying python logging system. See updated documentation in the :py:mod:`webbpsf` page. 
+
+* The first time it is imported, WebbPSF will now query the user whether they would like to register for future updates of the software. This is in conjunction with 
+  the new mailing list, webbpsf-users@stsci.edu, that announcements will be sent out to. 
+
+* Some bugfixes in the example code. Thanks to Diane Karakla, Anand Sivaramakrishnan.
 
 
 Version 0.2.8

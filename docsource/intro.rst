@@ -8,20 +8,23 @@ Introduction
 ============
 
 
-Conceptually, the new JWST PSF simulation code has three layers of abstraction: 
+Conceptually, this JWST PSF simulation code has three layers of abstraction: 
  * A base package implements wavefront propagation through generic optical systems (provided by the Python module :py:mod:`POPPY <poppy>`).
  * The specific details of JWST instruments are then implemented using that base system (provided by :py:mod:`WebbPSF <webbpsf>`)
- * And there is a graphical user interface (provided by  :py:mod:`WebbPSFgui <webbpsfgui>`).
+ * And there is a :ref:`graphical user interface <gui>`.
+   
+..  (provided by  :py:mod:`WebbPSFgui <webbpsfgui>`).
 
 It is entirely possible (and indeed recommended for scripting) to just use the :py:mod:`WebbPSF <webbpsf>` interface without the GUI, but the
 GUI will provide a quicker method for simple interactive calculations.
 
 
-Why a new JWST PSF Simulator?
------------------------------
 
-Given that the ``JWPSF`` package has been available for several years now, one might ask why do we need a new PSF simulator? 
-From a user's perspective this new code provides the following enhancements:
+Why WebbPSF? 
+----------------------
+
+WebbPSF replaced an older PSF simulation package,  ``JWPSF``, that was in use prior to 2011. 
+From a user's perspective WebbPSF provides the following enhancements over JWPSF:
 
 * Updated to the most recent JWST pupil and OPD models, Revision V.
 * Added TFI and FGS models.
@@ -43,7 +46,7 @@ significant additions from a programmer's perspective include:
 * Arbitrary oversampling for coronagraphic models.
 * Matrix Fourier Transform algorithm from Soummer et al. implemented for arbitrary detector sampling.
 * Uses ``FFTW3`` library for improved speed and efficient use of multiple processor cores. 
-* Uses ``pysynphot`` library (same as the HST & Webb exposure time calculators) for consistent treatment of filter bandpasses and source spectra.
+* Uses ``pysynphot`` library (same as the HST & JWST exposure time calculators) for consistent treatment of filter bandpasses and source spectra.
 
 
 Algorithm Overview
@@ -109,7 +112,8 @@ and you should be able to test drive things using the GUI:
 
 
 
-Most controls should be self-explanatory, so feel free to experiment. Detailed instructions on the GUI are available :py:mod:`here <webbpsfgui>`.
+Most controls should be self-explanatory, so feel free to experiment. Detailed
+instructions on the GUI are available :ref:`here <gui>`.
 
 ------
 

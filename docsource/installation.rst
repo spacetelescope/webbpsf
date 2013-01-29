@@ -24,29 +24,36 @@ Software Requirements
   
 These are optional but recommended:
 
-* `pysynphot <https://trac6.assembla.com/astrolib>`_ enables the simulation of PSFs with proper spectral response to realistic source spectra.  Without this, PSF fidelity is reduced. See below for installation instructions.
+* `pysynphot <https://trac6.assembla.com/astrolib>`_ enables the simulation of PSFs with proper spectral response to realistic source spectra.  Without this, PSF fidelity is reduced. See below for :ref:`installation instructions for pysynphot <pysynphot_install>`. 
 * `pyFFTW3 <http://pypi.python.org/pypi/PyFFTW3/0.2.1>`_. The FFTW library will significantly speed up the FFTs used in coronagraphic simulations. Since direct imaging simulations use a discrete matrix FT instead, direct imaging simulation speed is unchanged.  pyFFTW3 is highly recommended if you expect to perform many coronagraphic calculations.
 
 **Additional requirement for the GUI:** The :ref:`graphical user interface<gui>` requires 
 
-* **Either** the `ttk <http://docs.python.org/2/library/ttk.html>`_ enhanced version of the ``Tkinter`` widget library. 
+* **Either**  the `wxpython <http://www.wxpython.org>`_ interface to the ``wxwidgets`` widget library. 
+
+
+* **or**  the `ttk <http://docs.python.org/2/library/ttk.html>`_ enhanced version of the ``Tkinter`` widget library. 
   (``ttk`` is not included by default on some installations of Python, for instance Mac OS 10.6's default of Python 2.6. 
   You may wish to either upgrade to a more current Python, or else compile and install ``ttk`` for your platform. ``WebbPSF``
   was developed using Python 2.7, which includes ``ttk`` by default, but it ought to work fine on any installations of
   Python 2.5 or 2.6 provided ``ttk`` is available.)
-* **or** the `wxpython <http://www.wxpython.org>`_ interface to the ``wxwidgets`` widget library. 
-  
 
-Essentially identical GUIs are implemented in both widget tool kits. Future development may concentrate on the wxpython toolkit, but for now both are supported. 
+Similar GUIs are implemented in both widget tool kits, with the wxpython GUI
+providing some additional functionality. Future development will likely
+concentrate on the wxpython toolkit, but for now both are supported.
+
 Alternatively, you can just skip using the GUI; the optical modeling classes
 themselves have no dependency on these widgets.
 
 
 
-Installing WebbPSF via PYPI
-----------------------------------
+Installing WebbPSF
+----------------------
 
-As of version 0.2.8, WebbPSF and its underlying optical library ``poppy`` are both
+Installing WebbPSF via PYPI
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Since version 0.2.8, WebbPSF and its underlying optical library ``poppy`` are both
 installable from the `Python Package Index <http://pypi.python.org/pypi>`_ via
 the standard toolchain using `pip
 <http://www.pip-installer.org/en/latest/index.html>`_ or `easy_install <http://pypi.python.org/pypi/setuptools>`_.  This is the recommended installation
@@ -63,13 +70,13 @@ method if you already have a working copy of python, numpy, and matplotlib on yo
 
 3. Future versions may be installed with ``pip install --upgrade webbpsf`` when they become available.
 
-However, this installs only the program code. You still must download and install the data files, as described below. 
+However, this installs only the program code. You still must download and install the data files, as :ref:`described below <data_install>`. 
 
 
 Installing WebbPSF manually
-------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-If you do not wish to use PYPI, or do not have pip or easy_install available on your system, you can just install the source file directly:
+If for some reason you do not wish to use PYPI, you can just install the source file directly:
 
 
 1. Download the following file: `webbpsf-0.2.9.tar.gz <http://www.stsci.edu/~mperrin/software/webbpsf/webbpsf-0.2.9.tar.gz>`_
@@ -84,21 +91,23 @@ If you do not wish to use PYPI, or do not have pip or easy_install available on 
 
 
 Installing WebbPSF development versions, and/or contributing to its development
----------------------------------------------------------------------------------
-As of version 0.2.8, the webbpsf source code repository is hosted at GitHub: `webbpsf <https://github.com/mperrin/webbpsf>`_, as is the repository for `poppy <https://github.com/mperrin/poppy>`_. Users may clone, fork, and pull diffs in the usual manner. Pull requests with code enhancements welcomed!  
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+As of version 0.2.8, the `webbpsf source code repository <https://github.com/mperrin/webbpsf>`_ is hosted at GitHub, as is the repository for `poppy <https://github.com/mperrin/poppy>`_. Users may clone, fork, and pull diffs in the usual manner. Pull requests with code enhancements welcomed!  
 
+.. _data_install:
 
 Installing the Required Data Files
--------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 1. Download the following file:  `webbpsf-data-0.2.6.tar.gz <http://www.stsci.edu/~mperrin/software/webbpsf/webbpsf-data-0.2.6.tar.gz>`_  [417 MB]
 2. Untar ``webbpsf-data-0.2.x.tar.gz`` into a directory of your choosing.
 3. Set the environment variable ``WEBBPSF_PATH`` to point to that directory. e.g. ``setenv WEBBPSF_PATH $HOME/data/webbpsf-data`` for tcsh/csh, or ``WEBBPSF_PATH=$HOME/data/webbpsf-data; export WEBBPSF_PATH`` for bash.
 
 
+.. _pysynphot_install:
 
 Installing or updating pysynphot
----------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Pysynphot is an optional dependency, but is highly recommended. 
 
