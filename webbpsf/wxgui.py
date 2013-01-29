@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
 import pyfits
+from threading import Thread
 
 
 __doc__ = """
@@ -27,6 +28,13 @@ _log = logging.getLogger('webbpsf')
 #_log.setLevel(logging.INFO)
 
 
+
+def _default_options():
+
+    return {'force_coron': False, 'no_sam': False, 'parity':'Either',
+                'psf_scale':'log', 'psf_normalize':'Peak', 
+                'psf_cmap_str': 'Jet (blue to red)', 'psf_cmap': matplotlib.cm.jet,
+                'psf_vmin':1e-8, 'psf_vmax':1.0, 'monochromatic': False, 'fov_in_arcsec': True }
 
 
 
@@ -55,10 +63,13 @@ class WebbPSF_GUI(wx.Frame):
         self.instrument = {}
         self.widgets = {}
         self.vars = {}
-        self.advanced_options = {'parity': 'any', 'force_coron': False, 'no_sam': False, 'psf_vmin': 1e-8, 'psf_vmax': 1.0, 'psf_scale': 'log', 'psf_cmap_str': 'Jet (blue to red)' , 'psf_normalize': 'Total', 'psf_cmap': matplotlib.cm.jet}
+        self.advanced_options = _default_options()
         insts = ['NIRCam', 'NIRSpec','NIRISS', 'MIRI', 'FGS']
         for i in insts:
             self.instrument[i] = webbpsf_core.Instrument(i)
+
+        self.inst = self.instrument['NIRCam'] # default
+
         #invoke link to ITM server if provided?
         if opdserver is not None:
             self._enable_opdserver = True
@@ -69,9 +80,13 @@ class WebbPSF_GUI(wx.Frame):
         
         # create widgets & run
         self._create_widgets_wx()
-        #self.root.update()
 
-    def _add_labeled_dropdown(self, name, parent, parentsizer, label="Entry:", choices=None, default=0, width=5, position=(0,0), columnspan=1, **kwargs):
+        # Set up event handler for any worker thread results
+        EVT_RESULT(self,self.OnCalcDone)
+
+        self.Show(True)
+
+    def _add_labeled_dropdown(self, name, parent, parentsizer, label="Entry:", choices=None, default=0, width=None, position=(0,0), columnspan=1, expand=True, **kwargs):
         "convenient wrapper for adding a Combobox"
 
         mylabel = wx.StaticText(parent, -1,label=label)
@@ -88,17 +103,23 @@ class WebbPSF_GUI(wx.Frame):
         else:
             value=default
 
-        mycombo = wx.ComboBox(parent, -1,value=value, choices=choices, style=wx.CB_DROPDOWN|wx.CB_READONLY)
-        parentsizer.Add( mycombo, (position[0],position[1]+1),  (1,columnspan), wx.EXPAND)
+        #size = (width,25) if width is not None else None
+        size=None
+
+        mycombo = wx.ComboBox(parent, -1,value=value, choices=choices, style=wx.CB_DROPDOWN|wx.CB_READONLY, size=size)
+        style = wx.EXPAND if expand else 0
+        parentsizer.Add( mycombo, (position[0],position[1]+1),  (1,columnspan), style)
 
         self.widgets[name] = mycombo
  
 
     def _add_labeled_entry(self, name, parent, parentsizer, label="Entry:", value=None, format="%.2g", 
-            width=5, position=(0,0), postlabel=None, **kwargs):
+            width=None, position=(0,0), postlabel=None, **kwargs):
         "convenient wrapper for adding an Entry"
         mylabel = wx.StaticText(parent, -1,label=label)
         parentsizer.Add( mylabel, position,  (1,1), wx.EXPAND)
+        self.widgets[name+"_pre_label"] = mylabel
+
 
 
         if value is None:
@@ -107,7 +128,9 @@ class WebbPSF_GUI(wx.Frame):
             except:
                 value=""
 
-        mytext = wx.TextCtrl(parent, -1,value=value)
+        size = (width,23) if width is not None else None
+
+        mytext = wx.TextCtrl(parent, -1,value=value, size=size)
         parentsizer.Add( mytext, (position[0],position[1]+1),  (1,1), wx.EXPAND)
 
         self.widgets[name] = mytext
@@ -115,7 +138,7 @@ class WebbPSF_GUI(wx.Frame):
         if postlabel is not None:
             mylabel2 = wx.StaticText(parent, -1,label=postlabel)
             parentsizer.Add( mylabel2, (position[0],position[1]+2),  (1,1), wx.EXPAND)
-
+            self.widgets[name+"_post_label"] = mylabel2
 
 
     def _create_widgets_wx(self):
@@ -149,7 +172,7 @@ class WebbPSF_GUI(wx.Frame):
             spectrumPanel = wx.Panel(top_panel)
             spectrumSizer = wx.GridBagSizer()
 
-            self._add_labeled_dropdown("SpType", spectrumPanel,spectrumSizer, label='    Spectral Type:', 
+            self._add_labeled_dropdown("SpType", spectrumPanel,spectrumSizer, label='    Spectral Type:     ', 
                     choices=poppy.specFromSpectralType("",return_list=True), default='G0V', 
                     position=(0,0))
             self.ButtonPlotSpec = wx.Button(spectrumPanel, label='Plot Spectrum')
@@ -163,8 +186,8 @@ class WebbPSF_GUI(wx.Frame):
         posPanel = wx.Panel(top_panel)
         posSizer = wx.GridBagSizer()
         r=0
-        self._add_labeled_entry("source_off_r", posPanel,posSizer, label='    Source Position: r=', value='0.0',  position=(r,0))
-        self._add_labeled_entry("source_off_theta", posPanel,posSizer, label='arcsec,  PA=', value='0', position=(r,2))
+        self._add_labeled_entry("source_off_r", posPanel,posSizer, label='    Source Position: r=', value='0.0', width=60,  position=(r,0))
+        self._add_labeled_entry("source_off_theta", posPanel,posSizer, label='arcsec,  PA=', value='0', width=60, position=(r,2))
         posPanel.SetSizerAndFit(posSizer)
         sb1Sizer.Add(posPanel,0, wx.ALL|wx.EXPAND, 2)
 
@@ -185,26 +208,28 @@ class WebbPSF_GUI(wx.Frame):
 
 
             self._add_labeled_dropdown(iname+"_filter", inst_panel,panelSizer, label='    Filter:', choices=self.instrument[iname].filter_list, 
-                default=self.instrument[iname].filter, width=12, position=(1,0))
+                default=self.instrument[iname].filter,  position=(1,0))
 
             if len(self.instrument[iname].image_mask_list) >0 :
                 masks = self.instrument[iname].image_mask_list
                 masks.insert(0, "")
  
-                self._add_labeled_dropdown(iname+"_coron", inst_panel,panelSizer, label='    Coron:', choices=masks,  width=12, position=(2,0))
+                self._add_labeled_dropdown(iname+"_coron", inst_panel,panelSizer, label='    Coron:', choices=masks,  position=(2,0))
 
 
             if len(self.instrument[iname].image_mask_list) >0 :
                 masks = self.instrument[iname].pupil_mask_list
                 masks.insert(0, "")
-                self._add_labeled_dropdown(iname+"_pupil", inst_panel,panelSizer, label='    Pupil:', choices=masks,  width=12, position=(3,0))
+                self._add_labeled_dropdown(iname+"_pupil", inst_panel,panelSizer, label='    Pupil:', choices=masks,  position=(3,0))
 
                 fr2 = wx.Panel(inst_panel) 
                 fr2Sizer = wx.GridBagSizer()
-                self._add_labeled_entry(iname+"_pupilshift_x", fr2,fr2Sizer, label='  pupil shift in X:', value='0', width=3, position=(0,4))
-                self._add_labeled_entry(iname+"_pupilshift_y", fr2,fr2Sizer, label=' Y:', value='0', width=3, position=(0,6))
+                self._add_labeled_entry(iname+"_pupilshift_x", fr2,fr2Sizer, label='  pupil shift in X:', value='0', width=40, position=(0,4))
+                self._add_labeled_entry(iname+"_pupilshift_y", fr2,fr2Sizer, label=' Y:', value='0', width=40, position=(0,6))
 
-                fr2Sizer.Add(wx.StaticText(fr2, label='% of pupil' ), (0,8), (1,1))
+                fr2Sizer.Add(wx.StaticText(fr2, label='% of pupil,' ), (0,8), (1,1))
+                self._add_labeled_entry(iname+"_pupil_rot", fr2,fr2Sizer, label=' rotated', value='0', width=40, position=(0,9))
+                fr2Sizer.Add(wx.StaticText(fr2, label='deg' ), (0,11), (1,1))
                 fr2.SetSizerAndFit(fr2Sizer)
 
                 panelSizer.Add(fr2, (3,3),(1,3))
@@ -213,20 +238,21 @@ class WebbPSF_GUI(wx.Frame):
 
             panelSizer.Add(wx.StaticText(inst_panel, label='Configuration Options for the Telescope (OTE) '), (5,0),(1,5), flag=wx.ALIGN_LEFT)
             opdPanel = wx.Panel(inst_panel)
-            opdSizer=wx.GridBagSizer()
-            opd_list =  self.instrument[iname].opd_list
+            opdSizer = wx.GridBagSizer()
+            opd_list = self.instrument[iname].opd_list
             opd_list.insert(0,"Zero OPD (perfect)")
             if self._enable_opdserver:
                 opd_list.append("OPD from ITM Server")
             default_opd = self.instrument[iname].pupilopd if self.instrument[iname].pupilopd is not None else "Zero OPD (perfect)"
 
-            self._add_labeled_dropdown(iname+"_opd", opdPanel,opdSizer, label='    OPD File:', choices=opd_list, default=default_opd, width=21, position=(0,0))
+            self._add_labeled_dropdown(iname+"_opd", opdPanel,opdSizer, label='    OPD File:', choices=opd_list, default=default_opd, width=220, position=(0,0), expand=False)
+            self.Bind(wx.EVT_COMBOBOX, self.ev_update_OPD_labels, self.widgets[iname+"_opd"])
 
-            self._add_labeled_dropdown(iname+"_opd_i", opdPanel,opdSizer, label=' # ', choices= [str(i) for i in range(10)], width=3, position=(0,2))
+            self._add_labeled_dropdown(iname+"_opd_i", opdPanel,opdSizer, label=' # ', choices= [str(i) for i in range(10)], width=3, position=(0,2), expand=False)
 
-            self.widgets[iname+"_opd_label"] = wx.StaticText(opdPanel, label=' 0 nm RMS            ' )
+            self.widgets[iname+"_opd_label"] = wx.StaticText(opdPanel, label=' 0 nm RMS                                            ', style=wx.ALIGN_LEFT|wx.ST_NO_AUTORESIZE)
             opdSizer.Add(self.widgets[iname+"_opd_label"], (0,5),(1,1))
-            opdSizer.AddGrowableCol(4)
+            opdSizer.AddGrowableCol(5)
 
             instDispButton = wx.Button(opdPanel,label='Display OPD')
             opdSizer.Add(instDispButton, (0,6),(1,1), flag=wx.ALIGN_RIGHT)
@@ -237,16 +263,20 @@ class WebbPSF_GUI(wx.Frame):
             panelSizer.Add(opdPanel, (6,0), (1,6), flag=wx.EXPAND|wx.ALL)
 
 
-
+            #spacerPanel = wx.Panel(inst_panel)
+            #panelSizer.Add(spacerPanel, (7,0), (1,6), flag=wx.EXPAND|wx.ALL)
 
             panelSizer.AddGrowableCol(2)
             panelSizer.AddGrowableRow(4)
+            panelSizer.AddGrowableRow(6)
 
             inst_panel.SetSizerAndFit(panelSizer)
         
             nb.AddPage(inst_panel, iname)
 
         self.widgets['tabset'] = nb
+        self.ev_update_OPD_labels(None)
+
         #===== Calculation Options ======
 
         sb3 = wx.StaticBox(top_panel, label='Calculation Options')
@@ -323,184 +353,10 @@ class WebbPSF_GUI(wx.Frame):
 
 
 
-
         self.Bind(wx.EVT_CLOSE, self.OnClose)
 
-        self.Center() # or centre? 
-        self.Show(True)
-        return
+        self.Center() 
 
-    def old_create_widgets(self):
-
-        #-- instruments
-        lf = ttk.LabelFrame(frame, text='Instrument Config')
-        notebook = ttk.Notebook(lf)
-        self.widgets['tabset'] = notebook
-        notebook.pack(fill='both')
-        for iname,i in zip(insts, range(len(insts))):
-            page = ttk.Frame(notebook)
-            notebook.add(page,text=iname) 
-            notebook.select(i)  # make it active
-            self.widgets[notebook.select()] = iname # save reverse lookup from meaningless widget "name" to string name
-            if iname =='NIRCam':
-                lframe = ttk.Frame(page)
-
-                ttk.Label(lframe, text='Configuration Options for '+iname+',     module: ').grid(row=0, column=0, sticky='W')
-                mname='NIRCam module'
-                self.vars[mname] = tk.StringVar()
-                self.widgets[mname] = ttk.Combobox(lframe, textvariable=self.vars[mname], width=2, state='readonly')
-                self.widgets[mname].grid(row=0,column=1, sticky='W')
-                self.widgets[mname]['values'] = ['A','B']
-                self.widgets[mname].set('A')
-
-                lframe.grid(row=0, columnspan=2, sticky='W')
-            else:
-                ttk.Label(page, text='Configuration Options for '+iname+"                      ").grid(row=0, columnspan=2, sticky='W')
-
-            ttk.Button(page, text='Display Optics', command=self.ev_displayOptics ).grid(column=2, row=0, sticky='E', columnspan=3)
-
-
-
-
-            #if hasattr(self.instrument[iname], 'ifu_wavelength'):
-            if iname == 'NIRSpec' or iname =='MIRI':
-                fr2 = ttk.Frame(page)
-                #label = 'IFU' if iname !='TFI' else 'TF'
-                ttk.Label(fr2, text='   IFU wavelen: ', state='disabled').grid(row=0, column=0)
-                self.widgets[iname+"_ifu_wavelen"] = ttk.Entry(fr2, width=5) #, disabledforeground="#A0A0A0")
-                self.widgets[iname+"_ifu_wavelen"].insert(0, str(self.instrument[iname].monochromatic))
-                self.widgets[iname+"_ifu_wavelen"].grid(row=0, column=1)
-                self.widgets[iname+"_ifu_wavelen"].state(['disabled'])
-                ttk.Label(fr2, text=' um' , state='disabled').grid(row=0, column=2)
-                fr2.grid(row=1,column=2, columnspan=6, sticky='E')
-
-                iname2 = iname+"" # need to make a copy so the following lambda function works right:
-                self.widgets[iname+"_filter"].bind('<<ComboboxSelected>>', lambda e: self.ev_update_ifu_label(iname2))
-
-
-            if len(self.instrument[iname].image_mask_list) >0 :
-                masks = self.instrument[iname].image_mask_list
-                masks.insert(0, "")
- 
-                self._add_labeled_dropdown(iname+"_coron", page, label='    Coron:', values=masks,  width=12, position=(2,0), sticky='W')
-
-
-            if len(self.instrument[iname].image_mask_list) >0 :
-                masks = self.instrument[iname].pupil_mask_list
-                masks.insert(0, "")
-                self._add_labeled_dropdown(iname+"_pupil", page, label='    Pupil:', values=masks,  width=12, position=(3,0), sticky='W')
-
-                fr2 = ttk.Frame(page)
-                self._add_labeled_entry(iname+"_pupilshift_x", fr2, label='  pupil shift in X:', value='0', width=3, position=(3,4), sticky='W')
-                self._add_labeled_entry(iname+"_pupilshift_y", fr2, label=' Y:', value='0', width=3, position=(3,6), sticky='W')
-
-                ttk.Label(fr2, text='% of pupil' ).grid(row=3, column=8)
-                fr2.grid(row=3,column=3, sticky='W')
-
-
-            ttk.Label(page, text='Configuration Options for the OTE').grid(row=4, columnspan=2, sticky='W')
-            fr2 = ttk.Frame(page)
-
-            opd_list =  self.instrument[iname].opd_list
-            opd_list.insert(0,"Zero OPD (perfect)")
-            #if os.getenv("WEBBPSF_ITM") or 1:  
-            if self._enable_opdserver:
-                opd_list.append("OPD from ITM Server")
-            default_opd = self.instrument[iname].pupilopd if self.instrument[iname].pupilopd is not None else "Zero OPD (perfect)"
-            self._add_labeled_dropdown(iname+"_opd", fr2, label='    OPD File:', values=opd_list, default=default_opd, width=21, position=(0,0), sticky='W')
-
-            self._add_labeled_dropdown(iname+"_opd_i", fr2, label=' # ', values= [str(i) for i in range(10)], width=3, position=(0,2), sticky='W')
-
-            self.widgets[iname+"_opd_label"] = ttk.Label(fr2, text=' 0 nm RMS            ', width=35)
-            self.widgets[iname+"_opd_label"].grid( column=4,sticky='W', row=0)
-
-            self.widgets[iname+"_opd"].bind('<<ComboboxSelected>>', 
-                    lambda e: self.ev_update_OPD_labels() )
-                    # The below code does not work, and I can't tell why. This only ever has iname = 'FGS' no matter which instrument.
-                    # So instead brute-force it with the above to just update all 5. 
-                    #lambda e: self.ev_update_OPD_label(self.widgets[iname+"_opd"], self.widgets[iname+"_opd_label"], iname) )
-            ttk.Button(fr2, text='Display', command=self.ev_displayOPD).grid(column=5,sticky='E',row=0)
-
-            fr2.grid(row=5, column=0, columnspan=4,sticky='S')
-
-
-
-            # ITM interface here - build the widgets now but they will be hidden by default until the ITM option is selected
-            fr2 = ttk.Frame(page)
-            self._add_labeled_entry(iname+"_coords", fr2, label='    Source location:', value='0, 0', width=12, position=(1,0), sticky='W')
-            units_list = ['V1,V2 coords', 'detector pixels']
-            self._add_labeled_dropdown(iname+"_coord_units", fr2, label='in:', values=units_list, default=units_list[0], width=11, position=(1,2), sticky='W')
-            choose_list=['', 'SI center', 'SI upper left corner', 'SI upper right corner', 'SI lower left corner', 'SI lower right corner']
-            self._add_labeled_dropdown(iname+"_coord_choose", fr2, label='or select:', values=choose_list, default=choose_list[0], width=21, position=(1,4), sticky='W')
-
-
-            ttk.Label(fr2, text='    ITM output:').grid(row=2, column=0, sticky='W')
-            self.widgets[iname+"_itm_output"] = ttk.Label(fr2, text='    - no file available yet -')
-            self.widgets[iname+"_itm_output"].grid(row=2, column=1, columnspan=4, sticky='W')
-            ttk.Button(fr2, text='Access ITM...', command=self.ev_launch_ITM_dialog).grid(column=5,sticky='E',row=2)
-
-
-            fr2.grid(row=6, column=0, columnspan=4,sticky='SW')
-            self.widgets[iname+"_itm_coords"] = fr2
-
-
-        self.ev_update_OPD_labels()
-        lf.grid(row=2, sticky='E,W', padx=10, pady=5)
-        notebook.select(0)
-
-        lf = ttk.LabelFrame(frame, text='Calculation Options')
-        r =0
-        self._add_labeled_entry('FOV', lf, label='Field of View:',  width=3, value='5', postlabel='arcsec/side', position=(r,0))
-        r+=1
-        self._add_labeled_entry('detector_oversampling', lf, label='Output Oversampling:',  width=3, value='2', postlabel='x finer than instrument pixels       ', position=(r,0))
-
-        #self.vars['downsamp'] = tk.BooleanVar()
-        #self.vars['downsamp'].set(True)
-        #self.widgets['downsamp'] = ttk.Checkbutton(lf, text='Save in instr. pixel scale, too?', onvalue=True, offvalue=False,variable=self.vars['downsamp'])
-        #self.widgets['downsamp'].grid(row=r, column=4, sticky='E')
-
-        output_options=['Oversampled PSF only', 'Oversampled + Detector Res. PSFs', 'Mock full image from JWST DMS']
-        self._add_labeled_dropdown("output_type", fr2, label='Output format:', values=output_options, default=output_options[1], width=31, position=(r,4), sticky='W')
-
-
-        r+=1
-        self._add_labeled_entry('fft_oversampling', lf, label='Coronagraph FFT Oversampling:',  width=3, value='2', postlabel='x finer than Nyquist', position=(r,0))
-        r+=1
-        self._add_labeled_entry('nlambda', lf, label='# of wavelengths:',  width=3, value='', position=(r,0), postlabel='Leave blank for autoselect')
-        r+=1
-
-        self._add_labeled_dropdown("jitter", lf, label='Jitter model:', values=  ['Just use OPDs' ], width=20, position=(r,0), sticky='W', columnspan=2)
-        r+=1
-        self._add_labeled_dropdown("output_format", lf, label='Output Format:', values=  ['Oversampled image','Detector sampled image','Both as FITS extensions', 'Mock JWST DMS Output' ], width=30, position=(r,0), sticky='W', columnspan=2)
-        #self._add_labeled_dropdown("jitter", lf, label='Jitter model:', values=  ['Just use OPDs', 'Gaussian blur', 'Accurate yet SLOW grid'], width=20, position=(r,0), sticky='W', columnspan=2)
-
-        lf.grid(row=4, sticky='E,W', padx=10, pady=5)
-
-        lf = ttk.Frame(frame)
-
-        def addbutton(self,lf, text, command, pos, disabled=False):
-            self.widgets[text] = ttk.Button(lf, text=text, command=command )
-            self.widgets[text].grid(column=pos, row=0, sticky='E')
-            if disabled:
-                self.widgets[text].state(['disabled'])
-
- 
-        addbutton(self,lf,'Compute PSF', self.ev_calcPSF, 0)
-        addbutton(self,lf,'Display PSF', self.ev_displayPSF, 1, disabled=True)
-        addbutton(self,lf,'Display profiles', self.ev_displayProfiles, 2, disabled=True)
-        addbutton(self,lf,'Save PSF As...', self.ev_SaveAs, 3, disabled=True)
-        addbutton(self,lf,'More options...', self.ev_options, 4, disabled=False)
-
-        ttk.Button(lf, text='Quit', command=self.quit).grid(column=5, row=0)
-        lf.columnconfigure(2, weight=1)
-        lf.columnconfigure(4, weight=1)
-        lf.grid(row=5, sticky='E,W', padx=10, pady=15)
-
-        frame.grid(row=0, sticky='N,E,S,W')
-        frame.columnconfigure(0, weight=1)
-        frame.rowconfigure(0, weight=1)
-        self.root.columnconfigure(0, weight=1)
-        self.root.rowconfigure(0, weight=1)
 
 
     def OnClose(self, event):
@@ -536,12 +392,41 @@ class WebbPSF_GUI(wx.Frame):
             self.info("User cancelled save.")
 
     def ev_options(self, event):
+        import copy
+        oldoptions = copy.copy(self.advanced_options)
+
         dlg = WebbPSFOptionsDialog(self, input_options = self.advanced_options)
         results = dlg.ShowModal()
+
+        iname = self.widgets['tabset'].GetCurrentPage().WebbPSFInstrumentName
 
         if dlg.results is not None: # none means the user hit 'cancel'
             self.advanced_options = dlg.results
 
+            if self.advanced_options['monochromatic']:
+                self.widgets["nlambda_pre_label"].SetLabel("Wavelength:    ")
+                self.widgets["nlambda_post_label"].SetLabel(" [microns]")
+            else:
+                self.widgets["nlambda_pre_label"].SetLabel("# of wavelengths:")
+                self.widgets["nlambda_post_label"].SetLabel("Leave blank for autoselect")
+
+            if self.advanced_options['fov_in_arcsec']:
+                self.widgets["FOV_post_label"].SetLabel("arcsec/side")
+                if not oldoptions['fov_in_arcsec']: 
+                    # we have to convert pixels to arcsec
+                    self._setFOV( self._getFOV() * self.instrument[iname].pixelscale) 
+            else:
+                self.widgets["FOV_post_label"].SetLabel("pixels/side")
+                if oldoptions['fov_in_arcsec']: 
+                    # we have to convert arcsec to pixels
+                    newfov = self._getFOV() / self.instrument[iname].pixelscale
+                    #_log.info("Newfov: "+str(newfov))
+                    if hasattr(newfov, '__len__') and len(newfov) > 1: 
+                        newfov = np.asarray(newfov, dtype=int)
+                    else:
+                        newfov = int(newfov)
+                    self._setFOV( newfov)
+ 
         dlg.Destroy()
 
     def ev_plotspectrum(self, event):
@@ -630,21 +515,35 @@ class WebbPSF_GUI(wx.Frame):
         self._updateFromGUI()
         self.info("Starting PSF calculation...")
 
-        if _HAS_PYSYNPHOT:
-            source = poppy.specFromSpectralType(self.sptype)
-        else:
-            source=None # generic flat spectrum
 
         self._refresh_window() # pre-display window for calculation updates as it progresses...
-        self.PSF_HDUlist = self.inst.calcPSF(source=source, 
-                detector_oversample= self.detector_oversampling,
-                fft_oversample=self.fft_oversampling,
-                fov_arcsec = self.FOV,  nlambda = self.nlambda, display=True)
-        #self.PSF_HDUlist.display()
         for w in ['Display PSF', 'Display profiles', 'Save PSF As...']:
-           self.widgets[w].Enable(True)
+           self.widgets[w].Enable(False)
+
+        self.calcthread = PSFCalcThread()
+        self.calcthread.runPSFCalc(self.inst, self) 
+#        self.PSF_HDUlist = self.inst.calcPSF(source=source, 
+#                detector_oversample= self.detector_oversampling,
+#                fft_oversample=self.fft_oversampling,
+#                fov_arcsec = self.FOV,  nlambda = self.nlambda, display=True)
+        #self.PSF_HDUlist.display()
+
+
+    def OnCalcDone(self, event):
+        """ Called when worker thread returns results..."""
+        if event.data is None:
+            self.info("No result from calculation!")
+            self.PSF_HDUlist = None
+        else:
+            self.PSF_HDUlist = event.data
+            for w in ['Display PSF', 'Display profiles', 'Save PSF As...']:
+               self.widgets[w].Enable(True)
+
         self._refresh_window()
         self.info("PSF calculation complete")
+        # In either event, the worker is done
+        self.calcthread = None
+
 
     def ev_displayPSF(self,event):
         "Event handler for Displaying the PSF"
@@ -705,40 +604,48 @@ class WebbPSF_GUI(wx.Frame):
 
         self._refresh_window()
 
-    def ev_launch_ITM_dialog(self):
+    def ev_launch_ITM_dialog(self, event):
         tkMessageBox.showwarning( message="ITM dialog box not yet implemented", title="Can't Display") 
 
-    def ev_update_OPD_labels(self):
+    def ev_update_OPD_labels(self, event):
         "Update the descriptive text for all OPD files"
         for iname in self.instrument.keys():
             self.ev_update_OPD_label(self.widgets[iname+"_opd"], self.widgets[iname+"_opd_label"], iname)
 
     def ev_update_OPD_label(self, widget_combobox, widget_label, iname):
         "Update the descriptive text displayed about one OPD file"
+        from wx.lib.wordwrap import wordwrap
         showitm=False # default is do not show
-        filename = self.instrument[iname]._datapath +os.sep+ 'OPD'+ os.sep+widget_combobox.get()
+        filename = os.path.join( self.instrument[iname]._datapath, 'OPD',  widget_combobox.GetValue() )
+
         if filename.endswith(".fits"):
-            header_summary = pyfits.getheader(filename)['SUMMARY']
-            self.widgets[iname+"_opd_i"]['state'] = 'readonly'
+            try:
+                header_summary = pyfits.getheader(filename)['SUMMARY']
+            except:
+                header_summary = 'could not obtain a summary from FITS header'
+            #self.widgets[iname+"_opd_i"]['state'] = 'readonly'
         else:  # Special options for non-FITS file inputs
-            self.widgets[iname+"_opd_i"]['state'] = 'disabled'
-            if 'Zero' in widget_combobox.get():
+            #self.widgets[iname+"_opd_i"]['state'] = 'disabled'
+            val = widget_combobox.GetValue()
+            if 'Zero' in val:
                 header_summary = " 0 nm RMS"
-            elif 'ITM' in widget_combobox.get() and self._enable_opdserver:
+            elif 'ITM' in val and self._enable_opdserver:
                 header_summary= "Get OPD from ITM Server"
                 showitm=True
-            elif 'ITM' in widget_combobox.get() and not self._enable_opdserver:
+            elif 'ITM' in val and not self._enable_opdserver:
                 header_summary = "ITM Server is not running or otherwise unavailable."
             else: # other??
                 header_summary = "   "
 
-        widget_label.configure(text=header_summary, width=30)
+        widget_label.SetLabel( header_summary  )
+        widget_label.Wrap(250)
+        #widget_label.SetLabel( wordwrap( header_summary, 40, wx.ClientDC(self))  )
 
 
-        if showitm:
-            self.widgets[iname+"_itm_coords"].grid() # re-show ITM options
-        else:
-            self.widgets[iname+"_itm_coords"].grid_remove()  # hide ITM options
+        #if showitm:
+        #    self.widgets[iname+"_itm_coords"].grid() # re-show ITM options
+        #else:
+        #    self.widgets[iname+"_itm_coords"].grid_remove()  # hide ITM options
 
     def _updateFromGUI(self):
         """ Update the object's state with all the settings from the GUI
@@ -749,11 +656,30 @@ class WebbPSF_GUI(wx.Frame):
         self.iname = self.widgets['tabset'].GetCurrentPage().WebbPSFInstrumentName
 
 
-        try:
-            self.nlambda= int(self.widgets['nlambda'].GetValue())
-        except:
-            self.nlambda = None # invoke autoselect for nlambda
-        self.FOV= float(self.widgets['FOV'].GetValue())
+        if self.advanced_options['monochromatic']:
+            # monochromatic mode
+            self.nlambda=1
+            try:
+                self.monochromatic_wavelength = float(self.widgets['nlambda'].GetValue()) * 1e-6 # note that the GUI is in microns, so convert to meters here.
+
+                if self.monochromatic_wavelength < 0.6 or self.monochromatic_wavelength > 30:
+                    _log.error("Invalid wavelength. Please enter a value between 0.6 - 30 microns")
+                    raise ValueError('Invalid wavelength outside of range 0.6 - 30 microns: {0:f}'.format(self.monochromatic_wavelength))
+            except:
+                _log.error("Could not obtain a wavelength. Please check the value of the wavelength field and try again.")
+                raise ValueError('Could not obtain a wavelength from string "{0}"'.format(self.widgets['nlambda'].GetValue()))
+        else:
+            # normal broadband mode
+            self.monochromatic_wavelength = None
+            try:
+                self.nlambda= int(self.widgets['nlambda'].GetValue())
+            except:
+                self.nlambda = None # invoke autoselect for nlambda
+                
+
+
+
+        self.FOV= self._getFOV() #float(self.widgets['FOV'].GetValue())
         self.fft_oversampling= int(self.widgets['fft_oversampling'].GetValue())
         self.detector_oversampling= int(self.widgets['detector_oversampling'].GetValue())
 
@@ -810,6 +736,96 @@ class WebbPSF_GUI(wx.Frame):
         self.inst.options = options
 
 
+    def _getFOV(self):
+        """ Get field of view, either as a scalar number for square or a 
+        2-element ndarray for rectangular 
+        
+        Note that if it is a 2-element paid, we flip the order of the elements. 
+        This is to facilitate a more intuitive "x,y" ordering for the user interface.
+        """
+        fovstr = self.widgets['FOV'].GetValue()
+
+        #_log.info("_getFOV fovstr: "+str(fovstr))
+        try:
+            if ',' in fovstr:
+                parts = fovstr.split(',')
+                return np.asarray( parts[0:2], dtype=float)[::-1]
+            else:
+                return float(self.widgets['FOV'].GetValue())
+        except:
+            _log.error("Invalid entry in FOV field. Please check it and try again")
+            raise ValueError("Invalid entry in FOV field. Please check it and try again")
+
+
+    def _setFOV(self, newvalue):
+        """ Get field of view, either as a scalar number for square or a 
+        2-element ndarray for rectangular 
+
+        Note that if it is a 2-element paid, we flip the order of the elements. 
+        This is to facilitate a more intuitive "x,y" ordering for the user interface.
+        """
+        #_log.info("_setFOV newvalue: "+str(newvalue))
+        if hasattr(newvalue, '__iter__'):
+            newstring = ",".join( (str(newvalue[1]), str(newvalue[0]) ))
+        else:
+            newstring = str(newvalue)
+
+        self.widgets['FOV'].SetValue(newstring)
+
+#-------------------------------------------------------------------------
+# Class to run the actual PSF calculation in a background thread, to keep the
+# GUI still responsive
+# This code based on examples at http://wiki.wxpython.org/LongRunningTasks         
+# and http://www.blog.pythonlibrary.org/2010/05/22/wxpython-and-threads/
+
+class PSFCalcThread(Thread):
+    def __init__(self):
+        """Init Worker Thread Class."""
+        Thread.__init__(self)
+        self.start()    # start the thread
+
+    def runPSFCalc(self,  instrument, masterapp):
+
+        if _HAS_PYSYNPHOT:
+            source = poppy.specFromSpectralType(masterapp.sptype)
+        else:
+            source=None # generic flat spectrum
+        print "starting calc in thread"
+
+        if instrument.options['fov_in_arcsec']:
+            fov_arcsec = masterapp.FOV
+            fov_pixels = None
+        else:
+            fov_arcsec = None
+            fov_pixels = masterapp.FOV
+ 
+        PSF_HDUlist = instrument.calcPSF(source=source, 
+                detector_oversample = masterapp.detector_oversampling,
+                fft_oversample = masterapp.fft_oversampling,
+                fov_arcsec = fov_arcsec, fov_pixels=fov_pixels,  
+                nlambda = masterapp.nlambda, 
+                monochromatic=masterapp.monochromatic_wavelength, 
+                display = True)
+
+        wx.PostEvent(masterapp, ResultEvent(PSF_HDUlist)) # send results back to master thread
+
+
+# Define notification event for thread completion
+EVT_RESULT_ID = wx.NewId()
+def EVT_RESULT(win, func):
+    """Define Result Event."""
+    win.Connect(-1, -1, EVT_RESULT_ID, func)
+
+class ResultEvent(wx.PyEvent):
+    """Simple event to carry arbitrary result data."""
+    def __init__(self, data):
+        """Init Result Event."""
+        wx.PyEvent.__init__(self)
+        self.SetEventType(EVT_RESULT_ID)
+        self.data = data
+
+
+
 #-------------------------------------------------------------------------
 
 class WebbPSFMenuBar(wx.MenuBar):
@@ -841,15 +857,14 @@ class WebbPSFMenuBar(wx.MenuBar):
 
 
 
+#-------------------------------------------------------------------------
 class WebbPSFOptionsDialog(wx.Dialog):
     """ Dialog box for WebbPSF options 
 
     TODO: investigate wx.Validator to validate the text input fields
     """
     def __init__(self, parent=None, id=-1, title="WebbPSF Options", 
-            input_options={'force_coron': False, 'no_sam': False, 'parity':2,
-                'psf_scale':'log', 'psf_normalize':'Peak', 'psf_cmap_str': 'Jet (blue to red)',
-                'psf_vmin':1e-8, 'psf_vmax':1.0 }): 
+            input_options=_default_options()): 
         wx.Dialog.__init__(self,parent,id=id,title=title)
 
         self.parent=parent
@@ -875,6 +890,8 @@ class WebbPSFOptionsDialog(wx.Dialog):
 
         self.values['force_coron'] = ['regular propagation (MFT)', 'full coronagraphic propagation (FFT/SAM)']
         self.values['no_sam'] = ['semi-analytic method if possible', 'basic FFT method always']
+        self.values['monochromatic'] = ['Broadband', 'Monochromatic']
+        self.values['fov_in_arcsec'] = ['Arcseconds', 'Pixels']
 
 
         self._createWidgets()
@@ -911,7 +928,6 @@ class WebbPSFOptionsDialog(wx.Dialog):
         mylabel = wx.StaticText(parent, -1,label=label)
         parentsizer.Add( mylabel, position,  (1,1), wx.EXPAND)
 
-
         if value is None:
             try:
                 value=format % self.input_options[name]
@@ -926,7 +942,6 @@ class WebbPSFOptionsDialog(wx.Dialog):
         if postlabel is not None:
             mylabel2 = wx.StaticText(parent, -1,label=postlabel)
             parentsizer.Add( mylabel2, (position[0],position[1]+2),  (1,1), wx.EXPAND)
-
 
 
     def _createWidgets(self):
@@ -945,6 +960,12 @@ class WebbPSFOptionsDialog(wx.Dialog):
 
 
         r=2
+        self._add_labeled_dropdown("monochromatic", panel1,sizer, 
+                label='    Broadband or monochromatic? ', 
+                default = 1 if self.input_options['monochromatic'] else 0, position=(r,0))
+
+        r+=1
+ 
         self._add_labeled_dropdown("force_coron", panel1,sizer, 
                 label='    Direct imaging calculations use: ', 
                 default = 1 if self.input_options['force_coron'] else 0, position=(r,0))
@@ -957,7 +978,12 @@ class WebbPSFOptionsDialog(wx.Dialog):
         self._add_labeled_dropdown("parity", panel1,sizer, 
                 label='    Output pixel grid parity is', 
                 choices=['odd', 'even', 'either'], default=self.input_options['parity'], position=(r,0))
+        r+=1
+        self._add_labeled_dropdown("fov_in_arcsec", panel1,sizer, 
+                label='    Specify field of view in: ', 
+                default = 0 if self.input_options['fov_in_arcsec'] else 1, position=(r,0))
 
+ 
         #sizer.AddGrowableCol(0)
         panel1.SetSizerAndFit(sizer)
 
@@ -1017,15 +1043,17 @@ class WebbPSFOptionsDialog(wx.Dialog):
         print "User pressed OK"
         try:
             results = {}
-            results['force_coron'] = self.widgets['force_coron'].GetValue() == 'full coronagraphic propagation (FFT/SAM)'
-            results['no_sam'] = self.widgets['no_sam'].GetValue() == 'basic FFT method always'
-            results['parity'] = self.widgets['parity'].GetValue() 
-            results['psf_scale'] = self.widgets['psf_scale'].GetValue() 
+            results['force_coron'] =    self.widgets['force_coron'].GetValue() == 'full coronagraphic propagation (FFT/SAM)'
+            results['no_sam'] =         self.widgets['no_sam'].GetValue() == 'basic FFT method always'
+            results['monochromatic'] =  self.widgets['monochromatic'].GetValue() == 'Monochromatic'
+            results['fov_in_arcsec'] =  self.widgets['fov_in_arcsec'].GetValue() == 'Arcseconds'
+            results['parity'] =         self.widgets['parity'].GetValue() 
+            results['psf_scale'] =      self.widgets['psf_scale'].GetValue() 
             results['psf_vmax'] = float(self.widgets['psf_vmax'].GetValue())
             results['psf_vmin'] = float(self.widgets['psf_vmin'].GetValue())
-            results['psf_cmap_str'] = self.widgets['psf_cmap'].GetValue()
-            results['psf_cmap'] = self.colortables[self.widgets['psf_cmap'].GetValue() ]
-            results['psf_normalize'] = self.widgets['psf_normalize'].GetValue()
+            results['psf_cmap_str'] =   self.widgets['psf_cmap'].GetValue()
+            results['psf_cmap'] =       self.colortables[self.widgets['psf_cmap'].GetValue() ]
+            results['psf_normalize'] =  self.widgets['psf_normalize'].GetValue()
 
 
             print results

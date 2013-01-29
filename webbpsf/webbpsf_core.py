@@ -34,9 +34,10 @@ import scipy.interpolate, scipy.ndimage
 import matplotlib
 
 try:
-    import astropy.io.table as asciitable
+    import astropy.io.table as table
+
 except:
-    import asciitable
+    import asciitable as table
 
 
 try:
@@ -131,9 +132,14 @@ class JWInstrument(poppy.instrument.Instrument):
         source_offset_theta : float
             Position angle for that offset
         pupil_shift_x, pupil_shift_y : float
-            Relative shift of a coronagraphic pupil in X and Y, expressed as a decimal between 0.0-1.0
+            Relative shift of the intermediate (coronagraphic) pupil in X and Y relative to the telescope entrace pupil, expressed as a decimal between 0.0-1.0
             Note that shifting an array too much will wrap around to the other side unphysically, but
-            for reasonable values of shift this is a non-issue.
+            for reasonable values of shift this is a non-issue.  This option only has an effect for optical models that
+            have something at an intermediate pupil plane between the telescope aperture and the detector. 
+        pupil_rotation : float
+            Relative rotation of the intermediate (coronagraphic) pupil relative to the telescope entrace pupil, expressed in degrees counterclockwise. 
+            This option only has an effect for optical models that have something at an intermediate pupil plane between the telescope aperture and the detector.
+
         rebin : bool
             For output files, write an additional FITS extension including a version of the output array 
             rebinned down to the actual detector pixel scale?
@@ -142,6 +148,7 @@ class JWInstrument(poppy.instrument.Instrument):
         parity : string "even" or "odd"
             You may wish to ensure that the output PSF grid has either an odd or even number of pixels.
             Setting this option will force that to be the case by increasing npix by one if necessary.
+            Note that this applies to the number detector pixels, rather than the subsampled pixels if oversample>1. 
         force_coron : bool
             Set this to force full coronagraphic optical propagation when it might not otherwise take place
             (e.g. calculate the non-coronagraphic images via explicit propagation to all optical surfaces, FFTing 
@@ -158,7 +165,7 @@ class JWInstrument(poppy.instrument.Instrument):
         # wrapped just below to create properties with validation.
         self._filter=None
 
-        filter_table = asciitable.read(self._WebbPSF_basepath + os.sep+ 'filters.txt')
+        filter_table = table.read(self._WebbPSF_basepath + os.sep+ 'filters.txt')
         wmatch = np.where(filter_table.instrument == self.name)
         self.filter_list = filter_table.filter[wmatch].tolist()
         "List of available filters"
@@ -263,9 +270,10 @@ class JWInstrument(poppy.instrument.Instrument):
         1) Set `oversample=<number>`. This will use that oversampling factor beyond detector pixels
            for output images, and beyond Nyquist sampling for any FFTs to prior optical planes. 
         2) set `detector_oversample=<number>` and `fft_oversample=<other_number>`. This syntax lets
-           you specify distinct oversampling factors for intermediate and final planes. 
+           you specify distinct oversampling factors for intermediate and final planes. This is generally
+           only relevant in the case of coronagraphic calculations.
 
-        By default, both oversampling factors are set equal to 2.
+        By default, both oversampling factors are set equal to 4.
 
         Notes
         -----
@@ -277,11 +285,11 @@ class JWInstrument(poppy.instrument.Instrument):
         filter : string, optional
             Filter name. Setting this is just a shortcut for setting the object's filter first, then
             calling calcPSF afterwards.
-        source : pysynphot.SourceSpectrum or dict
+        source : pysynphot.SourceSpectrum or dict or tuple
             specification of source input spectrum. Default is a 5700 K sunlike star.
         nlambda : int
             How many wavelengths to model for broadband? 
-            The default depends on how wide the filter is: (5,3,1) for types (W,M,N) respectively
+            The default depends on how wide the filter is, as set by a lookup table in the webbpsf data distribution.
         monochromatic : float, optional
             Setting this to a wavelength value (in meters) will compute a monochromatic PSF at that 
             wavelength, overriding filter and nlambda settings.
@@ -307,7 +315,8 @@ class JWInstrument(poppy.instrument.Instrument):
 
         save_intermediates, return_intermediates : bool
             Options for saving to disk or returning to the calling function the intermediate optical planes during the propagation. 
-            This is useful if you want to e.g. examine the intensity in the Lyot plane for a coronagraphic propagation.
+            This is useful if you want to e.g. examine the intensity in the Lyot plane for a coronagraphic propagation. These have no
+            effect for simple direct imaging calculations.
 
         Returns
         -------
@@ -349,9 +358,16 @@ class JWInstrument(poppy.instrument.Instrument):
             else: fov_arcsec=5.
             fov_spec = 'arcsec = %f' % fov_arcsec
         elif fov_pixels is not None:
-            fov_spec = 'pixels = %d' % fov_pixels
+
+            if np.isscalar(fov_pixels): 
+                fov_spec = 'pixels = %d' % fov_pixels
+            else:
+                fov_spec = 'pixels = (%d, %d)' % (fov_pixels[0], fov_pixels[1])
         elif fov_arcsec is not None:
-            fov_spec = 'arcsec = %f' % fov_arcsec
+            if np.isscalar(fov_arcsec): 
+                fov_spec = 'arcsec = %f' % fov_arcsec
+            else:
+                fov_spec = 'arcsec = (%.3f, %.3f)' % (fov_arcsec[0], fov_arcsec[1])
 
         _log.debug('FOV set to '+fov_spec)
 
@@ -488,7 +504,7 @@ class JWInstrument(poppy.instrument.Instrument):
             full_opd_path = self.pupilopd if os.path.exists( self.pupilopd) else os.path.join(self._datapath, "OPD",self.pupilopd)
         elif hasattr(self.pupilopd, '__getitem__') and isinstance(self.pupilopd[0], basestring): # tuple with filename and slice
             full_opd_path =  (self.pupilopd[0] if os.path.exists( self.pupilopd[0]) else os.path.join(self._datapath, "OPD",self.pupilopd[0]), self.pupilopd[1])
-        elif isinstance(self.pupilopd, fits.HDUList): # OPD supplied as FITS object
+        elif isinstance(self.pupilopd, fits.HDUList) or isinstance(self.pupilopd, poppy.OpticalElement): # OPD supplied as FITS object
             full_opd_path = self.pupilopd # not a path per se but this works correctly to pass it to poppy
         elif self.pupilopd is None: 
             full_opd_path = None
@@ -985,7 +1001,7 @@ class NIRISS(JWInstrument):
         self.pixelscale = 0.064 
 
         self.image_mask_list = ['CORON058', 'CORON075','CORON150','CORON200'] # available but unlikely to be used...
-        self.pupil_mask_list = ['MASK_NRM','CLEAR']
+        self.pupil_mask_list = ['MASK_NRM','CLEAR', 'SOSS']
         self._default_aperture='NIRISS center' # reference into SIAF for ITM simulation V/O coords
 
 
