@@ -1009,7 +1009,7 @@ class NIRISS(JWInstrument):
         pass
 
     def _addCoronagraphOptics(self,optsys, oversample=2):
-        """Add coronagraphic optics for TFI/NIRISS. 
+        """Add coronagraphic or slitless spectroscopy optics for NIRISS. 
 
             These are probably not going to be used much in practice for NIRISS, but they
             are present, so we might as well still provide the ability to simulate 'em. 
@@ -1050,6 +1050,10 @@ class NIRISS(JWInstrument):
             optsys.addPupil(transmission=self._datapath+"/coronagraph/MASK_NRM.fits.gz", name=self.pupil_mask, shift=shift)
         elif self.pupil_mask == 'CLEAR':
             optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKCLEAR.fits.gz", name=self.pupil_mask, shift=shift)
+        elif self.pupil_mask == 'SOSS':
+            #optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKSOSS.fits.gz", name=self.pupil_mask, shift=shift)
+            optsys.addPupil(optic = NIRISS_GR700XD_Grism(shift=shift))
+ 
         elif (self.pupil_mask  is None and self.image_mask is not None):
             optsys.addPupil(name='No Lyot Mask Selected!')
 
@@ -1062,6 +1066,165 @@ class NIRISS(JWInstrument):
         if self.image_mask is not None:
             hdulist[0].header.update('CORONPOS', self.image_mask, 'NIRISS coronagraph spot location')
         hdulist[0].header.update('FOCUSPOS',0,'NIRISS focus mechanism not yet modeled.')
+
+class NIRISS_GR700XD_Grism(poppy.FITSOpticalElement):
+    """ Custom optic class to model the NIRISS SOSS grim GR700XD
+
+    This includes both the pupil mask file and the cylindrical lens
+
+    Based on inputs from Loic Albert and Anand Sivaramakrishnan
+
+    The grism (and cylinder) are per design rotated by 2 degrees so as to be able
+    to sample an emission line across different pixel position along the spatial
+    direction (kind of resampling the line and not be limited by intra pixel
+    response).  
+
+
+    Parameters
+    ----------
+    transmission : string filename
+        file for the pupil transmission function
+    cylinder_sag_mm : float
+        physical thickness of the cylindrical lens, in millimeters
+    rotation_angle : float
+        degrees clockwise for the orientation of the cylinder's dispersing axis
+        
+
+"""
+    def __init__(self, name='GR700XD', transmission=None, cylinder_sag_mm=4.0, rotation_angle=2.0, shift=None):
+        # Initialize the base optical element with the pupil transmission and zero OPD
+
+        if transmission is None:
+             transmission=os.path.join( get_webbpsf_data_path(), "NIRISS/coronagraph/MASKSOSS.fits.gz")
+
+        self.shift=shift
+        poppy.FITSOpticalElement.__init__(self, name=name, transmission=transmission, planetype=poppy.poppy_core._PUPIL, shift=shift)
+
+        self.cylinder_sag = cylinder_sag_mm
+        self.cylinder_rotation_angle = rotation_angle
+
+        # initial population of the OPD array for display etc.
+        self.makeCylinder( 2.0e-6) 
+    def makeCylinder(self, wave):
+        if isinstance(wave, poppy.Wavefront):
+            wavelength=wave.wavelength
+        else:
+            wavelength=wave
+
+        y, x = np.indices(self.opd.shape, dtype=float)
+        y-= (self.opd.shape[0]-1)/2.
+        x-= (self.opd.shape[1]-1)/2.
+ 
+        #y, x = wave.coordinates()   # returned values are in meters
+
+        ang = np.deg2rad(self.cylinder_rotation_angle )
+        x = np.cos(ang)*x - np.sin(ang)*y
+        y = np.sin(ang)*x + np.cos(ang)*y
+
+
+        # From IDL code by David Lafreniere:
+        #  ;the cylindrical defocus
+        #x=(dindgen(pupdim)-pupdim/2)#replicate(1,pupdim)
+        #y0=(rpuppix^2+sag[s]^2)/(2*sag[s])
+        #wfe1=y0-sqrt(y0^2-x^2)
+        #if sag[s] lt 1.e-5 then wfe1=0.d0
+
+        # Here I will just translate that to Python exactly, making use of the
+        # variables here:
+
+        # rpuppix = radius of pupil in pixels
+        rpuppix = self.amplitude_header['DIAM'] / self.amplitude_header['PUPLSCAL'] / 2
+        # scale factor for sag ? 
+        y0=(rpuppix**2+self.cylinder_sag**2)/(2*self.cylinder_sag)
+        
+        wfe1=y0-np.sqrt(y0**2-x**2)
+
+        # remove piston offset 
+        wfe1 -= wfe1.min()
+
+        # convert to meters from microns
+        wfe1 *= 1e-6
+
+        # scale for ZnSe index of refraction
+        self.opd = wfe1 *  (self.ZnSe_index(wavelength) -1)
+
+    def ZnSe_index(self, wavelength):
+        """ Return cryogenic index of refraction of ZnSe at an arbitrary wavelength
+        """
+        # From ZnSe_index.txt provided by Loic Albert
+        #from Michael M. Nov 9 2012 in excel table],
+        #ZnSe-40K index,  ],
+        # ZnSe
+        ZnSe_data =np.asarray([[500,  2.7013],
+                                [540,  2.6508],
+                                [600,  2.599],
+                                [644,  2.56937],
+                                [688,  2.54709],
+                                [732,  2.52977],
+                                [776,  2.51596],
+                                [820,  2.50472],
+                                [864,  2.49542],
+                                [900,  2.4876],
+                                [908,  2.48763],
+                                [952,  2.48103],
+                                [996,  2.47537],
+                                [1040,  2.47048],
+                                [1084,  2.46622],
+                                [1128,  2.46249],
+                                [1172,  2.4592],
+                                [1216,  2.45628],
+                                [1260,  2.45368],
+                                [1304,  2.45134],
+                                [1348,  2.44924],
+                                [1392,  2.44734],
+                                [1436,  2.44561],
+                                [1480,  2.44405],
+                                [1524,  2.44261],
+                                [1568,  2.4413],
+                                [1612,  2.44009],
+                                [1656,  2.43897],
+                                [1700,  2.43794],
+                                [1744,  2.43699],
+                                [1788,  2.4361],
+                                [1832,  2.43527],
+                                [1876,  2.4345],
+                                [1920,  2.43378],
+                                [1964,  2.4331],
+                                [2008,  2.43247],
+                                [2052,  2.43187],
+                                [2096,  2.4313],
+                                [2140,  2.43077],
+                                [2184,  2.43026],
+                                [2228,  2.42978],
+                                [2272,  2.42933],
+                                [2316,  2.4289],
+                                [2360,  2.42848],
+                                [2404,  2.42809],
+                                [2448,  2.42771],
+                                [2492,  2.42735],
+                                [2536,  2.42701],
+                                [2580,  2.42667],
+                                [2624,  2.42635],
+                                [2668,  2.42604],
+                                [2712,  2.42575],
+                                [2756,  2.42546],
+                                [2800,  2.42518],
+                                [2844,  2.42491],
+                                [2888,  2.42465],
+                                [2932,  2.4244],
+                                [2976,  2.42416],
+                                [3020,  2.42392]] )
+
+        interpol_znse = scipy.interpolate.interp1d( ZnSe_data[:,0]*1e-9, ZnSe_data[:,1] )
+        return interpol_znse(wavelength)
+
+    def getPhasor(self, wave):
+        """ Scale the cylindrical lens OPD appropriately for the current wavelength
+            Then call the regular getphasor method of the parent class 
+
+        """
+        self.makeCylinder(wave)
+        return poppy.FITSOpticalElement.getPhasor(self, wave)
 
 
 class TFI(JWInstrument):
@@ -1298,97 +1461,6 @@ def MakePSF(self, instrument=None, pupil_file=None, phase_file=None, output=None
 
 
 
-
-
-
-def makeFakeFilter(filename, lcenter, dlam, instrument='NIRCam', name='filter', source='Fake top hat filter', clobber=False):
-    """ arguments in microns, but file written in angstroms """
-
-    lstart = lcenter - dlam/2
-    lstop = lcenter + dlam/2
-
-    nlambda = 40
-
-    _log.info("Filter from %f - %f " % (lstart, lstop))
-    wavelength = np.linspace( lstart-dlam*0.1, lstop+dlam*0.1, nlambda)
-    _log.debug(wavelength)
-    transmission = np.zeros_like(wavelength)
-    transmission[np.where( (wavelength > lstart) & (wavelength < lstop) )] = 1.0
-
-    t = atpy.Table()
-    t.add_column('WAVELENGTH', wavelength*1e4, unit='angstrom')
-    t.add_column('THROUGHPUT', transmission)
-
-    t.add_keyword('TELESCOP','JWST')
-    t.add_keyword('INSTRUME',instrument)
-    t.add_keyword('FILTER',name)
-
-    t.add_keyword('SOURCE', source)
-    t.add_comment("This is a fake filter profile, represented as a top-hat function.")
-
-    t.add_keyword("LAMBDA0",lcenter)
-    t.add_keyword("DELTALAM",dlam)
-
-    t.write(filename, overwrite=clobber)
-    _log.info("Created fake filter profile in "+filename)
-
-
-    return t
-def _makeMIRIfilters():
-    makeFakeFilter('F560W_throughput.fits', 5.6, 1.2, clobber=True)
-    makeFakeFilter('F770W_throughput.fits', 7.7, 2.2, clobber=True)
-    makeFakeFilter('F1000W_throughput.fits', 10, 2, clobber=True)
-    makeFakeFilter('F1130W_throughput.fits', 11.3, 0.7, clobber=True)
-    makeFakeFilter('F1280W_throughput.fits', 12.8, 2.4, clobber=True)
-    makeFakeFilter('F1500W_throughput.fits', 15, 3, clobber=True)
-    makeFakeFilter('F1800W_throughput.fits', 18, 3, clobber=True)
-    makeFakeFilter('F2100W_throughput.fits', 21, 5, clobber=True)
-    makeFakeFilter('F2550W_throughput.fits', 25.5, 4, clobber=True)
-    makeFakeFilter('F1065C_throughput.fits',10.65, 0.53,clobber=True)
-    makeFakeFilter('F1140C_throughput.fits',11.40, 0.57,clobber=True)
-    makeFakeFilter('F1550C_throughput.fits',15.50, 0.78,clobber=True)
-    makeFakeFilter('F2300C_throughput.fits',23.00, 4.60,clobber=True)
-    makeFakeFilter('FND_throughput.fits', 11.5, 7.0,clobber=True)
-
-
-
-def _makeNIRCamFilters():
-    "Create nircam filters based on http://ircamera.as.arizona.edu/nircam/features.html "
-    makeFakeFilter('F070W_thru.fits', 0.7000, 0.1750, clobber=True)
-    makeFakeFilter('F090W_thru.fits', 0.9000, 0.2250, clobber=True)
-    makeFakeFilter('F115W_thru.fits', 1.1500, 0.2875, clobber=True)
-    makeFakeFilter('F150W_thru.fits', 1.5000, 0.3750, clobber=True)
-    makeFakeFilter('F150W2_thru.fits', 1.5000, 1.0000, clobber=True)
-    makeFakeFilter('F200W_thru.fits', 2.0000, 0.5000, clobber=True)
-    makeFakeFilter('F277W_thru.fits', 2.7700, 0.6925, clobber=True)
-    makeFakeFilter('F322W2_thru.fits', 3.2200, 1.6100, clobber=True)
-    makeFakeFilter('F356W_thru.fits', 3.5600, 0.8900, clobber=True)
-    makeFakeFilter('F444W_thru.fits', 4.4400, 1.1100, clobber=True)
-    makeFakeFilter('F140M_thru.fits', 1.4000, 0.1400, clobber=True)
-    makeFakeFilter('F162M_thru.fits', 1.6200, 0.1510, clobber=True)
-    makeFakeFilter('F182M_thru.fits', 1.8200, 0.2210, clobber=True)
-    makeFakeFilter('F210M_thru.fits', 2.1000, 0.2100, clobber=True)
-    makeFakeFilter('F250M_thru.fits', 2.5000, 0.1667, clobber=True)
-    makeFakeFilter('F300M_thru.fits', 3.0000, 0.3000, clobber=True)
-    makeFakeFilter('F335M_thru.fits', 3.3500, 0.3350, clobber=True)
-    makeFakeFilter('F360M_thru.fits', 3.6000, 0.3600, clobber=True)
-    makeFakeFilter('F410M_thru.fits', 4.1000, 0.4100, clobber=True)
-    makeFakeFilter('F430M_thru.fits', 4.3000, 0.2000, clobber=True)
-    makeFakeFilter('F460M_thru.fits', 4.6000, 0.2000, clobber=True)
-    makeFakeFilter('F480M_thru.fits', 4.8000, 0.4000, clobber=True)
-    makeFakeFilter('F164N_thru.fits', 1.6440, 0.0164, clobber=True)
-    makeFakeFilter('F187N_thru.fits', 1.8756, 0.0188, clobber=True)
-    makeFakeFilter('F212N_thru.fits', 2.1218, 0.0212, clobber=True)
-    makeFakeFilter('F225N_thru.fits', 2.2477, 0.0225, clobber=True)
-    makeFakeFilter('F323N_thru.fits', 3.2350, 0.0324, clobber=True)
-    makeFakeFilter('F405N_thru.fits', 4.0523, 0.0405, clobber=True)
-    makeFakeFilter('F418N_thru.fits', 4.1813, 0.0418, clobber=True)
-    makeFakeFilter('F466N_thru.fits', 4.6560, 0.0466, clobber=True)
-    makeFakeFilter('F470N_thru.fits', 4.7050, 0.0471, clobber=True)
-
-def _makeNIRSpecFilters():
-    makeFakeFilter('F110W_throughput.fits', 1.4,1.2, clobber=True, source='NIRSpec Acq Filter docs',name='F110W',instrument='NIRSpec')
-    makeFakeFilter('F140X_throughput.fits', 1.1,0.2, clobber=True, source='NIRSpec Acq Filter docs',name='F110W',instrument='NIRSpec')
 
 #########################3
 
