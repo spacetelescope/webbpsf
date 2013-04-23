@@ -9,8 +9,10 @@ from .webbpsf_core import Instrument, JWInstrument, NIRCam, NIRISS, NIRSpec,MIRI
 from ._version import __version__
 
 
-from .utils import _initialize_config, _register
-
+from .utils import _system_diagnostic
+from .utils import WebbPSFConfig as _WebbPSFConfig
+config = _WebbPSFConfig()
+#_initialize_config, _register, 
 
 def setup_logging(filename=None, level='info'):
     """ Provide a default handler for log messages, if the 
@@ -54,6 +56,7 @@ def setup_logging(filename=None, level='info'):
         logging.getLogger(name).setLevel(lev)
 
     logging.basicConfig(level=logging.INFO,format='%(name)-10s: %(levelname)-8s %(message)s')
+    print("Log outputs will be shown on screen.")
 
     if filename is not None :
         hdlr = logging.FileHandler(filename)
@@ -64,9 +67,7 @@ def setup_logging(filename=None, level='info'):
         for name in lognames:
             logging.getLogger(name).addHandler(hdlr)
 
-        print("Log outputs will be saved to file "+filename)
-    else:
-        print("Log outputs will only be shown on screen.")
+        print("Log outputs will also be saved to file "+filename)
 
 
 

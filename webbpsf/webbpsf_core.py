@@ -33,17 +33,19 @@ import matplotlib.pyplot as plt
 import scipy.interpolate, scipy.ndimage
 import matplotlib
 
-try:
-    import astropy.io.table as table
-
-except:
-    import asciitable as table
+import astropy.io.fits as fits
+import astropy.io.table as table
+from astropy.config import ConfigurationItem, get_config_dir, save_config
 
 
-try:
-    import astropy.io.fits as fits
-except:
-    import pyfits as fits
+
+#except:
+#    import asciitable as table
+
+
+#try:
+#except:
+#    import pyfits as fits
 
 import poppy
 
@@ -60,6 +62,8 @@ _log = logging.getLogger('webbpsf')
 _log.setLevel(logging.DEBUG)
 _log.setLevel(logging.INFO)
 
+WEBBPSF_PATH = ConfigurationItem('webbpsf_data_path','unknown','Path to data files required for WebbPSF calculations, such as OPDs and filter transmissions.')
+
 
 
 def get_webbpsf_data_path():
@@ -75,10 +79,11 @@ def get_webbpsf_data_path():
 
     path = os.getenv('WEBBPSF_PATH') #, default= os.path.dirname(os.path.dirname(os.path.abspath(poppy.__file__))) +os.sep+"data" )
     if path is None:
-        import ConfigParser
-        config = ConfigParser.ConfigParser()
-        config.read(os.path.join( _get_webbpsf_config_path(), 'webbpsf.ini'))
-        path =  config.get('Main','datapath')
+        path = WEBBPSF_PATH() # read from astropy configuration system
+        #import ConfigParser
+        #config = ConfigParser.ConfigParser()
+        #config.read(os.path.join( _get_webbpsf_config_path(), 'webbpsf.ini'))
+        #path =  config.get('Main','datapath')
     return path
 
 
@@ -213,17 +218,17 @@ class JWInstrument(poppy.instrument.Instrument):
         pass
 
     # create properties with error checking
-    @property
-    def filter(self):
-        'Currently selected filter name (e.g. "F200W")'
-        return self._filter
-    @filter.setter
-    def filter(self, value):
-        value = value.upper() # force to uppercase
-        if value not in self.filter_list:
-            raise ValueError("Instrument %s doesn't have a filter called %s." % (self.name, value))
-        self._filter = value
-        self._validate_config()
+#    @property
+#    def filter(self):
+#        'Currently selected filter name (e.g. "F200W")'
+#        return self._filter
+#    @filter.setter
+#    def filter(self, value):
+#        value = value.upper() # force to uppercase
+#        if value not in self.filter_list:
+#            raise ValueError("Instrument %s doesn't have a filter called %s." % (self.name, value))
+#        self._filter = value
+#        self._validate_config()
 
     @property
     def image_mask(self):
@@ -533,6 +538,12 @@ class JWInstrument(poppy.instrument.Instrument):
 
 
         #---- add coronagraphy if requested, and flag to invoke semi-analytic coronagraphic propagation
+
+        # first error check for null strings, which should be considered like None
+        if self.image_mask == "": self.image_mask = None
+        if self.pupil_mask == "": self.pupil_mask = None
+
+
         if self.image_mask is not None or self.pupil_mask is not None or ('force_coron' in options.keys() and options['force_coron']):
             _log.debug("Adding coronagraph optics...")
             optsys, trySAM, SAM_box_size = self._addCoronagraphOptics(optsys, oversample=fft_oversample)
@@ -990,10 +1001,21 @@ class NIRISS(JWInstrument):
     
     Relevant attributes include `image_mask`, and `pupil_mask`.
 
-    Note that WebbPSF does not model spectral dispersion in any of NIRISS' slitless spectroscopy modes. This can 
-    best be simulated by using webbpsf output PSFs as input to the aXe spectroscopy code. Contact Van Dixon for
-    further information.   WebbPSF does, however, model the direct imaging and nonredundant aperture masking modes
-    of NIRISS.
+    WebbPSF models the direct imaging and nonredundant aperture masking modes of NIRISS in the usual manner. 
+
+    Added in version 0.3 is partial support for the single-object slitless spectroscopy ("SOSS") mode using the
+    GR700XD cross-dispersed grating. Currently this includes the clipping of the pupil due to the undersized grating
+    and its mounting hardware, and the cylindrical lens that partially defocuses the light in one direction. 
+
+    .. warning :: 
+
+        Prototype implementation - Not yet fully tested or verified. 
+
+    Note that WebbPSF does not model the spectral dispersion in any of NIRISS'
+    slitless spectroscopy modes.  For wide-field slitless spectroscopy, this
+    can best be simulated by using webbpsf output PSFs as input to the aXe
+    spectroscopy code. Contact Van Dixon at STScI for further information.   
+    For SOSS mode, contact Loic Albert at Universite de Montreal. 
 
     """
     def __init__(self):
@@ -1001,7 +1023,7 @@ class NIRISS(JWInstrument):
         self.pixelscale = 0.064 
 
         self.image_mask_list = ['CORON058', 'CORON075','CORON150','CORON200'] # available but unlikely to be used...
-        self.pupil_mask_list = ['MASK_NRM','CLEAR', 'SOSS']
+        self.pupil_mask_list = ['MASK_NRM','CLEAR', 'GR700XD']
         self._default_aperture='NIRISS center' # reference into SIAF for ITM simulation V/O coords
 
 
@@ -1050,7 +1072,7 @@ class NIRISS(JWInstrument):
             optsys.addPupil(transmission=self._datapath+"/coronagraph/MASK_NRM.fits.gz", name=self.pupil_mask, shift=shift)
         elif self.pupil_mask == 'CLEAR':
             optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKCLEAR.fits.gz", name=self.pupil_mask, shift=shift)
-        elif self.pupil_mask == 'SOSS':
+        elif self.pupil_mask == 'GR700XD':
             #optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKSOSS.fits.gz", name=self.pupil_mask, shift=shift)
             optsys.addPupil(optic = NIRISS_GR700XD_Grism(shift=shift))
  
@@ -1079,6 +1101,12 @@ class NIRISS_GR700XD_Grism(poppy.FITSOpticalElement):
     direction (kind of resampling the line and not be limited by intra pixel
     response).  
 
+    From Loic Albert's NIRISS technical report:
+
+        * surface sag for the cylinder: 3.994 micron peak
+        * limited to 3.968 microns for the 26 mm FOV mask
+
+
 
     Parameters
     ----------
@@ -1091,7 +1119,7 @@ class NIRISS_GR700XD_Grism(poppy.FITSOpticalElement):
         
 
 """
-    def __init__(self, name='GR700XD', transmission=None, cylinder_sag_mm=4.0, rotation_angle=2.0, shift=None):
+    def __init__(self, name='GR700XD', transmission=None, cylinder_sag_mm=4.0, rotation_angle=92.0, shift=None):
         # Initialize the base optical element with the pupil transmission and zero OPD
 
         if transmission is None:
@@ -1111,12 +1139,11 @@ class NIRISS_GR700XD_Grism(poppy.FITSOpticalElement):
         else:
             wavelength=wave
 
+        # compute indices in pixels, relative to center of plane, with rotation
         y, x = np.indices(self.opd.shape, dtype=float)
         y-= (self.opd.shape[0]-1)/2.
-        x-= (self.opd.shape[1]-1)/2.
+        x-= (self.opd.shape[1]-1)/2.  
  
-        #y, x = wave.coordinates()   # returned values are in meters
-
         ang = np.deg2rad(self.cylinder_rotation_angle )
         x = np.cos(ang)*x - np.sin(ang)*y
         y = np.sin(ang)*x + np.cos(ang)*y
@@ -1134,7 +1161,17 @@ class NIRISS_GR700XD_Grism(poppy.FITSOpticalElement):
 
         # rpuppix = radius of pupil in pixels
         rpuppix = self.amplitude_header['DIAM'] / self.amplitude_header['PUPLSCAL'] / 2
-        # scale factor for sag ? 
+        # Calculate the radius of curvature of the cylinder, bsaed on 
+        # the chord length and height 
+
+        # In this case we're assuming the cylinder is precisely as wide as the projected
+        # telescope pupil. This doesn't seem guaranteed:
+        #  * actual chord length across cylinder: 27.02 mm. 
+        #  * projected primary scale at NIRISS = ?
+
+
+        # what we really want to do is take the physical properties of the as-built optic, and interpolate into that
+        # to compute the OPD after remapping based on the pupil scale (and distortion?)
         y0=(rpuppix**2+self.cylinder_sag**2)/(2*self.cylinder_sag)
         
         wfe1=y0-np.sqrt(y0**2-x**2)
@@ -1226,6 +1263,9 @@ class NIRISS_GR700XD_Grism(poppy.FITSOpticalElement):
         self.makeCylinder(wave)
         return poppy.FITSOpticalElement.getPhasor(self, wave)
 
+    def display(self, opd_vmax=6e-6, *args, **kwargs):
+        "Same as regular display for any other optical element, except opd_vmax default changed"
+        poppy.FITSOpticalElement.display(self,*args, opd_vmax=opd_vmax, **kwargs)
 
 class TFI(JWInstrument):
     """ A class modeling the optics of the Tunable Filter Imager

@@ -3,7 +3,11 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
-import pyfits
+try:
+    import astropy.io.fits as fits
+except:
+    import pyfits as fits
+
 from threading import Thread
 
 
@@ -300,7 +304,7 @@ class WebbPSF_GUI(wx.Frame):
         self._add_labeled_entry('nlambda', calcPanel,calcSizer, label='# of wavelengths:',  width=3, value='', position=(r,0), postlabel='Leave blank for autoselect')
         r+=1
 
-        self._add_labeled_dropdown("jitter", calcPanel,calcSizer, label='Jitter model:', choices=  ['Just use OPDs' ], width=20, position=(r,0), columnspan=2)
+        self._add_labeled_dropdown("jitter", calcPanel,calcSizer, label='Jitter model:', choices=  ['Just use OPDs', 'Gaussian jitter with 7 mas rms', 'Gaussian jitter with 30 mas rms' ], width=20, position=(r,0), columnspan=2)
         r+=1
         output_options=['Oversampled PSF only', 'Oversampled + Detector Res. PSFs', 'Mock full image from JWST DMS']
         self._add_labeled_dropdown("output_format", calcPanel,calcSizer, label='Output Format:', choices=  ['Oversampled image','Detector sampled image','Both as FITS extensions', 'Mock JWST DMS Output' ], width=30, position=(r,0), columnspan=2)
@@ -582,7 +586,7 @@ class WebbPSF_GUI(wx.Frame):
             if self._enable_opdserver and 'ITM' in self.opd_name:
                 opd = self.inst.pupilopd   # will contain the actual OPD loaded in _updateFromGUI just above
             else:
-                opd = pyfits.getdata(self.inst.pupilopd[0])     # in this case self.inst.pupilopd is a tuple with a string so we have to load it here. 
+                opd = fits.getdata(self.inst.pupilopd[0])     # in this case self.inst.pupilopd is a tuple with a string so we have to load it here. 
 
             if len(opd.shape) >2:
                 opd = opd[self.opd_i,:,:] # grab correct slice
@@ -620,7 +624,7 @@ class WebbPSF_GUI(wx.Frame):
 
         if filename.endswith(".fits"):
             try:
-                header_summary = pyfits.getheader(filename)['SUMMARY']
+                header_summary = fits.getheader(filename)['SUMMARY']
             except:
                 header_summary = 'could not obtain a summary from FITS header'
             #self.widgets[iname+"_opd_i"]['state'] = 'readonly'
@@ -659,12 +663,13 @@ class WebbPSF_GUI(wx.Frame):
         if self.advanced_options['monochromatic']:
             # monochromatic mode
             self.nlambda=1
-            try:
-                self.monochromatic_wavelength = float(self.widgets['nlambda'].GetValue()) * 1e-6 # note that the GUI is in microns, so convert to meters here.
+            self.monochromatic_wavelength = float(self.widgets['nlambda'].GetValue()) * 1e-6 # note that the GUI is in microns, so convert to meters here.
 
-                if self.monochromatic_wavelength < 0.6 or self.monochromatic_wavelength > 30:
-                    _log.error("Invalid wavelength. Please enter a value between 0.6 - 30 microns")
-                    raise ValueError('Invalid wavelength outside of range 0.6 - 30 microns: {0:f}'.format(self.monochromatic_wavelength))
+            if self.monochromatic_wavelength < 0.6e-6 or self.monochromatic_wavelength > 30e-6:
+                _log.error("Invalid wavelength. Please enter a value between 0.6 - 30 microns")
+                raise ValueError('Invalid wavelength outside of range 0.6 - 30 microns: {0:f}'.format(self.monochromatic_wavelength))
+            try:
+                pass
             except:
                 _log.error("Could not obtain a wavelength. Please check the value of the wavelength field and try again.")
                 raise ValueError('Could not obtain a wavelength from string "{0}"'.format(self.widgets['nlambda'].GetValue()))
@@ -688,7 +693,19 @@ class WebbPSF_GUI(wx.Frame):
         options = {}
         options['rebin'] = not (self.output_type == 'Oversampled PSF only')  #was downsample, which seems wrong?
         options['mock_dms'] = (self.output_type == 'Mock full image from JWST DMS')
-        options['jitter'] = self.widgets['jitter'].GetValue()
+        jitterchoice = self.widgets['jitter'].GetValue()
+        if jitterchoice == 'Just use OPDs':
+            options['jitter'] = None
+        elif jitterchoice == 'Gaussian jitter with 7 mas rms':
+            options['jitter'] = 'gauss'
+            options['jitter_sigma'] = 0.007
+        elif jitterchoice == 'Gaussian jitter with 30 mas rms':
+            options['jitter'] = 'gauss'
+            options['jitter_sigma'] = 0.030
+        else: 
+            _log.error("Unknown value for jitter selection: "+jitterchoice)
+
+
 
         # and get the values that may have previously been set by the 'advanced options' dialog
         if self.advanced_options is not None:
@@ -1133,13 +1150,13 @@ WebbPSF is running with the following software versions:
 <li><b>Python</b>: %(python)s 
 <li><b>numpy</b>: %(numpy)s
 <li><b>matplotlib</b>: %(matplotlib)s
-<li><b>pyfits</b>: %(pyfits)s
+<li><b>fits</b>: %(fits)s
 <li><b>atpy</b>: %(atpy)s
 <li><b>wxPython</b>: %(wxpy)s  
 </ul>
 </p>"""
 
-        import sys, pyfits
+        import sys, fits
         hwin = HtmlWindow(self, wx.ID_ANY, size=(400,200))
         vers = {}
         try:
@@ -1154,7 +1171,7 @@ WebbPSF is running with the following software versions:
         vers['numpy'] = np.__version__
         vers['matplotlib'] = matplotlib.__version__
         #vers['atpy'] = atpy.__version__
-        vers['pyfits'] = pyfits.__version__
+        vers['fits'] = fits.__version__
         hwin.SetPage(aboutText % vers)
         btn = hwin.FindWindowById(wx.ID_OK)
         irep = hwin.GetInternalRepresentation()
