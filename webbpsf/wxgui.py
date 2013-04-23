@@ -3,10 +3,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
-try:
-    import astropy.io.fits as fits
-except:
-    import pyfits as fits
+import astropy.io.fits as fits
 
 from threading import Thread
 

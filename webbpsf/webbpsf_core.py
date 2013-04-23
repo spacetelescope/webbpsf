@@ -38,15 +38,6 @@ import astropy.io.ascii as ioascii
 from astropy.config import ConfigurationItem, get_config_dir, save_config
 
 
-
-#except:
-#    import asciitable as table
-
-
-#try:
-#except:
-#    import pyfits as fits
-
 import poppy
 
 
@@ -120,12 +111,12 @@ class JWInstrument(poppy.instrument.Instrument):
         self._image_mask = None
         self._pupil_mask = None
         self.pupil = os.path.abspath(self._datapath+"../pupil_RevV.fits")
-        "Filename *or* pyfits.HDUList for JWST pupil mask. Usually there is no need to change this."
+        "Filename *or* fits.HDUList for JWST pupil mask. Usually there is no need to change this."
         self.pupilopd = None   # This can optionally be set to a tuple indicating (filename, slice in datacube)
-        """Filename *or* pyfits.HDUList for JWST pupil OPD. 
+        """Filename *or* fits.HDUList for JWST pupil OPD. 
         
         This can be either a full absolute filename, or a relative name in which case it is
-        assumed to be within the instrument's `data/OPDs/` directory, or an actual pyfits.HDUList object corresponding to such a file.
+        assumed to be within the instrument's `data/OPDs/` directory, or an actual fits.HDUList object corresponding to such a file.
         If the file contains a datacube, you may set this to a tuple (filename, slice) to select a given slice, or else
         the first slice will be used."""
 
@@ -270,7 +261,7 @@ class JWInstrument(poppy.instrument.Instrument):
         """ Compute a PSF.
 
         The result can either be written to disk (set outfile="filename") or else will be returned as
-        a pyfits HDUlist object.
+        an astropy.io.fits HDUList object.
 
 
         Output sampling may be specified in one of two ways: 
@@ -328,8 +319,8 @@ class JWInstrument(poppy.instrument.Instrument):
 
         Returns
         -------
-        outfits : pyfits.HDUList
-            The output PSF is returned as a pyfits.HDUlist object.
+        outfits : fits.HDUList
+            The output PSF is returned as a fits.HDUlist object.
             If `outfile` is set to a valid filename, the output is also written to that file.
 
 

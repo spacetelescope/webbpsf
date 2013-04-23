@@ -15,13 +15,10 @@ import scipy.interpolate, scipy.ndimage
 import matplotlib.pyplot as plt
 import matplotlib
 import pysynphot
-import pyfits
 import logging
 import webbpsf_core
 
-_log = logging.getLogger('obssim')
-_log.setLevel(logging.DEBUG)
-_log.setLevel(logging.INFO)
+_log = logging.getLogger('webbpsg')
 #
 ###########################################################################
 #

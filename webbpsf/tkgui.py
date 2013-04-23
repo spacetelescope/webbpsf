@@ -3,17 +3,14 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
-import pyfits
+import astropy.io.fits as fits
 import Tkinter as tk
 import tkMessageBox
 import tkFileDialog
 import logging
 #from Tkinter import N,E,S,W
 import logging
-_log = logging.getLogger('webbpsfgui')
-_log.setLevel(logging.INFO)
-
-
+_log = logging.getLogger('webbpsf')
 
 
 try:
@@ -746,7 +743,7 @@ class WebbPSF_GUI(object):
             if self._enable_opdserver and 'ITM' in self.opd_name:
                 opd = self.inst.pupilopd   # will contain the actual OPD loaded in _updateFromGUI just above
             else:
-                opd = pyfits.getdata(self.inst.pupilopd[0])     # in this case self.inst.pupilopd is a tuple with a string so we have to load it here. 
+                opd = fits.getdata(self.inst.pupilopd[0])     # in this case self.inst.pupilopd is a tuple with a string so we have to load it here. 
 
             if len(opd.shape) >2:
                 opd = opd[self.opd_i,:,:] # grab correct slice
@@ -778,7 +775,7 @@ class WebbPSF_GUI(object):
         showitm=False # default is do not show
         filename = self.instrument[iname]._datapath +os.sep+ 'OPD'+ os.sep+widget_combobox.get()
         if filename.endswith(".fits"):
-            header_summary = pyfits.getheader(filename)['SUMMARY']
+            header_summary = fits.getheader(filename)['SUMMARY']
             self.widgets[iname+"_opd_i"]['state'] = 'readonly'
         else:  # Special options for non-FITS file inputs
             self.widgets[iname+"_opd_i"]['state'] = 'disabled'
