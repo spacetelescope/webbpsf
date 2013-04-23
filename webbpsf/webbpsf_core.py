@@ -34,7 +34,7 @@ import scipy.interpolate, scipy.ndimage
 import matplotlib
 
 import astropy.io.fits as fits
-import astropy.io.table as table
+import astropy.io.ascii as ioascii
 from astropy.config import ConfigurationItem, get_config_dir, save_config
 
 
@@ -62,7 +62,10 @@ _log = logging.getLogger('webbpsf')
 _log.setLevel(logging.DEBUG)
 _log.setLevel(logging.INFO)
 
-WEBBPSF_PATH = ConfigurationItem('webbpsf_data_path','unknown','Path to data files required for WebbPSF calculations, such as OPDs and filter transmissions.')
+WEBBPSF_PATH = ConfigurationItem('webbpsf_data_path','unknown','Directory path to data files required for WebbPSF calculations, such as OPDs and filter transmissions.')
+LAST_VERSION_RAN = ConfigurationItem('last_version_ran','0.0', 'Most recently used version of WebbPSF on this computer. This is used for detecting new or upgraded installations and providing some additional information to users.')
+USE_MULTIPROCESSOR = ConfigurationItem('use_multiprocessor', False, 'Should PSF calculations run in parallel across multiple processors (if True; faster but does not allow display of each wavelength) or run serially in a single thread (if False; slower but shows the calculation in progress. Also a bit more robust.?)')
+MULTIPROCESSOR_NPROCESSES = ConfigurationItem('n_processes', 4, 'Maximum number of additional worker threads to spawn. PSF calculations are likely RAM limited more than CPU limited for higher N on modern machines.')
 
 
 
@@ -170,11 +173,11 @@ class JWInstrument(poppy.instrument.Instrument):
         # wrapped just below to create properties with validation.
         self._filter=None
 
-        filter_table = table.read(self._WebbPSF_basepath + os.sep+ 'filters.txt')
-        wmatch = np.where(filter_table.instrument == self.name)
-        self.filter_list = filter_table.filter[wmatch].tolist()
+        filter_table = ioascii.read(self._WebbPSF_basepath + os.sep+ 'filters.txt')
+        wmatch = np.where(filter_table['instrument'] == self.name)
+        self.filter_list = filter_table['filter'][wmatch].tolist()
         "List of available filters"
-        self._filter_nlambda_default = dict(zip(filter_table.filter[wmatch], filter_table.nlambda[wmatch]))
+        self._filter_nlambda_default = dict(zip(filter_table['filter'][wmatch], filter_table['nlambda'][wmatch]))
 
         #self._filter_files= [os.path.abspath(f) for f in glob.glob(self._datapath+os.sep+'filters/*_thru.fits')]
         #self.filter_list=[os.path.basename(f).split("_")[0] for f in self._filter_files]
@@ -331,6 +334,8 @@ class JWInstrument(poppy.instrument.Instrument):
 
 
         """
+
+        _log.info("Setting up PSF calculation for "+self.name)
         if filter is not None:
             self.filter = filter
 
@@ -1266,126 +1271,6 @@ class NIRISS_GR700XD_Grism(poppy.FITSOpticalElement):
     def display(self, opd_vmax=6e-6, *args, **kwargs):
         "Same as regular display for any other optical element, except opd_vmax default changed"
         poppy.FITSOpticalElement.display(self,*args, opd_vmax=opd_vmax, **kwargs)
-
-class TFI(JWInstrument):
-    """ A class modeling the optics of the Tunable Filter Imager
-
-    ** This class is preserved here for archival/historical purposes in this version of WebbPSF. It is now
-    deprecated in favor of NIRISS. **
-    
-    Relevant attributes include `image_mask`, and `pupil_mask`.
-
-    Because of its tunable etalon, wavelength selection for TFI is handled a bit differently than
-    for the other SIs.  The `filter` attribute, while present, is not used. Instead, there is an
-    `etalon_wavelength` attribute, which is the wavelength in microns that the etalon is tuned to.
-    Acceptable values are between 1.5 - 2.7 and 3.0 - 5.0 microns. The effective resolution for the TFI
-    at any given resolution is obtained from a lookup table and used to calculate the PSF across the
-    resulting bandpass.
-
-    You may also use the `monochromatic=` option to `calcPSF()` to calculate a PSF at a single wavelength.
-    """
-    def __init__(self):
-
-        raise DeprecationWarning("TFI is deprecated; use NIRISS instead")
-        JWInstrument.__init__(self, "TFI")
-        self.pixelscale = 0.064 # for TFI
-
-        self.filter_list = [""]
-        self.filter=""
-
-        self.image_mask_list = ['CORON058', 'CORON075','CORON150','CORON200']
-        self.pupil_mask_list = ['MASKC21N','MASKC66N','MASKC71N','MASK_NRM','CLEAR']
-        self.etalon_wavelength = 2.0
-        """ Tunable filter etalon wavelength setting """
-        self.resolution_table = atpy.Table(self._datapath+os.sep+"filters/TFI_resolution.txt", type='ascii',names=('wavelength','resolution'))
-
-
-    def _validate_config(self):
-        pass
-
-    def _addCoronagraphOptics(self,optsys, oversample=2):
-        """Add coronagraphic optics for TFI
-        """
-        if self.image_mask == 'CORON058':
-            radius = 0.58/2
-            optsys.addImage(function='CircularOcculter', radius=radius, name=self.image_mask)
-            trySAM = True
-        elif self.image_mask == 'CORON075':
-            radius=0.75/2
-            optsys.addImage(function='CircularOcculter', radius=radius, name=self.image_mask)
-            trySAM = True
-        elif self.image_mask == 'CORON150':
-            radius=1.5/2
-            optsys.addImage(function='CircularOcculter', radius=radius, name=self.image_mask)
-            trySAM = True
-        elif self.image_mask == 'CORON200':
-            radius=2.0/2
-            optsys.addImage(function='CircularOcculter', radius=radius, name=self.image_mask)
-            trySAM = True
-        else:
-            trySAM = False
-            radius = 0.0 # irrelevant but variable needs to be initialized
-
-        # add pupil plane mask
-        if ('pupil_shift_x' in self.options.keys() and self.options['pupil_shift_x'] != 0) or \
-           ('pupil_shift_y' in self.options.keys() and self.options['pupil_shift_y'] != 0):
-            shift = (self.options['pupil_shift_x'], self.options['pupil_shift_y'])
-        else: shift = None
-
-        if self.pupil_mask == 'MASKC21N':
-            optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKC21N.fits.gz", name=self.pupil_mask, shift=shift)
-        elif self.pupil_mask == 'MASKC66N':
-            optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKC66N.fits.gz", name=self.pupil_mask, shift=shift)
-        elif self.pupil_mask == 'MASKC71N':
-            optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKC71N.fits.gz", name=self.pupil_mask, shift=shift)
-        elif self.pupil_mask == 'MASK_NRM':
-            optsys.addPupil(transmission=self._datapath+"/coronagraph/MASK_NRM.fits.gz", name=self.pupil_mask, shift=shift)
-        elif self.pupil_mask == 'CLEAR':
-            optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKCLEAR.fits.gz", name=self.pupil_mask, shift=shift)
-        elif (self.pupil_mask  is None and self.image_mask is not None):
-            optsys.addPupil(name='No Lyot Mask Selected!')
-
-        return (optsys, trySAM, radius+0.05) # always attempt to cast this to a SemiAnalyticCoronagraph
-
-    def _getSynphotBandpass(self, filtername):
-        """ Return a pysynphot.ObsBandpass object for the given desired band.
-        This uses a lookup table to predict the properties of the TFI tunable filter etalon.
-        """
-
-        # filter name parameter is ignored, instead this uses etalon_wavelength
-        
-        if (self.etalon_wavelength < 1.5 or self.etalon_wavelength > 5.0 or
-            (self.etalon_wavelength > 2.7 and self.etalon_wavelength < 3.0)):
-            raise ValueError("Invalid value for etalon wavelength: %f. Please set a value in 1.5-2.7 or 3.0-5.0 microns." % self.etalon_wavelength)
-
-
-        match_index = np.abs(self.resolution_table.wavelength - self.etalon_wavelength).argmin()
-        resolution = self.resolution_table.resolution[match_index]
-        _log.info("Etalon wavelength %.3f has resolution %.2f" % (self.etalon_wavelength, resolution))
-        wavelen = np.linspace(1.0, 5.0, 1000)
-
-        fwhm = self.etalon_wavelength/resolution
-        sigma = fwhm / 2.35482
-
-        transmission = np.exp(- (wavelen - self.etalon_wavelength)**2/ (2*sigma**2))
-
-        #plt.plot(wavelen, transmission)
-        band = pysynphot.ArrayBandpass(wave=wavelen*1e4, throughput=transmission, waveunits='angstrom',name='TFI-etalon-%.3d' % self.etalon_wavelength)
-
-        self.filter = '%.3f um' % self.etalon_wavelength # update this. used for display and FITS header info
-
-        return band
-
-
-    def _getSpecCacheKey(self, source, nlambda):
-        """ return key for the cache of precomputed spectral weightings.
-        This is a separate function so the TFI subclass can override it.
-        """
-        return ("%.3f" %self.etalon_wavelength, source.name, nlambda)
-
-
-    def filter(self, value): # we just store a string here for the wavelength... don't worry about validation.
-        self._filter = value
 
 class FGS(JWInstrument):
     """ A class modeling the optics of the FGS.

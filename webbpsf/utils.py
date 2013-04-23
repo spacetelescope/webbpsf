@@ -7,120 +7,286 @@ _log = logging.getLogger('webbpsf')
 
 import ConfigParser 
 
-class WebbPSFConfig(object):
-    """ Wrapper interface to a configuration file stored using the standard INI
-    file format and accessed using ConfigParser
+#class WebbPSFConfig(object):
+#    """ Wrapper interface to a configuration file stored using the standard INI
+#    file format and accessed using ConfigParser
+#
+#
+#    Such a configuration file could look like:
+#
+#    [webbpsf]
+#    datapath :  '/some/path'  ; optional, only used if $WEBBPSF_DATA is not defined
+#    registered : True         ; user has already registered, don't ask again
+#
+#    [poppy]
+#    use_multiproc : boolean ; should we spawn jobs over multi-processors by default?
+#    multiproc_nprocess : integer    ; how many processes max? 
+#
+#
+#
+#    """
+#    def __init__(self):
+#        self.configdir = _get_webbpsf_config_path()
+#        self.configfile = os.path.join(self.configdir, "webbpsf_config.ini")
+#        self.defaults = {'registered': 'False',
+#                         'first_invocation': 'True',
+#                            'use_multiproc': 'False',
+#                            'multiproc_nprocess': '4'}
+#        if os.path.exists(self.configfile):
+#            self._load_config()
+#
+#        else:
+#            print "No configuration file detectet for WebbPSF - creating a default config now."
+#            self._initialize_config()
+#
+#        if self.getboolean('webbpsf','first_invocation'):
+#            wants_to_register, registered_ok = _register()
+#            self.set('webbpsf', 'first_invocation', 'False')
+#            self.set('webbpsf', 'registration_desired', str(wants_to_register))
+#            self.set('webbpsf', 'registered', str(registered_ok))
+#            self.save()
+#
+#
+#
+#    def get(self, section, name):
+#        return self.parser.get(section, name)
+#    def getboolean(self, section, name):
+#        return self.parser.getboolean(section, name)
+#
+# 
+#    def set(self, section, name, value):
+#        return self.parser.set(section, name, value)
+#
+#
+#    def _load_config(self):
+#        """ 
+#        read config from a file 
+#        """
+#        self.parser = ConfigParser.SafeConfigParser(defaults=self.defaults)
+#        self.parser.read(self.configfile)
+#        _log.info("Configuration file read from "+self.configfile)
+#
+#    def save(self):
+#        """ Save the configuration information to disk """
+#
+#        filehandle = open(self.configfile, "w")
+#        self.parser.write(filehandle)
+#        filehandle.close()
+#        _log.info("Configuration information saved to "+self.configfile)
+#
+#
+#    def _initialize_config(self):
+#        """ Create a new blank webbpsf configuration file. 
+#        Also, query the user for whether they want to register for updates
+#        """
+#        if not os.path.isdir(self.configdir):
+#            try:
+#                os.makedirs(self.configdir)
+#            except:
+#                raise IOError("Could not create path to store configuration information: "+self.configdir)
+#
+#        _log.info("No configuration file found; creating "+self.configfile)
+#
+#        self.parser = ConfigParser.SafeConfigParser(defaults=self.defaults)
+#        self.parser.add_section('poppy')
+#        self.parser.add_section('webbpsf')
+#        self.parser.add_section('gui')
+#
+#        self.save()
+#
+
+#def _get_webbpsf_config_path():
+#    """ Find a reasonable location to store path and configuration information on 
+#    your current platform. 
+#
+#    Code taken from http://stackoverflow.com/questions/1084697/how-do-i-store-desktop-application-data-in-a-cross-platform-way-for-python
+#    """
+#    APPNAME = "WebbPSF"
+#
+#    import sys
+#    if sys.platform == 'darwin':
+#        try:
+#            from AppKit import NSSearchPathForDirectoriesInDomains
+#            # http://developer.apple.com/DOCUMENTATION/Cocoa/Reference/Foundation/Miscellaneous/Foundation_Functions/Reference/reference.html#//apple_ref/c/func/NSSearchPathForDirectoriesInDomains
+#            # NSApplicationSupportDirectory = 14
+#            # NSUserDomainMask = 1
+#            # True for expanding the tilde into a fully qualified path
+#            appdatapath = os.path.join(NSSearchPathForDirectoriesInDomains(14, 1, True)[0], APPNAME)
+#        except:
+#            appdatapath = os.path.expanduser(path.join("~", "." + APPNAME)) 
+#    elif sys.platform == 'win32':
+#        appdatapath = os.path.join(os.environ['APPDATA'], APPNAME)
+#    else:
+#        appdatapath = os.path.expanduser(path.join("~", "." + APPNAME)) 
+#
+#    return appdatapath
+#
+
+from astropy.config import ConfigurationItem, get_config_dir, save_config
+
+LOGGING_LEVEL = ConfigurationItem('logging_level',['INFO','DEBUG','WARN','ERROR','NONE'],'Desired logging level for WebbPSF optical calculations.')
+LOGGING_FILENAME = ConfigurationItem('logging_filename',"none", "Desired filename to save log messages to.")
+LAST_VERSION_RAN = ConfigurationItem('last_version_ran','0.0', 'Most recently used version of WebbPSF on this computer. This is used for detecting new or upgraded installations and providing some additional information to users.')
 
 
-    Such a configuration file could look like:
+def _restart_logging(verbose=True):
+    """ Restart logging using the same settings as the last WebbPSF session, as stored in the configuration system. """
 
-    [webbpsf]
-    datapath :  '/some/path'  ; optional, only used if $WEBBPSF_DATA is not defined
-    registered : True         ; user has already registered, don't ask again
-
-    [poppy]
-    use_multiproc : boolean ; should we spawn jobs over multi-processors by default?
-    multiproc_nprocess : integer    ; how many processes max? 
-
-
-
-    """
-    def __init__(self):
-        self.configdir = _get_webbpsf_config_path()
-        self.configfile = os.path.join(self.configdir, "webbpsf_config.ini")
-        self.defaults = {'registered': 'False',
-                         'first_invocation': 'True',
-                            'use_multiproc': 'False',
-                            'multiproc_nprocess': '4'}
-        if os.path.exists(self.configfile):
-            self._load_config()
-
-        else:
-            print "No configuration file detectet for WebbPSF - creating a default config now."
-            self._initialize_config()
-
-        if self.getboolean('webbpsf','first_invocation'):
-            wants_to_register, registered_ok = _register()
-            self.set('webbpsf', 'first_invocation', 'False')
-            self.set('webbpsf', 'registration_desired', str(wants_to_register))
-            self.set('webbpsf', 'registered', str(registered_ok))
-            self.save()
-
-
-
-    def get(self, section, name):
-        return self.parser.get(section, name)
-    def getboolean(self, section, name):
-        return self.parser.getboolean(section, name)
-
- 
-    def set(self, section, name, value):
-        return self.parser.set(section, name, value)
-
-
-    def _load_config(self):
-        """ 
-        read config from a file 
-        """
-        self.parser = ConfigParser.SafeConfigParser(defaults=self.defaults)
-        self.parser.read(self.configfile)
-        _log.info("Configuration file read from "+self.configfile)
-
-    def save(self):
-        """ Save the configuration information to disk """
-
-        filehandle = open(self.configfile, "w")
-        self.parser.write(filehandle)
-        filehandle.close()
-        _log.info("Configuration information saved to "+self.configfile)
-
-
-    def _initialize_config(self):
-        """ Create a new blank webbpsf configuration file. 
-        Also, query the user for whether they want to register for updates
-        """
-        if not os.path.isdir(self.configdir):
-            try:
-                os.makedirs(self.configdir)
-            except:
-                raise IOError("Could not create path to store configuration information: "+self.configdir)
-
-        _log.info("No configuration file found; creating "+self.configfile)
-
-        self.parser = ConfigParser.SafeConfigParser(defaults=self.defaults)
-        self.parser.add_section('poppy')
-        self.parser.add_section('webbpsf')
-        self.parser.add_section('gui')
-
-        self.save()
-
-
-def _get_webbpsf_config_path():
-    """ Find a reasonable location to store path and configuration information on 
-    your current platform. 
-
-    Code taken from http://stackoverflow.com/questions/1084697/how-do-i-store-desktop-application-data-in-a-cross-platform-way-for-python
-    """
-    APPNAME = "WebbPSF"
-
-    import sys
-    if sys.platform == 'darwin':
-        try:
-            from AppKit import NSSearchPathForDirectoriesInDomains
-            # http://developer.apple.com/DOCUMENTATION/Cocoa/Reference/Foundation/Miscellaneous/Foundation_Functions/Reference/reference.html#//apple_ref/c/func/NSSearchPathForDirectoriesInDomains
-            # NSApplicationSupportDirectory = 14
-            # NSUserDomainMask = 1
-            # True for expanding the tilde into a fully qualified path
-            appdatapath = os.path.join(NSSearchPathForDirectoriesInDomains(14, 1, True)[0], APPNAME)
-        except:
-            appdatapath = os.path.expanduser(path.join("~", "." + APPNAME)) 
-    elif sys.platform == 'win32':
-        appdatapath = os.path.join(os.environ['APPDATA'], APPNAME)
+    level = LOGGING_LEVEL()
+    lognames = ['webbpsf', 'poppy']
+    if level.upper() =='NONE':
+        # disable logging
+        lev = logging.CRITICAL  # we don't generate any CRITICAL flagged log items, so
+                                # setting the level to this is effectively the same as ignoring
+                                # all log events. FIXME there's likely a cleaner way to do this.
+        if verbose: print "No log messages will be shown from WebbPSF."
     else:
-        appdatapath = os.path.expanduser(path.join("~", "." + APPNAME)) 
+        lev = logging.__dict__[level.upper()] # obtain one of the DEBUG, INFO, WARN, or ERROR constants
+        if verbose: print "WebbPSF log messages of level {0} and above will be shown.".format(level)
 
-    return appdatapath
+    for name in lognames:
+        logging.getLogger(name).setLevel(lev)
 
+    # set up screen logging
+    logging.basicConfig(level=logging.INFO,format='%(name)-10s: %(levelname)-8s %(message)s')
+    if verbose: print(" WebbPSF log outputs will be directed to the screen.")
+
+    # set up file logging
+    filename = LOGGING_FILENAME()
+    if filename.strip().lower() != 'none':
+        hdlr = logging.FileHandler(filename)
+
+        formatter = logging.Formatter('%(asctime)s %(name)-10s: %(levelname)-8s %(message)s')
+        hdlr.setFormatter(formatter)
+
+        for name in lognames:
+            logging.getLogger(name).addHandler(hdlr)
+
+        if verbose: print(" WebbPSF log outputs will also be saved to file "+filename)
+
+
+
+
+def setup_logging(level='INFO',  filename=None):
+    """ Allows selection of logging detail and output locations (screen and/or file)
+
+    This is a convenience wrapper to Python's built-in logging package, as used
+    by webbpsf and poppy.  By default, this sets up log messages to be written
+    to the screen, but the user can also request logging to a file. 
+
+    The settings applied here are stored persistently between sessions using the
+    astropy.config system. In many cases, you can just configure these once when you
+    first install webbpsf and then logging will continue to operate as desired 
+    without any additional intervention.
+
+
+    For more advanced log handling, see the Python logging module's own documentation.
+    
+    Parameters
+    -------------
+    level : str
+        name of log output to show. Defaults to 'INFO', set to 'DEBUG' for
+        more extensive messages, or to "WARN" or "ERROR" for fewer. 
+    filename : str, optional
+        Filename to write the log output to. If not set, output will just 
+        be displayed on screen. 
+
+
+    Examples
+    -----------
+
+    >>> webbpsf.setup_logging(filename='webbpsflog.txt')
+
+    This will save all log messages to 'webbpsflog.txt' in the current directory.
+    If you later start another copy of webbpsf in a different directory, that session
+    will also write to 'webbpsflog.txt' in *that* directory. Alternatively you can 
+    specify a fully qualified absolute path to save all your logs to one specific file.
+
+
+    >>> webbpsf.setup_logging(level='WARN')
+
+    This will show only WARNING or ERROR messages on screen, and not save any logs to
+    files at all (since the filename argument is None)
+
+    
+    """
+
+    # implementation note: All this function actually does is apply the
+    # defaults into the configuration system, then calls restart_logging to
+    # do the actual work.
+
+
+    LOGGING_LEVEL.set(level)
+
+
+    if filename is None: filename='none' # must be a string to write into the config system
+    LOGGING_FILENAME.set(filename)
+
+    LOGGING_LEVEL.save()
+    LOGGING_FILENAME.save()
+
+    _restart_logging(verbose=True)
+
+
+#    lognames = ['webbpsf', 'poppy']
+#    if level.upper() =='NONE':
+#        # disable logging
+#        lev = logging.CRITICAL  # we don't generate any CRITICAL flagged log items, so
+#                                # setting the level to this is effectively the same as ignoring
+#                                # all log events. FIXME there's likely a cleaner way to do this.
+#        print "No log messages will be shown."
+#    else:
+#        lev = logging.__dict__[level.upper()] # obtain one of the DEBUG, INFO, WARN, or ERROR constants
+#        print "Log messages of level {0} and above will be shown.".format(level)
+#
+#    for name in lognames:
+#        logging.getLogger(name).setLevel(lev)
+#
+#    logging.basicConfig(level=logging.INFO,format='%(name)-10s: %(levelname)-8s %(message)s')
+#    print("Log outputs will be directed to the screen.")
+#
+#    if filename is not None :
+#        hdlr = logging.FileHandler(filename)
+#
+#        formatter = logging.Formatter('%(asctime)s %(name)-10s: %(levelname)-8s %(message)s')
+#        hdlr.setFormatter(formatter)
+#
+#        for name in lognames:
+#            logging.getLogger(name).addHandler(hdlr)
+#
+#        print("Log outputs will also be saved to file "+filename)
+#
+#
+
+
+def _check_for_new_install():
+    from ._version import __version__
+    if LAST_VERSION_RAN() == '0.0':
+        print """
+    *********************************************
+    *           WebbPSF Initialization          *
+    *********************************************
+
+    This appears to be the first time you have used WebbPSF. 
+    
+    Just so you know, there is a mailing list for users of
+    webbpsf to keep you informed about any announcements of
+    updates or enhancements to this software. If you would like
+    to subscribe, please email 
+        majordomo@stsci.edu
+    with the message 
+        subscribe webbpsf-users
+
+    This message will not be displayed again.
+    Press [Enter] to continue
+    """
+
+        any_key = raw_input()
+
+        LAST_VERSION_RAN.set(__version__)
+        LAST_VERSION_RAN.save()
+    
+    #result = query_yes_no("Register?", default='yes')
 
 
 def _register():
@@ -208,6 +374,7 @@ def _system_diagnostic():
     import platform
     import os 
     import poppy
+    import numpy
     try:
         import ttk
         ttk_version = ttk.__version__
@@ -249,6 +416,7 @@ def _system_diagnostic():
     result = """
     OS: {os}
     Python version: {python}
+    numpy version: {numpy}
     poppy version: {poppy}
     webbpsf version: {webbpsf}
 
@@ -259,6 +427,7 @@ def _system_diagnostic():
     pysynphot version: {pysyn}
     pyfits version: {pyfits}
     FFTW3 version: {fftw3} """.format( os=platform.platform(), 
+            numpy = numpy.__version__,
             python=sys.version.replace("\n"," "), 
             poppy=poppy.__version__, 
             webbpsf=__version__,

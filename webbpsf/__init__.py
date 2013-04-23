@@ -8,67 +8,11 @@ from .webbpsf_core import Instrument, JWInstrument, NIRCam, NIRISS, NIRSpec,MIRI
 
 from ._version import __version__
 
+from .utils import setup_logging, _system_diagnostic, _check_for_new_install, _restart_logging
 
-from .utils import _system_diagnostic
-from .utils import WebbPSFConfig as _WebbPSFConfig
-config = _WebbPSFConfig()
-#_initialize_config, _register, 
+_check_for_new_install()    # display informative message if so.
 
-def setup_logging(filename=None, level='info'):
-    """ Provide a default handler for log messages, if the 
-    user has not already specified one. 
-
-    This is a convenience wrapper to Python's built-in
-    logging package, as used by webbpsf and poppy. 
-    By default, this sets up log messages to be written to the screen,
-    but the user can also request logging to a file. 
-
-    For more advanced log handling, see the Python logging module's own documentation.
-    
-    Parameters
-    -------------
-    filename : str, optional
-        Filename to write the log output to. If not set, output will just 
-        be displayed on screen. 
-    level : str
-        name of log output to show. Defaults to 'info', set to 'debug' for
-        more extensive messages. 
-
-
-    Examples
-    -----------
-
-    >>> webbpsf.setup_logging('my_log_output.txt')
-
-    
-    """
-    import logging
-    import os
-
-    if level.lower() =='info':
-        lev = logging.INFO
-    else:
-        lev = logging.DEBUG
-
-    lognames = ['webbpsf', 'poppy']
-
-    for name in lognames:
-        logging.getLogger(name).setLevel(lev)
-
-    logging.basicConfig(level=logging.INFO,format='%(name)-10s: %(levelname)-8s %(message)s')
-    print("Log outputs will be shown on screen.")
-
-    if filename is not None :
-        hdlr = logging.FileHandler(filename)
-
-        formatter = logging.Formatter('%(asctime)s %(name)-10s: %(levelname)-8s %(message)s')
-        hdlr.setFormatter(formatter)
-
-        for name in lognames:
-            logging.getLogger(name).addHandler(hdlr)
-
-        print("Log outputs will also be saved to file "+filename)
-
+_restart_logging()          # restart logging based on saved settings.
 
 
 
