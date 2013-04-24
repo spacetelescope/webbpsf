@@ -50,14 +50,14 @@ except:
 
 import logging
 _log = logging.getLogger('webbpsf')
-_log.setLevel(logging.DEBUG)
-_log.setLevel(logging.INFO)
 
 WEBBPSF_PATH = ConfigurationItem('webbpsf_data_path','unknown','Directory path to data files required for WebbPSF calculations, such as OPDs and filter transmissions.')
-LAST_VERSION_RAN = ConfigurationItem('last_version_ran','0.0', 'Most recently used version of WebbPSF on this computer. This is used for detecting new or upgraded installations and providing some additional information to users.')
 USE_MULTIPROCESSOR = ConfigurationItem('use_multiprocessor', False, 'Should PSF calculations run in parallel across multiple processors (if True; faster but does not allow display of each wavelength) or run serially in a single thread (if False; slower but shows the calculation in progress. Also a bit more robust.?)')
 MULTIPROCESSOR_NPROCESSES = ConfigurationItem('n_processes', 4, 'Maximum number of additional worker threads to spawn. PSF calculations are likely RAM limited more than CPU limited for higher N on modern machines.')
 
+DEFAULT_OVERSAMPLING = ConfigurationItem('default_oversampling', 4, 'Default oversampling factor: number of times more finely sampled than an integer pixel for the grid spacing in the PSF calculation.')
+DEFAULT_OUTPUTMODE = ConfigurationItem('default_output_mode', 'Both as FITS extensions', "Should output include the oversampled PSF, a copy rebinned onto the integer detector spacing, or both? Options: 'oversampled','detector','both' ")
+DEFAULT_FOV_ARCSEC = ConfigurationItem('default_fov_arcsec', 5.0, "Default field of view size, in arcseconds per side of the square ")
 
 
 def get_webbpsf_data_path():
@@ -74,10 +74,26 @@ def get_webbpsf_data_path():
     path = os.getenv('WEBBPSF_PATH') #, default= os.path.dirname(os.path.dirname(os.path.abspath(poppy.__file__))) +os.sep+"data" )
     if path is None:
         path = WEBBPSF_PATH() # read from astropy configuration system
-        #import ConfigParser
-        #config = ConfigParser.ConfigParser()
-        #config.read(os.path.join( _get_webbpsf_config_path(), 'webbpsf.ini'))
-        #path =  config.get('Main','datapath')
+
+        if path == 'unknown':
+            _log.critical("Fatal error: Unable to find required WebbPSF data files!")
+            print """
+ ********* WARNING ****** WARNING ****** WARNING ****** WARNING *************
+ *                                                                          *
+ *  WebbPSF requires several data files to operate.                         *
+ *  These files could not be located automatically at this                  *
+ *  time. Please download them to a location of your                        *
+ *  choosing and either                                                     *
+ *   - set the environment variable $WEBBPSF_PATH to point there, or        *
+ *   - set the webbpsf_data_path variable in the configuration file         *
+ *     path given above.                                                    *
+ *                                                                          *
+ *  See the WebbPSF documentation for more details.                         *
+ *  WebbPSF will not be able to function properly until this has been done. *
+ *                                                                          *
+ ****************************************************************************
+    """
+
     return path
 
 
@@ -138,7 +154,6 @@ class JWInstrument(poppy.instrument.Instrument):
         pupil_rotation : float
             Relative rotation of the intermediate (coronagraphic) pupil relative to the telescope entrace pupil, expressed in degrees counterclockwise. 
             This option only has an effect for optical models that have something at an intermediate pupil plane between the telescope aperture and the detector.
-
         rebin : bool
             For output files, write an additional FITS extension including a version of the output array 
             rebinned down to the actual detector pixel scale?
@@ -378,7 +393,7 @@ class JWInstrument(poppy.instrument.Instrument):
             raise ValueError("You cannot specify simultaneously the oversample= option with the detector_oversample and fft_oversample options. Pick one or the other!")
         elif oversample is None and detector_oversample is None and fft_oversample is None:
             # nothing set -> set oversample = 4
-            oversample = 4
+            oversample = DEFAULT_OVERSAMPLING()
         if detector_oversample is None: detector_oversample = oversample
         if fft_oversample is None: fft_oversample = oversample
         local_options['detector_oversample']=detector_oversample
@@ -446,7 +461,7 @@ class JWInstrument(poppy.instrument.Instrument):
 
             Modifies the 'result' HDUList object.
         """
-        output_mode = options.get('output_mode','Both as FITS extensions')
+        output_mode = options.get('output_mode',DEFAULT_OUTPUTMODE())
 
         if output_mode == 'Mock JWST DMS Output':
             # first rebin down to detector sampling

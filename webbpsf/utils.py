@@ -259,13 +259,23 @@ def setup_logging(level='INFO',  filename=None):
 #
 
 
-def _check_for_new_install():
+def _check_for_new_install(force=False):
+    """ Check for a new installation, and if so
+    print a hopefully helpful explanatory message.
+    """
+
     from ._version import __version__
-    if LAST_VERSION_RAN() == '0.0':
+    if LAST_VERSION_RAN() == '0.0' or force:
+        from astropy.config import save_config, get_config_dir
+
+        LAST_VERSION_RAN.set(__version__)
+        LAST_VERSION_RAN.save()
+        save_config('webbpsf.webbpsf_core') # save default values to text file
+
         print """
-    *********************************************
-    *           WebbPSF Initialization          *
-    *********************************************
+  ***************************************************
+  *           WebbPSF Initialization & Setup         *
+  ****************************************************
 
     This appears to be the first time you have used WebbPSF. 
     
@@ -277,87 +287,129 @@ def _check_for_new_install():
     with the message 
         subscribe webbpsf-users
 
+    
+    WebbPSF has some options that can be set using a 
+    configuration file. An example configuration file with
+    default values has been created in 
+            {0}/webbpsf.cfg
+    (unless such a config file was already present there)
+    You can examine that file and change settings if desired.
+    See the WebbPSF documentation for more detail. """.format(get_config_dir())
+
+        # check for data dir?
+        path_from_env_var = os.getenv('WEBBPSF_PATH') 
+        WEBBPSF_PATH = ConfigurationItem('webbpsf_data_path','unknown','Directory path to data files required for WebbPSF calculations, such as OPDs and filter transmissions.', module='webbpsf.webbpsf_core')
+        path_from_config = WEBBPSF_PATH()
+
+        if path_from_env_var is not None:
+            print """
+    WebbPSF's required data files appear to be 
+    installed at a path given by $WEBBPSF_PATH :
+    {0} """.format(path_from_env_var)
+        elif path_from_config != 'unknown':
+            print """
+    WebbPSF's required data files appear to be 
+    installed at a path given in the config file:
+    {0} """.format(path_from_config)
+        else:
+            print """
+ ********* WARNING ****** WARNING ****** WARNING ****** WARNING *************
+ *                                                                          *
+ *  WebbPSF requires several data files to operate.                         *
+ *  These files could not be located automatically at this                  *
+ *  time. Please download them to a location of your                        *
+ *  choosing and either                                                     *
+ *   - set the environment variable $WEBBPSF_PATH to point there, or        *
+ *   - set the webbpsf_data_path variable in the configuration file         *
+ *     path given above.                                                    *
+ *                                                                          *
+ *  See the WebbPSF documentation for more details.                         *
+ *  WebbPSF will not be able to function properly until this has been done. *
+ *                                                                          *
+ ****************************************************************************
+    """
+
+
+        print """
+
     This message will not be displayed again.
     Press [Enter] to continue
     """
-
         any_key = raw_input()
 
-        LAST_VERSION_RAN.set(__version__)
-        LAST_VERSION_RAN.save()
     
     #result = query_yes_no("Register?", default='yes')
 
-
-def _register():
-    """ Submit registration email
-    
-    Returns 2 bools, for "registration desired?" "if desired, successful?"
-    """
-
-
-    print """
-    *********************************************
-    *           WebbPSF Initialization          *
-    *********************************************
-
-This appears to be the first time you have used WebbPSF. 
-
-Would you like to register your email address to 
-stay informed of future versions, updates, etc? 
-This will also register some basic information about
-your system (OS, Python version, WebbPSF version, etc.)
-to help us better support this software. 
-"""
-    result = query_yes_no("Register?", default='yes')
-
-    if result =='no':
-        return (False, False)
-    elif result =='yes':
-        confirmed = 'no'
-        while confirmed == 'no':
-            email = raw_input("Please enter your email address: ")
-            email = email.strip()
-            confirmed = query_yes_no("You entered '%s'; is this correct? " % email, default='yes')
-
-        else:
-                        
-            import smtplib
-            import string
-            import platform
-            import poppy
-
-            print "now sending registration email to mperrin@stsci.edu."
-             
-            SUBJECT = "WebbPSF user registration"
-            TO = "mperrin@stsci.edu"
-            FROM = "do-not-reply-automated-webbpsf@stsci.edu"
-            HOST = 'smtp.stsci.edu'
-            text = """The following user would like to be informed about
-future versions of WebbPSF:
-    email: {0}
-""".format( email)
-            text += _system_diagnostic()
-    
-            BODY = string.join((
-                    "From: %s" % FROM,
-                    "To: %s" % TO,
-                    "Subject: %s" % SUBJECT ,
-                    "",
-                    text
-                    ), "\r\n")
-            server = smtplib.SMTP(HOST)
-            try:
-                server.sendmail(FROM, [TO], BODY)
-                server.quit()
-                print """
-    Registration email sent.
-    """
-                return (True, True)
-            except:
-                print """ Error in sending registration email! Check your internet connection and try again later?"""
-                return (True, False)
-
+#
+#def _register():
+#    """ Submit registration email
+#    
+#    Returns 2 bools, for "registration desired?" "if desired, successful?"
+#    """
+#
+#
+#    print """
+#    *********************************************
+#    *           WebbPSF Initialization          *
+#    *********************************************
+#
+#This appears to be the first time you have used WebbPSF. 
+#
+#Would you like to register your email address to 
+#stay informed of future versions, updates, etc? 
+#This will also register some basic information about
+#your system (OS, Python version, WebbPSF version, etc.)
+#to help us better support this software. 
+#"""
+#    result = query_yes_no("Register?", default='yes')
+#
+#    if result =='no':
+#        return (False, False)
+#    elif result =='yes':
+#        confirmed = 'no'
+#        while confirmed == 'no':
+#            email = raw_input("Please enter your email address: ")
+#            email = email.strip()
+#            confirmed = query_yes_no("You entered '%s'; is this correct? " % email, default='yes')
+#
+#        else:
+#                        
+#            import smtplib
+#            import string
+#            import platform
+#            import poppy
+#
+#            print "now sending registration email to mperrin@stsci.edu."
+#             
+#            SUBJECT = "WebbPSF user registration"
+#            TO = "mperrin@stsci.edu"
+#            FROM = "do-not-reply-automated-webbpsf@stsci.edu"
+#            HOST = 'smtp.stsci.edu'
+#            text = """The following user would like to be informed about
+#future versions of WebbPSF:
+#    email: {0}
+#""".format( email)
+#            text += _system_diagnostic()
+#    
+#            BODY = string.join((
+#                    "From: %s" % FROM,
+#                    "To: %s" % TO,
+#                    "Subject: %s" % SUBJECT ,
+#                    "",
+#                    text
+#                    ), "\r\n")
+#            server = smtplib.SMTP(HOST)
+#            try:
+#                server.sendmail(FROM, [TO], BODY)
+#                server.quit()
+#                print """
+#    Registration email sent.
+#    """
+#                return (True, True)
+#            except:
+#                print """ Error in sending registration email! Check your internet connection and try again later?"""
+#                return (True, False)
+#
         
      
 
@@ -440,37 +492,37 @@ def _system_diagnostic():
     return result
 
 
-## {{{ http://code.activestate.com/recipes/577058/ (r2)
-def query_yes_no(question, default="yes"):
-    """Ask a yes/no question via raw_input() and return their answer.
-    
-    "question" is a string that is presented to the user.
-    "default" is the presumed answer if the user just hits <Enter>.
-        It must be "yes" (the default), "no" or None (meaning
-        an answer is required of the user).
-
-    The "answer" return value is one of "yes" or "no".
-    """
-    valid = {"yes":"yes",   "y":"yes",  "ye":"yes",
-             "no":"no",     "n":"no"}
-    if default == None:
-        prompt = " [y/n] "
-    elif default == "yes":
-        prompt = " [Y/n] "
-    elif default == "no":
-        prompt = " [y/N] "
-    else:
-        raise ValueError("invalid default answer: '%s'" % default)
-
-    while 1:
-        sys.stdout.write(question + prompt)
-        choice = raw_input().lower()
-        if default is not None and choice == '':
-            return default
-        elif choice in valid.keys():
-            return valid[choice]
-        else:
-            sys.stdout.write("Please respond with 'yes' or 'no' "\
-                             "(or 'y' or 'n').\n")
-## end of http://code.activestate.com/recipes/577058/ }}}
+### {{{ http://code.activestate.com/recipes/577058/ (r2)
+#def query_yes_no(question, default="yes"):
+#    """Ask a yes/no question via raw_input() and return their answer.
+#    
+#    "question" is a string that is presented to the user.
+#    "default" is the presumed answer if the user just hits <Enter>.
+#        It must be "yes" (the default), "no" or None (meaning
+#        an answer is required of the user).
+#
+#    The "answer" return value is one of "yes" or "no".
+#    """
+#    valid = {"yes":"yes",   "y":"yes",  "ye":"yes",
+#             "no":"no",     "n":"no"}
+#    if default == None:
+#        prompt = " [y/n] "
+#    elif default == "yes":
+#        prompt = " [Y/n] "
+#    elif default == "no":
+#        prompt = " [y/N] "
+#    else:
+#        raise ValueError("invalid default answer: '%s'" % default)
+#
+#    while 1:
+#        sys.stdout.write(question + prompt)
+#        choice = raw_input().lower()
+#        if default is not None and choice == '':
+#            return default
+#        elif choice in valid.keys():
+#            return valid[choice]
+#        else:
+#            sys.stdout.write("Please respond with 'yes' or 'no' "\
+#                             "(or 'y' or 'n').\n")
+### end of http://code.activestate.com/recipes/577058/ }}}
 

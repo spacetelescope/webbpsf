@@ -26,7 +26,6 @@ except ImportError:
 import logging
 import logging
 _log = logging.getLogger('webbpsf')
-#_log.setLevel(logging.INFO)
 
 
 
@@ -288,15 +287,15 @@ class WebbPSF_GUI(wx.Frame):
 
 
         r=0 
-        self._add_labeled_entry('FOV', calcPanel,calcSizer, label='Field of View:',  value='5', postlabel='arcsec/side', position=(0,0))
+        self._add_labeled_entry('FOV', calcPanel,calcSizer, label='Field of View:',  value=str(webbpsf_core.DEFAULT_FOV_ARCSEC()), postlabel='arcsec/side', position=(0,0))
         r+=1
-        self._add_labeled_entry('detector_oversampling', calcPanel,calcSizer, label='Output Oversampling:',  width=3, value='2', postlabel='x finer than instrument pixels       ', position=(r,0))
+        self._add_labeled_entry('detector_oversampling', calcPanel,calcSizer, label='Output Oversampling:',  width=3, value=str(webbpsf_core.DEFAULT_OVERSAMPLING()), postlabel='x finer than instrument pixels       ', position=(r,0))
 
 
 
 
         r+=1
-        self._add_labeled_entry('fft_oversampling', calcPanel,calcSizer, label='Coronagraph FFT Oversampling:',  width=3, value='2', postlabel='x finer than Nyquist', position=(r,0))
+        self._add_labeled_entry('fft_oversampling', calcPanel,calcSizer, label='Coronagraph FFT Oversampling:',  width=3, value=str(webbpsf_core.DEFAULT_OVERSAMPLING()), postlabel='x finer than Nyquist', position=(r,0))
         r+=1
         self._add_labeled_entry('nlambda', calcPanel,calcSizer, label='# of wavelengths:',  width=3, value='', position=(r,0), postlabel='Leave blank for autoselect')
         r+=1

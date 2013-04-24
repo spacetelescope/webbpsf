@@ -16,9 +16,12 @@ import matplotlib.pyplot as plt
 import matplotlib
 import pysynphot
 import logging
+import poppy
+
 import webbpsf_core
 
-_log = logging.getLogger('webbpsg')
+
+_log = logging.getLogger('webbpsf')
 #
 ###########################################################################
 #
@@ -71,7 +74,7 @@ class TargetScene(object):
                    multiplicative factor to the resulting PSF itself?
         """
         if type(sptype_or_spectrum) is str:
-            spectrum = specFromSpectralType(sptype_or_spectrum)
+            spectrum = poppy.specFromSpectralType(sptype_or_spectrum)
         else:
             spectrum = sptype_or_spectrum
 
@@ -231,77 +234,6 @@ def test_obssim(nlambda=3, clobber=False):
         if not os.path.exists(outname) or clobber:
             s.calcImage(inst, outfile=outname, fov_arcsec=5, nlambda=nlambda)
 
-
-
-
-def specFromSpectralType(sptype, return_list=False):
-    """Get Pysynphot Spectrum object from a spectral type string.
-
-    """
-    lookuptable = {
-        "O3V":   (50000, 0.0, 5.0),
-        "O5V":   (45000, 0.0, 5.0),
-        "O6V":   (40000, 0.0, 4.5),
-        "O8V":   (35000, 0.0, 4.0),
-        "O5I":   (40000, 0.0, 4.5),
-        "O6I":   (40000, 0.0, 4.5),
-        "O8I":   (34000, 0.0, 4.0),
-        "B0V":   (30000, 0.0, 4.0),
-        "B3V":   (19000, 0.0, 4.0),
-        "B5V":   (15000, 0.0, 4.0),
-        "B8V":   (12000, 0.0, 4.0),
-        "B0III": (29000, 0.0, 3.5),
-        "B5III": (15000, 0.0, 3.5),
-        "B0I":   (26000, 0.0, 3.0),
-        "B5I":   (14000, 0.0, 2.5),
-        "A0V":   (9500, 0.0, 4.0),
-        "A5V":   (8250, 0.0, 4.5),
-        "A0I":   (9750, 0.0, 2.0),
-        "A5I":   (8500, 0.0, 2.0),
-        "F0V":   (7250, 0.0, 4.5),
-        "F5V":   (6500, 0.0, 4.5),
-        "F0I":   (7750, 0.0, 2.0),
-        "F5I":   (7000, 0.0, 1.5),
-        "G0V":   (6000, 0.0, 4.5),
-        "G5V":   (5750, 0.0, 4.5),
-        "G0III": (5750, 0.0, 3.0),
-        "G5III": (5250, 0.0, 2.5),
-        "G0I":   (5500, 0.0, 1.5),
-        "G5I":   (4750, 0.0, 1.0),
-        "K0V":   (5250, 0.0, 4.5),
-        "K5V":   (4250, 0.0, 4.5),
-        "K0III": (4750, 0.0, 2.0),
-        "K5III": (4000, 0.0, 1.5),
-        "K0I":   (4500, 0.0, 1.0),
-        "K5I":   (3750, 0.0, 0.5),
-        "M0V":   (3750, 0.0, 4.5),
-        "M2V":   (3500, 0.0, 4.5),
-        "M5V":   (3500, 0.0, 5.0),
-        "M0III": (3750, 0.0, 1.5),
-        "M0I":   (3750, 0.0, 0.0),
-        "M2I":   (3500, 0.0, 0.0)}
-
-
-    if return_list:
-        sptype_list = lookuptable.keys()
-        def sort_sptype(typestr):
-            letter = typestr[0]
-            lettervals = {'O':0, 'B': 10, 'A': 20,'F': 30, 'G':40, 'K': 50, 'M':60}
-            value = lettervals[letter]*1.0
-            value += int(typestr[1])
-            if "III" in typestr: value += .3
-            elif "I" in typestr: value += .1
-            elif "V" in typestr: value += .5
-            return value
-        sptype_list.sort(key=sort_sptype)
-        return sptype_list
-
-    try:
-        keys = lookuptable[sptype]
-    except:
-        raise LookupError("Lookup table does not include spectral type %s" % sptype)
-
-    return pysynphot.Icat('ck04models',keys[0], keys[1], keys[2])
 
 
 
