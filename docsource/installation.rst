@@ -13,13 +13,9 @@ Software Requirements
 **Python**: Python 2.6 or higher is required. Python 2.7 is required for the GUI (see below) and strongly recommended overall. WebbPSF is not yet Python 3 compatible.
 
 
-**Python modules**: Beyond the usual numpy/scipy/matplotlib core modules, the following are required. 
+**Python modules**: Beyond the usual numpy/scipy/matplotlib core modules, the following is required. 
 
-* **Either** `astropy <http://astropy.org>`_, in particular its ``astropy.io.fits`` and ``astropy.io.ascii`` modules, 
-* **or** the following individual python modules to provide similar functionality:
-
-        * `pyfits <http://www.stsci.edu/resources/software_hardware/pyfits>`_
-        * `asciitable <http://cxc.harvard.edu/contrib/asciitable/>`_
+* `astropy <http://astropy.org>`_, 0.2 or more recent, in particular its ``astropy.io.fits`` and ``astropy.io.ascii`` modules, plus the configuration system.
 
   
 These are optional but recommended:
@@ -29,7 +25,7 @@ These are optional but recommended:
 
 **Additional requirement for the GUI:** The :ref:`graphical user interface<gui>` requires 
 
-* **Either**  the `wxpython <http://www.wxpython.org>`_ interface to the ``wxwidgets`` widget library. 
+* **Either**  the `wxpython <http://www.wxpython.org>`_ interface to the ``wxwidgets`` widget library (recommended), 
 
 
 * **or**  the `ttk <http://docs.python.org/2/library/ttk.html>`_ enhanced version of the ``Tkinter`` widget library. 
@@ -72,6 +68,13 @@ method if you already have a working copy of python, numpy, and matplotlib on yo
 
 However, this installs only the program code. You still must download and install the data files, as :ref:`described below <data_install>`. 
 
+.. note::
+  If you wish to install webbpsf on a machine for which you do not have administrative access, you can do so by using Python's
+  built-in `"--user" mechanism  <http://docs.python.org/2/install/#alternate-installation-the-user-scheme>`_
+  for installing packages into your home directory. ::
+
+    $ pip install webbpsf --user
+
 
 Installing WebbPSF manually
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -79,8 +82,8 @@ Installing WebbPSF manually
 If for some reason you do not wish to use PYPI, you can just install the source file directly:
 
 
-1. Download the following file: `webbpsf-0.2.9.tar.gz <http://www.stsci.edu/~mperrin/software/webbpsf/webbpsf-0.2.9.tar.gz>`_
-2. Untar ``webbpsf-0.2.9.tar.gz`` into a temporary working directory. 
+1. Download the following file: `webbpsf-0.3.0.tar.gz <http://www.stsci.edu/~mperrin/software/webbpsf/webbpsf-0.3.0.tar.gz>`_
+2. Untar ``webbpsf-0.3.0.tar.gz`` into a temporary working directory. 
 3. Run ``python setup.py install`` in that directory. This will install ``webbpsf`` into your Python path. 
 
    If you lack the filesystem permissions to write into the system python directory 
@@ -99,8 +102,8 @@ As of version 0.2.8, the `webbpsf source code repository <https://github.com/mpe
 Installing the Required Data Files
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-1. Download the following file:  `webbpsf-data-0.2.6.tar.gz <http://www.stsci.edu/~mperrin/software/webbpsf/webbpsf-data-0.2.6.tar.gz>`_  [417 MB]
-2. Untar ``webbpsf-data-0.2.x.tar.gz`` into a directory of your choosing.
+1. Download the following file:  `webbpsf-data-0.3.0.tar.gz <http://www.stsci.edu/~mperrin/software/webbpsf/webbpsf-data-0.3.0.tar.gz>`_  [417 MB]
+2. Untar ``webbpsf-data-0.3.0.tar.gz`` into a directory of your choosing.
 3. Set the environment variable ``WEBBPSF_PATH`` to point to that directory. e.g. ``setenv WEBBPSF_PATH $HOME/data/webbpsf-data`` for tcsh/csh, or ``WEBBPSF_PATH=$HOME/data/webbpsf-data; export WEBBPSF_PATH`` for bash.
 
 
@@ -132,6 +135,32 @@ internal files, but this is not required.
 .. comment
         3. Untar ``CDBS-for-webb.tar.gz`` in a directory of your choosing. (Typically replacing into your current CDBS directory if already present)
         4. Set the environment variable ``PYSYN_CDBS`` to point to that directory. e.g. ``setenv PYSYN_CDBS $HOME/data/CDBS``.
+
+
+
+Optional: sign up to receive announcement of updates
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. comment 
+    The first time you import WebbPSF, it will ask you whether you want to sign up for announcements of new versions::
+            >>> import webbpsf
+            *********************************************
+            *           WebbPSF Initialization          *
+            *********************************************
+            This appears to be the first time you have used WebbPSF.
+            Would you like to register your email address to
+            stay informed of future versions, updates, etc?
+            This will also register some basic information about
+            your system (OS, Python version, WebbPSF version, etc.)
+            to help us better support this software.
+            Register? [Y/n]
+
+
+This is entirely optional, but you may wish to sign up to the mailing list ``webbpsf-users@stsci.edu``.
+This is a low-traffic moderated announce-only list, to which we will periodically post announcements of updates to this software.  
+
+To subscribe, email `majordomo@stsci.edu` with the message body text ``"subscribe webbpsf-users"``. 
+
 
 
 Note for STScI Internal Users

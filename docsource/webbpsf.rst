@@ -54,12 +54,14 @@ one can create an instance of MIRI and configure it for coronagraphic observatio
    :alt: Sample PSF image
 
 
-WebbPSF can output a log of calculation steps while it runs, which can be optionally saved to a file. 
+WebbPSF can output a log of calculation steps while it runs, which can be displaye to the screen and optionally saved to a file. 
 This is useful for verifying or debugging calculations.  To turn on log display, just run
 
->>> webbpsf.setup_logging()
+>>> webbpsf.setup_logging(filename='webbpsf.log')
 
-If you want to save log results to a file, simply provide a filename argument to that function call. See :py:func:`setup_logging` for details.
+The setup_logging function allows selection of the level of log detail following the standard Python logging system (DEBUG, INFO, WARN, ERROR). WebbPSF remembers your
+chosen logging settings between invocations, so if you close and then restart python it will automatically continue logging at the same level of detail as before.
+See :py:func:`setup_logging` for more details.
 
 
 

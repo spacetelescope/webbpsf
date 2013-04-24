@@ -48,21 +48,20 @@ Version History and Change Log
 -------------------------------
 
 
-Version 0.2.9
+Version 0.3.0
 =================
 
 Released ?????
 
 
-**Changes and Updates to the optics models**:
-
+**Changes and Updates to the optical models**:
 
 
  * Bug fix to weak lens code for NIRCam, which previously had an incorrect scaling factor.  
  * Added defocus option to all instruments, which can be used to simulate either internal focus mechanism moves or telescope defocus during MIMF. For example, set ::
  
-    >> defocus_waves=3
-    >> defocus_wavelength=2.0e-6
+    >> nircam.options['defocus_waves']=3
+    >> nircam.options['defocus_wavelength']=2.0e-6
     
    to simulate 3 waves of defocus at 2 microns, equivalently 6 microns phase delay peak-to-valley in the wavefront.
 
@@ -78,18 +77,20 @@ Released ?????
 
    Those two elements give the desired field size as (Y,X) following the usual Python axis order convention.
 
+
 .. comment
   * Added a new model for NIRISS single-object slitless spectroscopy (SOSS).  Wide field slitless 
 
 
-**Software Infrastructure Updates**: 
+**Other Software Updates & Enhancements**: 
 
 
-* Required Python modules updated, now with support for `astropy <http::/www.astropy.org>`_:
+* Required Python modules updated, now with dependency on `astropy <http::/www.astropy.org>`_:
 
-    * Either ``astropy.io.fits`` or ``pyfits`` is acceptable for FITS I/O. 
-    * Either ``astropy.io.ascii`` or ``asciitable`` is acceptable for ASCII table I/O.
+    * ``astropy.io.fits`` replaces ``pyfits`` for FITS I/O. 
+    * ``astropy.io.ascii`` replaces ``asciitable`` for ASCII table I/O.
     * ``atpy`` is no longer required.
+    * New ``astropy.config`` configuration system is used for persistent settings.
 
 
 * New GUI using the wxpython widget toolkit in place of the older/less function Tkinter tool kit. Thanks to Klaus Pontoppidan for useful advice in wxpython. This should offer 
@@ -104,12 +105,18 @@ Released ?????
       seems a reasonable compromise for users of the webbpsf GUI who do not care to think about Python conventions in axis ordering.)
 
 
-* New function webbpsf.setup_logging() adds some more user-friendliness to the underlying python logging system. See updated documentation in the :py:mod:`webbpsf` page. 
+* New function webbpsf.setup_logging() adds some more user-friendliness to the
+  underlying python logging system. This includes persistent log settings
+  between sessions. See updated documentation in the :py:mod:`webbpsf` page. 
 
-* The first time it is imported, WebbPSF will now query the user whether they would like to register for future updates of the software. This is in conjunction with 
-  the new mailing list, webbpsf-users@stsci.edu, that announcements will be sent out to. 
+* Many settings such as default oversampling, default field of view size, and 
+  output file format can now be set in a configuration file for persistence
+  between sessions. So if you always want e.g. 8x oversampling, you can now
+  make that the default.
 
 * Some bugfixes in the example code. Thanks to Diane Karakla, Anand Sivaramakrishnan.
+
+* Various minor updates & enhancements to this documentation.
 
 
 Version 0.2.8

@@ -11,12 +11,12 @@ Introduction
 Conceptually, this JWST PSF simulation code has three layers of abstraction: 
  * A base package implements wavefront propagation through generic optical systems (provided by the Python module :py:mod:`POPPY <poppy>`).
  * The specific details of JWST instruments are then implemented using that base system (provided by :py:mod:`WebbPSF <webbpsf>`)
- * And there is a :ref:`graphical user interface <gui>`.
+ * And there is an optional :ref:`graphical user interface <gui>`.
    
 ..  (provided by  :py:mod:`WebbPSFgui <webbpsfgui>`).
 
 It is entirely possible (and indeed recommended for scripting) to just use the :py:mod:`WebbPSF <webbpsf>` interface without the GUI, but the
-GUI will provide a quicker method for simple interactive calculations.
+GUI will provide a quicker method for many simple interactive calculations.
 
 
 
@@ -114,6 +114,16 @@ and you should be able to test drive things using the GUI:
 
 Most controls should be self-explanatory, so feel free to experiment. Detailed
 instructions on the GUI are available :ref:`here <gui>`.
+
+WebbPSF can save a detailed log of its calculations and results. This will by default be shown on screen but can also be saved to disk. 
+
+>>> webbpsf.setup_logging(filename='my_log_file.txt')
+
+Log settings are persistent between sessions, so you can just set this once the very first time you start WebbPSF and logging 
+will be enabled thereafter until you explicitly change it. 
+
+
+*Now, onward to the installation instructions...*
 
 ------
 

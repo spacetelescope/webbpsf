@@ -7,7 +7,7 @@ Documentation for WebbPSF
 ===============================
 
 .. warning::
-   This is a pre-release version of the documentation for WebbPSF version 0.2.9, which is not quite out yet. There
+   This is a pre-release version of the documentation for WebbPSF version 0.3, which is not quite out yet. There
    are likely to be references to functionality not yet in the released code. Proceed at your own discretion!
    
 
@@ -42,9 +42,9 @@ PSFs as observed with JWST's instruments.
 * Model any detector effects such as pixel MTF, intrapixel sensitivity variations, interpixel capacitance, or any noise sources. Add those separately with your favorite detector model code.
 
 
-There are three main Python modules in this distribution: a lower-level
-optical propagation library (:py:mod:`POPPY <poppy>`), an implementation of the
-JWST instruments using that library (:py:mod:`WebbPSF <webbpsf>`), and a graphical user interface (:py:mod:`WebbPSFgui <webbpsfgui>`).  This documentation explains the programming interface and provides usage examples for each of those three module. 
+The WebbPSF software system includes two Python packages: a lower-level
+optical propagation library (:py:mod:`POPPY <poppy>`) plus an implementation of the
+JWST instruments using that library (:py:mod:`WebbPSF <webbpsf>`).  This documentation explains the programming interfaces and graphical user interface, and provides usage examples for each.
 
 
 .. note::
@@ -52,23 +52,28 @@ JWST instruments using that library (:py:mod:`WebbPSF <webbpsf>`), and a graphic
 
 
     In addition to this documentation, WebbPSF is described in `Perrin et al. 2012, 
-    "Simulating point spread functions for the James Webb Space Telescope with WebbPSF", <http://adsabs.harvard.edu/abs/2012SPIE.8442E..3DP>`_, Proc SPIE 8842, 
+    "Simulating point spread functions for the James Webb Space Telescope with WebbPSF", <http://adsabs.harvard.edu/abs/2012SPIE.8442E..3DP>`_ Proc SPIE 8842, 
     and in Perrin 2011, `Improved PSF Simulations for JWST: Methods, Algorithms, and Validation <Improved_PSFs_for_Webb.pdf>`_ , JWST Technical report JWST-STScI-002469.
-    
-    Users of WebbPSF are encouraged to cite one of those references. 
-
-    In particular, the technical report document describes in more detail the
+    In particular, the SPIE paper gives a broad overview, while the Technical Report document describes in more detail the
     relevant optical physics, explains design decisions and motivation for
     WebbPSF's architecture, and presents extensive validation tests
     demonstrating consistency between WebbPSF and other PSF simulation packages
     used throughout the JWST project.
 
+    Users of WebbPSF are encouraged to cite one of those references. 
+
 
 **Version Information**
+
+
+             
 
 The current version of WebbPSF is version 0.2.8, released Nov 7, 2011. If you would like to receive email announcements of future versions, please contact Marshall Perrin, 
 or send an email to "webbpsf-users-request@stsci.edu" containing the message "subscribe".
 
+
+.. warning::
+     This documentation is for a prerelease version of WebbPSF, eventually to be 0.3.0
 
 Contents
 --------
@@ -83,6 +88,7 @@ Contents
    gui.rst  
    poppy.rst
    available_opds.rst
+   help.rst
    references.rst
    more_examples.rst
    sampling.rst
