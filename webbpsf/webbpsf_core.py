@@ -247,9 +247,12 @@ class JWInstrument(poppy.instrument.Instrument):
     def image_mask(self, name):
         if name is "": name = None
         if name is not None:
-            name = name.upper() # force to uppercase
-            if name not in self.image_mask_list:
-                raise ValueError("Instrument %s doesn't have an image mask called %s." % (self.name, name))
+            if name in self.image_mask_list:
+                pass # there's a perfect match, this is fine.
+            else:
+                name = name.upper() # force to uppercase
+                if name not in self.image_mask_list: # if still not found, that's an error.
+                    raise ValueError("Instrument %s doesn't have an image mask called %s." % (self.name, name))
         self._image_mask = name
 
     @property
@@ -557,7 +560,7 @@ class JWInstrument(poppy.instrument.Instrument):
 
         if self.image_mask is not None or self.pupil_mask is not None or ('force_coron' in options.keys() and options['force_coron']):
             _log.debug("Adding coronagraph optics...")
-            optsys, trySAM, SAM_box_size = self._addCoronagraphOptics(optsys, oversample=fft_oversample)
+            optsys, trySAM, SAM_box_size = self._addAdditionalOptics(optsys, oversample=fft_oversample)
         else: trySAM = False
 
         #--- add the detector element. 
@@ -588,7 +591,7 @@ class JWInstrument(poppy.instrument.Instrument):
 
         return optsys
 
-    def _addCoronagraphOptics(self,optsys, oversample=2):
+    def _addAdditionalOptics(self,optsys, oversample=2):
         """Add coronagraphic optics to an optical system. 
         This method must be provided by derived instrument classes. 
 
@@ -706,7 +709,7 @@ class MIRI(JWInstrument):
                 _log.warn("*"*80)
 
 
-    def _addCoronagraphOptics(self,optsys, oversample=2):
+    def _addAdditionalOptics(self,optsys, oversample=2):
         """Add coronagraphic optics for MIRI.
         Semi-analytic coronagraphy algorithm used for the Lyot only.
 
@@ -852,7 +855,7 @@ class NIRCam(JWInstrument):
             _log.info("NIRCam pixel scale updated to %f arcsec/pixel to match channel for the selected filter." % self.pixelscale)
 
 
-    def _addCoronagraphOptics(self,optsys, oversample=2):
+    def _addAdditionalOptics(self,optsys, oversample=2):
         """Add coronagraphic optics for NIRCam
 
         See Krist et al. 2007, 2009 SPIE
@@ -983,6 +986,9 @@ class NIRSpec(JWInstrument):
         self.monochromatic= 3.0
         self.filter = 'F110W' # or is this called F115W to match NIRCam??
 
+        # fixed slits
+        self.image_mask = None
+        self.image_mask_list = ['S200A1','S200A2','S400A1','S1600A1','S200B1', 'Single MSA open shutter', 'Three adjacent MSA open shutters']
 
         self._default_aperture='NIRSpec A center' # reference into SIAF for ITM simulation V/O coords
 
@@ -991,9 +997,42 @@ class NIRSpec(JWInstrument):
             raise ValueError('NIRSpec does not have image or pupil masks!')
             self.image_mask = None
             self.pupil_mask = None
-    def _addCoronagraphOptics(self,optsys, oversample=2):
-        raise NotImplementedError("No Coronagraph in NIRSpec!")
+    def _addAdditionalOptics(self,optsys, oversample=2):
+        """ Add fixed slit optics for NIRSpec
 
+        See Table 3-6 of NIRSpec Ops Concept Document, ESA-JWST-TN-0297 / JWST-OPS-003212
+
+        """
+        trySAM = False # semi-analytic method never applicable here. 
+        SAM_box_size = None
+        if self.image_mask == 'S200A1' or self.image_mask == 'S200A2' or self.image_mask == 'S200B1':
+            # three identical slits, 0.2 x 3.2 arcsec in length
+            optsys.addImage(optic=poppy.IdealRectangularFieldStop(width=0.2, height=3.2, name= self.image_mask + " slit"))
+        elif self.image_mask == 'S400A1':
+            # one slit, 0.4 x 3.65 arcsec in height
+            optsys.addImage(optic=poppy.IdealRectangularFieldStop(width=0.4, height=3.65, name= self.image_mask + " slit"))
+        elif self.image_mask == 'S1600A1':
+            # square aperture for exoplanet spectroscopy
+            optsys.addImage(optic=poppy.IdealRectangularFieldStop(width=1.6, height=1.6, name= self.image_mask + " square aperture"))
+        elif self.image_mask == 'Single MSA open shutter':
+            # one MSA open shutter aperture 
+            optsys.addImage(optic=poppy.IdealRectangularFieldStop(width=0.2, height=0.45, name= self.image_mask))
+        elif self.image_mask == 'Three adjacent MSA open shutters':
+            optsys.addImage(optic=NIRSpec_three_MSA_shutters(name=self.image_mask))
+
+ 
+
+
+        if (self.pupil_mask is None and self.image_mask is not None):
+            # if we don't have a specific pupil stop, just assume for now we're
+            # stopped down to a JWST like geometry
+            # FIXME this is not really right - should be updated for the NIRSpec grating wheels
+            #optsys.addPupil(optic=optsys[0], name='No Pupil stop provided')
+            optsys.addPupil(optic=poppy.SquareAperture(size=3.5,  name='Pupil stop at grating wheel'))
+
+
+
+        return (optsys, trySAM, SAM_box_size)
 
     def _validate_config(self):
         if self.filter.startswith("IFU"): raise NotImplementedError("The NIRSpec IFU is not yet implemented.")
@@ -1004,6 +1043,41 @@ class NIRSpec(JWInstrument):
         JWInstrument._getFITSHeader(self, hdulist, options)
         hdulist[0].header.update('GRATING', 'None', 'NIRSpec grating element name')
         hdulist[0].header.update('APERTURE', 'None', 'NIRSpec slit aperture name')
+
+class NIRSpec_three_MSA_shutters(poppy.AnalyticOpticalElement):
+    """ Three NIRSpec MSA shutters, adjacent vertically."""
+
+    def getPhasor(self,wave):
+        """ Compute the transmission inside/outside of the field stop.
+
+        The area of an open shutter is 0.2 x 0.45, while the shutter pitch is 0.26x0.51
+        The walls separating adjaced shutters are 0.06 arcsec wide.
+        """
+
+        msa_width = 0.2
+        msa_height = 0.45
+        msa_wall = 0.06
+
+        if not isinstance(wave, poppy.Wavefront):
+            raise ValueError("IdealFieldStop getPhasor must be called with a Wavefront to define the spacing")
+        assert (wave.planetype == poppy.poppy_core._IMAGE)
+
+        y, x= wave.coordinates()
+        #xnew =  x*np.cos(np.deg2rad(self.angle)) + y*np.sin(np.deg2rad(self.angle))
+        #ynew = -x*np.sin(np.deg2rad(self.angle)) + y*np.cos(np.deg2rad(self.angle))
+        #x,y = xnew, ynew
+
+
+        self.transmission = np.zeros(wave.shape)
+        # get the innermost shutter than spans the Y axis
+        w_inside_1 = np.where( (abs(y) < (msa_height/2))  & (abs(x) < (msa_width/2)))
+        self.transmission[w_inside_1] = 1
+        # get the adjacent shutters one above and one below.
+        w_inside_2 = np.where( (abs(y) > (msa_height/2)+msa_wall) & (abs(y) < msa_height*1.5+msa_wall)  & (abs(x) < (msa_width/2)))
+        self.transmission[w_inside_2] = 1
+
+        return self.transmission
+
 
 
 class NIRISS(JWInstrument):
@@ -1041,8 +1115,8 @@ class NIRISS(JWInstrument):
     def _validate_config(self):
         pass
 
-    def _addCoronagraphOptics(self,optsys, oversample=2):
-        """Add coronagraphic or slitless spectroscopy optics for NIRISS. 
+    def _addAdditionalOptics(self,optsys, oversample=2):
+        """Add NRM or slitless spectroscopy optics for NIRISS. 
 
             These are probably not going to be used much in practice for NIRISS, but they
             are present, so we might as well still provide the ability to simulate 'em. 
@@ -1294,7 +1368,7 @@ class FGS(JWInstrument):
             self.image_mask = None
             self.pupil_mask = None
         #TODO only one possible filter fot the FGS, too. 
-    def _addCoronagraphOptics(self,optsys):
+    def _addAdditionalOptics(self,optsys):
         raise NotImplementedError("No Coronagraph in FGS!")
 
     def _getFITSHeader(self, hdulist, options):

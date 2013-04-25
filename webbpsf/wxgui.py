@@ -213,8 +213,9 @@ class WebbPSF_GUI(wx.Frame):
             if len(self.instrument[iname].image_mask_list) >0 :
                 masks = self.instrument[iname].image_mask_list
                 masks.insert(0, "")
- 
-                self._add_labeled_dropdown(iname+"_coron", inst_panel,panelSizer, label='    Coron:', choices=masks,  position=(2,0))
+
+                label = '     Slit:' if iname=='NIRSpec' else '    Coron:'
+                self._add_labeled_dropdown(iname+"_coron", inst_panel,panelSizer, label=label, choices=masks,  position=(2,0))
 
 
             if len(self.instrument[iname].image_mask_list) >0 :
