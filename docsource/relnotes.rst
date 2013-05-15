@@ -28,7 +28,7 @@ Known Issues
 
 **The following factors are NOT included in these simulations:**
 
-* PSF variations across the field of view of any instrument (though each one has its own distinct OPDs for the center of its FOV).
+* Wavefront error (OPD) variations across the field of view of any instrument (though each one has its own distinct OPDs for the center of its FOV).
 * Optical distortions.
 * Instrumental wavefront errors are not modeled separately, though they are included in some of the supplied RevV OPDs. 
 * Coronagraphic masks are assumed to be perfect (i.e. the masks exactly match their design parameters.)
@@ -37,7 +37,7 @@ Known Issues
 
 Plans for Future Releases
 --------------------------
-* Full support for the NIRSpec and MIRI IFUs may be added in a future release. Likewise for grisms.
+* Full support for the NIRSpec and MIRI IFUs may be added in a future release. Likewise for grisms. (*Partial NIRISS grism support added in 0.3*)
 * Realistic (but time consuming) jitter models (This code now available in beta form if you need it; contact Marshall.)
 * Integration with OPD generation software and detector noise models.
 * Possibly: separate handling of pre- and post- coronagraphic WFE in instruments, if this appears likely to be significant. 
@@ -77,6 +77,7 @@ Released ?????
 
    Those two elements give the desired field size as (Y,X) following the usual Python axis order convention.
 
+ * Initial support for NIRSpec slit spectroscopy.
 
 .. comment
   * Added a new model for NIRISS single-object slitless spectroscopy (SOSS).  Wide field slitless 
@@ -93,30 +94,35 @@ Released ?????
     * New ``astropy.config`` configuration system is used for persistent settings.
 
 
-* New GUI using the wxpython widget toolkit in place of the older/less function Tkinter tool kit. Thanks to Klaus Pontoppidan for useful advice in wxpython. This should offer 
+* New GUI using the wxpython widget toolkit in place of the older/less functional Tkinter tool kit. Thanks to Klaus Pontoppidan for useful advice in wxpython. This should offer 
   better cross-platform support and improved long term extensibility. (For now, the existing Tkinter GUI remains in place but is deprecated and further development is not planned.) 
 
     * The advanced options dialog box now has an option to toggle between monochromatic and broadband calculations. In monochromatic mode, the "# of wavelengths" field is 
       replaced by a "wavelength in microns" field. 
-    * There is also an option to toggle the field of view size between arcseconds and pixels. 
+    * There is also an option to toggle the field of view size between units of arcseconds and pixels. 
     * Log messages giving details of calculations are now displayed in a window as part of the GUI as well. 
     * The wx gui supports rectangular fields of view. Simply enter 2 elements separated by a comma in the 'Field of view' text box. As a convenience, these 
       are interpreted as (X,Y) sizes. (Note that this is opposite of the convention used in the programming interface noted above; this is potentially confusing but 
-      seems a reasonable compromise for users of the webbpsf GUI who do not care to think about Python conventions in axis ordering.)
+      seems a reasonable compromise for users of the webbpsf GUI who do not care to think about Python conventions in axis ordering. Comments on this topic are welcome.)
 
+* Many settings such as default oversampling, default field of view size, and 
+  output file format can now be set in a configuration file for persistence
+  between sessions. So if you always want e.g. 8x oversampling, you can now
+  make that the default. An example configuration file with default values will
+  be created, including informative comments describing possible settings.
 
 * New function webbpsf.setup_logging() adds some more user-friendliness to the
   underlying python logging system. This includes persistent log settings
   between sessions. See updated documentation in the :py:mod:`webbpsf` page. 
 
-* Many settings such as default oversampling, default field of view size, and 
-  output file format can now be set in a configuration file for persistence
-  between sessions. So if you always want e.g. 8x oversampling, you can now
-  make that the default.
+* The first time it is invoked on a computer, WebbPSF will display a welcome
+  message providing some information of use to new users. This includes checking
+  whether the requisite data files have been installed properly, and alerting users
+  to the location of the configuration file, among other things.
 
 * Some bugfixes in the example code. Thanks to Diane Karakla, Anand Sivaramakrishnan.
 
-* Various minor updates & enhancements to this documentation.
+* Various updates & enhancements to this documentation.
 
 
 Version 0.2.8
