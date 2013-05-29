@@ -7,6 +7,7 @@ import astropy.io.fits as fits
 
 from threading import Thread
 
+from . import settings
 
 __doc__ = """
 Graphical Interface for WebbPSF 
@@ -214,14 +215,14 @@ class WebbPSF_GUI(wx.Frame):
                 masks = self.instrument[iname].image_mask_list
                 masks.insert(0, "")
 
-                label = '     Slit:' if iname=='NIRSpec' else '    Coron:'
+                label = '    Slit:    ' if iname=='NIRSpec' else '    Image Stop:'
                 self._add_labeled_dropdown(iname+"_coron", inst_panel,panelSizer, label=label, choices=masks,  position=(2,0))
 
 
             if len(self.instrument[iname].image_mask_list) >0 :
                 masks = self.instrument[iname].pupil_mask_list
                 masks.insert(0, "")
-                self._add_labeled_dropdown(iname+"_pupil", inst_panel,panelSizer, label='    Pupil:', choices=masks,  position=(3,0))
+                self._add_labeled_dropdown(iname+"_pupil", inst_panel,panelSizer, label='    Pupil Stop:', choices=masks,  position=(3,0))
 
                 fr2 = wx.Panel(inst_panel) 
                 fr2Sizer = wx.GridBagSizer()
@@ -288,15 +289,15 @@ class WebbPSF_GUI(wx.Frame):
 
 
         r=0 
-        self._add_labeled_entry('FOV', calcPanel,calcSizer, label='Field of View:',  value=str(webbpsf_core.DEFAULT_FOV_ARCSEC()), postlabel='arcsec/side', position=(0,0))
+        self._add_labeled_entry('FOV', calcPanel,calcSizer, label='Field of View:',  value=str(settings.default_fov_arcsec()), postlabel='arcsec/side', position=(0,0))
         r+=1
-        self._add_labeled_entry('detector_oversampling', calcPanel,calcSizer, label='Output Oversampling:',  width=3, value=str(webbpsf_core.DEFAULT_OVERSAMPLING()), postlabel='x finer than instrument pixels       ', position=(r,0))
+        self._add_labeled_entry('detector_oversampling', calcPanel,calcSizer, label='Output Oversampling:',  width=3, value=str(settings.default_oversampling()), postlabel='x finer than instrument pixels       ', position=(r,0))
 
 
 
 
         r+=1
-        self._add_labeled_entry('fft_oversampling', calcPanel,calcSizer, label='Coronagraph FFT Oversampling:',  width=3, value=str(webbpsf_core.DEFAULT_OVERSAMPLING()), postlabel='x finer than Nyquist', position=(r,0))
+        self._add_labeled_entry('fft_oversampling', calcPanel,calcSizer, label='Coronagraph FFT Oversampling:',  width=3, value=str(settings.default_oversampling()), postlabel='x finer than Nyquist', position=(r,0))
         r+=1
         self._add_labeled_entry('nlambda', calcPanel,calcSizer, label='# of wavelengths:',  width=3, value='', position=(r,0), postlabel='Leave blank for autoselect')
         r+=1
