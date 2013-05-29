@@ -10,6 +10,13 @@ Physical Optics Propagation in PYthon (POPPY)
 =============================================
 
 
+.. note::
+        This is an *abbreviated* version of the documentation for POPPY, 
+        included here since it's relevant for WebbPSF. For more comprehensive
+        documentation for POPPY please see `this site <http://www.stsci.edu/~mperrin/software/poppy>`_
+
+
+
 **Introduction:**
 
 The module ``poppy`` implements an object-oriented system for modeling physical optics
@@ -112,12 +119,15 @@ Optical Elements
 
 .. autoclass:: poppy.AnalyticOpticalElement
    :show-inheritance:
-.. autoclass:: poppy.CircularAperture
+
+.. comments 
+ .. autoclass:: poppy.CircularAperture
    :show-inheritance:
-.. autoclass:: poppy.HexagonAperture
+ .. autoclass:: poppy.HexagonAperture
    :show-inheritance:
-.. autoclass:: poppy.SquareAperture
+ .. autoclass:: poppy.SquareAperture
    :show-inheritance:
+
 .. autoclass:: poppy.IdealFieldStop
    :show-inheritance:
 .. autoclass:: poppy.IdealCircularOcculter

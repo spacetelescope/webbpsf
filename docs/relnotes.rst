@@ -53,8 +53,33 @@ Version 0.3.0
 
 Released ?????
 
+This is a major release of WebbPSF, with several additions to the optical
+models (particularly for slit spectroscopy), and extensive software
+improvements and under-the-hood infrastructure code updates. Many 
+default settings can now be customized by a text configuration file in your home
+directory. The GUI has also been completely revamped to use a better
+cross-platform widget toolkit, wxpython. 
+
 
 **Changes and Updates to the optical models**:
+
+
+ * Initial support for NIRSpec fixed slit spectroscopy and MIRI LRS slit spectroscopy. Thanks to Klaus Pontoppidan for proposing this feature and useful discussions. Thanks to Erin Elliott for researching the NIRSpec grating wheel pupil stop geometry, and Charles Lajoie for information on the MIRI LRS pupil stop.  To model either of these modes, select the desired image plane stop plus the pupil plane stop for the grating. WebbPSF does not yet include any model for the spectral dispersion of the prisms, so you will want to perform monochromatic calculations for the desired wavelengths, and coadd the results together yourself into a spectrum appropriately. For example::
+
+    >> nirspec.image_mask = 'S200A1'
+    >> nirspec.pupil_mask = 'NIRSpec grating'
+    >> monopsf = nirspec.calcPSF(monochromatic=3e-6, fov_arcsec=3)
+
+    >> miri.image_mask = 'LRS slit'
+    >> miri.pupil_mask = 'LRS grating'
+    >> miripsf = miri.calcPSF(monochromatic=10e-6)
+
+   In fact the NIRSpec class automatically defaults to having the NIRSpec grating as the selected pupil mask, since that's always in the beam. For MIRI you must explicitly select the 'LRS grating' pupil mask.  Please note that MIRI MRS is still unsupported - this is just the LRS, for both slit and slitless modes.
+
+ * Added a new model for NIRISS single-object slitless spectroscopy (SOSS).  Thanks to Loic Albert (U de Montreal) and Anand Sivaramakrishnan for data and many useful discussions.  This is a new element in the pupil mask list, though of course there is no associated image plane stop for this one. ::
+
+   >> niriss.pupil_mask = 'GR700XD'
+   >> monopsf = niriss.calcPSF(monochromatic=1.5e-6, oversample=4)
 
 
  * Bug fix to weak lens code for NIRCam, which previously had an incorrect scaling factor.  
@@ -77,10 +102,7 @@ Released ?????
 
    Those two elements give the desired field size as (Y,X) following the usual Python axis order convention.
 
- * Initial support for NIRSpec slit spectroscopy.
 
-.. comment
-  * Added a new model for NIRISS single-object slitless spectroscopy (SOSS).  Wide field slitless 
 
 
 **Other Software Updates & Enhancements**: 
@@ -91,7 +113,7 @@ Released ?????
     * ``astropy.io.fits`` replaces ``pyfits`` for FITS I/O. 
     * ``astropy.io.ascii`` replaces ``asciitable`` for ASCII table I/O.
     * ``atpy`` is no longer required.
-    * New ``astropy.config`` configuration system is used for persistent settings.
+    * New ``astropy.config`` configuration system is used for persistent settings.  This includes saving accumulated FFTW 'wisdom' so that future FFT-based calculations will begin more rapidly.
 
 
 * New GUI using the wxpython widget toolkit in place of the older/less functional Tkinter tool kit. Thanks to Klaus Pontoppidan for useful advice in wxpython. This should offer 
@@ -105,11 +127,13 @@ Released ?????
       are interpreted as (X,Y) sizes. (Note that this is opposite of the convention used in the programming interface noted above; this is potentially confusing but 
       seems a reasonable compromise for users of the webbpsf GUI who do not care to think about Python conventions in axis ordering. Comments on this topic are welcome.)
 
-* Many settings such as default oversampling, default field of view size, and 
-  output file format can now be set in a configuration file for persistence
-  between sessions. So if you always want e.g. 8x oversampling, you can now
-  make that the default. An example configuration file with default values will
-  be created, including informative comments describing possible settings.
+* Improved configuration settings system. Many settings such as default
+  oversampling, default field of view size, and output file format can now be
+  set in a configuration file for persistence between sessions. So if you
+  always want e.g. 8x oversampling, you can now make that the default. An
+  example configuration file with default values will be created automatically the first
+  time you run webbpsf now, including informative comments describing possible settings.
+  This file will be in your astropy config directory, typically something like "~/.astropy/config".
 
 * New function webbpsf.setup_logging() adds some more user-friendliness to the
   underlying python logging system. This includes persistent log settings
@@ -120,9 +144,10 @@ Released ?????
   whether the requisite data files have been installed properly, and alerting users
   to the location of the configuration file, among other things.
 
-* Some bugfixes in the example code. Thanks to Diane Karakla, Anand Sivaramakrishnan.
+* Some bugfixes in the example code. Thanks to Diane Karakla, Anand Sivaramakrishnan, Schuyler Wolff.
 
-* Various updates & enhancements to this documentation.
+* Various updates & enhancements to this documentation. More extensive documentation for POPPY now available as well.
+
 
 
 Version 0.2.8
