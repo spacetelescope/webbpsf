@@ -149,7 +149,7 @@ def _restart_logging(verbose=True):
 
     # set up screen logging
     logging.basicConfig(level=logging.INFO,format='%(name)-10s: %(levelname)-8s %(message)s')
-    if verbose: print(" WebbPSF log outputs will be directed to the screen.")
+    if verbose: print("WebbPSF log outputs will be directed to the screen.")
 
     # set up file logging
     filename = LOGGING_FILENAME()
@@ -162,7 +162,7 @@ def _restart_logging(verbose=True):
         for name in lognames:
             logging.getLogger(name).addHandler(hdlr)
 
-        if verbose: print(" WebbPSF log outputs will also be saved to file "+filename)
+        if verbose: print("WebbPSF log outputs will also be saved to file "+filename)
 
 
 
@@ -214,6 +214,8 @@ def setup_logging(level='INFO',  filename=None):
     # implementation note: All this function actually does is apply the
     # defaults into the configuration system, then calls restart_logging to
     # do the actual work.
+
+    level = level.upper()
 
 
     LOGGING_LEVEL.set(level)
@@ -270,7 +272,7 @@ def _check_for_new_install(force=False):
 
         LAST_VERSION_RAN.set(__version__)
         LAST_VERSION_RAN.save()
-        save_config('webbpsf.webbpsf_core') # save default values to text file
+        save_config('webbpsf') # save default values to text file
 
         print """
   ***************************************************
@@ -299,35 +301,22 @@ def _check_for_new_install(force=False):
         # check for data dir?
         path_from_env_var = os.getenv('WEBBPSF_PATH') 
         WEBBPSF_PATH = ConfigurationItem('webbpsf_data_path','unknown','Directory path to data files required for WebbPSF calculations, such as OPDs and filter transmissions.', module='webbpsf.webbpsf_core')
-        path_from_config = WEBBPSF_PATH()
 
         if path_from_env_var is not None:
             print """
     WebbPSF's required data files appear to be 
     installed at a path given by $WEBBPSF_PATH :
     {0} """.format(path_from_env_var)
-        elif path_from_config != 'unknown':
-            print """
+        else:
+            # the following will automatically print an error message if
+            # the path is unknown in the config file.
+            path_from_config = WEBBPSF_PATH()
+
+            if path_from_config != 'unknown':
+                print """
     WebbPSF's required data files appear to be 
     installed at a path given in the config file:
     {0} """.format(path_from_config)
-        else:
-            print """
- ********* WARNING ****** WARNING ****** WARNING ****** WARNING *************
- *                                                                          *
- *  WebbPSF requires several data files to operate.                         *
- *  These files could not be located automatically at this                  *
- *  time. Please download them to a location of your                        *
- *  choosing and either                                                     *
- *   - set the environment variable $WEBBPSF_PATH to point there, or        *
- *   - set the webbpsf_data_path variable in the configuration file         *
- *     path given above.                                                    *
- *                                                                          *
- *  See the WebbPSF documentation for more details.                         *
- *  WebbPSF will not be able to function properly until this has been done. *
- *                                                                          *
- ****************************************************************************
-    """
 
 
         print """
