@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 """
-
 =======
 WebbPSF
-========
+=======
 
 An object-oriented modeling system for the JWST instruments.
+
+Full documentation at http://www.stsci.edu/~mperrin/software/webbpsf/
 
 Classes:
   * JWInstrument
@@ -20,9 +21,7 @@ WebbPSF makes use of python's ``logging`` facility for log messages, using
 the logger name "webbpsf".
 
 
-
 Code by Marshall Perrin <mperrin@stsci.edu>
-
 """
 import os
 import types
@@ -40,6 +39,8 @@ from astropy.config import ConfigurationItem, get_config_dir, save_config
 
 import poppy
 
+from . import settings
+
 
 try: 
     import pysynphot
@@ -50,51 +51,6 @@ except:
 
 import logging
 _log = logging.getLogger('webbpsf')
-
-WEBBPSF_PATH = ConfigurationItem('webbpsf_data_path','unknown','Directory path to data files required for WebbPSF calculations, such as OPDs and filter transmissions.')
-USE_MULTIPROCESSOR = ConfigurationItem('use_multiprocessor', False, 'Should PSF calculations run in parallel across multiple processors (if True; faster but does not allow display of each wavelength) or run serially in a single thread (if False; slower but shows the calculation in progress. Also a bit more robust.?)')
-MULTIPROCESSOR_NPROCESSES = ConfigurationItem('n_processes', 4, 'Maximum number of additional worker threads to spawn. PSF calculations are likely RAM limited more than CPU limited for higher N on modern machines.')
-
-DEFAULT_OVERSAMPLING = ConfigurationItem('default_oversampling', 4, 'Default oversampling factor: number of times more finely sampled than an integer pixel for the grid spacing in the PSF calculation.')
-DEFAULT_OUTPUTMODE = ConfigurationItem('default_output_mode', 'Both as FITS extensions', "Should output include the oversampled PSF, a copy rebinned onto the integer detector spacing, or both? Options: 'oversampled','detector','both' ")
-DEFAULT_FOV_ARCSEC = ConfigurationItem('default_fov_arcsec', 5.0, "Default field of view size, in arcseconds per side of the square ")
-
-
-def get_webbpsf_data_path():
-    """ Get webbpsf data path
-
-    Simply checking an environment variable is not always enough, since 
-    for packaging this code as a Mac .app bundle, environment variables are 
-    not available since .apps run outside the Terminal or X11 environments.
-
-    Therefore, check first the environment variable WEBBPSF_PATH, and secondly
-    check a configuration file ~/.webbpsf in the user's home directory.
-    """
-
-    path = os.getenv('WEBBPSF_PATH') #, default= os.path.dirname(os.path.dirname(os.path.abspath(poppy.__file__))) +os.sep+"data" )
-    if path is None:
-        path = WEBBPSF_PATH() # read from astropy configuration system
-
-        if path == 'unknown':
-            _log.critical("Fatal error: Unable to find required WebbPSF data files!")
-            print """
- ********* WARNING ****** WARNING ****** WARNING ****** WARNING *************
- *                                                                          *
- *  WebbPSF requires several data files to operate.                         *
- *  These files could not be located automatically at this                  *
- *  time. Please download them to a location of your                        *
- *  choosing and either                                                     *
- *   - set the environment variable $WEBBPSF_PATH to point there, or        *
- *   - set the webbpsf_data_path variable in the configuration file         *
- *     path given above.                                                    *
- *                                                                          *
- *  See the WebbPSF documentation for more details.                         *
- *  WebbPSF will not be able to function properly until this has been done. *
- *                                                                          *
- ****************************************************************************
-    """
-
-    return path
 
 
 
@@ -117,10 +73,11 @@ class JWInstrument(poppy.instrument.Instrument):
     configuration can be done by editing the :ref:`JWInstrument.options` dictionary, either by passing options to __init__ or by directly editing the dict afterwards.
     """
 
-    def __init__(self, name=""):
+    def __init__(self, name="", pixelscale = 0.064):
         self.name=name
+        self.pixelscale = pixelscale
 
-        self._WebbPSF_basepath = get_webbpsf_data_path()
+        self._WebbPSF_basepath = settings.get_webbpsf_data_path()
 
         self._datapath = self._WebbPSF_basepath + os.sep + self.name + os.sep
         self._filter = None
@@ -135,6 +92,7 @@ class JWInstrument(poppy.instrument.Instrument):
         assumed to be within the instrument's `data/OPDs/` directory, or an actual fits.HDUList object corresponding to such a file.
         If the file contains a datacube, you may set this to a tuple (filename, slice) to select a given slice, or else
         the first slice will be used."""
+
 
         self.options = {} # dict for storing other arbitrary options. 
         """ A dictionary capable of storing other arbitrary options, for extensibility. The following are all optional, and
@@ -223,6 +181,12 @@ class JWInstrument(poppy.instrument.Instrument):
         "Detector pixel scale, in arcsec/pixel"
         self._spectra_cache = {}  # for caching pysynphot results.
 
+
+        self.detector_list = ['Default']
+        self._detector = None
+
+        self.detector_coordinates = (0,0) # where is the source on the detector, in 'Science frame' pixels?
+
     def _validate_config(self):
         pass
 
@@ -263,11 +227,30 @@ class JWInstrument(poppy.instrument.Instrument):
     def pupil_mask(self,name):
         if name is "": name = None
         if name is not None:
-            name = name.upper() # force to uppercase
-            if name not in self.pupil_mask_list:
-                raise ValueError("Instrument %s doesn't have an pupil mask called %s." % (self.name, name))
+            if name in self.pupil_mask_list:
+                pass # there's a perfect match, this is fine.
+            else:
+                name = name.upper() # force to uppercase
+                if name not in self.pupil_mask_list:
+                    raise ValueError("Instrument %s doesn't have an pupil mask called %s." % (self.name, name))
 
         self._pupil_mask = name
+
+ 
+    @property
+    def detector(self):
+        'Currently selected detector name (for instruments with multiple detectors)'
+        return self._detector.name
+    @detector.setter
+    def detector(self,detname):
+        #if name is "": name = None
+        if detname is not None:
+            detname = detname.upper() # force to uppercase
+            try:
+                siaf_aperture_name = self._detector2siaf[detname]
+            except:
+                raise ValueError("Unknown name: {0} is not a valid known name for a detector for instrument {1}".format(detname, self.name))
+            self._detector = DetectorGeometry(self.name, siaf_aperture_name, shortname=detname)
 
     def __str__(self):
         return "JWInstrument name="+self.name
@@ -275,7 +258,7 @@ class JWInstrument(poppy.instrument.Instrument):
     #----- actual optical calculations follow here -----
     def calcPSF(self, outfile=None, source=None, filter=None,  nlambda=None, monochromatic=None ,
             fov_arcsec=None, fov_pixels=None,  oversample=None, detector_oversample=None, fft_oversample=None, rebin=True,
-            clobber=True, display=False, save_intermediates=False, return_intermediates=False):
+            clobber=True, display=False, return_intermediates=False, **kwargs):
         """ Compute a PSF.
 
         The result can either be written to disk (set outfile="filename") or else will be returned as
@@ -324,16 +307,18 @@ class JWInstrument(poppy.instrument.Instrument):
             If set, the output file will contain a FITS image extension containing the PSF rebinned
             onto the actual detector pixel scale. Thus, setting oversample=<N> and rebin=True is
             the proper way to obtain high-fidelity PSFs computed on the detector scale. Default is True.
-
         clobber : bool
             overwrite output FITS file if it already exists?
         display : bool
             Whether to display the PSF when done or not.
-
         save_intermediates, return_intermediates : bool
             Options for saving to disk or returning to the calling function the intermediate optical planes during the propagation. 
             This is useful if you want to e.g. examine the intensity in the Lyot plane for a coronagraphic propagation. These have no
             effect for simple direct imaging calculations.
+
+
+        For additional arguments, see the documentation for poppy.OpticalSystem.calcPSF()
+
 
         Returns
         -------
@@ -345,6 +330,14 @@ class JWInstrument(poppy.instrument.Instrument):
         """
 
         _log.info("Setting up PSF calculation for "+self.name)
+
+        # first make sure that webbpsf's settings are used to override any of the
+        # same settings in poppy. This is admittedly perhaps overbuilt to have identical
+        # settings in both packages, but the intent is to shield typical users of webbpsf
+        # from having to think about the existence of the underlying library. They can 
+        # just deal with one set of settings.
+        settings._apply_settings_to_poppy()
+
         if filter is not None:
             self.filter = filter
 
@@ -396,7 +389,7 @@ class JWInstrument(poppy.instrument.Instrument):
             raise ValueError("You cannot specify simultaneously the oversample= option with the detector_oversample and fft_oversample options. Pick one or the other!")
         elif oversample is None and detector_oversample is None and fft_oversample is None:
             # nothing set -> set oversample = 4
-            oversample = DEFAULT_OVERSAMPLING()
+            oversample = settings.default_oversampling()
         if detector_oversample is None: detector_oversample = oversample
         if fft_oversample is None: fft_oversample = oversample
         local_options['detector_oversample']=detector_oversample
@@ -418,7 +411,7 @@ class JWInstrument(poppy.instrument.Instrument):
         #if _USE_MULTIPROC and monochromatic is None :
             #result = self.optsys.calcPSFmultiproc(source, nprocesses=_MULTIPROC_NPROCESS) # no fancy display args for multiproc.
         #else:
-        result = self.optsys.calcPSF(wavelens, weights, display_intermediates=display, display=display, save_intermediates=save_intermediates, return_intermediates=return_intermediates)
+        result = self.optsys.calcPSF(wavelens, weights, display_intermediates=display, display=display, return_intermediates=return_intermediates, **kwargs)
 
         if return_intermediates: # this implies we got handed back a tuple, so split it apart
             result, intermediates = result
@@ -464,7 +457,7 @@ class JWInstrument(poppy.instrument.Instrument):
 
             Modifies the 'result' HDUList object.
         """
-        output_mode = options.get('output_mode',DEFAULT_OUTPUTMODE())
+        output_mode = options.get('output_mode',settings.default_output_mode())
 
         if output_mode == 'Mock JWST DMS Output':
             # first rebin down to detector sampling
@@ -666,8 +659,8 @@ class MIRI(JWInstrument):
         self.pixelscale = 0.11
         self._rotation = 4.561 # Source: MIRI OBA DD, page 3-16
 
-        self.image_mask_list = ['FQPM1065', 'FQPM1140', 'FQPM1550', 'LYOT2300']
-        self.pupil_mask_list = ['MASKFQPM', 'MASKLYOT']
+        self.image_mask_list = ['FQPM1065', 'FQPM1140', 'FQPM1550', 'LYOT2300', 'LRS slit']
+        self.pupil_mask_list = ['MASKFQPM', 'MASKLYOT', 'LRS grating']
 
         for i in range(4):
             self.filter_list.append('MRS-IFU Ch%d'% (i+1) )
@@ -676,8 +669,10 @@ class MIRI(JWInstrument):
             # The above tuples give the pixel resolution (perpendicular to the slice, along the slice). 
             # The pixels are not square.
 
-        self._default_aperture='MIRIM_center' # reference into SIAF for ITM simulation V/O coords
-
+        #self._default_aperture='MIRIM_center' # reference into SIAF for ITM simulation V/O coords
+        self.detector_list = ['MIRIM']
+        self._detector2siaf = {'MIRIM':'MIRIM_FULL_ILLCNTR'}
+        self.detector=self.detector_list[0]
 
     def _validate_config(self):
         #_log.debug("MIRI validating:    %s, %s, %s " % (self.filter, self.image_mask, self.pupil_mask))
@@ -735,7 +730,7 @@ class MIRI(JWInstrument):
         # on the cross-hairs between four pixels. (Since that is where the FQPM itself is centered)
         # This is with respect to the intermediate calculation pixel scale, of course, not the
         # final detector pixel scale. 
-        if (self.image_mask is not None and 'FQPM' in self.image_mask) or 'force_fqpm_shift' in self.options.keys() : optsys.addPupil("FQPM FFT aligner")
+        if (self.image_mask is not None and 'FQPM' in self.image_mask) or 'force_fqpm_shift' in self.options.keys() : optsys.addPupil("FQPM_FFT_aligner")
 
         if self.image_mask == 'FQPM1065':
             #optsys.addImage() # null debugging image plane FIXME
@@ -758,7 +753,7 @@ class MIRI(JWInstrument):
                                 poppy.IdealFieldStop(size=24, angle=-4.56)])
             optsys.addImage(container)
             trySAM = False
-            SAM_box_size = 1.0 # irrelevant but variable still needs to be set.
+            #SAM_box_size = 1.0 # irrelevant but variable still needs to be set.
         elif self.image_mask =='LYOT2300':
             #diameter is 4.25 (measured) 4.32 (spec) supposedly 6 lambda/D
             #optsys.addImage(function='CircularOcculter',radius =4.25/2, name=self.image_mask) 
@@ -766,7 +761,6 @@ class MIRI(JWInstrument):
             #optsys.addImage(function='BarOcculter', width=0.722, angle=(360-4.76))
             # position angle of strut mask is 355.5 degrees  (no = =360 -2.76 degrees
             #optsys.addImage(function='fieldstop',size=30)
-
             container = poppy.CompoundAnalyticOptic(name = "MIRI Lyot Occulter",
                 opticslist = [poppy.IdealCircularOcculter(radius =4.25/2, name=self.image_mask),
                               poppy.IdealBarOcculter(width=0.722), 
@@ -774,12 +768,19 @@ class MIRI(JWInstrument):
             optsys.addImage(container)
             trySAM = True
             SAM_box_size = [5,20]
+
+        elif self.image_mask == 'LRS slit':
+            # one slit, 0.6 x 5.5 arcsec in height
+            optsys.addImage(optic=poppy.IdealRectangularFieldStop(width=0.6, height=5.5, name= self.image_mask))
+            trySAM = False
+            #SAM_box_size = 1.0 # irrelevant but variable still needs to be set.
+
         else:
             optsys.addImage()
             trySAM = False
-            SAM_box_size= 1.0 # irrelevant but variable still needs to be set.
+            #SAM_box_size= 1.0 # irrelevant but variable still needs to be set.
 
-        if (self.image_mask is not None and 'FQPM' in self.image_mask)  or 'force_fqpm_shift' in self.options.keys() : optsys.addPupil("FQPM FFT aligner", direction='backward')
+        if (self.image_mask is not None and 'FQPM' in self.image_mask)  or 'force_fqpm_shift' in self.options.keys() : optsys.addPupil("FQPM_FFT_aligner", direction='backward')
 
         # add pupil plane mask
         if ('pupil_shift_x' in self.options.keys() and self.options['pupil_shift_x'] != 0) or \
@@ -800,10 +801,11 @@ class MIRI(JWInstrument):
             optsys.addPupil(transmission=self._datapath+"/coronagraph/MIRI_LyotLyotStop.fits.gz", name=self.pupil_mask, shift=shift)
         else: # all the MIRI filters have a tricontagon outline, even the non-coron ones.
             optsys.addPupil(transmission=self._WebbPSF_basepath+"/tricontagon.fits", name = 'filter cold stop', shift=shift)
+            # FIXME this is probably slightly oversized? Needs to have updated specifications here.
 
         optsys.addRotation(self._rotation)
 
-        return (optsys, trySAM, SAM_box_size)
+        return (optsys, trySAM, SAM_box_size if trySAM else None)
 
     def _getFITSHeader(self, hdulist, options):
         """ Format MIRI-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
@@ -841,6 +843,11 @@ class NIRCam(JWInstrument):
 
         self.filter = 'F200W' # default
         self._default_aperture='NIRCam A1 center' # reference into SIAF for ITM simulation V/O coords
+
+        self.detector_list = ['A1','A2','A3','A4','A5', 'B1','B2','B3','B4','B5']
+        self._detector2siaf = dict()
+        for name in self.detector_list: self._detector2siaf[name] = 'NRC{0}_FULL_CNTR'.format(name)
+        self.detector=self.detector_list[0]
 
 
 
@@ -989,8 +996,15 @@ class NIRSpec(JWInstrument):
         # fixed slits
         self.image_mask = None
         self.image_mask_list = ['S200A1','S200A2','S400A1','S1600A1','S200B1', 'Single MSA open shutter', 'Three adjacent MSA open shutters']
+        self.pupil_mask_list = ['NIRSpec grating']
+        self.pupil_mask = self.pupil_mask_list[-1]
 
-        self._default_aperture='NIRSpec A center' # reference into SIAF for ITM simulation V/O coords
+        #self._default_aperture='NIRSpec A center' # reference into SIAF for ITM simulation V/O coords
+        self.detector_list = ['1','2']
+        self._detector2siaf = dict()
+        for name in self.detector_list: self._detector2siaf[name] = 'NRS{0}_FULL_CNTR'.format(name)
+        self.detector=self.detector_list[0]
+
 
     def _validate_config(self):
         if (not self.image_mask is None) or (not self.pupil_mask is None):
@@ -1023,12 +1037,17 @@ class NIRSpec(JWInstrument):
  
 
 
-        if (self.pupil_mask is None and self.image_mask is not None):
+        if ('grating' in self.pupil_mask.lower()):
+            # NIRSpec pupil stop at the grating appears to be a rectangle.
+            # see notes and ray trace from Erin Elliot in the webbpsf-data/NIRSpec/sources directory
+            optsys.addPupil(optic=poppy.RectangleAperture(height=8.41, width=7.91,  name='Pupil stop at grating wheel'))
+
+        #if (self.pupil_mask is None and self.image_mask is not None):
             # if we don't have a specific pupil stop, just assume for now we're
             # stopped down to a JWST like geometry
             # FIXME this is not really right - should be updated for the NIRSpec grating wheels
             #optsys.addPupil(optic=optsys[0], name='No Pupil stop provided')
-            optsys.addPupil(optic=poppy.SquareAperture(size=3.5,  name='Pupil stop at grating wheel'))
+            #optsys.addPupil(optic=poppy.SquareAperture(size=3.5,  name='Pupil stop at grating wheel'))
 
 
 
@@ -1104,11 +1123,17 @@ class NIRISS(JWInstrument):
 
     """
     def __init__(self):
-        JWInstrument.__init__(self, "NIRISS")
-        self.pixelscale = 0.064 
+        JWInstrument.__init__(self, "NIRISS", pixelscale=0.064)
 
         self.image_mask_list = ['CORON058', 'CORON075','CORON150','CORON200'] # available but unlikely to be used...
         self.pupil_mask_list = ['MASK_NRM','CLEAR', 'GR700XD']
+
+
+        self._detector2siaf = {'NIRISS':'NIS_FULL_CNTR'}
+        self.detector_list = ['NIRISS']
+        self.detector=self.detector_list[0]
+
+
         self._default_aperture='NIRISS center' # reference into SIAF for ITM simulation V/O coords
 
 
@@ -1208,7 +1233,7 @@ class NIRISS_GR700XD_Grism(poppy.FITSOpticalElement):
         # Initialize the base optical element with the pupil transmission and zero OPD
 
         if transmission is None:
-             transmission=os.path.join( get_webbpsf_data_path(), "NIRISS/coronagraph/MASKSOSS.fits.gz")
+             transmission=os.path.join( settings.get_webbpsf_data_path(), "NIRISS/coronagraph/MASKSOSS.fits.gz")
 
         self.shift=shift
         poppy.FITSOpticalElement.__init__(self, name=name, transmission=transmission, planetype=poppy.poppy_core._PUPIL, shift=shift)
@@ -1360,7 +1385,13 @@ class FGS(JWInstrument):
     def __init__(self):
         JWInstrument.__init__(self, "FGS")
         self.pixelscale = 0.069 # for FGS
-        self._default_aperture='FGS1 center' # reference into SIAF for ITM simulation V/O coords
+        #self._default_aperture='FGS1 center' # reference into SIAF for ITM simulation V/O coords
+
+        self.detector_list = ['1','2']
+        self._detector2siaf = dict()
+        for name in self.detector_list: self._detector2siaf[name] = 'FGS{0}_FULL_CNTR'.format(name)
+        self.detector=self.detector_list[0]
+
 
     def _validate_config(self):
         if (not self.image_mask is None) or (not self.pupil_mask is None):
@@ -1459,6 +1490,66 @@ def MakePSF(self, instrument=None, pupil_file=None, phase_file=None, output=None
 
     return instr.calcPSF(oversample=oversample, fov_pixels=output_size)
 
+
+
+
+#########################3
+class DetectorGeometry(object):
+    """ Utility class for converting between detector coordinates 
+    in science frame pixels and field of view angular coordinates in arcminutes.
+
+
+    This is an internal class used within webbpsf; most users will never need to
+    interact directly with this class.
+    """
+    def __init__(self, instrname, aperturename, shortname=None):
+        self.instrname = instrname
+        self.name = aperturename
+        if shortname is not None: self.name=shortname
+        from jwxml import SIAF
+
+        self.mysiaf = SIAF(instr=self.instrname, basepath=os.path.join( settings.get_webbpsf_data_path(), self.instrname) )
+        self.aperture = self.mysiaf[aperturename]
+
+
+    @property
+    def shape(self):
+        """ Return detector size in pixels """
+        xdetsize = self.aperture.XDetSize
+        ydetsize = self.aperture.YDetSize
+        return (xdetsize,ydetsize)
+
+    def validate_coords(self, x, y):
+        """ Check if specified pixel coords are actually on the detector
+
+        Parameters
+        -----------
+        x, y : floats
+            coordinates in pixels
+        """
+        if x < 0: raise ValueError("Detector pixels X coordinate cannot be negative.")
+        if y < 0: raise ValueError("Detector pixels Y coordinate cannot be negative.")
+        if x > int(self.shape[0])-1: raise ValueError("Detector pixels X coordinate cannot be > {0}".format( int(self.shape[0])-1 ))
+        if y > int(self.shape[1])-1: raise ValueError("Detector pixels Y coordinate cannot be > {0}".format( int(self.shape[1])-1 ))
+
+
+    def pix2angle(self, xpix, ypix):
+        """ Convert  from detector coordinates to telescope frame coordinates using SIAF transformations 
+        See the SIAF code in jwxml for all the full details, or Lallo & Cox Tech Reports 
+        
+        Parameters
+        ------------
+        xpix, ypix : floats
+            X and Y pixel coordinates, 0 <= xpix, ypix < detector_size
+
+        Returns
+        --------
+        V2, V3 : floats
+            V2 and V3 coordinates, in arcMINUTES
+
+        """
+        tel_coords = np.asarray( self.aperture.Sci2Tel(xpix, ypix) )
+        tel_coords_arcmin = tel_coords / 60. # arcsec to arcmin
 
 
 
