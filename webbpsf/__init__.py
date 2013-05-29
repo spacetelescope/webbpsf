@@ -43,12 +43,12 @@ else:
 
         """
         if preferred == 'wx':
-            try:
-                wxgui()
-            except:
-                raise ImportError("wxpython GUI for webbpsf not available")
+            #try:
+            wxgui()
+            #except:
+                #raise ImportError("wxpython GUI for webbpsf not available ")
         elif preferred=='ttk':
-            try:
-                tkgui()
-            except:
-                raise ImportError("ttk GUI for webbpsf not available")
+            #try:
+            tkgui()
+            #except:
+                #raise ImportError("ttk GUI for webbpsf not available")
