@@ -153,6 +153,20 @@ class WebbPSF_GUI(wx.Frame):
         menuBar = WebbPSFMenuBar(self)
         self.SetMenuBar(menuBar)
 
+        self.Bind(wx.EVT_MENU, self.ev_AboutBox, id=wx.ID_ABOUT )
+        self.Bind(wx.EVT_MENU, self.ev_Preferences, id=menuBar.ids['preferences'] )
+        self.Bind(wx.EVT_MENU, self.ev_SaveAs, id=menuBar.ids['save_psf'] )
+        self.Bind(wx.EVT_MENU, self.ev_SaveProfiles, id=menuBar.ids['save_profile'] )
+        self.Bind(wx.EVT_MENU, self.ev_calcPSF, id=menuBar.ids['calcPSF'] )
+        self.Bind(wx.EVT_MENU, self.ev_options, id=menuBar.ids['calc_options'] )
+        self.Bind(wx.EVT_MENU, self.ev_showDocs, id=menuBar.ids['documentation'] )
+        self.Bind(wx.EVT_MENU, self.ev_plotspectrum, id=menuBar.ids['display_spectrum'] )
+        self.Bind(wx.EVT_MENU, self.ev_displayOptics, id=menuBar.ids['display_optics'] )
+        self.Bind(wx.EVT_MENU, self.ev_displayOPD, id=menuBar.ids['display_opd'] )
+        self.Bind(wx.EVT_MENU, self.ev_displayPSF, id=menuBar.ids['display_psf'] )
+        self.Bind(wx.EVT_MENU, self.ev_displayProfiles, id=menuBar.ids['display_profiles'] )
+
+
         top_panel = wx.Panel(self)
 
 
@@ -360,7 +374,23 @@ class WebbPSF_GUI(wx.Frame):
         self.Center() 
 
 
+    def _refresh_window(self):
+        """ Force the window to refresh, and optionally to show itself if hidden (for recent matplotlibs)"""
+        plt.draw()
+        from distutils.version import StrictVersion
+        if StrictVersion(matplotlib.__version__) >= StrictVersion('1.1'):
+            plt.show(block=False)
 
+    def log(self, messagestring):
+        """ Display an informative string in both the log and the window status bar"""
+        _log.info(messagestring)
+        self.sb.SetStatusText(messagestring)
+        self.Refresh()
+        self.Update()
+        wx.Yield()
+
+
+    #--- Event Handlers for user-generated events
     def OnClose(self, event):
         dlg = wx.MessageDialog(self,
             "Do you really want to exit WebbPSF?",
@@ -370,14 +400,6 @@ class WebbPSF_GUI(wx.Frame):
         if result == wx.ID_OK:
             if self.log_window is not None: self.log_window.Destroy()
             self.Destroy()
-
-    def info(self, messagestring):
-        """ Display an informative string in both the log and the window status bar"""
-        _log.info(messagestring)
-        self.sb.SetStatusText(messagestring)
-        self.Refresh()
-        self.Update()
-        wx.Yield()
 
     def ev_SaveAs(self, event):
         "Event handler for Save As of output PSFs"
@@ -389,9 +411,20 @@ class WebbPSF_GUI(wx.Frame):
             path = dlg.GetPath()
             filename = os.path.abspath(path)
             self.PSF_HDUlist.writeto(filename) 
-            self.info("Saved to %s" % filename)
+            self.log("Saved to %s" % filename)
         else:
-            self.info("User cancelled save.")
+            self.log("User cancelled save.")
+
+    def ev_SaveProfiles(self,event):
+        """ Event handler for Save PSF Profiles"""
+        raise NotImplementedError("Not implemented yet")
+
+    def ev_Preferences(self,event):
+        """ Event handler for WebbPSF overall preferences"""
+        dlg = WebbPSFPreferencesDialog(self)
+        results = dlg.ShowModal()
+        dlg.Destroy()
+
 
     def ev_options(self, event):
         import copy
@@ -422,7 +455,6 @@ class WebbPSF_GUI(wx.Frame):
                 if oldoptions['fov_in_arcsec']: 
                     # we have to convert arcsec to pixels
                     newfov = self._getFOV() / self.instrument[iname].pixelscale
-                    #_log.info("Newfov: "+str(newfov))
                     if hasattr(newfov, '__len__') and len(newfov) > 1: 
                         newfov = np.asarray(newfov, dtype=int)
                     else:
@@ -431,16 +463,24 @@ class WebbPSF_GUI(wx.Frame):
  
         dlg.Destroy()
 
+
+    def ev_showDocs(self,event):
+        """ Event handler for show documentation"""
+        raise NotImplementedError("Not implemented yet")
+
+    def ev_AboutBox(self, event):
+        about = AboutBox()
+        about.ShowModal()
+
+
     def ev_plotspectrum(self, event):
         "Event handler for Plot Spectrum "
         self._updateFromGUI()
-        self.info("Now calculating spectrum model...")
+        self.log("Now calculating spectrum model...")
 
-        print "Spectral type is "+self.sptype
-        print "Selected instrument tab is "+self.iname
-        #if iname != 'TFI':
-            #filter = self.widgets[self.iname+"_filter"].get()
-        print "Selected instrument filter is "+self.filter
+        self.log("Spectral type is "+self.sptype)
+        self.log("Selected instrument tab is "+self.iname)
+        self.log("Selected instrument filter is "+self.filter)
 
 
         plt.clf()
@@ -503,19 +543,12 @@ class WebbPSF_GUI(wx.Frame):
         ax1.set_xbound(0.1, 100)
 
         self._refresh_window()
-        self.info("Spectrum displayed")
-
-    def _refresh_window(self):
-        """ Force the window to refresh, and optionally to show itself if hidden (for recent matplotlibs)"""
-        plt.draw()
-        from distutils.version import StrictVersion
-        if StrictVersion(matplotlib.__version__) >= StrictVersion('1.1'):
-            plt.show(block=False)
+        self.log("Spectrum displayed")
 
     def ev_calcPSF(self, event):
         "Event handler for PSF Calculations"
         self._updateFromGUI()
-        self.info("Starting PSF calculation...")
+        self.log("Starting PSF calculation...")
 
 
         self._refresh_window() # pre-display window for calculation updates as it progresses...
@@ -534,7 +567,7 @@ class WebbPSF_GUI(wx.Frame):
     def OnCalcDone(self, event):
         """ Called when worker thread returns results..."""
         if event.data is None:
-            self.info("No result from calculation!")
+            self.log("No result from calculation!")
             self.PSF_HDUlist = None
         else:
             self.PSF_HDUlist = event.data
@@ -542,7 +575,7 @@ class WebbPSF_GUI(wx.Frame):
                self.widgets[w].Enable(True)
 
         self._refresh_window()
-        self.info("PSF calculation complete")
+        self.log("PSF calculation complete")
         # In either event, the worker is done
         self.calcthread = None
 
@@ -555,24 +588,24 @@ class WebbPSF_GUI(wx.Frame):
         poppy.display_PSF(self.PSF_HDUlist, vmin = self.advanced_options['psf_vmin'], vmax = self.advanced_options['psf_vmax'], 
                 scale = self.advanced_options['psf_scale'], cmap= self.advanced_options['psf_cmap'], normalize=self.advanced_options['psf_normalize'])
         self._refresh_window()
-        self.info("PSF redisplayed")
+        self.log("PSF redisplayed")
 
     def ev_displayProfiles(self,event):
         "Event handler for Displaying the PSF"
         #self._updateFromGUI()
         poppy.display_profiles(self.PSF_HDUlist)        
         self._refresh_window()
-        self.info("Radial profiles displayed.")
+        self.log("Radial profiles displayed.")
 
     def ev_displayOptics(self,event):
         "Event handler for Displaying the optical system"
         self._updateFromGUI()
-        _log.info("Selected OPD is "+str(self.opd_name))
+        self.log("Selected OPD is "+str(self.opd_name))
 
         plt.clf()
         self.inst.display()
         self._refresh_window()
-        self.info("Optical system elements displayed.")
+        self.log("Optical system elements displayed.")
 
     def ev_displayOPD(self,event):
         import poppy.utils
@@ -602,7 +635,7 @@ class WebbPSF_GUI(wx.Frame):
 
             f = plt.gcf()
             plt.text(0.4, 0.02, "OPD WFE = %6.2f nm RMS" % (masked_opd.std()*1000.), transform=f.transFigure)
-        self.info("Optical Path Difference (OPD) now displayed.")
+        self.log("Optical Path Difference (OPD) now displayed.")
 
         self._refresh_window()
 
@@ -734,7 +767,7 @@ class WebbPSF_GUI(wx.Frame):
             self.opd_i= int(self.widgets[self.iname+"_opd_i"].GetValue())
             self.inst.pupilopd = (self.inst._datapath+os.sep+"OPD"+os.sep+self.opd_name,self.opd_i)  #filename, slice
 
-        _log.info("Selected OPD is "+str(self.opd_name))
+        self.log("Selected OPD is "+str(self.opd_name))
 
 
         if self.iname+"_coron" in self.widgets:
@@ -760,7 +793,6 @@ class WebbPSF_GUI(wx.Frame):
         """
         fovstr = self.widgets['FOV'].GetValue()
 
-        #_log.info("_getFOV fovstr: "+str(fovstr))
         try:
             if ',' in fovstr:
                 parts = fovstr.split(',')
@@ -779,7 +811,6 @@ class WebbPSF_GUI(wx.Frame):
         Note that if it is a 2-element paid, we flip the order of the elements. 
         This is to facilitate a more intuitive "x,y" ordering for the user interface.
         """
-        #_log.info("_setFOV newvalue: "+str(newvalue))
         if hasattr(newvalue, '__iter__'):
             newstring = ",".join( (str(newvalue[1]), str(newvalue[0]) ))
         else:
@@ -846,70 +877,70 @@ class ResultEvent(wx.PyEvent):
 class WebbPSFMenuBar(wx.MenuBar):
     def __init__(self,parent):
         wx.MenuBar.__init__(self)
-        item_keys =['save_psf','save_profile', 'doc']
+        item_keys =['save_psf','save_profile', 'documentation', 'preferences', 'calc_options', 'calcPSF', 
+                'display_spectrum', 'display_optics','display_opd', 'display_psf', 'display_profiles']
 
         self.ids = {}
         for key in item_keys:
             self.ids[key]=wx.NewId()
 
-
+        # File menu
         filemenu = wx.Menu()
         self.SavePSF = filemenu.Append(self.ids['save_psf'], '&Save PSF as...\tCtrl+Shift+S')
-        self.SaveProfile =filemenu.Append(self.ids['save_profile'], 'Save profile data as...\tCtrl+Shift+S')
-        #filemenu.AppendSeparator()
+        self.SaveProfile =filemenu.Append(self.ids['save_profile'], 'Save &profile data as...\tCtrl+Shift+P')
+        filemenu.AppendSeparator()
+        self.Preferences=filemenu.Append(self.ids['preferences'], 'Preferences...\tCtrl+,')
+        filemenu.AppendSeparator()
         self.Exit = filemenu.Append(wx.ID_EXIT, 'E&xit', 'Exit this program')
 
         # these start out disabled since no PSF calculated yet:
         self.SavePSF.Enable(False)
         self.SaveProfile.Enable(False)
 
+        # Edit menu
+        editmenu = wx.Menu()
+        editmenu.Append(wx.ID_CUT, 'Cut\tCtrl-X')
+        editmenu.Append(wx.ID_COPY, 'Copy\tCtrl-C')
+        editmenu.Append(wx.ID_PASTE, 'Paste\tCtrl-V')
+
+        #Calculation Menu
+        calcmenu = wx.Menu()
+        calcmenu.Append(self.ids['calcPSF'], 'Compute PSF')
+        self.Preferences=calcmenu.Append(self.ids['calc_options'], 'More Options...')
+        calcmenu.AppendSeparator()
+        calcmenu.Append(self.ids['display_spectrum'], 'Display Spectrum')
+        calcmenu.Append(self.ids['display_optics'], 'Display Optics')
+        calcmenu.Append(self.ids['display_opd'], 'Display OPD')
+        calcmenu.Append(self.ids['display_psf'], 'Display PSF')
+        calcmenu.Append(self.ids['display_profiles'], 'Display PSF Profiles')
+
+        #Help Menu
         helpmenu = wx.Menu()
-        self.Docs = helpmenu.Append(self.ids['doc'], 'WebbPSF Documentation\tCtrl+d')
+        self.Docs = helpmenu.Append(self.ids['documentation'], 'WebbPSF Documentation\tCtrl+d')
         self.About = helpmenu.Append(wx.ID_ABOUT, '&About WebbPSF', 'About this program')
 
         self.Append(filemenu, '&File')
+        self.Append(editmenu, '&Edit')
+        self.Append(calcmenu, '&Calculation')
         self.Append(helpmenu, '&Help')
 
-
-
 #-------------------------------------------------------------------------
-class WebbPSFOptionsDialog(wx.Dialog):
-    """ Dialog box for WebbPSF options 
+class WebbPSFDialog(wx.Dialog):
+    """ Generic dialog box for WebbPSF 
 
     TODO: investigate wx.Validator to validate the text input fields
     """
-    def __init__(self, parent=None, id=-1, title="WebbPSF Options", 
-            input_options=_default_options()): 
-        wx.Dialog.__init__(self,parent,id=id,title=title)
+    def __init__(self, parent=None, id=-1, title="Dialog", **kwargs):
+        wx.Dialog.__init__(self,parent,id=id,title=title, **kwargs)
 
         self.parent=parent
-        self.input_options = input_options
 
         self.results = None # in case we cancel this gets returned
         self.widgets = {}
         self.values = {}
 
-        colortables = [
-         ('Jet (blue to red)',matplotlib.cm.jet),
-         ('Gray', matplotlib.cm.gray),
-         ('Heat (black-red-yellow)', matplotlib.cm.gist_heat),
-         ('Copper (black to tan)',matplotlib.cm.copper),
-         ('Stern',matplotlib.cm.gist_stern),
-         ('Prism (repeating rainbow)', matplotlib.cm.prism)]
 
-        try:
-            import collections
-            self.colortables = collections.OrderedDict(colortables)
-        except:
-            self.colortables = dict(colortables)
-
-        self.values['force_coron'] = ['regular propagation (MFT)', 'full coronagraphic propagation (FFT/SAM)']
-        self.values['no_sam'] = ['semi-analytic method if possible', 'basic FFT method always']
-        self.values['monochromatic'] = ['Broadband', 'Monochromatic']
-        self.values['fov_in_arcsec'] = ['Arcseconds', 'Pixels']
-
-
-        self._createWidgets()
+        #self._createWidgets()
  
     def _add_labeled_dropdown(self, name, parent, parentsizer, label="Entry:", choices=None, default=0, width=5, position=(0,0), columnspan=1, **kwargs):
         """convenient wrapper for adding a Combobox
@@ -948,6 +979,11 @@ class WebbPSFOptionsDialog(wx.Dialog):
                 value=format % self.input_options[name]
             except:
                 value=""
+        else:
+            try: 
+                value = format % value
+            except:
+                pass
 
         mytext = wx.TextCtrl(parent, -1,value=value)
         parentsizer.Add( mytext, (position[0],position[1]+1),  (1,1), wx.EXPAND)
@@ -958,6 +994,48 @@ class WebbPSFOptionsDialog(wx.Dialog):
             mylabel2 = wx.StaticText(parent, -1,label=postlabel)
             parentsizer.Add( mylabel2, (position[0],position[1]+2),  (1,1), wx.EXPAND)
 
+
+    def _createWidgets(self):
+        pass
+        # subclass me
+
+
+    def OnButtonOK(self, event):
+        pass
+
+
+class WebbPSFOptionsDialog(WebbPSFDialog):
+    """ Dialog box for WebbPSF options 
+
+    TODO: investigate wx.Validator to validate the text input fields
+    """
+    def __init__(self, parent=None, id=-1, title="WebbPSF Options", 
+            input_options=_default_options()): 
+        WebbPSFDialog.__init__(self, parent,id=id,title=title)
+        self.input_options = input_options
+
+        colortables = [
+         ('Jet (blue to red)',matplotlib.cm.jet),
+         ('Gray', matplotlib.cm.gray),
+         ('Heat (black-red-yellow)', matplotlib.cm.gist_heat),
+         ('Copper (black to tan)',matplotlib.cm.copper),
+         ('Stern',matplotlib.cm.gist_stern),
+         ('Prism (repeating rainbow)', matplotlib.cm.prism)]
+
+        try:
+            import collections
+            self.colortables = collections.OrderedDict(colortables)
+        except:
+            self.colortables = dict(colortables)
+
+        self.values['force_coron'] = ['regular propagation (MFT)', 'full coronagraphic propagation (FFT/SAM)']
+        self.values['no_sam'] = ['semi-analytic method if possible', 'basic FFT method always']
+        self.values['monochromatic'] = ['Broadband', 'Monochromatic']
+        self.values['fov_in_arcsec'] = ['Arcseconds', 'Pixels']
+
+
+        self._createWidgets()
+ 
 
     def _createWidgets(self):
 
@@ -974,7 +1052,7 @@ class WebbPSFOptionsDialog(wx.Dialog):
         sizer.Add(txt,(0,0),(1,3),wx.EXPAND|wx.ALIGN_CENTER_HORIZONTAL)
 
 
-        r=2
+        r=1
         self._add_labeled_dropdown("monochromatic", panel1,sizer, 
                 label='    Broadband or monochromatic? ', 
                 default = 1 if self.input_options['monochromatic'] else 0, position=(r,0))
@@ -1010,7 +1088,7 @@ class WebbPSFOptionsDialog(wx.Dialog):
         sizer.Add(txt,(r,0),(1,3),wx.EXPAND|wx.ALIGN_CENTER_HORIZONTAL)
 
 
-        r+=2
+        r+=1
         self._add_labeled_dropdown("psf_scale", panel2,sizer, label='    Display scale:', choices=['log','linear'],
                 default=self.input_options['psf_scale'], position=(r,0))
 
@@ -1079,6 +1157,153 @@ class WebbPSFOptionsDialog(wx.Dialog):
         except:
             _log.error("Invalid entries in one or more fields. Please check values and re-enter!")
 
+#-------------------------------------------------------------------------
+
+class WebbPSFPreferencesDialog(WebbPSFDialog):
+    """ Dialog box for WebbPSF options 
+
+    TODO: investigate wx.Validator to validate the text input fields
+    """
+    def __init__(self, parent=None, id=-1, title="WebbPSF Preferences"): 
+        WebbPSFDialog.__init__(self, parent,id=id,title=title, size=(800,400))
+
+        self._createWidgets()
+
+    def _createWidgets(self):
+
+        topSizer = wx.BoxSizer(wx.VERTICAL)
+
+        topPanel = wx.Panel(self)
+        topPanelSizer = wx.FlexGridSizer(rows=4,cols=1, hgap=5, vgap=10)
+
+        panel1 = wx.Panel(topPanel, style=wx.SIMPLE_BORDER|wx.EXPAND)
+        sizer = wx.GridBagSizer()
+
+        txt = wx.StaticText(panel1,-1,label="Directory Paths")
+        sizer.Add(txt,(0,0),(1,3),wx.EXPAND|wx.ALIGN_CENTER_HORIZONTAL)
+
+        r=1
+        self._add_labeled_entry("WEBBPSF_PATH", panel1,sizer, label='    WebbPSF Data Path:', 
+            value = settings.WEBBPSF_PATH(), 
+            format="%50s", position=(r,0))
+
+        self.ButtonBrowseDir = wx.Button(panel1, label='Browse...')
+        sizer.Add(self.ButtonBrowseDir, (r,4), (1,1), wx.EXPAND)
+        self.Bind(wx.EVT_BUTTON, self.ev_browseDataDirectory, self.ButtonBrowseDir)
+        panel1.SetSizerAndFit(sizer)
+
+
+
+        panel2 = wx.Panel(topPanel, style=wx.SIMPLE_BORDER|wx.EXPAND)
+        sizer = wx.GridBagSizer()
+
+        txt = wx.StaticText(panel2,-1,label="Calculation Defaults")
+        sizer.Add(txt,(0,0),(1,3),wx.EXPAND|wx.ALIGN_CENTER_HORIZONTAL)
+
+        r=1
+        self._add_labeled_entry("default_oversampling", panel2,sizer, label='    Default Oversampling:', 
+            value = settings.default_oversampling(), 
+            format="%.2g", width=7, position=(r,0))
+        r+=1
+        self._add_labeled_entry("default_fov_arcsec", panel2,sizer, label='    Default FOV [arcsec]:', 
+            value = settings.default_fov_arcsec(), 
+            format="%.2g", width=7, position=(r,0))
+
+        # update settings.default_oversampling , default_output_mode, default_fov_arcsec, WEBBPSF_PATH, 
+        # use_multiprocessing= True/False 
+        # n_processes= #
+        # use_fftw = True/False
+
+        panel2.SetSizerAndFit(sizer)
+
+        panel3 = wx.Panel(topPanel, style=wx.SIMPLE_BORDER|wx.EXPAND)
+        sizer = wx.GridBagSizer()
+
+        r=0
+        txt = wx.StaticText(panel3,-1,label="Fourier Transform Options")
+        sizer.Add(txt,(r,0),(1,3),wx.EXPAND|wx.ALIGN_CENTER_HORIZONTAL)
+
+        r+=1
+        self._add_labeled_dropdown("use_fftw", panel3,sizer, label='    Use FFTW for FFTs:', choices=['True','False'],
+                default="True" if settings.use_fftw() else "False", position=(r,0))
+        r+=1
+        self._add_labeled_dropdown("use_multiprocessing", panel3,sizer, label='    Use Multiprocessing for DFTs:', choices=['True','False'],
+                default="True" if settings.use_multiprocessing() else "False", position=(r,0))
+
+        panel3.SetSizerAndFit(sizer)
+#
+#
+#        r+=1
+#        self._add_labeled_entry("psf_vmin", panel2,sizer, label='    Min scale value:', 
+#            format="%.2g", width=7, position=(r,0))
+#        r+=1
+#        self._add_labeled_entry("psf_vmax", panel2,sizer, label='    Max scale value:', 
+#            format="%.2g", width=7, 
+#            position=(r,0))
+#        r+=1
+#        self._add_labeled_dropdown("psf_normalize", panel2,sizer,
+#                label='    Normalize PSF to:', choices=['Total', 'Peak'], 
+#                default=self.input_options['psf_normalize'], position=(r,0))
+#        r+=1
+#        self._add_labeled_dropdown("psf_cmap", panel2,sizer, label='    Color table:', 
+#                choices=[a for a in self.colortables.keys()],  
+#                default=self.input_options['psf_cmap_str'], 
+#                position=(r,0))
+#        panel2.SetSizerAndFit(sizer)
+#
+
+        bbar = self.CreateStdDialogButtonSizer( wx.OK | wx.CANCEL)
+        self.Bind(wx.EVT_BUTTON, self.OnButtonOK, id=wx.ID_OK)
+
+        topPanelSizer.Add(panel1, 1,wx.EXPAND)
+        topPanelSizer.Add(panel2, 1, wx.EXPAND)
+        topPanelSizer.Add(panel3, 1, wx.EXPAND)
+        topPanelSizer.Add(bbar,1, wx.EXPAND)
+        topPanel.SetSizerAndFit(topPanelSizer)
+ 
+        topSizer.Add(topPanel, 1, flag=wx.EXPAND|wx.ALL, border=10)
+        self.SetSize((800,300))
+        self.SetSizerAndFit(topSizer)
+
+        self.Show(True)
+
+  
+    def ev_browseDataDirectory(self, event):
+        dlg = wx.DirDialog(self, 'Choose WebbPSF Data Directory', defaultPath=os.getcwd())
+
+        if dlg.ShowModal() == wx.ID_OK:
+            print "Directory Selected: "+dlg.GetPath()
+        else:
+            print "Dialog cancelled"
+
+    def OnButtonOK(self, event):
+        print "User pressed OK"
+        try:
+            settings.default_oversampling.set(int(self.widgets['default_oversampling'].GetValue()))
+            settings.default_fov_arcsec.set(float(self.widgets['default_fov_arcsec'].GetValue()))
+
+#            results['force_coron'] =    self.widgets['force_coron'].GetValue() == 'full coronagraphic propagation (FFT/SAM)'
+#            results['no_sam'] =         self.widgets['no_sam'].GetValue() == 'basic FFT method always'
+#            results['monochromatic'] =  self.widgets['monochromatic'].GetValue() == 'Monochromatic'
+#            results['fov_in_arcsec'] =  self.widgets['fov_in_arcsec'].GetValue() == 'Arcseconds'
+#            results['parity'] =         self.widgets['parity'].GetValue() 
+#            results['psf_scale'] =      self.widgets['psf_scale'].GetValue() 
+#            results['psf_vmax'] = float(self.widgets['psf_vmax'].GetValue())
+#            results['psf_vmin'] = float(self.widgets['psf_vmin'].GetValue())
+#            results['psf_cmap_str'] =   self.widgets['psf_cmap'].GetValue()
+#            results['psf_cmap'] =       self.colortables[self.widgets['psf_cmap'].GetValue() ]
+#            results['psf_normalize'] =  self.widgets['psf_normalize'].GetValue()
+#
+#
+#            print results
+#            self.results = results # for access from calling routine
+
+            settings.save_config()
+            self.Close()
+            #self.Destroy() # return... If called as a modal dialog, should ShowModal and Destroy from calling routine?
+        except:
+            _log.error("Invalid entries in one or more fields. Please check values and re-enter!")
+
 
 #-------------------------------------------------------------------------
 #
@@ -1133,13 +1358,13 @@ class AboutBox(wx.Dialog):
 
 
         aboutText = """<p>This is the <b>WebbPSF Point Spread Function Simulator</b> for the James Webb Space Telescope (JWST),
-version %(webbpsf)s
 <p>
 <center>
+Version %(webbpsf)s <P>
 See <a href="http://www.stsci.edu/jwst/software/webbpsf">the WebbPSF home page</a>
 </center>
 <p>
-(c) 2010-2012 by Marshall Perrin, <a href="mailto:mperrin@stsci.edu">mperrin@stsci.edu</a>.
+(c) 2010-2013 by Marshall Perrin, <a href="mailto:mperrin@stsci.edu">mperrin@stsci.edu</a>.
 <br>
 With contributions from: Anand Sivaramakrishnan, Remi Soummer, &amp; Klaus Pontoppidan
 <p>
@@ -1148,28 +1373,41 @@ WebbPSF is running with the following software versions:
 <li><b>Python</b>: %(python)s 
 <li><b>numpy</b>: %(numpy)s
 <li><b>matplotlib</b>: %(matplotlib)s
-<li><b>fits</b>: %(fits)s
-<li><b>atpy</b>: %(atpy)s
+<li><b>astropy</b>: %(astropy)s
 <li><b>wxPython</b>: %(wxpy)s  
+<li><b>pysynphot</b>: %(pysynphot)s  
+<li><b>pyFFTW</b>: %(pyfftw)s  
+<li><b>PyFFTW3</b>: %(pyfftw3)s  
 </ul>
 </p>"""
 
-        import sys, fits
+        import sys, astropy
         hwin = HtmlWindow(self, wx.ID_ANY, size=(400,200))
         vers = {}
+        from . import _version
+        vers["webbpsf"] = _version.__version__
         try:
-            #importing webbpsf from another directory?
-            vers["webbpsf"] = webbpsf_core.__version__
+            import pysynphot
+            vers['pysynphot'] = pysynphot.__version__
         except:
-            #importing from within webbpsf source directory
-            import _version
-            vers["webbpsf"] = _version.__version__
+            vers['pysynphot'] = "Not Found"
+        try:
+            import pyfftw
+            vers['pyfftw'] = "Present"
+        except:
+            vers['pyfftw'] = "Not Found"
+        try:
+            import fftw3
+            vers['pyfftw3'] = "Present"
+        except:
+            vers['pyfftw3'] = "Not Found"
+            
         vers["python"] = sys.version.split()[0]
         vers["wxpy"] = wx.VERSION_STRING
         vers['numpy'] = np.__version__
         vers['matplotlib'] = matplotlib.__version__
         #vers['atpy'] = atpy.__version__
-        vers['fits'] = fits.__version__
+        vers['astropy'] = astropy.__version__
         hwin.SetPage(aboutText % vers)
         btn = hwin.FindWindowById(wx.ID_OK)
         irep = hwin.GetInternalRepresentation()
@@ -1222,6 +1460,7 @@ def wxgui(fignum=1, showlog=True):
     # start the GUI
 
     app = wx.App()
+    app.SetAppName("WebbPSF")
     gui = WebbPSF_GUI()
     gui.Show()
 
@@ -1237,7 +1476,7 @@ def wxgui(fignum=1, showlog=True):
     #bout = AboutBox()
     #about.ShowModal()
     #gui = WebbPSFOptionsDialog()
-    plt.figure(fignum)
+    #plt.figure(fignum)
     #plt.show(block=False)
     app.MainLoop()
 
