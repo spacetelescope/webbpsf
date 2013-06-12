@@ -177,7 +177,7 @@ class JWInstrument(poppy.instrument.Instrument):
         self.pupil_mask_list=[]
         "List of available pupil_masks"
 
-        self.pixelscale = 0.0
+        self.pixelscale = pixelscale
         "Detector pixel scale, in arcsec/pixel"
         self._spectra_cache = {}  # for caching pysynphot results.
 
@@ -257,7 +257,7 @@ class JWInstrument(poppy.instrument.Instrument):
 
     #----- actual optical calculations follow here -----
     def calcPSF(self, outfile=None, source=None, filter=None,  nlambda=None, monochromatic=None ,
-            fov_arcsec=None, fov_pixels=None,  oversample=None, detector_oversample=None, fft_oversample=None, rebin=True,
+            fov_arcsec=None, fov_pixels=None,  oversample=None, detector_oversample=None, fft_oversample=None, calc_oversample=None, rebin=True,
             clobber=True, display=False, return_intermediates=False, **kwargs):
         """ Compute a PSF.
 
@@ -273,7 +273,8 @@ class JWInstrument(poppy.instrument.Instrument):
            you specify distinct oversampling factors for intermediate and final planes. This is generally
            only relevant in the case of coronagraphic calculations.
 
-        By default, both oversampling factors are set equal to 4.
+        By default, both oversampling factors are set equal to 4. This default can be changed in your
+        webbpsf configuration file.
 
         Notes
         -----
@@ -328,6 +329,8 @@ class JWInstrument(poppy.instrument.Instrument):
 
 
         """
+
+        if calc_oversample is not None: fft_oversample = calc_oversample # back compatibility hook for deprecated arg name.
 
         _log.info("Setting up PSF calculation for "+self.name)
 
@@ -733,27 +736,23 @@ class MIRI(JWInstrument):
         if (self.image_mask is not None and 'FQPM' in self.image_mask) or 'force_fqpm_shift' in self.options.keys() : optsys.addPupil("FQPM_FFT_aligner")
 
         if self.image_mask == 'FQPM1065':
-            #optsys.addImage() # null debugging image plane FIXME
             container = poppy.CompoundAnalyticOptic(name = "MIRI FQPM 1065",
                 opticslist = [  poppy.IdealFQPM(wavelength=10.65e-6, name=self.image_mask),
                                 poppy.IdealFieldStop(size=24, angle=-4.56)])
             optsys.addImage(container)
             trySAM = False
-            SAM_box_size = 1.0 # irrelevant but variable still needs to be set.
         elif self.image_mask == 'FQPM1140':
             container = poppy.CompoundAnalyticOptic(name = "MIRI FQPM 1140",
                 opticslist = [  poppy.IdealFQPM(wavelength=11.40e-6, name=self.image_mask),
                                 poppy.IdealFieldStop(size=24, angle=-4.56)])
             optsys.addImage(container)
             trySAM = False
-            SAM_box_size = 1.0 # irrelevant but variable still needs to be set.
         elif self.image_mask == 'FQPM1550':
             container = poppy.CompoundAnalyticOptic(name = "MIRI FQPM 1550",
                 opticslist = [  poppy.IdealFQPM(wavelength=15.50e-6, name=self.image_mask),
                                 poppy.IdealFieldStop(size=24, angle=-4.56)])
             optsys.addImage(container)
             trySAM = False
-            #SAM_box_size = 1.0 # irrelevant but variable still needs to be set.
         elif self.image_mask =='LYOT2300':
             #diameter is 4.25 (measured) 4.32 (spec) supposedly 6 lambda/D
             #optsys.addImage(function='CircularOcculter',radius =4.25/2, name=self.image_mask) 
@@ -768,17 +767,13 @@ class MIRI(JWInstrument):
             optsys.addImage(container)
             trySAM = True
             SAM_box_size = [5,20]
-
         elif self.image_mask == 'LRS slit':
             # one slit, 0.6 x 5.5 arcsec in height
             optsys.addImage(optic=poppy.IdealRectangularFieldStop(width=0.6, height=5.5, name= self.image_mask))
             trySAM = False
-            #SAM_box_size = 1.0 # irrelevant but variable still needs to be set.
-
         else:
             optsys.addImage()
             trySAM = False
-            #SAM_box_size= 1.0 # irrelevant but variable still needs to be set.
 
         if (self.image_mask is not None and 'FQPM' in self.image_mask)  or 'force_fqpm_shift' in self.options.keys() : optsys.addPupil("FQPM_FFT_aligner", direction='backward')
 
@@ -799,6 +794,8 @@ class MIRI(JWInstrument):
             optsys.addPupil(transmission=self._datapath+"/coronagraph/MIRI_FQPMLyotStop.fits.gz", name=self.pupil_mask, shift=shift)
         elif self.pupil_mask == 'MASKLYOT':
             optsys.addPupil(transmission=self._datapath+"/coronagraph/MIRI_LyotLyotStop.fits.gz", name=self.pupil_mask, shift=shift)
+        elif self.pupil_mask == 'LRS grating':
+            optsys.addPupil(transmission=self._datapath+"/coronagraph/MIRI_LRS_Pupil_Stop.fits.gz", name=self.pupil_mask, shift=shift)
         else: # all the MIRI filters have a tricontagon outline, even the non-coron ones.
             optsys.addPupil(transmission=self._WebbPSF_basepath+"/tricontagon.fits", name = 'filter cold stop', shift=shift)
             # FIXME this is probably slightly oversized? Needs to have updated specifications here.
@@ -1061,7 +1058,7 @@ class NIRSpec(JWInstrument):
         """ Format NIRSpec-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
         JWInstrument._getFITSHeader(self, hdulist, options)
         hdulist[0].header.update('GRATING', 'None', 'NIRSpec grating element name')
-        hdulist[0].header.update('APERTURE', 'None', 'NIRSpec slit aperture name')
+        hdulist[0].header.update('APERTURE', str(self.image_mask), 'NIRSpec slit aperture name')
 
 class NIRSpec_three_MSA_shutters(poppy.AnalyticOpticalElement):
     """ Three NIRSpec MSA shutters, adjacent vertically."""
@@ -1127,7 +1124,6 @@ class NIRISS(JWInstrument):
 
         self.image_mask_list = ['CORON058', 'CORON075','CORON150','CORON200'] # available but unlikely to be used...
         self.pupil_mask_list = ['MASK_NRM','CLEAR', 'GR700XD']
-
 
         self._detector2siaf = {'NIRISS':'NIS_FULL_CNTR'}
         self.detector_list = ['NIRISS']
@@ -1385,7 +1381,6 @@ class FGS(JWInstrument):
     def __init__(self):
         JWInstrument.__init__(self, "FGS")
         self.pixelscale = 0.069 # for FGS
-        #self._default_aperture='FGS1 center' # reference into SIAF for ITM simulation V/O coords
 
         self.detector_list = ['1','2']
         self._detector2siaf = dict()
