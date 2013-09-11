@@ -1,5 +1,24 @@
-﻿# See http://packages.python.org/distribute/setuptools.html
+### See http://packages.python.org/distribute/setuptools.html
+##from setuptools import setup, find_packages
+
+# copied from astropy setup
+import sys
+import imp
+try:
+    # This incantation forces distribute to be used (over setuptools) if it is
+    # available on the path; otherwise distribute will be downloaded.
+    import pkg_resources
+    distribute = pkg_resources.get_distribution('distribute')
+    if pkg_resources.get_distribution('setuptools') != distribute:
+        sys.path.insert(1, distribute.location)
+        distribute.activate()
+        imp.reload(pkg_resources)
+except:  # There are several types of exceptions that can occur here
+    from distribute_setup import use_setuptools
+    use_setuptools()
+
 from setuptools import setup, find_packages
+
 
 setupargs = {
     'name'          :       'webbpsf',
@@ -11,10 +30,10 @@ setupargs = {
     'author_email'  :      	"mperrin@stsci.edu",
     'url'           :  		"http://www.stsci.edu/~mperrin/software/webbpsf",
     'download_url'           :  		"http://www.stsci.edu/~mperrin/software/webbpsf/webbpsf-0.0.0.tar.gz",  # will be replaced below
-    'platforms'     :      	["Linux","Mac OS X", "Win"],
-    'requires'      :       ['pyfits','numpy', 'matplotlib', 'scipy', 'asciitable', 'poppy'],
-    'packages'      :       ['webbpsf'],
-    'entry_points'  :       {'gui_scripts': ['webbpsfgui = webbpsf.gui',]}, # should create exe file on Windows?
+#    'platforms'     :      	["Linux","Mac OS X", "Win"],
+#    'requires'      :       ['pyfits','numpy', 'matplotlib', 'scipy', 'asciitable', 'poppy'],
+#    'packages'      :       ['webbpsf'],
+#    'entry_points'  :       {'gui_scripts': ['webbpsfgui = webbpsf.gui',]}, # should create exe file on Windows?
     'classifiers'   :   [
         "Programming Language :: Python",
         "License :: OSI Approved :: BSD License",
@@ -60,18 +79,25 @@ else:
     raise RuntimeError("Unable to find version string in %s." % (VERSIONFILE,))
 
 
+print sys.argv
+
+if 'py2app' in sys.argv:
+    # standalone app builds
+
+    setupargs['app'] = 'standalone_app.py'
+
+    #setupargs['requires'].append('pysynphot')
+    PY2APP_OPTIONS = {'argv_emulation': True, 
+                    'iconfile': 'webbpsf_icon.icns'}
+
+    setup(  options={'py2app':PY2APP_OPTIONS},
+            setup_requires=['py2app'],
+            **setupargs)
+
+    os.rename('dist/standalone_app.py', 'dist/WebbPSF.py')
+
+else:
+    # regular builds
+    setup(**setupargs)
 
 
-
-
-PY2APP_OPTIONS = {'argv_emulation': True, 
-                'iconfile': 'webbpsf_icon.icns'}
-
-
-
-
-# Now actually call setup
-
-setup(  options={'py2app':PY2APP_OPTIONS},
-        setup_requires=['py2app'],
-        **setupargs)
