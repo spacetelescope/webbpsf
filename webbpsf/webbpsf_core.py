@@ -663,7 +663,7 @@ class MIRI(JWInstrument):
         self._rotation = 4.561 # Source: MIRI OBA DD, page 3-16
 
         self.image_mask_list = ['FQPM1065', 'FQPM1140', 'FQPM1550', 'LYOT2300', 'LRS slit']
-        self.pupil_mask_list = ['MASKFQPM', 'MASKLYOT', 'LRS grating']
+        self.pupil_mask_list = ['MASKFQPM', 'MASKLYOT', 'P750L LRS grating']
 
         for i in range(4):
             self.filter_list.append('MRS-IFU Ch%d'% (i+1) )
@@ -768,7 +768,9 @@ class MIRI(JWInstrument):
             trySAM = True
             SAM_box_size = [5,20]
         elif self.image_mask == 'LRS slit':
-            # one slit, 0.6 x 5.5 arcsec in height
+            # one slit, 5.5 x 0.6 arcsec in height (nominal)
+            #           4.7 x 0.51 arcsec (measured for flight model. See MIRI-TR-00001-CEA)
+            # 
             optsys.addImage(optic=poppy.IdealRectangularFieldStop(width=0.6, height=5.5, name= self.image_mask))
             trySAM = False
         else:
@@ -794,7 +796,7 @@ class MIRI(JWInstrument):
             optsys.addPupil(transmission=self._datapath+"/coronagraph/MIRI_FQPMLyotStop.fits.gz", name=self.pupil_mask, shift=shift)
         elif self.pupil_mask == 'MASKLYOT':
             optsys.addPupil(transmission=self._datapath+"/coronagraph/MIRI_LyotLyotStop.fits.gz", name=self.pupil_mask, shift=shift)
-        elif self.pupil_mask == 'LRS grating':
+        elif self.pupil_mask == 'P750L LRS grating' or self.pupil_mask == 'P750L':
             optsys.addPupil(transmission=self._datapath+"/coronagraph/MIRI_LRS_Pupil_Stop.fits.gz", name=self.pupil_mask, shift=shift)
         else: # all the MIRI filters have a tricontagon outline, even the non-coron ones.
             optsys.addPupil(transmission=self._WebbPSF_basepath+"/tricontagon.fits", name = 'filter cold stop', shift=shift)
