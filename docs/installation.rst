@@ -41,6 +41,43 @@ concentrate on the wxpython toolkit, but for now both are supported.
 Alternatively, you can just skip using the GUI; the optical modeling classes
 themselves have no dependency on these widgets.
 
+.. _pysynphot_install:
+
+Installing or updating pysynphot
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Pysynphot is an optional dependency, but is highly recommended. 
+
+To install or update ``pysynphot``, do the following. (See also http://stsdas.stsci.edu/pysynphot/ and https://trac6.assembla.com/astrolib). If you already have ``pysynphot`` 
+installed, it will probably work fine without this update, but computations may be slower if you have a version earlier than 0.8.  WebbPSF has most recently been tested using pysynphot v 0.8.3.
+
+
+.. warning::
+   You may have trouble installing pysynphot, as the zip file of the source on pypi is broken. This has been
+   communicated upstream but not yet fixed. You may have more luck installing from an updated zip file 
+   on testpypi: https://testpypi.python.org/pypi/pysynphot/0.9.5
+   To install this, use this command::
+     pip install -i https://testpypi.python.org/pypi pysynphot
+
+.. comment 
+        work without this update but computations will be slower than the current version, so we recommend updating it. 
+    1. Download the most recent version of pysynphot from https://trac6.assembla.com/astrolib. 
+    2. Untar that file into a temporary working directory. 
+    3. run ``python setup.py install`` in that directory.  You can delete the setup files there after you do this step. 
+
+If this is your initial installation of ``pysynphot`` you need to install the CDBS files. See the `pysynphot installation guide <https://trac6.assembla.com/astrolib/wiki/PysynphotInstallationGuide>`_. The necessary files are available from https://trac6.assembla.com/astrolib; follow the download links for "throughput files" and "model spectra". If you already have CDBS installed, then you're all set and can skip this step.
+
+
+WebbPSF includes its own normalized copies of the new JWST instrumental
+throughputs from the development CDBS at STScI.  If you have JWST throughput
+files available in your ``$PYSYN_CDBS`` directory (likely true only for
+internal users at STScI), those will be used in preference to the WebbPSF
+internal files, but this is not required.
+
+.. comment
+        3. Untar ``CDBS-for-webb.tar.gz`` in a directory of your choosing. (Typically replacing into your current CDBS directory if already present)
+        4. Set the environment variable ``PYSYN_CDBS`` to point to that directory. e.g. ``setenv PYSYN_CDBS $HOME/data/CDBS``.
+
 
 
 Installing WebbPSF
@@ -54,6 +91,17 @@ installable from the `Python Package Index <http://pypi.python.org/pypi>`_ via
 the standard toolchain using `pip
 <http://www.pip-installer.org/en/latest/index.html>`_ or `easy_install <http://pypi.python.org/pypi/setuptools>`_.  This is the recommended installation
 method if you already have a working copy of python, numpy, and matplotlib on your computer. 
+
+
+.. pypi-release:: webbpsf
+   :prefix: Download
+   :class: note
+
+
+.. pypi-release:: poppy
+   :prefix: Download
+   :class: note
+
 
 1. Invoke pip in the usual manner::
 
@@ -106,35 +154,6 @@ Installing the Required Data Files
 2. Untar ``webbpsf-data-0.3.0.tar.gz`` into a directory of your choosing.
 3. Set the environment variable ``WEBBPSF_PATH`` to point to that directory. e.g. ``setenv WEBBPSF_PATH $HOME/data/webbpsf-data`` for tcsh/csh, or ``WEBBPSF_PATH=$HOME/data/webbpsf-data; export WEBBPSF_PATH`` for bash.
 
-
-.. _pysynphot_install:
-
-Installing or updating pysynphot
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Pysynphot is an optional dependency, but is highly recommended. 
-
-To install or update ``pysynphot``, do the following. (See also http://stsdas.stsci.edu/pysynphot/ and https://trac6.assembla.com/astrolib). If you already have ``pysynphot`` 
-installed, it will probably work fine without this update, but computations may be slower if you have a version earlier than 0.8.  WebbPSF has most recently been tested using pysynphot v 0.8.3
-
-.. comment 
-        work without this update but computations will be slower than the current version, so we recommend updating it. 
-
-1. Download the most recent version of pysynphot from https://trac6.assembla.com/astrolib. 
-2. Untar that file into a temporary working directory. 
-3. run ``python setup.py install`` in that directory.  You can delete the setup files there after you do this step. 
-4. If this is your initial installation of ``pysynphot`` you need to install the CDBS files. See the `pysynphot installation guide <https://trac6.assembla.com/astrolib/wiki/PysynphotInstallationGuide>`_. The necessary files are available from https://trac6.assembla.com/astrolib; follow the download links for "throughput files" and "model spectra". If you already have CDBS installed, then you're all set and can skip this step.
-
-
-WebbPSF includes its own normalized copies of the new JWST instrumental
-throughputs from the development CDBS at STScI.  If you have JWST throughput
-files available in your ``$PYSYN_CDBS`` directory (likely true only for
-internal users at STScI), those will be used in preference to the WebbPSF
-internal files, but this is not required.
-
-.. comment
-        3. Untar ``CDBS-for-webb.tar.gz`` in a directory of your choosing. (Typically replacing into your current CDBS directory if already present)
-        4. Set the environment variable ``PYSYN_CDBS`` to point to that directory. e.g. ``setenv PYSYN_CDBS $HOME/data/CDBS``.
 
 
 

@@ -90,7 +90,9 @@ Lyot coronagraph support bar width, 0.46 mm = 0.722 arcsec:              Anthony
 
 Lyot mask files:                                         Anthony Boccaletti private communication to Remi Soummer
 
+LRS slit size (4.7 x 0.51 arcsec):     MIRI-TR-00001-CEA. And LRS Overview presentation by Silvia Scheithaur to MIRI team meeting May 2013. 
 
+LRS P750L grating aperture mask (3.8% oversized tricontagon): MIRI OBA Design Description, MIRI-DD-00001-AEU
 
 
 .. comment

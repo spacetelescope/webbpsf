@@ -54,17 +54,24 @@ Version 0.3.0
 Released ?????
 
 This is a major release of WebbPSF, with several additions to the optical
-models (particularly for slit spectroscopy), and extensive software
+models (particularly for slit and slitless spectroscopy), and extensive software
 improvements and under-the-hood infrastructure code updates. Many 
 default settings can now be customized by a text configuration file in your home
 directory. The GUI has also been completely revamped to use a better
 cross-platform widget toolkit, wxpython. 
 
 
-**Changes and Updates to the optical models**:
+**Updates to the optical models**:
 
 
- * Initial support for NIRSpec fixed slit spectroscopy and MIRI LRS slit spectroscopy. Thanks to Klaus Pontoppidan for proposing this feature and useful discussions. Thanks to Erin Elliott for researching the NIRSpec grating wheel pupil stop geometry, and Charles Lajoie for information on the MIRI LRS pupil stop.  To model either of these modes, select the desired image plane stop plus the pupil plane stop for the grating. WebbPSF does not yet include any model for the spectral dispersion of the prisms, so you will want to perform monochromatic calculations for the desired wavelengths, and coadd the results together yourself into a spectrum appropriately. For example::
+ * Initial support for spectroscopt: *NIRSpec fixed slit spectroscopy*, *MIRI
+   LRS spectroscopy* (for both slit and slitless modes), and *NIRISS
+   single-object slitless spectroscopy*.   To model one of these modes,
+   select the desired image plane stop (if any) plus the pupil plane stop for the
+   grating. WebbPSF does not yet include any model for the spectral dispersion
+   of the prisms, so you will want to perform monochromatic calculations for
+   the desired wavelengths, and coadd the results together yourself into a
+   spectrum appropriately. For example::
 
     >> nirspec.image_mask = 'S200A1'
     >> nirspec.pupil_mask = 'NIRSpec grating'
@@ -74,33 +81,57 @@ cross-platform widget toolkit, wxpython.
     >> miri.pupil_mask = 'LRS grating'
     >> miripsf = miri.calcPSF(monochromatic=10e-6)
 
-   In fact the NIRSpec class automatically defaults to having the NIRSpec grating as the selected pupil mask, since that's always in the beam. For MIRI you must explicitly select the 'LRS grating' pupil mask.  Please note that MIRI MRS is still unsupported - this is just the LRS, for both slit and slitless modes.
+    >> niriss.pupil_mask = 'GR700XD'
+    >> monopsf = niriss.calcPSF(monochromatic=1.5e-6, oversample=4)
 
- * Added a new model for NIRISS single-object slitless spectroscopy (SOSS).  Thanks to Loic Albert (U de Montreal) and Anand Sivaramakrishnan for data and many useful discussions.  This is a new element in the pupil mask list, though of course there is no associated image plane stop for this one. ::
 
-   >> niriss.pupil_mask = 'GR700XD'
-   >> monopsf = niriss.calcPSF(monochromatic=1.5e-6, oversample=4)
+   In fact the NIRSpec class now automatically defaults to having the NIRSpec
+   grating as the selected pupil mask, since that's always in the beam. For
+   MIRI you must explicitly select the 'LRS grating' pupil mask, and may select
+   the 'LRS slit' image stop.  For NIRISS you must select the 'GR700XD' grating
+   as the pupil mask, though of course there is no slit for this one.
+   
+   *Please note* This is new/experimental code and these models have not been validated
+   in detail against instrument hardware performance yet. Use with appropriate caution, and
+   we encourage users and members of the instrument teams to provide input on how this
+   functionality can be further improved. 
+   Note also that MIRI MRS and NIRSpec IFU are still unsupported.
+
+   Thanks to Loic Albert (U de Montreal) and Anand Sivaramakrishnan for data
+   and many useful discussions on NIRISS SOSS.  
+   Thanks to Klaus Pontoppidan for proposing the NIRSpec and MIRI support and
+   useful discussions. Thanks to Erin Elliott for researching the NIRSpec
+   grating wheel pupil stop geometry, and Charles Lajoie for information on the
+   MIRI LRS pupil stop. 
 
 
  * Bug fix to weak lens code for NIRCam, which previously had an incorrect scaling factor.  
- * Added defocus option to all instruments, which can be used to simulate either internal focus mechanism moves or telescope defocus during MIMF. For example, set ::
+
+ * Added defocus option to all instruments, which can be used to simulate
+   either internal focus mechanism moves or telescope defocus during MIMF. For
+   example, set ::
  
     >> nircam.options['defocus_waves']=3
     >> nircam.options['defocus_wavelength']=2.0e-6
     
    to simulate 3 waves of defocus at 2 microns, equivalently 6 microns phase delay peak-to-valley in the wavefront.
 
- * Added new option to offset intermediate pupils (e.g. coronagraphic Lyot stops, spectrograph prisms/grisms, etc) in rotation as well as in centering::
+ * Added new option to offset intermediate pupils (e.g. coronagraphic Lyot
+   stops, spectrograph prisms/grisms, etc) in rotation as well as in
+   centering::
 
     >> niriss.options['pupil_rotation'] = 2  # degrees counterclockwise  
 
- * Added support for rectangular subarray calculations. You can invoke these by setting fov_pixels or fov_arcsec with a 2-element iterable::
+ * Added support for rectangular subarray calculations. You can invoke these by
+   setting fov_pixels or fov_arcsec with a 2-element iterable::
 
     >> nc = webbpsf.NIRCam()
     >> nc.calcPSF('F212N', fov_arcsec=[3,6])
     >> nc.calcPSF('F187N', fov_pixels=(300,100) )
 
-   Those two elements give the desired field size as (Y,X) following the usual Python axis order convention.
+   Those two elements give the desired field size as (Y,X) following the usual
+   Python axis order convention. This is motivated in particular by the rectangular 
+   subarrays used in some spectroscopic modes.
 
 
 
@@ -113,13 +144,18 @@ cross-platform widget toolkit, wxpython.
     * ``astropy.io.fits`` replaces ``pyfits`` for FITS I/O. 
     * ``astropy.io.ascii`` replaces ``asciitable`` for ASCII table I/O.
     * ``atpy`` is no longer required.
-    * New ``astropy.config`` configuration system is used for persistent settings.  This includes saving accumulated FFTW 'wisdom' so that future FFT-based calculations will begin more rapidly.
+    * New ``astropy.config`` configuration system is used for persistent
+      settings.  This includes saving accumulated FFTW 'wisdom' so that future
+      FFT-based calculations will begin more rapidly.
 
 
-* New GUI using the wxpython widget toolkit in place of the older/less functional Tkinter tool kit. Thanks to Klaus Pontoppidan for useful advice in wxpython. This should offer 
-  better cross-platform support and improved long term extensibility. (For now, the existing Tkinter GUI remains in place but is deprecated and further development is not planned.) 
+* New GUI using the wxpython widget toolkit in place of the older/less
+  functional Tkinter tool kit. Thanks to Klaus Pontoppidan for useful advice in
+  wxpython. This should offer better cross-platform support and improved long
+  term extensibility. (For now, the existing Tkinter GUI remains in place but
+  is deprecated and further development is not planned.) 
 
-    * The advanced options dialog box now has an option to toggle between monochromatic and broadband calculations. In monochromatic mode, the "# of wavelengths" field is 
+    * The calculation options dialog box now has an option to toggle between monochromatic and broadband calculations. In monochromatic mode, the "# of wavelengths" field is 
       replaced by a "wavelength in microns" field. 
     * There is also an option to toggle the field of view size between units of arcseconds and pixels. 
     * Log messages giving details of calculations are now displayed in a window as part of the GUI as well. 
@@ -134,6 +170,8 @@ cross-platform widget toolkit, wxpython.
   example configuration file with default values will be created automatically the first
   time you run webbpsf now, including informative comments describing possible settings.
   This file will be in your astropy config directory, typically something like "~/.astropy/config".
+
+    * New 'Preferences' dialog allows changing these persistent defaults through the GUI.
 
 * New function webbpsf.setup_logging() adds some more user-friendliness to the
   underlying python logging system. This includes persistent log settings
