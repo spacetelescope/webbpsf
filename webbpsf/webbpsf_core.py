@@ -980,6 +980,11 @@ class NIRSpec(JWInstrument):
     
     Relevant attributes include `filter`. In addition to the actual filters, you may select 'IFU' to
     indicate use of the NIRSpec IFU, in which case use the `monochromatic` attribute to set the simulated wavelength.
+
+    If a grating is selected in the pupil, then a rectangular pupil mask 8.41x7.91 m as projected onto the primary
+    is added to the optical system. This is an estimate of the pupil stop imposed by the outer edge of the grating 
+    clear aperture, estimated based on optical modeling by Erin Elliot and Marshall Perrin.
+
     **Note: IFU to be implemented later**
     """
     def __init__(self):
@@ -1036,7 +1041,7 @@ class NIRSpec(JWInstrument):
  
 
 
-        if ('grating' in self.pupil_mask.lower()):
+        if ((self.pupil_mask is not None) and  ('grating' in self.pupil_mask.lower())):
             # NIRSpec pupil stop at the grating appears to be a rectangle.
             # see notes and ray trace from Erin Elliot in the webbpsf-data/NIRSpec/sources directory
             optsys.addPupil(optic=poppy.RectangleAperture(height=8.41, width=7.91,  name='Pupil stop at grating wheel'))
@@ -1214,30 +1219,91 @@ class NIRISS_GR700XD_Grism(poppy.FITSOpticalElement):
         * surface sag for the cylinder: 3.994 micron peak
         * limited to 3.968 microns for the 26 mm FOV mask
 
+    From Loic Albert's email to Marshall 2013-07-18:
+
+            I do have an update concerning the geometry of the GR700XD pupil
+            mask. It turns out that they clocked the grism by about 2.25 degrees wrt the
+            OTE system of coordinates. However, the field mask did not follow and is still
+            aligned along the OTE s.o.c. That was a mistake that fortunately does have much
+            impact.
+
+            Comdev is in the process of modelling a new mask for the
+            Spare grism. Remember that we will swap the current FLight GR700XD for
+            its Spare which offers much improved performances. The mask size will
+            be a little different (rectangular) and this time will be clocked 2.25
+            degrees along with the grism.
+
+            The sign of the rotation of the grism will have to be
+            devised by trying the 2 possibilities an looking at the resulting tilt
+            of the monochromatic PSF and the position of that PSF on the detector.
+            Attached is a simulation of what we expect based on my own PSF
+            generator.
+
+            The cylinder lens has a well characterized power (actually radius of curvature). The values are:
+                current Flight: 22.85 meters
+                Spare: 22.39 meters 
+
+            Prism physical size: pupil is 26 mm on a side for the current prism, will be 28 mm for the spare
 
 
     Parameters
     ----------
-    transmission : string filename
-        file for the pupil transmission function
-    cylinder_sag_mm : float
-        physical thickness of the cylindrical lens, in millimeters
-    rotation_angle : float
-        degrees clockwise for the orientation of the cylinder's dispersing axis
-        
+    which : string
+        'flight' or 'spare'. Properties are hard coded. 
+    """
+    #
+    #    transmission : string filename
+    #        file for the pupil transmission function
+    #    cylinder_sag_mm : float
+    #        physical thickness of the cylindrical lens, in millimeters
+    #    rotation_angle : float
+    #        degrees clockwise for the orientation of the cylinder's dispersing axis. Default
+    #        of 92.25 should be consistent with current NIRISS flight and spare, except for
+    #        sign ambiguity.
+    #    rotate_mask : bool
+    #        should the field mask be rotated along with the cylinder? False for first gen flight
+    #        prism, true for expected spare replacement.
 
-"""
-    def __init__(self, name='GR700XD', transmission=None, cylinder_sag_mm=4.0, rotation_angle=92.0, shift=None):
+    def __init__(self, name='GR700XD', which='flight',
+            #cylinder_radius=22.85,  cylinder_sag_mm=4.0, rotation_angle=92.25, rotate_mask=False, transmission=None, 
+            shift=None):
         # Initialize the base optical element with the pupil transmission and zero OPD
 
-        if transmission is None:
-             transmission=os.path.join( settings.get_webbpsf_data_path(), "NIRISS/coronagraph/MASKSOSS.fits.gz")
+        
+
+        if which=='spare':
+            raise NotImplementedError("Rotated field mask for spare grism not yet implemented!")
+        else:
+            transmission=os.path.join( settings.get_webbpsf_data_path(), "NIRISS/coronagraph/MASKSOSS.fits.gz")
 
         self.shift=shift
         poppy.FITSOpticalElement.__init__(self, name=name, transmission=transmission, planetype=poppy.poppy_core._PUPIL, shift=shift)
 
-        self.cylinder_sag = cylinder_sag_mm
-        self.cylinder_rotation_angle = rotation_angle
+        # UPDATED NUMBERS 2013-07:
+        # See Document FGS_TFI_UdM_035_RevD
+
+        if which =='flight':
+            # 3.994 microns P-V over 27.02 mm measured (Loic's email)
+            # This is **surface sag**, corresponding to P-V of 6.311 waves at lambda=632.8 nm.
+            # should correspond to 3.698 microns over 26 mm clear aperture. 
+            self.cylinder_radius = 22.85 # radius of curvature
+            self.prism_size = 0.02702 # 27.02 millimeters for the physical prism
+            self.prism_clear_aperture = 0.0260 # 26 mm clear aperture for the prism + mount
+            self.cylinder_rotation_angle = 2.25
+
+            # pupil magnification computed from 22 mm clear aperture reported = 
+            # 857-169 pixels = 699 pixels in the 2D array which has scale =.00645604
+            # = 4.44175 meters projected on the primary
+
+            # therefore the magnification is 0.1708 meters projected on the primary / mm in the NIRISS pupil
+            self.pupil_demagnification =  170.8367 # meters on the primary / meters in the NIRISS pupil
+        else:
+            # 5.8 microns P-V over 32.15 mm (Loic's email)
+            # should correspond to 4.38 microns over 28 mm clear aperture
+            self.cylinder_radius = 22.39 # radius of curvature
+            self.prism_size = 0.03215 # millimeters for the physical prism
+            self.prism_clear_aperture = 0.0280 # clear aperture for the prism + mount
+            self.cylinder_rotation_angle = 2.25
 
         # initial population of the OPD array for display etc.
         self.makeCylinder( 2.0e-6) 
@@ -1248,6 +1314,7 @@ class NIRISS_GR700XD_Grism(poppy.FITSOpticalElement):
             wavelength=wave
 
         # compute indices in pixels, relative to center of plane, with rotation
+        # units of these are meters
         y, x = np.indices(self.opd.shape, dtype=float)
         y-= (self.opd.shape[0]-1)/2.
         x-= (self.opd.shape[1]-1)/2.  
@@ -1256,6 +1323,8 @@ class NIRISS_GR700XD_Grism(poppy.FITSOpticalElement):
         x = np.cos(ang)*x - np.sin(ang)*y
         y = np.sin(ang)*x + np.cos(ang)*y
 
+
+        
 
         # From IDL code by David Lafreniere:
         #  ;the cylindrical defocus
@@ -1268,7 +1337,7 @@ class NIRISS_GR700XD_Grism(poppy.FITSOpticalElement):
         # variables here:
 
         # rpuppix = radius of pupil in pixels
-        rpuppix = self.amplitude_header['DIAM'] / self.amplitude_header['PUPLSCAL'] / 2
+        #rpuppix = self.amplitude_header['DIAM'] / self.amplitude_header['PUPLSCAL'] / 2
         # Calculate the radius of curvature of the cylinder, bsaed on 
         # the chord length and height 
 
@@ -1278,20 +1347,36 @@ class NIRISS_GR700XD_Grism(poppy.FITSOpticalElement):
         #  * projected primary scale at NIRISS = ?
 
 
+
+        # Compute the overall sag of the cylinder lens at its outer edge. This is not actually used, it's
+        # just for cross-check of the values
+        # the sag will depend on half the pupil size since that's the offset from center to edge
+        sag0 = np.sqrt(self.cylinder_radius**2 - (self.prism_size/2)**2) - self.cylinder_radius
+        _log.debug(" Computed GR700XD cylinder sag: {0:.3g} meters".format(sag0))
+
+        # now compute the spatially dependent sag of the cylinder, as projected onto the primary
+        sag = np.sqrt(self.cylinder_radius**2 - (x*self.amplitude_header['PUPLSCAL']/self.pupil_demagnification)**2) - self.cylinder_radius
+
+
         # what we really want to do is take the physical properties of the as-built optic, and interpolate into that
         # to compute the OPD after remapping based on the pupil scale (and distortion?)
-        y0=(rpuppix**2+self.cylinder_sag**2)/(2*self.cylinder_sag)
+        #y0=(rpuppix**2+self.cylinder_sag**2)/(2*self.cylinder_sag)
         
-        wfe1=y0-np.sqrt(y0**2-x**2)
+        #wfe1=y0-np.sqrt(y0**2-x**2)
+
+        _log.debug(" Cylinder P-V: {0:.4g} meters physical sag across full array".format(sag.max()-sag.min()) )
+
 
         # remove piston offset 
-        wfe1 -= wfe1.min()
+        wnz = np.where(self.amplitude != 0)
+        sag -= sag[wnz].min()
+        sag[self.amplitude == 0] = 0 # no OPD in opaque regions (makes no difference in propagation but improves display)
+        _log.debug(" Cylinder P-V: {0:.4g} meters physical sag across clear aperture".format(sag[wnz].max()-sag[wnz].min()) )
 
-        # convert to meters from microns
-        wfe1 *= 1e-6
+        # scale for ZnSe index of refraction, 
+        self.opd = sag *  (self.ZnSe_index(wavelength) -1)
 
-        # scale for ZnSe index of refraction
-        self.opd = wfe1 *  (self.ZnSe_index(wavelength) -1)
+        #stop()
 
     def ZnSe_index(self, wavelength):
         """ Return cryogenic index of refraction of ZnSe at an arbitrary wavelength
