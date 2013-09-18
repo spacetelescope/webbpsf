@@ -23,7 +23,7 @@ These are optional but recommended:
 * `pysynphot <https://trac6.assembla.com/astrolib>`_ enables the simulation of PSFs with proper spectral response to realistic source spectra.  Without this, PSF fidelity is reduced. See below for :ref:`installation instructions for pysynphot <pysynphot_install>`. 
 * `pyFFTW3 <http://pypi.python.org/pypi/PyFFTW3/0.2.1>`_. The FFTW library will significantly speed up the FFTs used in coronagraphic simulations. Since direct imaging simulations use a discrete matrix FT instead, direct imaging simulation speed is unchanged.  pyFFTW3 is highly recommended if you expect to perform many coronagraphic calculations.
 
-**Additional requirement for the GUI:** The :ref:`graphical user interface<gui>` requires 
+Additional requirement for the GUI: The :ref:`graphical user interface<gui>` requires 
 
 * **Either**  the `wxpython <http://www.wxpython.org>`_ interface to the ``wxwidgets`` widget library (recommended), 
 
@@ -41,80 +41,29 @@ concentrate on the wxpython toolkit, but for now both are supported.
 Alternatively, you can just skip using the GUI; the optical modeling classes
 themselves have no dependency on these widgets.
 
-.. _pysynphot_install:
-
-Installing or updating pysynphot
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Pysynphot is an optional dependency, but is highly recommended. 
-
-To install or update ``pysynphot``, do the following. (See also http://stsdas.stsci.edu/pysynphot/ and https://trac6.assembla.com/astrolib). If you already have ``pysynphot`` 
-installed, it will probably work fine without this update, but computations may be slower if you have a version earlier than 0.8.  WebbPSF has most recently been tested using pysynphot v 0.8.3.
-
-
-.. warning::
-   You may have trouble installing pysynphot, as the zip file of the source on pypi is broken. This has been
-   communicated upstream but not yet fixed. You may have more luck installing from an updated zip file 
-   on testpypi: https://testpypi.python.org/pypi/pysynphot/0.9.5
-   To install this, use this command::
-     pip install -i https://testpypi.python.org/pypi pysynphot
-
-.. comment 
-        work without this update but computations will be slower than the current version, so we recommend updating it. 
-    1. Download the most recent version of pysynphot from https://trac6.assembla.com/astrolib. 
-    2. Untar that file into a temporary working directory. 
-    3. run ``python setup.py install`` in that directory.  You can delete the setup files there after you do this step. 
-
-If this is your initial installation of ``pysynphot`` you need to install the CDBS files. See the `pysynphot installation guide <https://trac6.assembla.com/astrolib/wiki/PysynphotInstallationGuide>`_. The necessary files are available from https://trac6.assembla.com/astrolib; follow the download links for "throughput files" and "model spectra". If you already have CDBS installed, then you're all set and can skip this step.
-
-
-WebbPSF includes its own normalized copies of the new JWST instrumental
-throughputs from the development CDBS at STScI.  If you have JWST throughput
-files available in your ``$PYSYN_CDBS`` directory (likely true only for
-internal users at STScI), those will be used in preference to the WebbPSF
-internal files, but this is not required.
-
-.. comment
-        3. Untar ``CDBS-for-webb.tar.gz`` in a directory of your choosing. (Typically replacing into your current CDBS directory if already present)
-        4. Set the environment variable ``PYSYN_CDBS`` to point to that directory. e.g. ``setenv PYSYN_CDBS $HOME/data/CDBS``.
-
-
 
 Installing WebbPSF
 ----------------------
 
-Installing WebbPSF via PYPI
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Since version 0.2.8, WebbPSF and its underlying optical library ``poppy`` are both
+WebbPSF and its underlying optical library ``poppy`` are both
 installable from the `Python Package Index <http://pypi.python.org/pypi>`_ via
 the standard toolchain using `pip
-<http://www.pip-installer.org/en/latest/index.html>`_ or `easy_install <http://pypi.python.org/pypi/setuptools>`_.  This is the recommended installation
+<http://www.pip-installer.org/en/latest/index.html>`_.  This is the easiest installation
 method if you already have a working copy of python, numpy, and matplotlib on your computer. 
 
 
-.. pypi-release:: webbpsf
-   :prefix: Download
-   :class: note
-
-
-.. pypi-release:: poppy
-   :prefix: Download
-   :class: note
-
-
-1. Invoke pip in the usual manner::
+Simply invoke pip in the usual manner::
 
    $ pip install webbpsf
    [... progress report ...]
 
    ``Successfully installed webbpsf``
 
-2. You should now be able to do ``import webbpsf`` in a Python session. 
+You should now be able to do ``import webbpsf`` in a Python session to start WebbPSF. 
 
-3. Future versions may be installed with ``pip install --upgrade webbpsf`` when they become available.
+However, the above installs only the program code. You still must download and install the data files, as :ref:`described below <data_install>`. 
 
-However, this installs only the program code. You still must download and install the data files, as :ref:`described below <data_install>`. 
+Future versions may be installed with ``pip install --upgrade webbpsf`` when they become available.
 
 .. note::
   If you wish to install webbpsf on a machine for which you do not have administrative access, you can do so by using Python's
@@ -127,23 +76,38 @@ However, this installs only the program code. You still must download and instal
 Installing WebbPSF manually
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-If for some reason you do not wish to use PYPI, you can just install the source file directly:
+If for some reason you don't wish to use PYPI, you can just install from the source directly:
+
+1. Download the following files.
+
+.. pypi-release:: webbpsf
+   :prefix: Download
+   :class: note
 
 
-1. Download the following file: `webbpsf-0.3.0.tar.gz <http://www.stsci.edu/~mperrin/software/webbpsf/webbpsf-0.3.0.tar.gz>`_
-2. Untar ``webbpsf-0.3.0.tar.gz`` into a temporary working directory. 
-3. Run ``python setup.py install`` in that directory. This will install ``webbpsf`` into your Python path. 
+.. pypi-release:: poppy
+   :prefix: Download
+   :class: note
 
+
+2. Untar each into a temporary working directory. 
+3. Run ``python setup.py install`` in each of those directories to install first ``poppy`` and then ``webbpsf``. 
+
+
+You should now be able to do ``import webbpsf`` in a Python session to start WebbPSF. 
+
+However, the above installs only the program code. You still must download and install the data files, as :ref:`described below <data_install>`. 
+
+
+.. note::
    If you lack the filesystem permissions to write into the system python directory 
    (for instance, on a machine you don't have root on), you can do ``python setup.py install --user`` to install locally
    in your home directory.
-4. You should now be able to do ``import webbpsf`` in a Python session. 
-
 
 
 Installing WebbPSF development versions, and/or contributing to its development
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-As of version 0.2.8, the `webbpsf source code repository <https://github.com/mperrin/webbpsf>`_ is hosted at GitHub, as is the repository for `poppy <https://github.com/mperrin/poppy>`_. Users may clone, fork, and pull diffs in the usual manner. Pull requests with code enhancements welcomed!  
+The `webbpsf source code repository <https://github.com/mperrin/webbpsf>`_ is hosted at GitHub, as is the repository for `poppy <https://github.com/mperrin/poppy>`_. Users may clone or fork in the usual manner. Pull requests with code enhancements welcomed.  
 
 .. _data_install:
 
@@ -179,6 +143,45 @@ This is entirely optional, but you may wish to sign up to the mailing list ``web
 This is a low-traffic moderated announce-only list, to which we will periodically post announcements of updates to this software.  
 
 To subscribe, email `majordomo@stsci.edu` with the message body text ``"subscribe webbpsf-users"``. 
+
+
+.. _pysynphot_install:
+
+Installing or updating pysynphot
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Pysynphot is an optional dependency, but is highly recommended. 
+
+To install or update ``pysynphot``, do the following. (See also http://stsdas.stsci.edu/pysynphot/ and https://trac6.assembla.com/astrolib). WebbPSF has most recently been tested using pysynphot 0.9.5 but is known to work well with earlier versions as well.
+
+
+.. warning::
+   You may have trouble installing pysynphot, as the zip file of the source on pypi is broken. This has been
+   communicated upstream but not yet fixed. You may have more luck installing from an updated zip file 
+   on testpypi: https://testpypi.python.org/pypi/pysynphot/0.9.5
+   To install this, use this command::
+     pip install -i https://testpypi.python.org/pypi pysynphot
+
+.. comment 
+        work without this update but computations will be slower than the current version, so we recommend updating it. 
+    1. Download the most recent version of pysynphot from https://trac6.assembla.com/astrolib. 
+    2. Untar that file into a temporary working directory. 
+    3. run ``python setup.py install`` in that directory.  You can delete the setup files there after you do this step. 
+
+If this is your initial installation of ``pysynphot`` you need to install the CDBS files. See the `pysynphot installation guide <https://trac6.assembla.com/astrolib/wiki/PysynphotInstallationGuide>`_. The necessary files are available from https://trac6.assembla.com/astrolib; follow the download links for "throughput files" and "model spectra". If you already have CDBS installed, then you're all set and can skip this step.
+
+
+WebbPSF includes its own normalized copies of the new JWST instrumental
+throughputs from the development CDBS at STScI.  If you have JWST throughput
+files available in your ``$PYSYN_CDBS`` directory (likely true only for
+internal users at STScI), those will be used in preference to the WebbPSF
+internal files, but this is not required.
+
+.. comment
+        3. Untar ``CDBS-for-webb.tar.gz`` in a directory of your choosing. (Typically replacing into your current CDBS directory if already present)
+        4. Set the environment variable ``PYSYN_CDBS`` to point to that directory. e.g. ``setenv PYSYN_CDBS $HOME/data/CDBS``.
+
+
 
 
 
