@@ -1,12 +1,22 @@
 
+try:
+    from .version import version as __version__
+except ImportError:
+    # TODO: Issue a warning using the logging framework
+    __version__ = ''
+try:
+    from .version import githash as __githash__
+except ImportError:
+    # TODO: Issue a warning using the logging framework
+    __githash__ = ''
+
+ 
 from poppy import (display_PSF, display_PSF_difference, display_EE, display_profiles, radial_profile,
         measure_EE, measure_radial, measure_fwhm, measure_sharpness, measure_centroid, measure_strehl,
         measure_anisotropy, specFromSpectralType, fwcentroid)
 
 
 from .webbpsf_core import Instrument, JWInstrument, NIRCam, NIRISS, NIRSpec,MIRI,FGS
-
-from ._version import __version__
 
 from .utils import setup_logging, _system_diagnostic, _check_for_new_install, _restart_logging
 
