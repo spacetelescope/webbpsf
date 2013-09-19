@@ -1,2 +1,0 @@
-See release notes at http://www.stsci.edu/~mperrin/software/webbpsf/relnotes.html for 
-detailed change history
