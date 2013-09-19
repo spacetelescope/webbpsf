@@ -32,12 +32,12 @@ PSFs as observed with JWST's instruments.
 
 * Uses OPD map(s) precomputed by a detailed optical simulation of JWST
 * Computes from those a PSF image with requested properties for any of JWST's instruments
-* Supports imaging & coronagraphy modes with all of JWST's instruments. IFUs are a work in progress.
+* Supports imaging & coronagraphy modes with all of JWST's instruments. Spectroscopy is a work in progress, IFUs are yet to come.
 * Provides a suite of tools for quantifying PSF properies such as FWHM, Strehl ratio, etc.
 
 **What this software does NOT do:**
 
-* Contain in itself any detailed thermal or optical model of JWST. For the results of end-to-end integrated simulations of JWST, see for instance `Predicted JWST imaging performance <http://proceedings.spiedigitallibrary.org/proceeding.aspx?articleid=1362264>` (Knight, Lightsey, & Barto; Proc. SPIE 2012).
+* Contain in itself any detailed thermal or optical model of JWST. For the results of end-to-end integrated simulations of JWST, see for instance `Predicted JWST imaging performance (Knight, Lightsey, & Barto; Proc. SPIE 2012) <http://proceedings.spiedigitallibrary.org/proceeding.aspx?articleid=1362264>`_.
 * Model spectrally dispersed PSFs produced by any of the spectrograph gratings. It does, however, let you produce monochromatic PSFs in these modes, suitable for stitching together into spectra using some other software.
 * Model any detector effects such as pixel MTF, intrapixel sensitivity variations, interpixel capacitance, or any noise sources. Add those separately with your favorite detector model code.
 
@@ -86,11 +86,12 @@ Contents
    relnotes.rst
    webbpsf.rst
    gui.rst  
-   poppy.rst
-   available_opds.rst
-   help.rst
-   references.rst
    more_examples.rst
+   poppy.rst
+   help.rst
+   available_opds.rst
+   references.rst
+   performance.rst
    sampling.rst
    fft_optimization.rst
 

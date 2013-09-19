@@ -393,7 +393,7 @@ Or if you really care about writing it as a primary HDU rather than an extension
 
 
 Providing your own OPDs or pupils from some other source
------------------------------------------------
+-----------------------------------------------------------
 
 It is straight forward to configure an Instrument object to use a pupil OPD file of your own devising, by setting the ``pupilopd`` attribute of the Instrument object:
 

@@ -5,16 +5,25 @@
 
 
 
-Appendix: Optimizing FFT Performance for PSF Computations
-================================================================
+Appendix: Optimizing FFT Performance for PSF Computations with FFTW
+=====================================================================
 
 
-It turns out that optimizing numerical performance of FFTs is a very complicated subject. 
+Ooptimizing numerical performance of FFTs is a very complicated subject. 
 Just using the FFTW library is no guarantee of optimal performance; you need to know how to 
 configure it. 
 
-This is probably fairly sensitive to hardware details. The following benchmarks were performed on a Mac Pro, dual quad-core 2.66 GHz Xeon, 12 GB RAM.
 
+
+.. note::
+  The following tests were performed using the older PyFFTW3 package, and have not yet been updated
+  for the newer pyFFTW package. However, performance considerations are expected to be fairly similar
+  for both packages since the underlying FFTW library is the same. 
+
+  See discussion and test results at https://github.com/mperrin/webbpsf/issues/10 
+
+
+This is probably fairly sensitive to hardware details. The following benchmarks were performed on a Mac Pro, dual quad-core 2.66 GHz Xeon, 12 GB RAM.
 
 
  * Unlike many of the array operations in numpy, the fft operation is not threaded for execution across multiple processors. It is thus slow and inefficient.
@@ -37,8 +46,6 @@ This is probably fairly sensitive to hardware details. The following benchmarks 
 
 Planning in FFTW3
 ------------------
-
-
 
 
 

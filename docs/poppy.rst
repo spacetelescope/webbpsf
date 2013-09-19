@@ -1,8 +1,3 @@
-.. JWST-PSFs documentation master file, created by
-   sphinx-quickstart on Mon Nov 29 15:57:01 2010.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
 .. module:: poppy
 
 =============================================
@@ -12,8 +7,8 @@ Physical Optics Propagation in PYthon (POPPY)
 
 .. note::
         This is an *abbreviated* version of the documentation for POPPY, 
-        included here since it's relevant for WebbPSF. For more comprehensive
-        documentation for POPPY please see `this site <http://www.stsci.edu/~mperrin/software/poppy>`_
+        included here as a brief summary relevant for WebbPSF. For more comprehensive
+        documentation for POPPY please see `the full POPPY documentation <http://www.stsci.edu/~mperrin/software/poppy>`_
 
 
 
@@ -54,14 +49,23 @@ chained together in order in an :py:class:`OpticalSystem` class. That class is c
 the final image plane. 
 
 There is an even higher level class :py:class:`Instrument` which adds support
-for selectable instrument mechanisms (such as filter wheels, pupil stops, etc). In particular it adds support for computing via synthetic photometry the
-appropriate weights for multiwavelength computations through a spectral bandpass filter, and for PSF blurring due to pointing jitter (neither of which effects are modeled by :py:class:`OpticalSystem`). 
-Given a specified instrument configuration, an appropriate :py:class:`OpticalSystem` is generated, the appropriate wavelengths and weights are calculated based on the bandpass filter and target source spectrum, the PSF is calculated, and optionally is then convolved with a blurring kernel due to pointing jitter.  All of the WebbPSF instruments are implemented by subclassing ``poppy.Instrument``.
+for selectable instrument mechanisms (such as filter wheels, pupil stops, etc).
+In particular it adds support for computing via synthetic photometry the
+appropriate weights for multiwavelength computations through a spectral
+bandpass filter, and for PSF blurring due to pointing jitter (neither of which
+effects are modeled by :py:class:`OpticalSystem`).  Given a specified
+instrument configuration, an appropriate :py:class:`OpticalSystem` is
+generated, the appropriate wavelengths and weights are calculated based on the
+bandpass filter and target source spectrum, the PSF is calculated, and
+optionally is then convolved with a blurring kernel due to pointing jitter.
+All of the WebbPSF instruments are implemented by subclassing
+``poppy.Instrument``.
 
 
-Poppy presently assumes that optical propagation can be modeled using Fraunhofer diffraction (far-field), such that
-the relationship between pupil and image plane optics is given by two-dimensional Fourier transforms. Fresnel propagation is
-not currently supported. 
+Poppy presently assumes that optical propagation can be modeled using
+Fraunhofer diffraction (far-field), such that the relationship between pupil
+and image plane optics is given by two-dimensional Fourier transforms. Fresnel
+propagation is not currently supported. 
 
 Two different algorithmic flavors of Fourier transforms are used in Poppy. The
 familiar FFT algorithm is used for transformations between pupil and image
@@ -82,7 +86,7 @@ onto a common pixel scale) more than makes up for this and the MFT is faster.
 
 
 List of Classes
---------
+-------------------
 
 .. inheritance-diagram:: poppy.Detector poppy.Wavefront poppy.OpticalSystem poppy.Rotation poppy.CircularAperture poppy.HexagonAperture poppy.SquareAperture poppy.IdealFieldStop poppy.IdealCircularOcculter poppy.IdealBarOcculter poppy.BandLimitedCoron poppy.IdealFQPM poppy.FQPM_FFT_aligner poppy.CompoundAnalyticOptic poppy.FITSOpticalElement poppy.Instrument
 
@@ -91,7 +95,7 @@ List of Classes
 .. _Wavefront:
 
 Wavefront
----------
+-----------
 
 .. autoclass:: poppy.Wavefront
     :members:
@@ -99,7 +103,7 @@ Wavefront
 .. OpticalSystem:
 
 Optical System 
---------------
+-----------------
 
 .. autoclass:: poppy.OpticalSystem
     :members:
@@ -111,8 +115,6 @@ Optical Elements
 
 .. autoclass:: poppy.OpticalElement
    :members:
-
-------
 
 .. autoclass:: poppy.FITSOpticalElement
    :members:
