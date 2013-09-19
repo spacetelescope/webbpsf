@@ -42,7 +42,7 @@ URL = 'http://www.stsci.edu/~mperrin/software/webbpsf'
 
 
 # VERSION should be PEP386 compatible (http://www.python.org/dev/peps/pep-0386)
-VERSION = '0.3.dev'
+VERSION = '0.3rc1'
 
 # Indicates if this version is a release version
 RELEASE = 'dev' not in VERSION
@@ -170,7 +170,7 @@ if 'py2app' in sys.argv:
       package_dir=package_dirs,
       ext_modules=extensions,
       scripts=scripts,
-      requires=['astropy'],
+      requires=['astropy', 'poppy', 'lxml','psutil'],
       install_requires=['astropy'],
       provides=[PACKAGENAME],
       author=AUTHOR,
@@ -194,7 +194,7 @@ else:
       package_dir=package_dirs,
       ext_modules=extensions,
       scripts=scripts,
-      requires=['astropy'],
+      requires=['astropy','poppy', 'lxml','psutil'],
       install_requires=['astropy'],
       provides=[PACKAGENAME],
       author=AUTHOR,
