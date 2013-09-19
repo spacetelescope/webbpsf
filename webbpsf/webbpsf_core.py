@@ -205,7 +205,7 @@ class JWInstrument(poppy.instrument.Instrument):
 
     @property
     def image_mask(self):
-        'Currently selected coronagraphic image plane mask, or None for direct imaging'
+        'Currently selected image plane mask, or None for direct imaging'
         return self._image_mask
     @image_mask.setter
     def image_mask(self, name):
@@ -547,7 +547,7 @@ class JWInstrument(poppy.instrument.Instrument):
            optsys.addPupil(optic=lens)
 
 
-        #---- add coronagraphy if requested, and flag to invoke semi-analytic coronagraphic propagation
+        #---- add coronagraph or spectrograph optics if requested, and possibly flag to invoke semi-analytic coronagraphic propagation
 
         # first error check for null strings, which should be considered like None
         if self.image_mask == "": self.image_mask = None
@@ -555,7 +555,7 @@ class JWInstrument(poppy.instrument.Instrument):
 
 
         if self.image_mask is not None or self.pupil_mask is not None or ('force_coron' in options.keys() and options['force_coron']):
-            _log.debug("Adding coronagraph optics...")
+            _log.debug("Adding coronagraph/spectrograph optics...")
             optsys, trySAM, SAM_box_size = self._addAdditionalOptics(optsys, oversample=fft_oversample)
         else: trySAM = False
 
@@ -588,7 +588,7 @@ class JWInstrument(poppy.instrument.Instrument):
         return optsys
 
     def _addAdditionalOptics(self,optsys, oversample=2):
-        """Add coronagraphic optics to an optical system. 
+        """Add instrument-internal optics to an optical system, typically coronagraphic or spectrographic in nature. 
         This method must be provided by derived instrument classes. 
 
         Returns
@@ -642,13 +642,12 @@ class JWInstrument(poppy.instrument.Instrument):
 
 
 
-###########
+#######  JWInstrument classes  #####
 
 class MIRI(JWInstrument):
     """ A class modeling the optics of MIRI, the Mid-InfraRed Instrument.
     
     Relevant attributes include `filter`, `image_mask`, and `pupil_mask`.
-
 
     In addition to the actual filters, you may select 'MRS-IFU Ch1' to
     indicate use of the MIRI IFU in Channel 1, and so forth. In this case, the `monochromatic` attribute controls the simulated wavelength.
@@ -708,7 +707,7 @@ class MIRI(JWInstrument):
 
 
     def _addAdditionalOptics(self,optsys, oversample=2):
-        """Add coronagraphic optics for MIRI.
+        """Add coronagraphic or spectrographic optics for MIRI.
         Semi-analytic coronagraphy algorithm used for the Lyot only.
 
         """
@@ -793,11 +792,11 @@ class MIRI(JWInstrument):
         #optsys.addPupil('Circle', radius=6.5/2)
 
         if self.pupil_mask == 'MASKFQPM':
-            optsys.addPupil(transmission=self._datapath+"/coronagraph/MIRI_FQPMLyotStop.fits.gz", name=self.pupil_mask, shift=shift)
+            optsys.addPupil(transmission=self._datapath+"/optics/MIRI_FQPMLyotStop.fits.gz", name=self.pupil_mask, shift=shift)
         elif self.pupil_mask == 'MASKLYOT':
-            optsys.addPupil(transmission=self._datapath+"/coronagraph/MIRI_LyotLyotStop.fits.gz", name=self.pupil_mask, shift=shift)
+            optsys.addPupil(transmission=self._datapath+"/optics/MIRI_LyotLyotStop.fits.gz", name=self.pupil_mask, shift=shift)
         elif self.pupil_mask == 'P750L LRS grating' or self.pupil_mask == 'P750L':
-            optsys.addPupil(transmission=self._datapath+"/coronagraph/MIRI_LRS_Pupil_Stop.fits.gz", name=self.pupil_mask, shift=shift)
+            optsys.addPupil(transmission=self._datapath+"/optics/MIRI_LRS_Pupil_Stop.fits.gz", name=self.pupil_mask, shift=shift)
         else: # all the MIRI filters have a tricontagon outline, even the non-coron ones.
             optsys.addPupil(transmission=self._WebbPSF_basepath+"/tricontagon.fits", name = 'filter cold stop', shift=shift)
             # FIXME this is probably slightly oversized? Needs to have updated specifications here.
@@ -934,9 +933,9 @@ class NIRCam(JWInstrument):
 
         #optsys.addPupil( name='null for debugging NIRcam _addCoron') # debugging
         if self.pupil_mask == 'CIRCLYOT':
-            optsys.addPupil(transmission=self._datapath+"/coronagraph/NIRCam_Lyot_Somb.fits", name=self.pupil_mask, shift=shift)
+            optsys.addPupil(transmission=self._datapath+"/optics/NIRCam_Lyot_Somb.fits", name=self.pupil_mask, shift=shift)
         elif self.pupil_mask == 'WEDGELYOT':
-            optsys.addPupil(transmission=self._datapath+"/coronagraph/NIRCam_Lyot_Sinc.fits", name=self.pupil_mask, shift=shift)
+            optsys.addPupil(transmission=self._datapath+"/optics/NIRCam_Lyot_Sinc.fits", name=self.pupil_mask, shift=shift)
         elif self.pupil_mask == 'WEAK LENS +4':
             optsys.addPupil(poppy.ThinLens(name='Weak Lens +4', nwaves=4, reference_wavelength=2e-6))
         elif self.pupil_mask == 'WEAK LENS +8':
@@ -970,7 +969,6 @@ class NIRCam(JWInstrument):
         hdulist[0].header.update('PILIN', 'False', 'Pupil imaging lens in optical path: T/F')
 
 
-
 class NIRSpec(JWInstrument):
     """ A class modeling the optics of NIRSpec, in **imaging** mode. 
 
@@ -999,7 +997,7 @@ class NIRSpec(JWInstrument):
 
         # fixed slits
         self.image_mask = None
-        self.image_mask_list = ['S200A1','S200A2','S400A1','S1600A1','S200B1', 'Single MSA open shutter', 'Three adjacent MSA open shutters']
+        self.image_mask_list = ['S200A1','S200A2','S400A1','S1600A1','S200B1', 'MSA all open', 'Single MSA open shutter', 'Three adjacent MSA open shutters']
         self.pupil_mask_list = ['NIRSpec grating']
         self.pupil_mask = self.pupil_mask_list[-1]
 
@@ -1032,6 +1030,9 @@ class NIRSpec(JWInstrument):
         elif self.image_mask == 'S1600A1':
             # square aperture for exoplanet spectroscopy
             optsys.addImage(optic=poppy.IdealRectangularFieldStop(width=1.6, height=1.6, name= self.image_mask + " square aperture"))
+        elif self.image_mask == 'MSA all open':
+            # all MSA shutters open 
+            optsys.addImage(optic=NIRSpec_MSA_open_grid(name= self.image_mask))
         elif self.image_mask == 'Single MSA open shutter':
             # one MSA open shutter aperture 
             optsys.addImage(optic=poppy.IdealRectangularFieldStop(width=0.2, height=0.45, name= self.image_mask))
@@ -1066,41 +1067,6 @@ class NIRSpec(JWInstrument):
         JWInstrument._getFITSHeader(self, hdulist, options)
         hdulist[0].header.update('GRATING', 'None', 'NIRSpec grating element name')
         hdulist[0].header.update('APERTURE', str(self.image_mask), 'NIRSpec slit aperture name')
-
-class NIRSpec_three_MSA_shutters(poppy.AnalyticOpticalElement):
-    """ Three NIRSpec MSA shutters, adjacent vertically."""
-
-    def getPhasor(self,wave):
-        """ Compute the transmission inside/outside of the field stop.
-
-        The area of an open shutter is 0.2 x 0.45, while the shutter pitch is 0.26x0.51
-        The walls separating adjaced shutters are 0.06 arcsec wide.
-        """
-
-        msa_width = 0.2
-        msa_height = 0.45
-        msa_wall = 0.06
-
-        if not isinstance(wave, poppy.Wavefront):
-            raise ValueError("IdealFieldStop getPhasor must be called with a Wavefront to define the spacing")
-        assert (wave.planetype == poppy.poppy_core._IMAGE)
-
-        y, x= wave.coordinates()
-        #xnew =  x*np.cos(np.deg2rad(self.angle)) + y*np.sin(np.deg2rad(self.angle))
-        #ynew = -x*np.sin(np.deg2rad(self.angle)) + y*np.cos(np.deg2rad(self.angle))
-        #x,y = xnew, ynew
-
-
-        self.transmission = np.zeros(wave.shape)
-        # get the innermost shutter than spans the Y axis
-        w_inside_1 = np.where( (abs(y) < (msa_height/2))  & (abs(x) < (msa_width/2)))
-        self.transmission[w_inside_1] = 1
-        # get the adjacent shutters one above and one below.
-        w_inside_2 = np.where( (abs(y) > (msa_height/2)+msa_wall) & (abs(y) < msa_height*1.5+msa_wall)  & (abs(x) < (msa_width/2)))
-        self.transmission[w_inside_2] = 1
-
-        return self.transmission
-
 
 
 class NIRISS(JWInstrument):
@@ -1202,6 +1168,112 @@ class NIRISS(JWInstrument):
             hdulist[0].header.update('CORONPOS', self.image_mask, 'NIRISS coronagraph spot location')
         hdulist[0].header.update('FOCUSPOS',0,'NIRISS focus mechanism not yet modeled.')
 
+
+class FGS(JWInstrument):
+    """ A class modeling the optics of the FGS.
+    
+    Not a lot to see here, folks: There are no selectable options, just a great big detector-wide bandpass.
+    """
+    def __init__(self):
+        JWInstrument.__init__(self, "FGS")
+        self.pixelscale = 0.069 # for FGS
+
+        self.detector_list = ['1','2']
+        self._detector2siaf = dict()
+        for name in self.detector_list: self._detector2siaf[name] = 'FGS{0}_FULL_CNTR'.format(name)
+        self.detector=self.detector_list[0]
+
+
+    def _validate_config(self):
+        if (not self.image_mask is None) or (not self.pupil_mask is None):
+            raise ValueError('FGS does not have image or pupil masks!')
+            self.image_mask = None
+            self.pupil_mask = None
+        #TODO only one possible filter fot the FGS, too. 
+    def _addAdditionalOptics(self,optsys):
+        raise NotImplementedError("No Coronagraph in FGS!")
+
+    def _getFITSHeader(self, hdulist, options):
+        """ Format FGS-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
+        JWInstrument._getFITSHeader(self, hdulist, options)
+        hdulist[0].header.update('FOCUSPOS',0,'FGS focus mechanism not yet modeled.')
+
+
+#######  Custom Optics used in JWInstrument classes  #####
+
+
+class NIRSpec_three_MSA_shutters(poppy.AnalyticOpticalElement):
+    """ Three NIRSpec MSA shutters, adjacent vertically."""
+
+    def getPhasor(self,wave):
+        """ Compute the transmission inside/outside of the field stop.
+
+        The area of an open shutter is 0.2 x 0.45, while the shutter pitch is 0.26x0.51
+        The walls separating adjaced shutters are 0.06 arcsec wide.
+        """
+
+        msa_width = 0.2
+        msa_height = 0.45
+        msa_wall = 0.06
+
+        if not isinstance(wave, poppy.Wavefront):
+            raise ValueError("IdealFieldStop getPhasor must be called with a Wavefront to define the spacing")
+        assert (wave.planetype == poppy.poppy_core._IMAGE)
+
+        y, x= wave.coordinates()
+        #xnew =  x*np.cos(np.deg2rad(self.angle)) + y*np.sin(np.deg2rad(self.angle))
+        #ynew = -x*np.sin(np.deg2rad(self.angle)) + y*np.cos(np.deg2rad(self.angle))
+        #x,y = xnew, ynew
+
+
+        self.transmission = np.zeros(wave.shape)
+        # get the innermost shutter than spans the Y axis
+        w_inside_1 = np.where( (abs(y) < (msa_height/2))  & (abs(x) < (msa_width/2)))
+        self.transmission[w_inside_1] = 1
+        # get the adjacent shutters one above and one below.
+        w_inside_2 = np.where( (abs(y) > (msa_height/2)+msa_wall) & (abs(y) < msa_height*1.5+msa_wall)  & (abs(x) < (msa_width/2)))
+        self.transmission[w_inside_2] = 1
+
+        return self.transmission
+
+
+class NIRSpec_MSA_open_grid(poppy.AnalyticOpticalElement):
+    """ An infinite repeating region of the NIRSpec MSA grid"""
+
+    def getPhasor(self,wave):
+        """ Compute the transmission inside/outside of the field stop.
+
+        The area of an open shutter is 0.2 x 0.45, while the shutter pitch is 0.26x0.51
+        The walls separating adjaced shutters are 0.06 arcsec wide.
+        """
+
+        msa_width = 0.2
+        msa_height = 0.45
+        msa_wall = 0.06
+        msa_x_pitch = 0.26
+        msa_y_pitch = 0.51
+
+        if not isinstance(wave, poppy.Wavefront):
+            raise ValueError("IdealFieldStop getPhasor must be called with a Wavefront to define the spacing")
+        assert (wave.planetype == poppy.poppy_core._IMAGE)
+
+        y, x= wave.coordinates()
+        #xnew =  x*np.cos(np.deg2rad(self.angle)) + y*np.sin(np.deg2rad(self.angle))
+        #ynew = -x*np.sin(np.deg2rad(self.angle)) + y*np.cos(np.deg2rad(self.angle))
+        #x,y = xnew, ynew
+
+        mask_vert_walls  = np.abs(np.mod(np.abs(x), msa_x_pitch) - (msa_x_pitch/2)) < msa_wall/2
+        mask_horz_walls  = np.abs(np.mod(np.abs(y), msa_y_pitch) - (msa_y_pitch/2)) < msa_wall/2
+
+
+
+        self.transmission = np.ones(wave.shape)
+        self.transmission[mask_vert_walls] = 0
+        self.transmission[mask_horz_walls] = 0
+
+        return self.transmission
+
+
 class NIRISS_GR700XD_Grism(poppy.FITSOpticalElement):
     """ Custom optic class to model the NIRISS SOSS grim GR700XD
 
@@ -1245,6 +1317,32 @@ class NIRISS_GR700XD_Grism(poppy.FITSOpticalElement):
 
             Prism physical size: pupil is 26 mm on a side for the current prism, will be 28 mm for the spare
 
+    From Loic Albert's email to Marshall 2013-09-19:
+
+        The latest news on this front are:
+
+        1 - The current Flight mask is attached. It is 26x26 mm. The mask and grism are
+            *not* aligned along the same coordinates. That was a mistake. I'll forward you
+            a message from Michael M., our optics expert at CSA. 
+
+        2 - The Spare mask (likely the one which will fly) is not built yet. The mask
+            will be aligned along the grism coordinate and both will be clocked 2.2 deg wrt
+            the OTE.
+
+        3 - A ghost analysis showed that the current grism clocking will suffer from
+            large ghosts. So we are studying how to clock the Spare grism in its cell to
+            minimize ghosts. Likely a 90 degrees rotation will be applied to baseline of
+            point 2.
+
+        From Michael.Maszkiewicz@asc-csa.gc.ca:
+
+            As far as I understand now, we have two rotations in the as-built
+            GR700. One rotation is for the prism-grism combo by 2 deg CCW, looking along
+            the local +z axis, and the second rotation is for  the mask by 3.05 deg  but
+            CW. As a result there is total 5.05 deg rotation between grism and its mask.
+            See my annotations to your drawing attached.
+   
+    
 
     Parameters
     ----------
@@ -1274,7 +1372,7 @@ class NIRISS_GR700XD_Grism(poppy.FITSOpticalElement):
         if which=='spare':
             raise NotImplementedError("Rotated field mask for spare grism not yet implemented!")
         else:
-            transmission=os.path.join( settings.get_webbpsf_data_path(), "NIRISS/coronagraph/MASKSOSS.fits.gz")
+            transmission=os.path.join( settings.get_webbpsf_data_path(), "NIRISS/optics/MASKGR700XD.fits.gz")
 
         self.shift=shift
         poppy.FITSOpticalElement.__init__(self, name=name, transmission=transmission, planetype=poppy.poppy_core._PUPIL, shift=shift)
@@ -1460,35 +1558,6 @@ class NIRISS_GR700XD_Grism(poppy.FITSOpticalElement):
         "Same as regular display for any other optical element, except opd_vmax default changed"
         poppy.FITSOpticalElement.display(self,*args, opd_vmax=opd_vmax, **kwargs)
 
-class FGS(JWInstrument):
-    """ A class modeling the optics of the FGS.
-    
-    Not a lot to see here, folks: There are no selectable options, just a great big detector-wide bandpass.
-    """
-    def __init__(self):
-        JWInstrument.__init__(self, "FGS")
-        self.pixelscale = 0.069 # for FGS
-
-        self.detector_list = ['1','2']
-        self._detector2siaf = dict()
-        for name in self.detector_list: self._detector2siaf[name] = 'FGS{0}_FULL_CNTR'.format(name)
-        self.detector=self.detector_list[0]
-
-
-    def _validate_config(self):
-        if (not self.image_mask is None) or (not self.pupil_mask is None):
-            raise ValueError('FGS does not have image or pupil masks!')
-            self.image_mask = None
-            self.pupil_mask = None
-        #TODO only one possible filter fot the FGS, too. 
-    def _addAdditionalOptics(self,optsys):
-        raise NotImplementedError("No Coronagraph in FGS!")
-
-    def _getFITSHeader(self, hdulist, options):
-        """ Format FGS-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
-        JWInstrument._getFITSHeader(self, hdulist, options)
-        hdulist[0].header.update('FOCUSPOS',0,'FGS focus mechanism not yet modeled.')
-
 
 
 ###########################################################################
@@ -1574,8 +1643,8 @@ def MakePSF(self, instrument=None, pupil_file=None, phase_file=None, output=None
 
 
 
+#########################
 
-#########################3
 class DetectorGeometry(object):
     """ Utility class for converting between detector coordinates 
     in science frame pixels and field of view angular coordinates in arcminutes.
@@ -1632,11 +1701,6 @@ class DetectorGeometry(object):
         """
         tel_coords = np.asarray( self.aperture.Sci2Tel(xpix, ypix) )
         tel_coords_arcmin = tel_coords / 60. # arcsec to arcmin
-
-
-
-
-
 
 
 

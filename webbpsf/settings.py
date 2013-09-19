@@ -16,7 +16,7 @@ default_fov_arcsec = astropy.config.ConfigurationItem('default_fov_arcsec', 5.0,
 # Settings cloned here from poppy
 #   see _apply_settings_to_poppy below...
 use_multiprocessing= astropy.config.ConfigurationItem('use_multiprocessing', False, 'Should PSF calculations run in parallel using the Python multiprocessing framework (if True; faster but does not allow display of each wavelength) or run serially in a single process (if False; slower but shows the calculation in progress. Also a bit more robust.?)')
-n_processes= astropy.config.ConfigurationItem('n_processes', 4, 'Maximum number of additional worker processes to spawn. PSF calculations are likely RAM limited more than CPU limited for higher N on modern machines.')
+n_processes= astropy.config.ConfigurationItem('n_processes', 4, 'Maximum number of additional worker processes to spawn. PSF calculations are likely RAM limited more than CPU limited for higher N on modern machines, particularly for oversampling >=4. Set to 0 to have the computer attempt to choose an intelligent default based on available cores and RAM.')
 use_fftw = astropy.config.ConfigurationItem('use_fftw', True, 'Use FFTW for FFTs (assuming it is available)?  Set to False to force numpy.fft always, True to try importing and using FFTW via PyFFTW.')
 
 
