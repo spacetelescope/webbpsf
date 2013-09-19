@@ -1,0 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+""" Simple command line script to start webbpsf in GUI mode """
+import webbpsf
+webbpsf.gui()
