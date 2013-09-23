@@ -35,7 +35,8 @@ def _default_options():
     return {'force_coron': False, 'no_sam': False, 'parity':'Either',
                 'psf_scale':'log', 'psf_normalize':'Peak', 
                 'psf_cmap_str': 'Jet (blue to red)', 'psf_cmap': matplotlib.cm.jet,
-                'psf_vmin':1e-8, 'psf_vmax':1.0, 'monochromatic': False, 'fov_in_arcsec': True }
+                'psf_vmin':1e-8, 'psf_vmax':1.0, 'monochromatic': False, 'fov_in_arcsec': True,
+                'parallelization': settings.use_multiprocessing() }
 
 
 
@@ -186,9 +187,16 @@ class WebbPSF_GUI(wx.Frame):
         if _HAS_PYSYNPHOT:
             spectrumPanel = wx.Panel(top_panel)
             spectrumSizer = wx.GridBagSizer()
+            
+            try:
+                choices = poppy.specFromSpectralType("",return_list=True)
+                default='G0V'
+            except:
+                choices = ['Error: $PYSYN_CDBS does not have any spectral models']
+                default = choices[0]
 
             self._add_labeled_dropdown("SpType", spectrumPanel,spectrumSizer, label='    Spectral Type:     ', 
-                    choices=poppy.specFromSpectralType("",return_list=True), default='G0V', 
+                    choices=choices, default=default, 
                     position=(0,0))
             self.ButtonPlotSpec = wx.Button(spectrumPanel, label='Plot Spectrum')
             self.Bind(wx.EVT_BUTTON, self.ev_plotspectrum, self.ButtonPlotSpec)
@@ -460,6 +468,7 @@ class WebbPSF_GUI(wx.Frame):
                     else:
                         newfov = int(newfov)
                     self._setFOV( newfov)
+            settings.use_multiprocessing.set(self.advanced_options['parallelization'])
  
         dlg.Destroy()
 
@@ -1031,6 +1040,7 @@ class WebbPSFOptionsDialog(WebbPSFDialog):
         self.values['force_coron'] = ['regular propagation (MFT)', 'full coronagraphic propagation (FFT/SAM)']
         self.values['no_sam'] = ['semi-analytic method if possible', 'basic FFT method always']
         self.values['monochromatic'] = ['Broadband', 'Monochromatic']
+        self.values['parallelization'] = ['Sequential', 'Parallelized']
         self.values['fov_in_arcsec'] = ['Arcseconds', 'Pixels']
 
 
@@ -1056,9 +1066,11 @@ class WebbPSFOptionsDialog(WebbPSFDialog):
         self._add_labeled_dropdown("monochromatic", panel1,sizer, 
                 label='    Broadband or monochromatic? ', 
                 default = 1 if self.input_options['monochromatic'] else 0, position=(r,0))
-
         r+=1
- 
+        self._add_labeled_dropdown("parallelization", panel1,sizer, 
+                label='    Parallelize Wavelengths? ', 
+                default = 1 if self.input_options['parallelization'] else 0, position=(r,0))
+        r+=1
         self._add_labeled_dropdown("force_coron", panel1,sizer, 
                 label='    Direct imaging calculations use: ', 
                 default = 1 if self.input_options['force_coron'] else 0, position=(r,0))
@@ -1139,6 +1151,7 @@ class WebbPSFOptionsDialog(WebbPSFDialog):
             results['force_coron'] =    self.widgets['force_coron'].GetValue() == 'full coronagraphic propagation (FFT/SAM)'
             results['no_sam'] =         self.widgets['no_sam'].GetValue() == 'basic FFT method always'
             results['monochromatic'] =  self.widgets['monochromatic'].GetValue() == 'Monochromatic'
+            results['parallelization'] =  self.widgets['parallelization'].GetValue() == 'Parallelized'
             results['fov_in_arcsec'] =  self.widgets['fov_in_arcsec'].GetValue() == 'Arcseconds'
             results['parity'] =         self.widgets['parity'].GetValue() 
             results['psf_scale'] =      self.widgets['psf_scale'].GetValue() 
