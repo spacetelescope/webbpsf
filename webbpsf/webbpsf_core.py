@@ -57,7 +57,7 @@ _log = logging.getLogger('webbpsf')
 class JWInstrument(poppy.instrument.Instrument):
     """ A generic JWST Instrument class.
 
-    *Note*: Do not use this class directly - instead use one of the :ref:`specific instrument <specific_instrument>` subclasses!
+    *Note*: Do not use this class directly - instead use one of the specific instrument subclasses!
 
     This class provides a simple interface for modeling PSF formation through the JWST instruments, 
     with configuration options and software interface loosely resembling the configuration of the instrument 
@@ -71,6 +71,45 @@ class JWInstrument(poppy.instrument.Instrument):
     configure the `filter` or other attributes as desired. The most commonly accessed parameters are 
     available as object attributes: `filter`, `image_mask`, `pupil_mask`, `pupilopd`. More advanced
     configuration can be done by editing the :ref:`JWInstrument.options` dictionary, either by passing options to __init__ or by directly editing the dict afterwards.
+    """
+
+    options = {} # options dictionary
+    """ A dictionary capable of storing other arbitrary options, for extensibility. The following are all optional, and
+    may or may not be meaningful depending on which instrument is selected.
+
+    Parameters
+    ----------
+    source_offset_r : float
+        Radial offset of the target from the center, in arcseconds
+    source_offset_theta : float
+        Position angle for that offset
+    pupil_shift_x, pupil_shift_y : float
+        Relative shift of the intermediate (coronagraphic) pupil in X and Y relative to the telescope entrace pupil, expressed as a decimal between 0.0-1.0
+        Note that shifting an array too much will wrap around to the other side unphysically, but
+        for reasonable values of shift this is a non-issue.  This option only has an effect for optical models that
+        have something at an intermediate pupil plane between the telescope aperture and the detector. 
+    pupil_rotation : float
+        Relative rotation of the intermediate (coronagraphic) pupil relative to the telescope entrace pupil, expressed in degrees counterclockwise. 
+        This option only has an effect for optical models that have something at an intermediate pupil plane between the telescope aperture and the detector.
+    rebin : bool
+        For output files, write an additional FITS extension including a version of the output array 
+        rebinned down to the actual detector pixel scale?
+    jitter : string
+        Type of jitter model to apply. Currently not implemented
+    parity : string "even" or "odd"
+        You may wish to ensure that the output PSF grid has either an odd or even number of pixels.
+        Setting this option will force that to be the case by increasing npix by one if necessary.
+        Note that this applies to the number detector pixels, rather than the subsampled pixels if oversample>1. 
+    force_coron : bool
+        Set this to force full coronagraphic optical propagation when it might not otherwise take place
+        (e.g. calculate the non-coronagraphic images via explicit propagation to all optical surfaces, FFTing 
+        to intermediate pupil and image planes whether or not they contain any actual optics, rather than
+        taking the straight-to-MFT shortcut)
+    no_sam : bool
+        Set this to prevent the SemiAnalyticMethod coronagraph mode from being used when possible, and instead do
+        the brute-force FFT calculations. This is usually not what you want to do, but is available for comparison tests.
+        The SAM code will in general be much faster than the FFT method, particularly for high oversampling.
+
     """
 
     def __init__(self, name="", pixelscale = 0.064):
@@ -95,43 +134,6 @@ class JWInstrument(poppy.instrument.Instrument):
 
 
         self.options = {} # dict for storing other arbitrary options. 
-        """ A dictionary capable of storing other arbitrary options, for extensibility. The following are all optional, and
-        may or may not be meaningful depending on which instrument is selected.
-
-        Parameters
-        ----------
-        source_offset_r : float
-            Radial offset of the target from the center, in arcseconds
-        source_offset_theta : float
-            Position angle for that offset
-        pupil_shift_x, pupil_shift_y : float
-            Relative shift of the intermediate (coronagraphic) pupil in X and Y relative to the telescope entrace pupil, expressed as a decimal between 0.0-1.0
-            Note that shifting an array too much will wrap around to the other side unphysically, but
-            for reasonable values of shift this is a non-issue.  This option only has an effect for optical models that
-            have something at an intermediate pupil plane between the telescope aperture and the detector. 
-        pupil_rotation : float
-            Relative rotation of the intermediate (coronagraphic) pupil relative to the telescope entrace pupil, expressed in degrees counterclockwise. 
-            This option only has an effect for optical models that have something at an intermediate pupil plane between the telescope aperture and the detector.
-        rebin : bool
-            For output files, write an additional FITS extension including a version of the output array 
-            rebinned down to the actual detector pixel scale?
-        jitter : string
-            Type of jitter model to apply. Currently not implemented
-        parity : string "even" or "odd"
-            You may wish to ensure that the output PSF grid has either an odd or even number of pixels.
-            Setting this option will force that to be the case by increasing npix by one if necessary.
-            Note that this applies to the number detector pixels, rather than the subsampled pixels if oversample>1. 
-        force_coron : bool
-            Set this to force full coronagraphic optical propagation when it might not otherwise take place
-            (e.g. calculate the non-coronagraphic images via explicit propagation to all optical surfaces, FFTing 
-            to intermediate pupil and image planes whether or not they contain any actual optics, rather than
-            taking the straight-to-MFT shortcut)
-        no_sam : bool
-            Set this to prevent the SemiAnalyticMethod coronagraph mode from being used when possible, and instead do
-            the brute-force FFT calculations. This is usually not what you want to do, but is available for comparison tests.
-            The SAM code will in general be much faster than the FFT method, particularly for high oversampling.
-
-        """
 
         #create private instance variables. These will be
         # wrapped just below to create properties with validation.
@@ -428,9 +430,13 @@ class JWInstrument(poppy.instrument.Instrument):
         if display:
             f = plt.gcf()
             #p.text( 0.1, 0.95, "%s, filter= %s" % (self.name, self.filter), transform=f.transFigure, size='xx-large')
-            plt.suptitle( "%s, filter= %s" % (self.name, self.filter), size='xx-large')
-            plt.text( 0.99, 0.04, "Calculation with %d wavelengths (%g - %g um)" % (nlambda, wavelens[0]*1e6, wavelens[-1]*1e6), transform=f.transFigure, horizontalalignment='right')
 
+            if monochromatic is None:
+                plt.suptitle( "%s, filter= %s" % (self.name, self.filter), size='xx-large')
+                plt.text( 0.99, 0.04, "Calculation with %d wavelengths (%g - %g um)" % (nlambda, wavelens[0]*1e6, wavelens[-1]*1e6), transform=f.transFigure, horizontalalignment='right')
+            else:
+                plt.suptitle( "{self.name},  $\lambda$ = {wavelen} um".format(self=self, wavelen = monochromatic*1e6), size='xx-large')
+ 
         if outfile is not None:
             result[0].header.update ("FILENAME", os.path.basename (outfile),
                            comment="Name of this file")
@@ -712,11 +718,14 @@ class MIRI(JWInstrument):
 
         """
 
+
         # For MIRI coronagraphy, all the coronagraphic optics are rotated the same
         # angle as the instrument is, relative to the primary. So they see the unrotated
-        # telescope pupil.
+        # telescope pupil. Likewise the LRS grism is rotated but its pupil stop is not.
+        #
         # We model this by just not rotating till after the coronagraph. Thus we need to
         # un-rotate the primary that was already created in _getOpticalSystem.
+
 
         defaultpupil = optsys.planes.pop() # throw away the rotated pupil we just previously added
         _log.debug('Amplitude:'+str(defaultpupil.amplitude_file))
@@ -737,19 +746,19 @@ class MIRI(JWInstrument):
         if self.image_mask == 'FQPM1065':
             container = poppy.CompoundAnalyticOptic(name = "MIRI FQPM 1065",
                 opticslist = [  poppy.IdealFQPM(wavelength=10.65e-6, name=self.image_mask),
-                                poppy.IdealFieldStop(size=24, angle=-4.56)])
+                                poppy.IdealFieldStop(size=24, angle=-self._rotation)])
             optsys.addImage(container)
             trySAM = False
         elif self.image_mask == 'FQPM1140':
             container = poppy.CompoundAnalyticOptic(name = "MIRI FQPM 1140",
                 opticslist = [  poppy.IdealFQPM(wavelength=11.40e-6, name=self.image_mask),
-                                poppy.IdealFieldStop(size=24, angle=-4.56)])
+                                poppy.IdealFieldStop(size=24, angle=-self._rotation)])
             optsys.addImage(container)
             trySAM = False
         elif self.image_mask == 'FQPM1550':
             container = poppy.CompoundAnalyticOptic(name = "MIRI FQPM 1550",
                 opticslist = [  poppy.IdealFQPM(wavelength=15.50e-6, name=self.image_mask),
-                                poppy.IdealFieldStop(size=24, angle=-4.56)])
+                                poppy.IdealFieldStop(size=24, angle=-self._rotation)])
             optsys.addImage(container)
             trySAM = False
         elif self.image_mask =='LYOT2300':
@@ -762,7 +771,7 @@ class MIRI(JWInstrument):
             container = poppy.CompoundAnalyticOptic(name = "MIRI Lyot Occulter",
                 opticslist = [poppy.IdealCircularOcculter(radius =4.25/2, name=self.image_mask),
                               poppy.IdealBarOcculter(width=0.722), 
-                              poppy.IdealFieldStop(size=30, angle=-4.56)] )
+                              poppy.IdealFieldStop(size=30, angle=-self._rotation)] )
             optsys.addImage(container)
             trySAM = True
             SAM_box_size = [5,20]
@@ -770,7 +779,8 @@ class MIRI(JWInstrument):
             # one slit, 5.5 x 0.6 arcsec in height (nominal)
             #           4.7 x 0.51 arcsec (measured for flight model. See MIRI-TR-00001-CEA)
             # 
-            optsys.addImage(optic=poppy.IdealRectangularFieldStop(width=0.6, height=5.5, name= self.image_mask))
+            # Per Klaus Pontoppidan: The LRS slit is aligned with the detector x-axis, so that the dispersion direction is along the y-axis. 
+            optsys.addImage(optic=poppy.IdealRectangularFieldStop(width=5.5, height=0.6, angle=self._rotation, name= self.image_mask))
             trySAM = False
         else:
             optsys.addImage()
