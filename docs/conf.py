@@ -8,10 +8,9 @@
 #
 # Note that not all possible configuration values are present in this file.
 #
-# All configuration values have a default; values that are commented out
-# serve to show the default.
-
-import sys, os
+# All configuration values have a default. Some values are defined in
+# the global Astropy configuration which is loaded here before anything else. 
+# See astropy.sphinx.conf for which values are set there.
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -27,24 +26,39 @@ import sys, os
 # Thus, any C-extensions that are needed to build the documentation will *not*
 # be accessible, and the documentation will not build correctly.
 
+# Load all of the global Astropy configuration
+from astropy.sphinx.conf import *
+
+
 # -- General configuration -----------------------------------------------------
+
+default_role='py:obj'
 
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
-extensions = ['sphinx.ext.autodoc', 'numpydoc','sphinx.ext.inheritance_diagram', 'sphinx.ext.pngmath', 'sphinx.ext.autosummary', 'sphinx.ext.graphviz', 'sphinxcontrib.cheeseshop']
+#extensions = ['sphinx.ext.autodoc', 'numpydoc','sphinx.ext.inheritance_diagram', 'sphinx.ext.pngmath', 'sphinx.ext.autosummary', 'sphinx.ext.graphviz', 'sphinxcontrib.cheeseshop']
 
+extensions += ['sphinxcontrib.cheeseshop']
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+#templates_path = ['_templates']
 
 # The suffix of source filenames.
-source_suffix = '.rst'
-
-# The encoding of source files.
-#source_encoding = 'utf-8'
+#source_suffix = '.rst'
 
 # The master toctree document.
-master_doc = 'index'
+#master_doc = 'index'
 
+# If your documentation needs a minimal Sphinx version, state it here.
+#needs_sphinx = '1.1'
+
+# List of patterns, relative to source directory, that match files and
+# directories to ignore when looking for source files.
+exclude_patterns.append('_templates')
+
+# This is added to the end of RST files - a good place to put substitutions to
+# be used globally.
+rst_epilog += """
+"""
 
 # -- Project information ------------------------------------------------------
 
@@ -75,76 +89,50 @@ pygments_style = 'sphinx'
 
 # -- Options for HTML output ---------------------------------------------------
 
-# The theme to use for HTML and HTML Help pages.  Major themes that come with
-# Sphinx are currently 'default' and 'sphinxdoc'.
-html_theme = 'default'
-#html_theme = 'sphinxdoc'
+# A NOTE ON HTML THEMES
+#
+# The global astropy configuration uses a custom theme,
+# 'bootstrap-astropy', which is installed along with astropy. The
+# theme has options for controlling the text of the logo in the upper
+# left corner. This is how you would specify the options in order to
+# override the theme defaults (The following options *are* the
+# defaults, so we do not actually need to set them here.)
 
-# Theme options are theme-specific and customize the look and feel of a theme
-# further.  For a list of options available for each theme, see the
-# documentation.
-#html_theme_options = {}
+html_theme_options = {
+    'logotext1': 'JWST ',  # white,  semi-bold
+    'logotext2': 'WebbPSF',     # orange, light
+    'logotext3': ':docs'   # white,  light
+    }
+
+# A different theme can be used, or other parts of this theme can be
+# modified, by overriding some of the variables set in the global
+# configuration. The variables set in the global configuration are
+# listed below, commented out.
 
 # Add any paths that contain custom themes here, relative to this directory.
 # To use a different custom theme, add the directory containing the theme.
-#html_theme_path = []
+html_theme_path = ['_themes']
 
-# The name for this set of Sphinx documents.  If None, it defaults to
-# "<project> v<release> documentation".
-#html_title = None
-#html_title = '{0} v{1}'.format(project, release)
-
-# A shorter title for the navigation bar.  Default is the same as html_title.
-#html_short_title = None
-
-# The name of an image file (relative to this directory) to place at the top
-# of the sidebar.
-#html_logo = None
-
-# The name of an image file (within the static path) to use as favicon of the
-# docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
-# pixels large.
-#html_favicon = None
-
-# Add any paths that contain custom static files (such as style sheets) here,
-# relative to this directory. They are copied after the builtin static files,
-# so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
-
-# If not '', a 'Last updated on:' timestamp is inserted at every page bottom,
-# using the given strftime format.
-#html_last_updated_fmt = '%b %d, %Y'
-
-# If true, SmartyPants will be used to convert quotes and dashes to
-# typographically correct entities.
-#html_use_smartypants = True
+# The theme to use for HTML and HTML Help pages.  See the documentation for
+# a list of builtin themes. To override the custom theme, set this to the
+# name of a builtin theme or the name of a custom theme in html_theme_path.
+html_theme = 'theme_webbpsf'
 
 # Custom sidebar templates, maps document names to template names.
 #html_sidebars = {}
 
-# Additional templates that should be rendered to pages, maps page names to
-# template names.
-#html_additional_pages = {}
+# The name of an image file (within the static path) to use as favicon of the
+# docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
+# pixels large.
+#html_favicon = ''
 
-# If false, no module index is generated.
-#html_use_modindex = True
+# If not '', a 'Last updated on:' timestamp is inserted at every page bottom,
+# using the given strftime format.
+#html_last_updated_fmt = ''
 
-# If false, no index is generated.
-#html_use_index = True
-
-# If true, the index is split into individual pages for each letter.
-#html_split_index = False
-
-# If true, links to the reST sources are added to the pages.
-#html_show_sourcelink = True
-
-# If true, an OpenSearch description file will be output, and all pages will
-# contain a <link> tag referring to it.  The value of this option must be the
-# base URL from which the finished HTML is served.
-#html_use_opensearch = ''
-
-# If nonempty, this is the file name suffix for HTML files (e.g. ".xhtml").
-#html_file_suffix = ''
+# The name for this set of Sphinx documents.  If None, it defaults to
+# "<project> v<release> documentation".
+html_title = '{0} v{1}'.format(project, release)
 
 # Output file base name for HTML help builder.
 htmlhelp_basename = project + 'doc'
@@ -166,24 +154,18 @@ man_pages = [('index', project.lower(), project + u' Documentation',
               [author], 1)]
 
 
+# -- Options for the edit_on_github extension ----------------------------------------
 
-# -- Options for autodoc ----------------------------
+extensions += ['astropy.sphinx.ext.edit_on_github']
 
-autodoc_member_order = 'bysource'
+# Don't import the module as "version" or it will override the
+# "version" configuration parameter
+from webbpsf import version as versionmod
+edit_on_github_project = "mperrin/webbpsf"
+if versionmod.release:
+    edit_on_github_branch = "v" + versionmod.version
+else:
+    edit_on_github_branch = "master"
 
-#autoclass_content = 'both'
-## -- Options for the edit_on_github extension ----------------------------------------
-#
-#extensions += ['astropy.sphinx.ext.edit_on_github']
-#
-## Don't import the module as "version" or it will override the
-## "version" configuration parameter
-#from packagename import version as versionmod
-#edit_on_github_project = "astropy/reponame"
-#if versionmod.release:
-#    edit_on_github_branch = "v" + versionmod.version
-#else:
-#    edit_on_github_branch = "master"
-#
-#edit_on_github_source_root = ""
-#edit_on_github_doc_root = "docs"
+edit_on_github_source_root = ""
+edit_on_github_doc_root = "docs"

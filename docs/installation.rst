@@ -47,6 +47,9 @@ themselves have no dependency on these widgets.
 Installing WebbPSF
 ----------------------
 
+.. warning::
+  For a prerelease version, you can't install off of PyPI yet. Please use the download links below.
+
 WebbPSF and its underlying optical library ``poppy`` are both
 installable from the `Python Package Index <http://pypi.python.org/pypi>`_ via
 the standard toolchain using `pip
@@ -82,14 +85,18 @@ If for some reason you don't wish to use PYPI, you can just install from the sou
 
 1. Download the following files.
 
-.. pypi-release:: webbpsf
-   :prefix: Download
-   :class: note
+ * http://www.stsci.edu/~mperrin/software/webbpsf/webbpsf-0.3rc1.tar.gz
+ * http://www.stsci.edu/~mperrin/software/webbpsf/poppy-0.3rc1.tar.gz
 
-
-.. pypi-release:: poppy
-   :prefix: Download
-   :class: note
+.. comment 
+	#.. pypi-release:: webbpsf
+	#   :prefix: Download
+	#   :class: note
+	#
+	#
+	#.. pypi-release:: poppy
+	#   :prefix: Download
+	#   :class: note
 
 
 2. Untar each into a temporary working directory. 

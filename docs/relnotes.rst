@@ -10,9 +10,11 @@ Release Notes
 
 Known Issues
 --------------
-* You may see various warning messages while running computations, like thus::
 
-    No handlers could be found for logger "webbpsf"
+* Calculations at large radii (> 500 lambda/D ~ 30 arcsec for 2 microns) will show numerical artifacts from Fourier aliasing and the implicit repetition of 
+  the pupil entrance aperture in the discrete Fourier transform. If you need accurate PSF information at such large radii, please contact Marshall Perrin for
+  higher resolution pupil data. 
+* You may see various warning messages while running computations, like thus::
 
     ((<pysynphot.spectrum.Box object at 0x1047132d0> * nircam,im,f200w)) does not have a defined 
     binset in the wavecat table. The waveset of the spectrum will be used instead.
@@ -20,10 +22,6 @@ Known Issues
     Warning: invalid value encountered in absolute
 
   These can safely be ignored. 
-
-* Calculations at large radii (> 500 lambda/D ~ 30 arcsec for 2 microns) will show numerical artifacts from Fourier aliasing and the implicit repetition of 
-  the pupil entrance aperture in the discrete Fourier transform. If you need accurate PSF information at such large radii, please contact Marshall Perrin for
-  higher resolution pupil data. 
 
 
 **The following factors are NOT included in these simulations:**
@@ -35,11 +33,15 @@ Known Issues
 * No edge effects near the center of the FQPMs. (However, these are believed to be negligible in practice based on detailed simulations by Remi Soummer.)
 * Any and all detector effects, including intrapixel sensitivity variations. There is no plan to include these at any point in WebbPSF itself.  Generate a subsampled PSF and use a separate detector model code instead. 
 
-Plans for Future Releases
---------------------------
-* Full support for the NIRSpec and MIRI IFUs may be added in a future release. Likewise for grisms. (*Partial NIRISS grism support added in 0.3*)
-* Realistic (but time consuming) jitter models (This code now available in beta form if you need it; contact Marshall.)
-* Integration with OPD generation software and detector noise models.
+Road Map for Future Releases
+--------------------------------
+* Field dependence of PSFs over instrument fields of view (top priority for version 0.4)
+* Web interface a la http://tinytim.stsci.edu and precompiled Mac .app bundle for improved deployment.
+* Improved spectroscopic simulations including prism/grating dispersions. (second priority for 0.4)
+* Updated wavefront error maps including as-built OTE and SI optical properties (expect a long and gradual series of updates.)
+* Integration with configurable telescope optical models for on-the-fly OPD generation. (probably 0.5)
+* Support for the NIRSpec and MIRI IFUs may be added in a future release, level of detail is still TBD.
+* Improved models for pointing jitter. 
 * Possibly: separate handling of pre- and post- coronagraphic WFE in instruments, if this appears likely to be significant. 
 * Python 3 support will be added as soon as it is needed, but is not an immediate priority. Any users who would like to run webbpsf under python 3, please let me know.
 
@@ -64,7 +66,7 @@ cross-platform widget toolkit, wxpython.
 **Updates to the optical models**:
 
 
- * Initial support for spectroscopt: *NIRSpec fixed slit spectroscopy*, *MIRI
+ * Initial support for spectroscopy: *NIRSpec fixed slit and some MSA spectroscopy*, *MIRI
    LRS spectroscopy* (for both slit and slitless modes), and *NIRISS
    single-object slitless spectroscopy*.   To model one of these modes,
    select the desired image plane stop (if any) plus the pupil plane stop for the
@@ -86,7 +88,7 @@ cross-platform widget toolkit, wxpython.
 
 
    In fact the NIRSpec class now automatically defaults to having the NIRSpec
-   grating as the selected pupil mask, since that's always in the beam. For
+   grating pupil stop as the selected pupil mask, since that's always in the beam. For
    MIRI you must explicitly select the 'LRS grating' pupil mask, and may select
    the 'LRS slit' image stop.  For NIRISS you must select the 'GR700XD' grating
    as the pupil mask, though of course there is no slit for this one.
@@ -135,7 +137,6 @@ cross-platform widget toolkit, wxpython.
 
 
 
-
 **Other Software Updates & Enhancements**: 
 
 
@@ -147,6 +148,13 @@ cross-platform widget toolkit, wxpython.
     * New ``astropy.config`` configuration system is used for persistent
       settings.  This includes saving accumulated FFTW 'wisdom' so that future
       FFT-based calculations will begin more rapidly.
+    * ``lxml`` now required for XML parsing of certain config files
+    * ``psutil`` strongly recommended for cross-platform detection of
+      available free RAM to enable better parallelization.
+
+
+* Improvements to parallelization code. Better :ref:`documentation for parallelization <performance_and_parallelization>`.  PyFFTW3 replaced with pyFFTW for optimized 
+  FFTs (yes, those are two entirely different packages). 
 
 
 * New GUI using the wxpython widget toolkit in place of the older/less
@@ -184,7 +192,7 @@ cross-platform widget toolkit, wxpython.
 
 * Some bugfixes in the example code. Thanks to Diane Karakla, Anand Sivaramakrishnan, Schuyler Wolff.
 
-* Various updates & enhancements to this documentation. More extensive documentation for POPPY now available as well.
+* Various updates & enhancements to this documentation. More extensive documentation for POPPY now available as well. Doc theme derived from astropy.
 
 
 

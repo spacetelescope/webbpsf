@@ -91,80 +91,79 @@ List of Classes
 .. inheritance-diagram:: poppy.Detector poppy.Wavefront poppy.OpticalSystem poppy.Rotation poppy.CircularAperture poppy.HexagonAperture poppy.SquareAperture poppy.IdealFieldStop poppy.IdealCircularOcculter poppy.IdealBarOcculter poppy.BandLimitedCoron poppy.IdealFQPM poppy.FQPM_FFT_aligner poppy.CompoundAnalyticOptic poppy.FITSOpticalElement poppy.Instrument
 
 
-
-.. _Wavefront:
-
-Wavefront
------------
-
-.. autoclass:: poppy.Wavefront
-    :members:
-
-.. OpticalSystem:
-
-Optical System 
------------------
-
-.. autoclass:: poppy.OpticalSystem
-    :members:
-
-.. OpticalElement:
-
-Optical Elements
-----------------
-
-.. autoclass:: poppy.OpticalElement
-   :members:
-
-.. autoclass:: poppy.FITSOpticalElement
-   :members:
-
-.. autoclass:: poppy.AnalyticOpticalElement
-   :show-inheritance:
-
-.. comments 
- .. autoclass:: poppy.CircularAperture
-   :show-inheritance:
- .. autoclass:: poppy.HexagonAperture
-   :show-inheritance:
- .. autoclass:: poppy.SquareAperture
-   :show-inheritance:
-
-.. autoclass:: poppy.IdealFieldStop
-   :show-inheritance:
-.. autoclass:: poppy.IdealCircularOcculter
-   :show-inheritance:
-.. autoclass:: poppy.IdealBarOcculter
-   :show-inheritance:
-.. autoclass:: poppy.BandLimitedCoron
-   :show-inheritance:
-.. autoclass:: poppy.IdealFQPM
-   :show-inheritance:
-.. autoclass:: poppy.FQPM_FFT_aligner
-   :show-inheritance:
-.. autoclass:: poppy.CompoundAnalyticOptic
-   :show-inheritance:
-
-
-.. autoclass:: poppy.Rotation
-   :show-inheritance:
-
-
-------
-
-.. autoclass:: poppy.Detector
-   :show-inheritance:
-
-.. Instrument:
-
-Instrument
-----------------
-
-.. autoclass:: poppy.Instrument
-   :members:
-
-------
-
+.. comment 
+	# 
+	# .. _Wavefront:
+	# 
+	# Wavefront
+	# -----------
+	# 
+	# .. autoclass:: poppy.Wavefront
+	#     :members:
+	# 
+	# .. OpticalSystem:
+	# 
+	# Optical System 
+	# -----------------
+	# 
+	# .. autoclass:: poppy.OpticalSystem
+	#     :members:
+	# 
+	# .. OpticalElement:
+	# 
+	# Optical Elements
+	# ----------------
+	# 
+	# .. autoclass:: poppy.OpticalElement
+	#    :members:
+	# 
+	# .. autoclass:: poppy.FITSOpticalElement
+	#    :members:
+	# 
+	# .. autoclass:: poppy.AnalyticOpticalElement
+	#    :show-inheritance:
+	# 
+	# .. comments 
+	#  .. autoclass:: poppy.CircularAperture
+	#    :show-inheritance:
+	#  .. autoclass:: poppy.HexagonAperture
+	#    :show-inheritance:
+	#  .. autoclass:: poppy.SquareAperture
+	#    :show-inheritance:
+	# 
+	# .. autoclass:: poppy.IdealFieldStop
+	#    :show-inheritance:
+	# .. autoclass:: poppy.IdealCircularOcculter
+	#    :show-inheritance:
+	# .. autoclass:: poppy.IdealBarOcculter
+	#    :show-inheritance:
+	# .. autoclass:: poppy.BandLimitedCoron
+	#    :show-inheritance:
+	# .. autoclass:: poppy.IdealFQPM
+	#    :show-inheritance:
+	# .. autoclass:: poppy.FQPM_FFT_aligner
+	#    :show-inheritance:
+	# .. autoclass:: poppy.CompoundAnalyticOptic
+	#    :show-inheritance:
+	# 
+	# 
+	# .. autoclass:: poppy.Rotation
+	#    :show-inheritance:
+	# 
+	# 
+	# ------
+	# 
+	# .. autoclass:: poppy.Detector
+	#    :show-inheritance:
+	# 
+	# .. Instrument:
+	# 
+	# Instrument
+	# ----------------
+	# 
+	# .. autoclass:: poppy.Instrument
+	#    :members:
+	# 
 
 --------------
 

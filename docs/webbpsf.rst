@@ -1,9 +1,9 @@
 
 .. module:: webbpsf
 
-=============================
-The WebbPSF module
-=============================
+=================================
+Using WebbPSF via the Python API
+=================================
 
 
 This module provides the primary interface, both for programmers and for interactive non-GUI use. It provides 
@@ -17,21 +17,21 @@ Usage and Examples
 
 Simple PSFs are easily obtained: 
 
->>> import webbpsf
->>> nc = webbpsf.NIRCam()
->>> nc.filter =  'F200W'
->>> psf = nc.calcPSF(oversample=4)      # returns a pyfits.HDUlist containing PSF and header
->>> pylab.imshow(psf[0].data]           # display it on screen yourself, or
->>> display_PSF(psf)                    # use this convenient function to make a nice log plot with labeled axes
->>>
->>> psf = nc.calcPSF(filter='F470N', oversample=4)    # this is just a shortcut for setting the filter, then computing a PSF
->>>
->>> nc.calcPSF("myPSF.fits", filter='F480M' )         # you can also write the output directly to disk if you prefer.
+    >>> import webbpsf
+    >>> nc = webbpsf.NIRCam()
+    >>> nc.filter =  'F200W'
+    >>> psf = nc.calcPSF(oversample=4)      # returns a pyfits.HDUlist containing PSF and header
+    >>> pylab.imshow(psf[0].data]           # display it on screen yourself, or
+    >>> display_PSF(psf)                    # use this convenient function to make a nice log plot with labeled axes
+    >>>
+    >>> psf = nc.calcPSF(filter='F470N', oversample=4)    # this is just a shortcut for setting the filter, then computing a PSF
+    >>>
+    >>> nc.calcPSF("myPSF.fits", filter='F480M' )         # you can also write the output directly to disk if you prefer.
 
 
 For interactive use, you can have the PSF displayed as it is computed:
 
->>> nc.calcPSF(display=True)                          # will make nice plots with matplotlib.
+    >>> nc.calcPSF(display=True)                          # will make nice plots with matplotlib.
 
 .. image:: ./fig1_nircam_f200w.png
    :scale: 75%
@@ -42,11 +42,11 @@ For interactive use, you can have the PSF displayed as it is computed:
 More complicated instrumental configurations are available by setting the instrument's attributes. For instance,
 one can create an instance of MIRI and configure it for coronagraphic observations, thus:
 
->>> miri = webbpsf.MIRI()
->>> miri.filter = 'F1065C'
->>> miri.image_mask = 'FQPM1065'
->>> miri.pupil_mask = 'MASKFQPM'
->>> miri.calcPSF('outfile.fits')
+    >>> miri = webbpsf.MIRI()
+    >>> miri.filter = 'F1065C'
+    >>> miri.image_mask = 'FQPM1065'
+    >>> miri.pupil_mask = 'MASKFQPM'
+    >>> miri.calcPSF('outfile.fits')
 
 .. image:: ./fig_miri_coron_f1065c.png
    :scale: 75%
@@ -57,7 +57,7 @@ one can create an instance of MIRI and configure it for coronagraphic observatio
 WebbPSF can output a log of calculation steps while it runs, which can be displaye to the screen and optionally saved to a file. 
 This is useful for verifying or debugging calculations.  To turn on log display, just run
 
->>> webbpsf.setup_logging(filename='webbpsf.log')
+    >>> webbpsf.setup_logging(filename='webbpsf.log')
 
 The setup_logging function allows selection of the level of log detail following the standard Python logging system (DEBUG, INFO, WARN, ERROR). WebbPSF remembers your
 chosen logging settings between invocations, so if you close and then restart python it will automatically continue logging at the same level of detail as before.
@@ -199,116 +199,191 @@ As just explained, WebbPSF can easily calculate PSFs on a finer grid than the de
 The default behavior is 'both'. Note that at some point in the future, this default is likely to change to detector sampling. 
 
 
-Detailed WebbPSF API Reference
--------------------------------
+Advanced Usage: Output file format, OPDs, and more
+-------------------------------------------------------------
 
-Class hierarchy
-^^^^^^^^^^^^^^^^
+This section serves as a catch-all for some more esoteric customizations and applications. See also the :ref:`_more_examples` page.
+
+Writing out only downsampled images
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Perhaps you may want to calculate the PSF using oversampling, but to save disk space you only want to write out the PSF downsampled to detector resolution.
+
+   >>> result =  inst.calcPSF(args, ...)
+   >>> result['DET_SAMP'].writeto(outputfilename)
+
+Or if you really care about writing it as a primary HDU rather than an extension, replace the 2nd line with
+
+   >>> pyfits.PrimaryHDU(data=result['DET_SAMP'].data, header=result['DET_SAMP'].header).writeto(outputfilename)
 
 
-.. inheritance-diagram:: webbpsf.NIRCam webbpsf.NIRSpec webbpsf.MIRI webbpsf.NIRISS webbpsf.FGS
+Providing your own OPDs or pupils from some other source
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+It is straight forward to configure an Instrument object to use a pupil OPD file of your own devising, by setting the ``pupilopd`` attribute of the Instrument object:
+
+        >>> niriss = webbpsf.NIRISS()
+        >>> niriss.pupilopd = "/path/to/your/OPD_file.fits"
+
+If you have a pupil that is an array in memory but not saved on disk, you can pass it in as a fits.HDUList object :
+
+        >>> myOPD = some_function_that_returns_properly_formatted_HDUList(various, function, args...)
+        >>> niriss.pupilopd = myOPD
+
+Likewise, you can set the pupil transmission file in a similar manner by setting the ``pupil`` attribute: 
+
+        >>> niriss.pupil = "/path/to/your/OPD_file.fits"
 
 
-
-The JWInstrument generic class
-#################################
-
-.. autoclass:: webbpsf.JWInstrument
-   :members:
-
-
-.. _specific_instrument:
-
-Notes on Specific Instruments
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-NIRCam
-#######
-
-.. autoclass:: webbpsf.NIRCam
-
-        See methods under :py:class:`JWInstrument` 
-        
-
-NIRSpec
-###########
-
-.. autoclass:: webbpsf.NIRSpec
-
-        See methods under :py:class:`JWInstrument` 
-
-MIRI
-######
-
-.. autoclass:: webbpsf.MIRI
-
-        See methods under :py:class:`JWInstrument` 
-
-.. figure:: ./fig_miri_f1000w.png
-   :scale: 75%
-   :align: center
-   :alt: Sample PSF image for MIRI
-
-   An example MIRI PSF in F1000W. 
-
-   Note that the MIRI imager field of view is rotated by 4.56 degrees relative to the JWST pupil; the coronagraph optics are
-   correspondingly counterrotated to align them with the pupil.  For direct imaging PSF calculations, this is most simply handled by
-   rotating the pupil mask and OPD file prior to the Fourier propagation. For MIRI coronagraphy on the other hand, the rotation is performed as the 
-   last step prior to the detector. 
-   
-   Technical aside: Note that for computational reasons having to do with accurately simulating PSF centering on an FQPM, MIRI coronagraphic
-   simulations will include two 'virtual optics' called 'FQPM FFT aligners' that  will show up in the display window for such calculations. These 
-   can be ignored by most end users of this software; interested readers should consult the  :py:mod:`POPPY <poppy>` documentation for more detail.
-
-NIRISS
-#######
-
-.. autoclass:: webbpsf.NIRISS
-
-        See methods under :py:class:`JWInstrument` 
+Please see the documentation for ``poppy.FITSOpticalElement`` for information on the required formatting of the FITS file.
+In particular you will need to set the PUPLSCALE keyword, and OPD values must be given in units of meters.
 
 
 
 
-FGS
-#####
+Subclassing a JWInstrument to add additional functionality
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. autoclass:: webbpsf.FGS
-
-        See methods under :py:class:`JWInstrument` 
-
-
-TFI
-#####
-
-Deprecated in favor of NIRISS.  
-
-Utility Functions for Display and Plotting
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Perhaps you want to modify the OPD used for a given instrument, for instance to
+add a defocus. You can do this by subclassing one of the existing instrument
+classes to patch over the _getOpticalSystem function. An OpticalSystem is
+basically a list so it's straightforward to just add another optic there. In
+this example it's a lens for defocus but you could just as easily add another
+FITSOpticalElement instead to read in a disk file.
 
 
-.. autofunction:: webbpsf.setup_logging
+    >>> class TF_with_defocus(webbpsf.TFI):
+    >>>         def __init__(self, \*args, \*\*kwargs):
+    >>>                 webbpsf.TFI.__init__(self, \*args, \*\*kwargs)
+    >>>                 # modify the following as needed to get your desired defocus
+    >>>                 self.defocus_waves = 0
+    >>>                 self.defocus_lambda = 4e-6
+    >>>         def _getOpticalSystem(self, \*args, \*\*kwargs):
+    >>>                 osys = webbpsf.TFI._getOpticalSystem(self, \*args, \*\*kwargs)
+    >>>                 lens = poppy.ThinLens(name='my lens', nwaves=self.defocus_waves, reference_wavelength=self.defocus_lambda)  
+    >>>                 lens.planetype=poppy.PUPIL # needed to flag plane location for the propagation algorithms
+    >>>                 osys.planes.insert(1, lens)
+    >>>                 return osys
+    >>> 
+    >>> tf2 = TF_with_defocus()
+    >>> tf2.defocus= 4  # means 4 waves of defocus at the wavelength defined by tf2.defocus_lambda
+    >>> psf = tf2.calcPSF()
+    >>> 
 
-.. autofunction:: webbpsf.Instrument
 
-Display Functions
-#####################
 
-.. autofunction:: display_PSF
-.. autofunction:: display_PSF_difference
-.. autofunction:: display_EE
-.. autofunction:: display_profiles
 
-Metrics of PSF Quality
-#########################
 
-.. autofunction:: radial_profile
-.. autofunction:: measure_EE
-.. autofunction:: measure_fwhm
-.. autofunction:: measure_sharpness
-.. autofunction:: measure_centroid
+
+.. comment
+    #
+    #Class hierarchy
+    #^^^^^^^^^^^^^^^^
+    #
+    #
+    #.. inheritance-diagram:: webbpsf.NIRCam webbpsf.NIRSpec webbpsf.MIRI webbpsf.NIRISS webbpsf.FGS
+    #
+    #
+    #
+    #The JWInstrument generic class
+    ##################################
+    #
+    #.. autoclass:: webbpsf.JWInstrument
+    #   :members:
+    #
+    #
+    #.. _specific_instrument:
+    #
+    #Notes on Specific Instruments
+    #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    #NIRCam
+    ########
+    #
+    #.. autoclass:: webbpsf.NIRCam
+    #
+    #        See methods under :py:class:`JWInstrument` 
+    #        
+    #
+    #NIRSpec
+    ############
+    #
+    #.. autoclass:: webbpsf.NIRSpec
+    #
+    #        See methods under :py:class:`JWInstrument` 
+    #
+    #MIRI
+    #######
+    #
+    #.. autoclass:: webbpsf.MIRI
+    #
+    #        See methods under :py:class:`JWInstrument` 
+    #
+    #.. figure:: ./fig_miri_f1000w.png
+    #   :scale: 75%
+    #   :align: center
+    #   :alt: Sample PSF image for MIRI
+    #
+    #   An example MIRI PSF in F1000W. 
+    #
+    #   Note that the MIRI imager field of view is rotated by 4.56 degrees relative to the JWST pupil; the coronagraph optics are
+    #   correspondingly counterrotated to align them with the pupil.  For direct imaging PSF calculations, this is most simply handled by
+    #   rotating the pupil mask and OPD file prior to the Fourier propagation. For MIRI coronagraphy on the other hand, the rotation is performed as the 
+    #   last step prior to the detector. 
+    #   
+    #   Technical aside: Note that for computational reasons having to do with accurately simulating PSF centering on an FQPM, MIRI coronagraphic
+    #   simulations will include two 'virtual optics' called 'FQPM FFT aligners' that  will show up in the display window for such calculations. These 
+    #   can be ignored by most end users of this software; interested readers should consult the  :py:mod:`POPPY <poppy>` documentation for more detail.
+    #
+    #NIRISS
+    ########
+    #
+    #.. autoclass:: webbpsf.NIRISS
+    #
+    #        See methods under :py:class:`JWInstrument` 
+    #
+    #
+    #
+    #
+    #FGS
+    ######
+    #
+    #.. autoclass:: webbpsf.FGS
+    #
+    #        See methods under :py:class:`JWInstrument` 
+    #
+    #
+    #TFI
+    ######
+    #
+    #Deprecated in favor of NIRISS.  
+    #
+    #Utility Functions for Display and Plotting
+    #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    #
+    #
+    #.. autofunction:: webbpsf.setup_logging
+    #
+    #.. autofunction:: webbpsf.Instrument
+    #
+    #Display Functions
+    ######################
+    #
+    #.. autofunction:: display_PSF
+    #.. autofunction:: display_PSF_difference
+    #.. autofunction:: display_EE
+    #.. autofunction:: display_profiles
+    #
+    #Metrics of PSF Quality
+    ##########################
+    #
+    #.. autofunction:: radial_profile
+    #.. autofunction:: measure_EE
+    #.. autofunction:: measure_fwhm
+    #.. autofunction:: measure_sharpness
+    #.. autofunction:: measure_centroid
+    #
 
 --------------
 
 Documentation last updated on |today|
-
 

@@ -79,7 +79,7 @@ Contents
 --------
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    intro.rst
    installation.rst
@@ -88,6 +88,7 @@ Contents
    gui.rst  
    more_examples.rst
    poppy.rst
+   api_reference.rst
    help.rst
    available_opds.rst
    references.rst
