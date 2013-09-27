@@ -1289,7 +1289,11 @@ class NIRISS_GR700XD_Grism(poppy.FITSOpticalElement):
 
     This includes both the pupil mask file and the cylindrical lens
 
-    Based on inputs from Loic Albert and Anand Sivaramakrishnan
+    Based on inputs from Loic Albert, Anand Sivaramakrishnan, and Andre Martel
+    In particular see FGS_TFI_UdM_035_RevD for details of the NIRISS GR700XD
+    measurement, and JWST-STScI-003338 for detector orientation and layout.
+
+    GRISM DESIGN:
 
     The grism (and cylinder) are per design rotated by 2 degrees so as to be able
     to sample an emission line across different pixel position along the spatial
@@ -1352,7 +1356,26 @@ class NIRISS_GR700XD_Grism(poppy.FITSOpticalElement):
             CW. As a result there is total 5.05 deg rotation between grism and its mask.
             See my annotations to your drawing attached.
    
-    
+     ORIENTATION:
+
+        See Figure 2 of JWST-STScI-003338
+        In "DMS" coordinates, as projected looking outwards onto the sky,
+        The GR700XD grating trace is near the extreme right edge of the detector
+        with long wavelengths closest to (2048,2048) and short wavelengths nearest (2048,0)
+        (The raw detector coordinates are very different from this due to a 180 degree rotation)
+
+        **PLEASE NOTE** that the DMS when processing spectral data performs an additional transformation:
+            For spectral data, the science X-axis is aligned with the detector
+            dispersion direction and the science frame Y-axis is at a right angle
+            to the X-axis in a right-handed coordinate system (Swade 2003)
+
+        We choose here to ignore that complication; WebbPSF simulates the 2D sky projected
+        image in "Sci" coordinates in the terminology for SIAF from Lallo et al. 
+        In this coordinate system, the dispersion from the cylinder lens is aligned 
+        almost along V2 and the longer wavelengths are oriented toward +V3. 
+        
+
+   
 
     Parameters
     ----------
@@ -1477,12 +1500,14 @@ class NIRISS_GR700XD_Grism(poppy.FITSOpticalElement):
 
         # remove piston offset 
         wnz = np.where(self.amplitude != 0)
-        sag -= sag[wnz].min()
+        sag -= sag[wnz].min()   # normalize to 0 at the minimum
+        #sag -= sag[wnz].mean()    # normalize around the mean
         sag[self.amplitude == 0] = 0 # no OPD in opaque regions (makes no difference in propagation but improves display)
         _log.debug(" Cylinder P-V: {0:.4g} meters physical sag across clear aperture".format(sag[wnz].max()-sag[wnz].min()) )
 
         # scale for ZnSe index of refraction, 
         self.opd = sag *  (self.ZnSe_index(wavelength) -1)
+        _log.debug(" Cylinder P-V: {0:.4g} meters optical sag at {1:.3g} microns across clear aperture".format(self.opd[wnz].max()-self.opd[wnz].min(), wavelength*1e6) )
 
         #stop()
 
