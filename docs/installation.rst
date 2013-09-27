@@ -17,12 +17,12 @@ Software Requirements
 
 * `astropy <http://astropy.org>`_, 0.2 or more recent.
 * `lxml <https://pypi.python.org/pypi/lxml>`_ for XML parsing
-* `psutil <https://pypi.python.org/pypi/psutil>`_ for cross-platform memory management
 
   
 These are optional but recommended:
 
 * `pysynphot <https://trac6.assembla.com/astrolib>`_ enables the simulation of PSFs with proper spectral response to realistic source spectra.  Without this, PSF fidelity is reduced. See below for :ref:`installation instructions for pysynphot <pysynphot_install>`. 
+* `psutil <https://pypi.python.org/pypi/psutil>`_ for cross-platform memory management enables better automatic selection of numbers of processes for multiprocess calculations.
 * `pyFFTW <https://pypi.python.org/pypi/pyFFTW>`_. The FFTW library can speed up the FFTs used in coronagraphic simulations and slit spectroscopy. Since direct imaging simulations use a discrete matrix FFT instead, direct imaging simulation speed is unchanged.  pyFFTW is recommended if you expect to perform many coronagraphic calculations, particularly for MIRI.  (Note: WebbPSF previously made use of the PyFFTW3 package, which is *different* from pyFFTW. The latter is more actively maintained and supported today, hence the switch.) See the :ref:`performance_and_parallelization` page for more details.
 
 Additional requirement for the GUI: The :ref:`graphical user interface<gui>` requires 
@@ -85,8 +85,8 @@ If for some reason you don't wish to use PYPI, you can just install from the sou
 
 1. Download the following files.
 
- * http://www.stsci.edu/~mperrin/software/webbpsf/webbpsf-0.3rc1.tar.gz
- * http://www.stsci.edu/~mperrin/software/webbpsf/poppy-0.3rc1.tar.gz
+ * http://www.stsci.edu/~mperrin/software/webbpsf/webbpsf-0.3rc2.tar.gz
+ * http://www.stsci.edu/~mperrin/software/webbpsf/poppy-0.3rc2.tar.gz
 
 .. comment 
 	#.. pypi-release:: webbpsf
