@@ -14,7 +14,7 @@ LOGGING_FILENAME = ConfigurationItem('logging_filename',"none", "Desired filenam
 LAST_VERSION_RAN = ConfigurationItem('last_version_ran','0.0', 'Most recently used version of WebbPSF on this computer. This is used for detecting new or upgraded installations and providing some additional information to users.')
 
 
-def _restart_logging(verbose=True):
+def restart_logging(verbose=True):
     """ Restart logging using the same settings as the last WebbPSF session, as stored in the configuration system. """
 
     level = LOGGING_LEVEL()
@@ -116,7 +116,7 @@ def setup_logging(level='INFO',  filename=None):
 
 
 
-def _check_for_new_install(force=False):
+def check_for_new_install(force=False):
     """ Check for a new installation, and if so
     print a hopefully helpful explanatory message.
     """
@@ -183,7 +183,7 @@ def _check_for_new_install(force=False):
 
 
 
-def _system_diagnostic():
+def system_diagnostic():
     """ return various helpful/informative information about the
     current system. For instance versions of python & available packages.
 
@@ -196,6 +196,7 @@ def _system_diagnostic():
     import os 
     import poppy
     import numpy
+    from .version import version
     try:
         import ttk
         ttk_version = ttk.__version__
@@ -209,7 +210,7 @@ def _system_diagnostic():
         wx_version = 'not found'
 
     try:
-        import fftw3
+        import pyfftw
         fftw3_version = 'yes, present'  # does not appear to have a version # string? 
     except:
         fftw3_version = 'not found'
@@ -247,11 +248,11 @@ def _system_diagnostic():
     astropy version: {astropy}
     pysynphot version: {pysyn}
     pyfits version: {pyfits}
-    FFTW3 version: {fftw3} """.format( os=platform.platform(), 
+    PyFFTW version: {fftw3} """.format( os=platform.platform(), 
             numpy = numpy.__version__,
             python=sys.version.replace("\n"," "), 
             poppy=poppy.__version__, 
-            webbpsf=__version__,
+            webbpsf=version,
             tkinter=ttk_version,
             wxpython=wx_version,
             fftw3=fftw3_version,

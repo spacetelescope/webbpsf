@@ -19,11 +19,12 @@ from poppy import (display_PSF, display_PSF_difference, display_EE, display_prof
 
 from .webbpsf_core import Instrument, JWInstrument, NIRCam, NIRISS, NIRSpec,MIRI,FGS
 
-from .utils import setup_logging, _system_diagnostic, _check_for_new_install, _restart_logging
+from . import utils
+from .utils import setup_logging #, _system_diagnostic, _check_for_new_install, _restart_logging
 
-_check_for_new_install()    # display informative message if so.
+utils.check_for_new_install()    # display informative message if so.
 
-_restart_logging()          # restart logging based on saved settings.
+utils.restart_logging()          # restart logging based on saved settings.
 
 
 
