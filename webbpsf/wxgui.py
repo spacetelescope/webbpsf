@@ -8,6 +8,7 @@ import astropy.io.fits as fits
 from threading import Thread
 
 from . import settings
+from . import settings
 
 __doc__ = """
 Graphical Interface for WebbPSF 
@@ -1470,8 +1471,14 @@ def synplot(thing, waveunit='micron', label=None, **kwargs):
 def wxgui(fignum=1, showlog=True):
     # enable log message printout
     logging.basicConfig(level=logging.INFO,format='%(name)-10s: %(levelname)-8s %(message)s')
-    # start the GUI
 
+
+    # GUI does not play well with multiprocessing, so avoid that.
+    if settings.use_multiprocessing():
+        _log.error('Multiprocessing is not compatible with the GUI right now. Falling back to single-threaded.')
+        settings.use_multiprocessing.set(False)
+
+    # start the GUI
     app = wx.App()
     app.SetAppName("WebbPSF")
     gui = WebbPSF_GUI()
