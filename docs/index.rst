@@ -18,7 +18,7 @@ PSFs as observed with JWST's instruments.
 
 
 .. figure:: ./fig_instrument_comparison.png
-   :scale: 40%
+   :scale: 40 %
    :align: center
    :alt: Sample PSFs for JWST's instruments. 
 
