@@ -112,7 +112,7 @@ def setup_logging(level='INFO',  filename=None):
     LOGGING_LEVEL.save()
     LOGGING_FILENAME.save()
 
-    _restart_logging(verbose=True)
+    restart_logging(verbose=True)
 
 
 
