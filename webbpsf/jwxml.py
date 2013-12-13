@@ -12,8 +12,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 try:
     from lxml import etree
+    HAVE_LXML = True
 except ImportError:
     import xml.etree.cElementTree as etree
+    HAVE_LXML = False
 
 import logging
 import unittest
@@ -37,7 +39,7 @@ class Segment_Update(object):
 
         self.units = dict()
         self.moves = dict()
-        for move in xmlnode.iterchildren():
+        for move in iterchildren(xmlnode):
             #print move.tag, move.text 
             self.moves[move.tag] =float(move.text)
             self.units[move.tag] = move.attrib['units']
@@ -164,7 +166,7 @@ class Aperture(object):
 
         convfactors = {'RADIANS': 1, 'DEGREES': np.pi/180, 'ARCSECS': np.pi/180/60/60}
 
-        for node in xmlnode.iterchildren(): 
+        for node in iterchildren(xmlnode): 
             tag = node.tag.replace('{http://www.stsci.edu/SIAF}','')
             if len(node.getchildren()) ==0:
                 # if doens't have children, 
@@ -182,7 +184,7 @@ class Aperture(object):
                     self.__dict__[tag] = value
                 elif '{http://www.stsci.edu/SIAF}elt' in [c.tag for c in node.getchildren()]:
                     #  an array of values which should go to an NDarray
-                    elts = [float(c.text) for c in node.iterchildren('{http://www.stsci.edu/SIAF}elt')]
+                    elts = [float(c.text) for c in iterchildren(node, '{http://www.stsci.edu/SIAF}elt')]
                     self.__dict__[tag] = np.asarray(elts)
 
                 else:
@@ -524,6 +526,24 @@ class Test_SIAF(unittest.TestCase):
         self.assertAlmostEqualTwo( nca.Sci2Tel(*nca.Tel2Sci(10., 10)), (10., 10) )
         print "Tel <-> Sci OK"
 
+
+# The ElementTree implementation in xml.etree does not support
+# Element.iterchildren, so provide this wrapper instead
+# This wrapper does not currently provide full support for all the arguments as
+# lxml's iterchildren
+if HAVE_LXML:
+    iterchildren = Element.iterchildren
+else:
+    def iterchildren(element, tag=None):
+        if tag is None:
+            return iter(element)
+
+        def _iterchildren():
+            for child in element:
+               if child.tag == tag:
+                   yield child
+
+        return _iterchildren()
 
 
 
