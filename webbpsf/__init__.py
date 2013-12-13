@@ -1,3 +1,5 @@
+import warnings
+
 import astropy
 
 try:
@@ -30,20 +32,22 @@ utils.restart_logging()          # restart logging based on saved settings.
 
 try: 
     from .wxgui import wxgui  
-except:
-    pass
+    HAVE_WX_GUI = True
+except ImportError:
+    HAVE_WX_GUI = False
 
 try: 
     from .tkgui import tkgui  
-except:
-    pass
+    HAVE_TK_GUI = True
+except ImportError:
+    HAVE_TK_GUI = False
 
 
 
-if ('tkgui' not in dir()) and ('wxgui' not in dir()):
-    print ("Warning: Neither Tk nor wx GUIs could be imported. Graphical interface disabled")
+if not (HAVE_WX_GUI or HAVE_TK_GUI):
+    warnings.warn("Warning: Neither Tk nor wx GUIs could be imported. "
+                  "Graphical interface disabled")
 else:
-
     def gui(preferred='wx'):
         """ Start the WebbPSF GUI with the selected interface
 
@@ -54,12 +58,12 @@ else:
 
 
         """
-        if preferred == 'wx':
+        if preferred == 'wx' and HAVE_WX_GUI:
             #try:
             wxgui()
             #except:
                 #raise ImportError("wxpython GUI for webbpsf not available ")
-        elif preferred=='ttk':
+        elif preferred=='ttk' or HAVE_TK_GUI:
             #try:
             tkgui()
             #except:
