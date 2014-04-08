@@ -1,3 +1,10 @@
+# Licensed under a 3-clause BSD style license - see LICENSE.rst
+""" WebbPSF
+PSF simulations for the James Webb Space Telescope
+
+"""
+
+
 import warnings
 
 import astropy
@@ -13,10 +20,10 @@ except ImportError:
     # TODO: Issue a warning using the logging framework
     __githash__ = ''
 
- 
+
 from poppy import (display_PSF, display_PSF_difference, display_EE, display_profiles, radial_profile,
         measure_EE, measure_radial, measure_fwhm, measure_sharpness, measure_centroid, measure_strehl,
-        measure_anisotropy, specFromSpectralType, fwcentroid)
+        specFromSpectralType, fwcentroid)
 
 
 from .webbpsf_core import Instrument, JWInstrument, NIRCam, NIRISS, NIRSpec,MIRI,FGS
@@ -30,11 +37,11 @@ utils.restart_logging()          # restart logging based on saved settings.
 
 
 
-try: 
-    from .wxgui import wxgui  
-    HAVE_WX_GUI = True
-except ImportError:
-    HAVE_WX_GUI = False
+#try: 
+#    from .wxgui import wxgui  
+#    HAVE_WX_GUI = True
+#except ImportError:
+HAVE_WX_GUI = False
 
 try: 
     from .tkgui import tkgui  
@@ -60,11 +67,29 @@ else:
         """
         if preferred == 'wx' and HAVE_WX_GUI:
             #try:
-            wxgui()
+#            wxgui()
             #except:
                 #raise ImportError("wxpython GUI for webbpsf not available ")
+            pass
         elif preferred=='ttk' or HAVE_TK_GUI:
             #try:
             tkgui()
             #except:
                 #raise ImportError("ttk GUI for webbpsf not available")
+
+def test( verbose=False ) :
+    import os, pytest
+
+    # find the directory where the test package lives
+    from . import tests
+    dir = os.path.dirname( tests.__file__ )
+
+    # assemble the py.test args
+    args = [ dir ]
+
+    # run py.test
+    try :
+        return pytest.main( args )
+    except SystemExit as e :
+        return e.code
+

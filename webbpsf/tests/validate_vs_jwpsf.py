@@ -1,12 +1,10 @@
-﻿#import os,sys
-#sys.path.append(os.path.abspath(os.path.expanduser('~/software/webbpsf/lib')))
+#import os,sys
 import pyfits
 import numpy as N
 import pylab as P
 import logging
 
-from .. import webbpsf
-
+from .. import webbpsf_core
 from IPython.core.debugger import Tracer; stop = Tracer()
 
 
@@ -22,7 +20,7 @@ def validate_vs_jwpsf_nircam():
     oversamp=4
     for params in models:
 
-        nc = webbpsf.Instrument(params[0])
+        nc = webbpsf_core.Instrument(params[0])
         nc.filter = params[1]
         nc.pupilopd = params[3] #'/Users/mperrin/software/jwpsf_v3.0/data/NIRCam/OPD/nircam_obs_w_rsrv1.fits'
         nc.pixelscale = params[4] #0.034 # this is wrong, but compute this way to match JWPSF exactly
@@ -48,26 +46,26 @@ def validate_vs_jwpsf_nircam():
         #P.subplots_adjust(top=0.95, bottom=0.05, left=0.01, right=0.99)
         P.subplot(231)
         titlestr = "%s %s, \n"%  (params[0], params[2])
-        webbpsf.display_PSF(my_psf, title=titlestr+"computed with WebbPSF" , colorbar=False)
+        poppy.display_PSF(my_psf, title=titlestr+"computed with WebbPSF" , colorbar=False)
         P.subplot(232)
-        webbpsf.display_PSF(jw_psf, title=titlestr+"computed with JWPSF" , colorbar=False)
+        poppy.display_PSF(jw_psf, title=titlestr+"computed with JWPSF" , colorbar=False)
         P.subplot(233)
-        webbpsf.display_PSF_difference(my_psf,jw_psf, title=titlestr+'Difference Image', colorbar=False)
+        poppy.display_PSF_difference(my_psf,jw_psf, title=titlestr+'Difference Image', colorbar=False)
 
         imagecrop = 30*params[4]
 
         P.subplot(234)
-        webbpsf.display_PSF(my_psf, title=titlestr+"computed with WebbPSF", colorbar=False, imagecrop=imagecrop)
-        centroid = webbpsf.measure_centroid(my_psf)
+        poppy.display_PSF(my_psf, title=titlestr+"computed with WebbPSF", colorbar=False, imagecrop=imagecrop)
+        centroid = poppy.measure_centroid(my_psf)
         P.gca().set_xlabel("centroid = (%.3f,%.3f)" % centroid)
 
         P.subplot(235)
-        webbpsf.display_PSF(jw_psf, title=titlestr+"computed with JWPSF", colorbar=False, imagecrop=imagecrop)
-        centroid = webbpsf.measure_centroid(jw_psf)
+        poppy.display_PSF(jw_psf, title=titlestr+"computed with JWPSF", colorbar=False, imagecrop=imagecrop)
+        centroid = poppy.measure_centroid(jw_psf)
         P.gca().set_xlabel("centroid = (%.3f,%.3f)" % centroid)
 
         P.subplot(236)
-        webbpsf.display_PSF_difference(my_psf,jw_psf, title='Difference Image', colorbar=False, imagecrop=imagecrop)
+        poppy.display_PSF_difference(my_psf,jw_psf, title='Difference Image', colorbar=False, imagecrop=imagecrop)
 
         P.savefig("results_vs_jwpsf_%s_%s.pdf" % (params[0], params[2]))
 
@@ -82,7 +80,7 @@ def validate_vs_jwpsf_nircam():
 
 def compare_revs_tv(nlambda=20, oversample=16, fov_arcsec=4):
     iname = 'NIRCam'
-    inst = webbpsf.Instrument(iname)
+    inst = webbpsf_core.Instrument(iname)
 
     def ee_find_radius(ee_fn, value):
         "find the radius at which a given EE occurs. bruce force & crude "

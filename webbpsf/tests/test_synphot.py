@@ -7,7 +7,6 @@ import matplotlib
 import pywcs, pyfits
 #import aplpy, atpy
 #import RO.DS9
-from IPython.Debugger import Tracer; stop = Tracer()
 import logging
 _log = logging.getLogger('t')
 import time
