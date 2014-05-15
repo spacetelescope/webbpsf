@@ -5,7 +5,6 @@ import pylab as P
 import logging
 
 from .. import webbpsf_core
-from IPython.core.debugger import Tracer; stop = Tracer()
 
 
 def validate_vs_jwpsf_nircam():

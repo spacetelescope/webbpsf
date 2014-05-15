@@ -39,7 +39,7 @@ from astropy.config import ConfigurationItem, get_config_dir, save_config
 
 import poppy
 
-from . import settings
+from . import conf
 
 
 try: 
@@ -116,7 +116,7 @@ class JWInstrument(poppy.instrument.Instrument):
         self.name=name
         self.pixelscale = pixelscale
 
-        self._WebbPSF_basepath = settings.get_webbpsf_data_path()
+        self._WebbPSF_basepath = conf.get_webbpsf_data_path()
 
         self._datapath = self._WebbPSF_basepath + os.sep + self.name + os.sep
         self._filter = None
@@ -295,7 +295,7 @@ class JWInstrument(poppy.instrument.Instrument):
             The default depends on how wide the filter is, as set by a lookup table in the webbpsf data distribution.
         monochromatic : float, optional
             Setting this to a wavelength value (in meters) will compute a monochromatic PSF at that 
-            wavelength, overriding filter and nlambda settings.
+            wavelength, overriding filter and nlambda parameters.
         fov_arcsec : float
             field of view in arcsec. Default=5
         fov_pixels : int
@@ -336,12 +336,12 @@ class JWInstrument(poppy.instrument.Instrument):
 
         _log.info("Setting up PSF calculation for "+self.name)
 
-        # first make sure that webbpsf's settings are used to override any of the
-        # same settings in poppy. This is admittedly perhaps overbuilt to have identical
+        # first make sure that webbpsf's configuration is used to override any of the
+        # same configuration options in poppy. This is admittedly perhaps overbuilt to have identical
         # settings in both packages, but the intent is to shield typical users of webbpsf
         # from having to think about the existence of the underlying library. They can 
         # just deal with one set of settings.
-        settings._apply_settings_to_poppy()
+        conf._apply_settings_to_poppy()
 
         if filter is not None:
             self.filter = filter
@@ -394,7 +394,7 @@ class JWInstrument(poppy.instrument.Instrument):
             raise ValueError("You cannot specify simultaneously the oversample= option with the detector_oversample and fft_oversample options. Pick one or the other!")
         elif oversample is None and detector_oversample is None and fft_oversample is None:
             # nothing set -> set oversample = 4
-            oversample = settings.default_oversampling()
+            oversample = conf.default_oversampling()
         if detector_oversample is None: detector_oversample = oversample
         if fft_oversample is None: fft_oversample = oversample
         local_options['detector_oversample']=detector_oversample
@@ -466,7 +466,7 @@ class JWInstrument(poppy.instrument.Instrument):
 
             Modifies the 'result' HDUList object.
         """
-        output_mode = options.get('output_mode',settings.default_output_mode())
+        output_mode = options.get('output_mode',conf.default_output_mode())
 
         if output_mode == 'Mock JWST DMS Output':
             # first rebin down to detector sampling
@@ -629,6 +629,8 @@ class JWInstrument(poppy.instrument.Instrument):
 
             if len(wf) != 1:
                 _log.error("Could not find a match for filter name = %s in the filters for %s." % (filtername, self.name))
+            else:
+                wf = wf[0]
             # The existing FITS files all have wavelength in ANGSTROMS since that is the pysynphot convention...
             filterfits = fits.open(self._filter_files[wf])
             filterdata = filterfits[1].data 
@@ -957,7 +959,7 @@ class NIRCam(JWInstrument):
                 poppy.ThinLens(name='Weak Lens +4', nwaves=4, reference_wavelength=2e-6),
                 poppy.ThinLens(name='Weak Lens +8', nwaves=8, reference_wavelength=2e-6)])
             optsys.addPupil(stack)
-        elif self.pupil_mask == 'WEAK LENS -4 (=4+8)':
+        elif self.pupil_mask == 'WEAK LENS -4 (=4-8)':
             stack = poppy.CompoundAnalyticOptic(name='Weak Lens Stack -4', opticslist=[
                 poppy.ThinLens(name='Weak Lens +4', nwaves=4, reference_wavelength=2e-6),
                 poppy.ThinLens(name='Weak Lens -8', nwaves=-8, reference_wavelength=2e-6)])
@@ -1405,7 +1407,7 @@ class NIRISS_GR700XD_Grism(poppy.FITSOpticalElement):
         if which=='spare':
             raise NotImplementedError("Rotated field mask for spare grism not yet implemented!")
         else:
-            transmission=os.path.join( settings.get_webbpsf_data_path(), "NIRISS/optics/MASKGR700XD.fits.gz")
+            transmission=os.path.join( conf.get_webbpsf_data_path(), "NIRISS/optics/MASKGR700XD.fits.gz")
 
         self.shift=shift
         poppy.FITSOpticalElement.__init__(self, name=name, transmission=transmission, planetype=poppy.poppy_core._PUPIL, shift=shift)
@@ -1694,7 +1696,7 @@ class DetectorGeometry(object):
         if shortname is not None: self.name=shortname
         from jwxml import SIAF
 
-        self.mysiaf = SIAF(instr=self.instrname, basepath=os.path.join( settings.get_webbpsf_data_path(), self.instrname) )
+        self.mysiaf = SIAF(instr=self.instrname, basepath=os.path.join( conf.get_webbpsf_data_path(), self.instrname) )
         self.aperture = self.mysiaf[aperturename]
 
 

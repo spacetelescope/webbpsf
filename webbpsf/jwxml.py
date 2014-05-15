@@ -1,10 +1,10 @@
-﻿
+
 """ jwxml: Various Python classes for parsing JWST-related information in XML files
 
-* SUR: a segment update request file
+* SUR: a segment update request file (mirror move command from the WAS to the MCS)
 * Update: a single mirror update inside of a SUR
-* SIAF: a SIAF file
-* Aperture: a single aperture inside a SIAF file
+* SIAF: a SIAF file (Science Instrument Aperture File, listing the defined apertures for a given instrument)
+* Aperture: a single aperture inside a SIAF
 
 
 """
@@ -24,6 +24,8 @@ _log = logging.getLogger('jwxml')
 
 
 #---------------------------------------------------------------------------------
+#   Mirror Move related classes
+
 class Segment_Update(object):
     """ Class for representing one single mirror update (will be inside of groups in SURs)
     """
@@ -146,8 +148,7 @@ class SUR(object):
 
 
 #---------------------------------------------------------------------------------
-
-
+#  SIAF related classes
 
 class Aperture(object):
     """ An Aperture, as parsed from the XML.
@@ -156,14 +157,38 @@ class Aperture(object):
     See JWST-STScI-001550 for the reference on which this implementation was based. 
 
     4 Coordinate systems:
-        * Detector: pixels, in raw detector read out axes orientation ("Det")
-        * Science: pixels, in conventional DMS axes orientation ("Sci")
-        * Ideal: arcsecs relative to aperture reference location. ("Idl")
+        * Detector:  pixels, in raw detector read out axes orientation ("Det")
+        * Science:   pixels, in conventional DMS axes orientation ("Sci")
+        * Ideal:     arcsecs relative to aperture reference location. ("Idl")
         * Telescope: arcsecs V2,V3 ("Tel")
 
-    """
-    def __init__(self, xmlnode):
 
+    Example
+    ========
+
+    ap = some_siaf['desired_aperture_name']     # extract one aperture from a SIAF
+
+    ap.Det2Tel(1024, 512)                       # convert pixel coordinates to sky Tel coords.
+                                                # takes pixel coords, returns arcsec
+    ap.Idl2Sci( 10, 3)                          # convert Idl coords to Sci pixels
+                                                # takes arcsec, returns pixels
+
+    # there exist functions for all of the possible {Tel,Idl,Sci,Det}2{Tel,Idl,Sci,Det} combinations.
+    # you can also specify frames by string:
+    ap.convert(1024, 512, frame_from='Det', frame_to='Tel')  # same as first example above
+
+    ap.corners('Tel')                           # Get detector corners in Tel frame
+    ap.center('Tel')                            # Get the reference point defined in the SIAF
+                                                # this is typically the center of this region
+
+    ap.plot('Idl', annotate=True, title=True)   # plot coordinates in Idl frame
+    ap.plotDetectorChannels()                   # color in the readout channels
+
+
+    """
+    def __init__(self, xmlnode, instrument=None):
+
+        self.instrument=instrument
         convfactors = {'RADIANS': 1, 'DEGREES': np.pi/180, 'ARCSECS': np.pi/180/60/60}
 
         for node in iterchildren(xmlnode): 
@@ -303,7 +328,7 @@ class Aperture(object):
         #rad2arcsec = 1./(np.pi/180/60/60)
 
         #V2Ref and V3Ref are now in arcseconds in the XML file
-        ang = np.deg2rad(self.V3IdlYAng)
+        ang = np.deg2rad(self.V3IdlYAngle)
         V2 = self.V2Ref + self.VIdlParity * XIdl * np.cos(ang) + YIdl * np.sin(ang)
         V3 = self.V3Ref - self.VIdlParity * XIdl * np.sin(ang) + YIdl * np.cos(ang)
         return V2, V3
@@ -349,9 +374,14 @@ class Aperture(object):
         return self.Sci2Det(*self.Idl2Sci(*self.Tel2Idl(*args)))
 
     #--- now, functions other than direct coordinate transformations
-    def convert(self, X, Y, frame_from, frame_to):
+    def convert(self, X, Y, frame_from=None, frame_to=None):
         """ Generic conversion routine, that calls one of the
         specific conversion routines based on the provided frame names as strings. """
+
+        if frame_from is None: raise ValueError("You must specify a frame_from value : Tel, Idl, Sci, Det")
+        if frame_to is None: raise ValueError("You must specify a frame_to value : Tel, Idl, Sci, Det")
+
+
         if frame_from == frame_to: return X, Y  # null transformation
 
         #frames = ['Det','Sci', 'Idl','Tel']
@@ -367,7 +397,25 @@ class Aperture(object):
         return self.convert(self.V2Ref, self.V3Ref, 'Tel', frame)
 
 
-    def plot(self, frame='Idl', label=True, ax=None, title=True, units='arcsec'):
+    def plot(self, frame='Idl', label=True, ax=None, title=True, units='arcsec', annotate=False):
+        """ Plot this one aperture 
+
+        Parameters
+        -----------
+        frame : str
+            Which coordinate system to plot in: 'Tel', 'Idl', 'Sci', 'Det'
+        label : bool
+            Add text label stating aperture name
+        units : str
+            one of 'arcsec', 'arcmin', 'deg'
+        annotate : bool
+            Add annotations for detector (0,0) pixels
+        title : str
+            If set, add a label to the plot indicating which frame was plotted.
+ 
+        """
+
+
         if units is None:
             units='arcsec'
 
@@ -393,6 +441,8 @@ class Aperture(object):
             scale=1
         elif units.lower() =='arcmin':
             scale=01./60
+        elif units.lower() =='deg':
+            scale=01./60/60
         else:
             raise ValueError("Unknown units: "+units)
 
@@ -406,20 +456,102 @@ class Aperture(object):
             ax.set_xlim(ax.get_xlim()[::-1])
 
         if label:
-            ax.text(x.mean()*scale, y.mean()*scale, self.AperName, verticalalignment='center', horizontalalignment='center', color=ax.lines[-1].get_color())
+            rotation = 30 if self.AperName.startswith('NRC') else 0 # partially mitigate overlapping NIRCam labels
+            ax.text(x.mean()*scale, y.mean()*scale, self.AperName, 
+                verticalalignment='center', horizontalalignment='center', rotation=rotation,
+                color=ax.lines[-1].get_color())
         if title:
             ax.set_title("{0} frame".format(frame))
+        if annotate:
+            self.plotDetectorOrigin(frame=frame)
+
+    def plotDetectorOrigin(self, frame='Idl', which='both'):
+        """ Draw red and blue squares to indicate the raw detector 
+        readout and science frame readout, respectively 
+
+        Parameters
+        -----------
+        which : str
+            Which detector origin to plot: 'both', 'Det', 'Sci'
+        frame : str
+            Which coordinate system to plot in: 'Tel', 'Idl', 'Sci', 'Det'
+        """
+ 
+        # raw detector frame
+        if which.lower() == 'det' or which.lower()=='both':
+            c1, c2 = self.convert( 0, 0, 'Det', frame)
+            plt.plot(c1, c2, color='red', marker='s', markersize=9)
+
+        # science frame
+        if which.lower() == 'sci' or which.lower()=='both':
+            c1, c2 = self.convert( 0, 0, 'Sci', frame)
+            plt.plot(c1, c2, color='blue', marker='s')
+
+    def plotDetectorChannels(self, frame='Idl', color='0.5', alpha=0.3, evenoddratio=0.5, **kwargs):
+        """ Mark on the plot the various detector readout channels 
+
+        These are depicted as alternating light/dark bars to show the
+        regions read out by each of the output amps.
+
+        Parameters
+        ----------
+        frame : str
+            Optional if you have already called plot() to specify a 
+            coordinate frame.
+       """
+ 
+        import matplotlib
+        if self.instrument == 'MIRI': npixels = 1024 
+        else: npixels = 2048
+        ch = npixels/4
+    
+        ax = plt.gca()
+        pts = ((0, 0), (ch,0), (ch,npixels), (0, npixels))
+        for chan in range(4):
+            plotpoints = np.zeros((4,2))
+            for i,xy in enumerate(pts):
+                plotpoints[i] = self.convert(xy[0]+chan*ch,xy[1],'Det',frame)
+            rect = matplotlib.patches.Polygon(plotpoints, closed=True, 
+                    alpha=(alpha if np.mod(chan,2) else alpha*evenoddratio), 
+                    facecolor=color, edgecolor='none', lw=0)
+            ax.add_patch(rect)
 
 
 class SIAF(object):
-    """ Science Instrument Aperture File """
-    def __init__(self, instr='NIRISS', basepath="/Users/mperrin/Dropbox/JWST/Optics Documents/SIAF/"):
+    """ Science Instrument Aperture File 
+    
+    This is a class interface to SIAF information stored in an XML file. 
+    It lets you read (only) the SIAF information, retrieve apertures, 
+    plot them, and transform coordinates accordingly. 
+
+    This class is basically just a container. See the Aperture class for
+    the detailed implementation of the transformations. 
+
+    Briefly, this class acts like a dict containing Aperture objects, accessible
+    using their names defined in the SIAF
+
+    Examples
+    ---------
+
+    fgs_siaf = SIAF('FGS')
+    fgs_siaf.apernames                # returns a list of aperture names
+    ap = fgs_siaf['FGS1_FULL_CNTR']   # returns an aperture object
+    ap.plot(frame='Tel')              # plot one aperture
+    fgs_siaf.plot()                   # plot all apertures in this file
+
+    """
+    def __init__(self, instr='NIRISS', basepath="./", filename=None):
+            #basepath="/Users/mperrin/Dropbox/JWST/Optics Documents/SIAF/"
         """ Read a SIAF from disk 
         
         Parameters
         -----------
         instr : string
             one of 'NIRCam', 'NIRSpec', 'NIRISS', 'MIRI', 'FGS'; case sensitive.
+        basepath : string
+            Directory to look in for SIAF files
+        filename : string, optional
+            Alternative method to specify a specific SIAF XML file.
         """
 
         if instr not in ['NIRCam', 'NIRSpec', 'NIRISS', 'MIRI', 'FGS']:
@@ -427,17 +559,22 @@ class SIAF(object):
 
         self.instrument=instr
 
-        self.filename=os.path.join(basepath, instr+('_' if instr =='NIRISS' else '')+'SIAF.XML')
+        if filename is None:
+            self.filename=os.path.join(basepath, instr+'_SIAF.XML')
+        else:
+            self.filename = filename
 
         self.apertures = {}
 
         self._tree = etree.parse(self.filename)
 
+        self._last_plot_frame=None
+
 
 
         #for entry in self._tree.getroot().iter('{http://www.stsci.edu/SIAF}SiafEntry'):
         for entry in self._tree.getroot().iter('SiafEntry'):
-            aperture = Aperture(entry)
+            aperture = Aperture(entry, instrument=self.instrument)
             self.apertures[aperture.AperName] = aperture
 
     def __getitem__(self, key):
@@ -448,18 +585,69 @@ class SIAF(object):
 
     @property
     def apernames(self):
+        """ List of aperture names defined in this SIAF"""
         return self.apertures.keys()
+
  
-    def plot(self, frame='Tel', names=None, label=True, units=None, clear=True):
+    def _getFullApertures(self):
+        """ Return whichever subset of apertures correspond to the entire detectors. This is a
+        helper function for the various plotting routines following"""
+        fullaps = []
+        if self.instrument =='NIRCam':
+            for letter in ['A', 'B']:
+                for number in range(1,6):
+                    fullaps.append(self.apertures['NRC{letter}{number}_FULL_CNTR'.format(letter=letter, number=number)])
+        elif self.instrument =='NIRSpec':
+            fullaps.append( self.apertures['NRS1_FULL_CNTR'])
+            fullaps.append( self.apertures['NRS2_FULL_CNTR'])
+        elif self.instrument =='NIRISS':
+            fullaps.append( self.apertures['NIS_FULL_CNTR'])
+        elif self.instrument =='MIRI':
+            fullaps.append( self.apertures['MIRIM_FULL_CNTR_OSS'])
+        elif self.instrument =='FGS':
+            fullaps.append( self.apertures['FGS1_FULL_CNTR'])
+            fullaps.append( self.apertures['FGS2_FULL_CNTR'])
+        return fullaps
+
+
+    def plot(self, frame='Tel', names=None, label=True, units=None, clear=True, annotate=False, 
+        subarrays=True):
+        """ Plot all apertures in this SIAF
+
+        Parameters
+        -----------
+        names : list of strings
+            A subset of aperture names, if you wish to plot only a subset
+        subarrays : bool
+            Plot all the minor subarrays if True, else just plot the "main" apertures
+        label : bool
+            Add text labels stating aperture names
+        units : str
+            one of 'arcsec', 'arcmin', 'deg'
+        clear : bool
+            Clear plot before plotting (set to false to overplot)
+        annotate : bool
+            Add annotations for detector (0,0) pixels
+        frame : str
+            Which coordinate system to plot in: 'Tel', 'Idl', 'Sci', 'Det'
+        """
         if clear: plt.clf()
         ax = plt.subplot(111)
         ax.set_aspect('equal')
 
-        for ap in self.apertures.itervalues():
+        # which list of apertures to iterate over?
+        if subarrays:
+            iterable = self.apertures.itervalues
+        else: 
+            iterable = self._getFullApertures
+
+        for ap in iterable():
             if names is not None:
                 if ap.AperName not in names: continue
 
             ap.plot(frame=frame, label=label, ax=ax, units=None)
+            if annotate: 
+                ap.plotDetectorOrigin(frame=frame)
         ax.set_xlabel('V2 [arcsec]')
         ax.set_ylabel('V3 [arcsec]')
 
@@ -472,6 +660,57 @@ class SIAF(object):
             if xlim[1] > xlim[0]: ax.set_xlim(xlim[::-1])
             ax.set_autoscalex_on(True)
 
+        self._last_plot_frame = frame
+
+    def plotDetectorOrigin(self, which='both', frame=None):
+        """ Mark on the plot the detector's origin in Det and Sci coordinates 
+        
+        Parameters
+        -----------
+        which : str
+            Which detector origin to plot: 'both', 'Det', 'Sci'
+        frame : str
+            Which coordinate system to plot in: 'Tel', 'Idl', 'Sci', 'Det'
+            Optional if you have already called plot() to specify a 
+            coordinate frame.
+ 
+        """
+        if frame is None: frame = self._last_plot_frame
+        for ap in self._getFullApertures():
+            ap.plotDetectorOrigin(frame=frame, which=which)
+
+
+    def plotDetectorChannels(self, frame=None):
+        """ Mark on the plot the various detector readout channels 
+       
+        These are depicted as alternating light/dark bars to show the
+        regions read out by each of the output amps.
+
+        Parameters
+        ----------
+        frame : str
+            Which coordinate system to plot in: 'Tel', 'Idl', 'Sci', 'Det'
+            Optional if you have already called plot() to specify a 
+            coordinate frame.
+  
+        """
+        if frame is None: frame = self._last_plot_frame
+        for ap in self._getFullApertures():
+            ap.plotDetectorChannels(frame=frame)
+
+
+def plotAllSIAFs(subarrays = True, showorigin=True, showchannels=True, **kwargs):
+    """ Plot All instrument """
+
+    for instr in ['NIRCam','NIRISS','NIRSpec','FGS','MIRI']:
+        aps =SIAF(instr, **kwargs)
+        print "{0} has {1} apertures".format(aps.instrument, len(aps))
+
+        aps.plot(clear=False, subarrays=subarrays)
+        if showorigin: aps.plotDetectorOrigin()
+        if showchannels: aps.plotDetectorChannels()
+
+
 class Test_SIAF(unittest.TestCase):
 
     def assertAlmostEqualTwo(self, tuple1, tuple2):
@@ -480,7 +719,7 @@ class Test_SIAF(unittest.TestCase):
 
 
     def _test_up(self):
-        siaf = SIAF("/Users/mperrin/Dropbox/JWST/Optics Documents/SIAF/JwstSiaf-2010-10-05.xml")
+        siaf = SIAF("JwstSiaf-2010-10-05.xml")
         startx = 1023
         starty = 1024
 
@@ -495,7 +734,7 @@ class Test_SIAF(unittest.TestCase):
         print "Det2Tel OK"
 
     def _test_down(self):
-        siaf = SIAF("/Users/mperrin/Dropbox/JWST/Optics Documents/SIAF/JwstSiaf-2010-10-05.xml")
+        siaf = SIAF("JwstSiaf-2010-10-05.xml")
         startV2 = 87.50
         startV3 = -497.10
         nca = siaf['NIRCAM A']
@@ -511,7 +750,7 @@ class Test_SIAF(unittest.TestCase):
         print "Tel2Det OK"
 
     def test_inverses(self):
-        siaf = SIAF("/Users/mperrin/Dropbox/JWST/Optics Documents/SIAF/JwstSiaf-2010-10-05.xml")
+        siaf = SIAF("JwstSiaf-2010-10-05.xml")
         nca = siaf['NIRCAM A']
 
         self.assertAlmostEqualTwo( nca.Det2Sci(*nca.Sci2Det(1020., 1020)), (1020., 1020) )
@@ -531,10 +770,11 @@ class Test_SIAF(unittest.TestCase):
 # Element.iterchildren, so provide this wrapper instead
 # This wrapper does not currently provide full support for all the arguments as
 # lxml's iterchildren
-if HAVE_LXML:
-    iterchildren = Element.iterchildren
-else:
-    def iterchildren(element, tag=None):
+def iterchildren(element, tag=None):
+    if HAVE_LXML:
+        return element.iterchildren(tag)
+    else:
+
         if tag is None:
             return iter(element)
 

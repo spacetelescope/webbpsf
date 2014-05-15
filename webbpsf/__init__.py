@@ -76,6 +76,8 @@ else:
             tkgui()
             #except:
                 #raise ImportError("ttk GUI for webbpsf not available")
+        else:
+            raise NotImplementedError("Neither TK nor WX GUI libraries are available. Cannot start GUI.")
 
 def test( verbose=False ) :
     import os, pytest

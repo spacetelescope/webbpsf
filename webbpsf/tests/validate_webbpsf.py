@@ -9,8 +9,6 @@ import poppy
 
 from .. import webbpsf_core
 
-from IPython.core.debugger import Tracer; stop = Tracer()
-
 
 __doc__="""
 

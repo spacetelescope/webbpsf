@@ -84,6 +84,7 @@ Contents
    intro.rst
    installation.rst
    relnotes.rst
+   :maxdepth: 1
    webbpsf.rst
    gui.rst  
    more_examples.rst

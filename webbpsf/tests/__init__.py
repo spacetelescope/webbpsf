@@ -5,3 +5,4 @@
 from . import validate_webbpsf
 from . import validate_vs_jwpsf
 from . import test_webbpsf
+from . import test_utils

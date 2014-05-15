@@ -9,15 +9,13 @@ import ConfigParser
 
 from astropy.config import ConfigurationItem, get_config_dir, save_config
 
-LOGGING_LEVEL = ConfigurationItem('logging_level',['INFO','DEBUG','WARN','ERROR','NONE'],'Desired logging level for WebbPSF optical calculations.')
-LOGGING_FILENAME = ConfigurationItem('logging_filename',"none", "Desired filename to save log messages to.")
-LAST_VERSION_RAN = ConfigurationItem('last_version_ran','0.0', 'Most recently used version of WebbPSF on this computer. This is used for detecting new or upgraded installations and providing some additional information to users.')
+from . import conf
 
 
 def restart_logging(verbose=True):
     """ Restart logging using the same settings as the last WebbPSF session, as stored in the configuration system. """
 
-    level = LOGGING_LEVEL()
+    level = conf.logging_level()
     lognames = ['webbpsf', 'poppy']
     if level.upper() =='NONE':
         # disable logging
@@ -37,7 +35,7 @@ def restart_logging(verbose=True):
     if verbose: print("WebbPSF log outputs will be directed to the screen.")
 
     # set up file logging
-    filename = LOGGING_FILENAME()
+    filename = conf.logging_filename()
     if filename.strip().lower() != 'none':
         hdlr = logging.FileHandler(filename)
 
@@ -103,14 +101,14 @@ def setup_logging(level='INFO',  filename=None):
     level = level.upper()
 
 
-    LOGGING_LEVEL.set(level)
+    conf.logging_level.set(level)
 
 
     if filename is None: filename='none' # must be a string to write into the config system
-    LOGGING_FILENAME.set(filename)
+    conf.logging_filename.set(filename)
 
-    LOGGING_LEVEL.save()
-    LOGGING_FILENAME.save()
+    conf.logging_level.save()
+    conf.logging_filename.save()
 
     restart_logging(verbose=True)
 
@@ -122,11 +120,11 @@ def check_for_new_install(force=False):
     """
 
     from .version import version
-    if LAST_VERSION_RAN() == '0.0' or force:
+    if conf.last_version_ran() == '0.0' or force:
         from astropy.config import save_config, get_config_dir
 
-        LAST_VERSION_RAN.set(version)
-        LAST_VERSION_RAN.save()
+        conf.last_version_ran.set(version)
+        conf.last_version_ran.save()
         save_config('webbpsf') # save default values to text file
 
         print """

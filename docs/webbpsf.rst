@@ -6,8 +6,9 @@ Using WebbPSF via the Python API
 =================================
 
 
-This module provides the primary interface, both for programmers and for interactive non-GUI use. It provides 
-five classes corresponding to the JWST instruments, with consistent interfaces.  See below for the detailed API; for now let's dive into some example code.
+This module provides the primary interface for programmers and for interactive non-GUI use. It provides 
+five classes corresponding to the JWST instruments, with consistent interfaces.  
+See :ref:`this page <detailed_api>` for the detailed API; for now let's dive into some example code.
 
 :ref:`Additional code examples <more_examples>` are available later in this documentation.
 
@@ -54,14 +55,23 @@ one can create an instance of MIRI and configure it for coronagraphic observatio
    :alt: Sample PSF image
 
 
+Controlling output log text
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
 WebbPSF can output a log of calculation steps while it runs, which can be displaye to the screen and optionally saved to a file. 
 This is useful for verifying or debugging calculations.  To turn on log display, just run
 
     >>> webbpsf.setup_logging(filename='webbpsf.log')
 
-The setup_logging function allows selection of the level of log detail following the standard Python logging system (DEBUG, INFO, WARN, ERROR). WebbPSF remembers your
+The setup_logging function allows selection of the level of log detail following the standard Python logging system (DEBUG, INFO, WARN, ERROR). 
+To disable all printout of log messages, except for errors, set 
+
+    >>> webbpsf.setup_logging(level='ERROR')
+
+WebbPSF remembers your
 chosen logging settings between invocations, so if you close and then restart python it will automatically continue logging at the same level of detail as before.
-See :py:func:`setup_logging` for more details.
+See :py:func:`webbpsf.setup_logging` for more details.
 
 
 
