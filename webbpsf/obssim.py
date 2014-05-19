@@ -159,9 +159,9 @@ class TargetScene(object):
             if sum_image is None:
                 sum_image = src_psf
                 sum_image[0].header.add_history("obssim : Creating an image simulation with multiple PSFs")
-                sum_image[0].header.update('IMAGE_PA', image_PA,'PA of scene in simulated image')
-                sum_image[0].header.update('OFFSET_R',0 if offset_r is None else offset_r ,'[arcsec] Offset of target center from FOV center')
-                sum_image[0].header.update('OFFSETPA',0 if offset_PA is None else offset_PA ,'[deg] Position angle of target offset from FOV center')
+                sum_image[0].header['IMAGE_PA'] = ( image_PA,'PA of scene in simulated image')
+                sum_image[0].header['OFFSET_R'] = (0 if offset_r is None else offset_r ,'[arcsec] Offset of target center from FOV center')
+                sum_image[0].header['OFFSETPA'] = (0 if offset_PA is None else offset_PA ,'[deg] Position angle of target offset from FOV center')
 
                 if offset_r is None:
                     sum_image[0].header.add_history("Image is centered on target (perfect acquisition)")
@@ -180,7 +180,7 @@ class TargetScene(object):
         if noise:
             raise NotImplemented("Not Yet")
 
-        sum_image[0].header.update('NSOURCES', len(self.sources), "Number of point sources in sim")
+        sum_image[0].header['NSOURCES'] = ( len(self.sources), "Number of point sources in sim")
             #add noise in image - photon and read noise, mainly.
        
         # downsample? 
@@ -192,17 +192,16 @@ class TargetScene(object):
             rebinned_sum_image = sum_image[0].copy()
             detector_oversample = sum_image[0].header['DET_SAMP']
             rebinned_sum_image.data = poppy.rebin_array(rebinned_sum_image.data, rc=(detector_oversample, detector_oversample))
-            rebinned_sum_image.header.update('OVERSAMP', 1, 'These data are rebinned to detector pixels')
-            rebinned_sum_image.header.update('CALCSAMP', detector_oversample, 'This much oversampling used in calculation')
-            rebinned_sum_image.header.update('EXTNAME', 'DET_SAMP')
+            rebinned_sum_image.header['OVERSAMP'] = ( 1, 'These data are rebinned to detector pixels')
+            rebinned_sum_image.header['CALCSAMP'] = ( detector_oversample, 'This much oversampling used in calculation')
+            rebinned_sum_image.header['EXTNAME'] = ( 'DET_SAMP')
             rebinned_sum_image.header['PIXELSCL'] *= detector_oversample
             sum_image.append(rebinned_sum_image)
 
 
 
         if outfile is not None:
-            sum_image[0].header.update ("FILENAME", os.path.basename (outfile),
-                           comment="Name of this file")
+            sum_image[0].header["FILENAME"] = ( os.path.basename (outfile), "Name of this file")
             sum_image.writeto(outfile, clobber=clobber)
             _log.info("Saved image to "+outfile)
         return sum_image

@@ -438,8 +438,7 @@ class JWInstrument(poppy.instrument.Instrument):
                 plt.suptitle( "{self.name},  $\lambda$ = {wavelen} um".format(self=self, wavelen = monochromatic*1e6), size='xx-large')
  
         if outfile is not None:
-            result[0].header.update ("FILENAME", os.path.basename (outfile),
-                           comment="Name of this file")
+            result[0].header["FILENAME"] = (os.path.basename (outfile), "Name of this file")
             result.writeto(outfile, clobber=clobber)
             _log.info("Saved result to "+outfile)
 
@@ -451,11 +450,11 @@ class JWInstrument(poppy.instrument.Instrument):
     def _getFITSHeader(self, result, options):
         """ populate FITS Header keywords """
         poppy.Instrument._getFITSHeader(self,result, options)
-        result[0].header.update('FILTER', self.filter, 'Filter name')
+        result[0].header['FILTER'] = (self.filter, 'Filter name')
         if self.image_mask is not None:
-            result[0].header.update('CORONMSK', self.image_mask)
+            result[0].header['CORONMSK'] = ( self.image_mask, "Image plane mask")
         if self.pupil_mask is not None:
-            result[0].header.update('PUPIL', self.pupil_mask)
+            result[0].header['PUPIL'] = ( self.pupil_mask, "Pupil plane mask")
 
 
     def _calcPSF_format_output(self, result, options):
@@ -821,12 +820,12 @@ class MIRI(JWInstrument):
         """ Format MIRI-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
         JWInstrument._getFITSHeader(self, hdulist, options)
 
-        hdulist[0].header.update('GRATNG14','None', 'MRS Grating for channels 1 and 4')
-        hdulist[0].header.update('GRATNG23','None', 'MRS Grating for channels 2 and 3')
-        hdulist[0].header.update('FLATTYPE','?', 'Type of flat field to be used: all, one, principal')
-        hdulist[0].header.update('CCCSTATE','open', 'Contamination Control Cover state: open, closed, locked')
+        hdulist[0].header['GRATNG14'] = ('None', 'MRS Grating for channels 1 and 4')
+        hdulist[0].header['GRATNG23'] = ('None', 'MRS Grating for channels 2 and 3')
+        hdulist[0].header['FLATTYPE'] = ('?', 'Type of flat field to be used: all, one, principal')
+        hdulist[0].header['CCCSTATE'] = ('open', 'Contamination Control Cover state: open, closed, locked')
         if self.image_mask is not None:
-            hdulist[0].header.update('TACQNAME','None', 'Target acquisition file name')
+            hdulist[0].header['TACQNAME'] = ('None', 'Target acquisition file name')
 
 
 class NIRCam(JWInstrument):
@@ -975,10 +974,10 @@ class NIRCam(JWInstrument):
         """ Format NIRCam-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
         JWInstrument._getFITSHeader(self,hdulist, options)
 
-        hdulist[0].header.update('MODULE',self.module, 'NIRCam module: A or B')
-        hdulist[0].header.update('CHANNEL', 'Short' if self.pixelscale == self._pixelscale_short else 'Long', 'NIRCam channel: long or short')
+        hdulist[0].header['MODULE'] = (self.module, 'NIRCam module: A or B')
+        hdulist[0].header['CHANNEL'] = ( 'Short' if self.pixelscale == self._pixelscale_short else 'Long', 'NIRCam channel: long or short')
         # filter, pupil added by calcPSF header code
-        hdulist[0].header.update('PILIN', 'False', 'Pupil imaging lens in optical path: T/F')
+        hdulist[0].header['PILIN'] = ( 'False', 'Pupil imaging lens in optical path: T/F')
 
 
 class NIRSpec(JWInstrument):
@@ -1077,8 +1076,8 @@ class NIRSpec(JWInstrument):
     def _getFITSHeader(self, hdulist, options):
         """ Format NIRSpec-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
         JWInstrument._getFITSHeader(self, hdulist, options)
-        hdulist[0].header.update('GRATING', 'None', 'NIRSpec grating element name')
-        hdulist[0].header.update('APERTURE', str(self.image_mask), 'NIRSpec slit aperture name')
+        hdulist[0].header['GRATING'] = ( 'None', 'NIRSpec grating element name')
+        hdulist[0].header['APERTURE'] = ( str(self.image_mask), 'NIRSpec slit aperture name')
 
 
 class NIRISS(JWInstrument):
@@ -1177,8 +1176,8 @@ class NIRISS(JWInstrument):
         JWInstrument._getFITSHeader(self, hdulist, options)
 
         if self.image_mask is not None:
-            hdulist[0].header.update('CORONPOS', self.image_mask, 'NIRISS coronagraph spot location')
-        hdulist[0].header.update('FOCUSPOS',0,'NIRISS focus mechanism not yet modeled.')
+            hdulist[0].header['CORONPOS'] = ( self.image_mask, 'NIRISS coronagraph spot location')
+        hdulist[0].header['FOCUSPOS'] = (0,'NIRISS focus mechanism not yet modeled.')
 
 
 class FGS(JWInstrument):
@@ -1208,7 +1207,7 @@ class FGS(JWInstrument):
     def _getFITSHeader(self, hdulist, options):
         """ Format FGS-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
         JWInstrument._getFITSHeader(self, hdulist, options)
-        hdulist[0].header.update('FOCUSPOS',0,'FGS focus mechanism not yet modeled.')
+        hdulist[0].header['FOCUSPOS'] = (0,'FGS focus mechanism not yet modeled.')
 
 
 #######  Custom Optics used in JWInstrument classes  #####
