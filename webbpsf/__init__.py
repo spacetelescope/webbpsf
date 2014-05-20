@@ -4,21 +4,18 @@ PSF simulations for the James Webb Space Telescope
 
 """
 
+# Affiliated packages may add whatever they like to this file, but
+# should keep this content at the top.
+# ----------------------------------------------------------------------------
+from ._astropy_init import *
+# ----------------------------------------------------------------------------
 
 import warnings
 
 import astropy
 
-try:
-    from .version import version as __version__
-except ImportError:
-    # TODO: Issue a warning using the logging framework
-    __version__ = ''
-try:
-    from .version import githash as __githash__
-except ImportError:
-    # TODO: Issue a warning using the logging framework
-    __githash__ = ''
+
+from .config import conf
 
 
 from poppy import (display_PSF, display_PSF_difference, display_EE, display_profiles, radial_profile,
@@ -37,21 +34,21 @@ utils.restart_logging()          # restart logging based on saved settings.
 
 
 
-#try: 
-#    from .wxgui import wxgui  
-#    HAVE_WX_GUI = True
-#except ImportError:
-HAVE_WX_GUI = False
+try: 
+    from .wxgui import wxgui  
+    _HAVE_WX_GUI = True
+except ImportError:
+    _HAVE_WX_GUI = False
 
 try: 
     from .tkgui import tkgui  
-    HAVE_TK_GUI = True
+    _HAVE_TK_GUI = True
 except ImportError:
-    HAVE_TK_GUI = False
+    _HAVE_TK_GUI = False
 
 
 
-if not (HAVE_WX_GUI or HAVE_TK_GUI):
+if not (_HAVE_WX_GUI or _HAVE_TK_GUI):
     warnings.warn("Warning: Neither Tk nor wx GUIs could be imported. "
                   "Graphical interface disabled")
 else:
@@ -65,13 +62,14 @@ else:
 
 
         """
-        if preferred == 'wx' and HAVE_WX_GUI:
+        if preferred == 'wx' and _HAVE_WX_GUI:
+            wxgui()
             #try:
 #            wxgui()
             #except:
                 #raise ImportError("wxpython GUI for webbpsf not available ")
             pass
-        elif preferred=='ttk' or HAVE_TK_GUI:
+        elif preferred=='ttk' or _HAVE_TK_GUI:
             #try:
             tkgui()
             #except:
@@ -79,19 +77,19 @@ else:
         else:
             raise NotImplementedError("Neither TK nor WX GUI libraries are available. Cannot start GUI.")
 
-def test( verbose=False ) :
-    import os, pytest
-
-    # find the directory where the test package lives
-    from . import tests
-    dir = os.path.dirname( tests.__file__ )
-
-    # assemble the py.test args
-    args = [ dir ]
-
-    # run py.test
-    try :
-        return pytest.main( args )
-    except SystemExit as e :
-        return e.code
-
+#def test( verbose=False ) :
+#    import os, pytest
+#
+#    # find the directory where the test package lives
+#    from . import tests
+#    dir = os.path.dirname( tests.__file__ )
+#
+#    # assemble the py.test args
+#    args = [ dir ]
+#
+#    # run py.test
+#    try :
+#        return pytest.main( args )
+#    except SystemExit as e :
+#        return e.code
+#

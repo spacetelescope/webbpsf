@@ -7,7 +7,8 @@ import astropy.io.fits as fits
 
 from threading import Thread
 
-from . import conf
+from . import config
+from .config import conf
 
 __doc__ = """
 Graphical Interface for WebbPSF 
@@ -36,7 +37,7 @@ def _default_options():
                 'psf_scale':'log', 'psf_normalize':'Peak', 
                 'psf_cmap_str': 'Jet (blue to red)', 'psf_cmap': matplotlib.cm.jet,
                 'psf_vmin':1e-8, 'psf_vmax':1.0, 'monochromatic': False, 'fov_in_arcsec': True,
-                'parallelization': conf.use_multiprocessing() }
+                'parallelization': conf.use_multiprocessing }
 
 
 
@@ -311,15 +312,15 @@ class WebbPSF_GUI(wx.Frame):
 
 
         r=0 
-        self._add_labeled_entry('FOV', calcPanel,calcSizer, label='Field of View:',  value=str(conf.default_fov_arcsec()), postlabel='arcsec/side', position=(0,0))
+        self._add_labeled_entry('FOV', calcPanel,calcSizer, label='Field of View:',  value=str(conf.default_fov_arcsec), postlabel='arcsec/side', position=(0,0))
         r+=1
-        self._add_labeled_entry('detector_oversampling', calcPanel,calcSizer, label='Output Oversampling:',  width=3, value=str(conf.default_oversampling()), postlabel='x finer than instrument pixels       ', position=(r,0))
+        self._add_labeled_entry('detector_oversampling', calcPanel,calcSizer, label='Output Oversampling:',  width=3, value=str(conf.default_oversampling), postlabel='x finer than instrument pixels       ', position=(r,0))
 
 
 
 
         r+=1
-        self._add_labeled_entry('fft_oversampling', calcPanel,calcSizer, label='Coronagraph FFT Oversampling:',  width=3, value=str(conf.default_oversampling()), postlabel='x finer than Nyquist', position=(r,0))
+        self._add_labeled_entry('fft_oversampling', calcPanel,calcSizer, label='Coronagraph FFT Oversampling:',  width=3, value=str(conf.default_oversampling), postlabel='x finer than Nyquist', position=(r,0))
         r+=1
         self._add_labeled_entry('nlambda', calcPanel,calcSizer, label='# of wavelengths:',  width=3, value='', position=(r,0), postlabel='Leave blank for autoselect')
         r+=1
@@ -468,7 +469,7 @@ class WebbPSF_GUI(wx.Frame):
                     else:
                         newfov = int(newfov)
                     self._setFOV( newfov)
-            conf.use_multiprocessing.set(self.advanced_options['parallelization'])
+            conf.use_multiprocessing = self.advanced_options['parallelization']
  
         dlg.Destroy()
 
@@ -1197,7 +1198,7 @@ class WebbPSFPreferencesDialog(WebbPSFDialog):
 
         r=1
         self._add_labeled_entry("WEBBPSF_PATH", panel1,sizer, label='    WebbPSF Data Path:', 
-            value = conf.WEBBPSF_PATH(), 
+            value = conf.WEBBPSF_PATH, 
             format="%50s", position=(r,0))
 
         self.ButtonBrowseDir = wx.Button(panel1, label='Browse...')
@@ -1215,11 +1216,11 @@ class WebbPSFPreferencesDialog(WebbPSFDialog):
 
         r=1
         self._add_labeled_entry("default_oversampling", panel2,sizer, label='    Default Oversampling:', 
-            value = conf.default_oversampling(), 
+            value = conf.default_oversampling, 
             format="%.2g", width=7, position=(r,0))
         r+=1
         self._add_labeled_entry("default_fov_arcsec", panel2,sizer, label='    Default FOV [arcsec]:', 
-            value = conf.default_fov_arcsec(), 
+            value = conf.default_fov_arcsec, 
             format="%.2g", width=7, position=(r,0))
 
         # update conf.default_oversampling , default_output_mode, default_fov_arcsec, WEBBPSF_PATH, 
@@ -1238,10 +1239,10 @@ class WebbPSFPreferencesDialog(WebbPSFDialog):
 
         r+=1
         self._add_labeled_dropdown("use_fftw", panel3,sizer, label='    Use FFTW for FFTs:', choices=['True','False'],
-                default="True" if conf.use_fftw() else "False", position=(r,0))
+                default="True" if conf.use_fftw else "False", position=(r,0))
         r+=1
         self._add_labeled_dropdown("use_multiprocessing", panel3,sizer, label='    Use Multiprocessing for DFTs:', choices=['True','False'],
-                default="True" if conf.use_multiprocessing() else "False", position=(r,0))
+                default="True" if conf.use_multiprocessing else "False", position=(r,0))
 
         panel3.SetSizerAndFit(sizer)
 #
@@ -1292,8 +1293,8 @@ class WebbPSFPreferencesDialog(WebbPSFDialog):
     def OnButtonOK(self, event):
         print "User pressed OK"
         try:
-            conf.default_oversampling.set(int(self.widgets['default_oversampling'].GetValue()))
-            conf.default_fov_arcsec.set(float(self.widgets['default_fov_arcsec'].GetValue()))
+            conf.default_oversampling = int(self.widgets['default_oversampling'].GetValue())
+            conf.default_fov_arcsec = float(self.widgets['default_fov_arcsec'].GetValue())
 
 #            results['force_coron'] =    self.widgets['force_coron'].GetValue() == 'full coronagraphic propagation (FFT/SAM)'
 #            results['no_sam'] =         self.widgets['no_sam'].GetValue() == 'basic FFT method always'
@@ -1311,7 +1312,7 @@ class WebbPSFPreferencesDialog(WebbPSFDialog):
 #            print results
 #            self.results = results # for access from calling routine
 
-            conf.save_config()
+            config.save_config()
             self.Close()
             #self.Destroy() # return... If called as a modal dialog, should ShowModal and Destroy from calling routine?
         except:
@@ -1473,9 +1474,9 @@ def wxgui(fignum=1, showlog=True):
 
 
     # GUI does not play well with multiprocessing, so avoid that.
-    if conf.use_multiprocessing():
+    if conf.use_multiprocessing:
         _log.error('Multiprocessing is not compatible with the GUI right now. Falling back to single-threaded.')
-        conf.use_multiprocessing.set(False)
+        conf.use_multiprocessing = False 
 
     # start the GUI
     app = wx.App()

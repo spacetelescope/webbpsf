@@ -39,7 +39,8 @@ from astropy.config import ConfigurationItem, get_config_dir, save_config
 
 import poppy
 
-from . import conf
+from . import config
+from .config import conf
 
 
 try: 
@@ -116,7 +117,7 @@ class JWInstrument(poppy.instrument.Instrument):
         self.name=name
         self.pixelscale = pixelscale
 
-        self._WebbPSF_basepath = conf.get_webbpsf_data_path()
+        self._WebbPSF_basepath = config.get_webbpsf_data_path()
 
         self._datapath = self._WebbPSF_basepath + os.sep + self.name + os.sep
         self._filter = None
@@ -341,7 +342,7 @@ class JWInstrument(poppy.instrument.Instrument):
         # settings in both packages, but the intent is to shield typical users of webbpsf
         # from having to think about the existence of the underlying library. They can 
         # just deal with one set of settings.
-        conf._apply_settings_to_poppy()
+        config._apply_settings_to_poppy()
 
         if filter is not None:
             self.filter = filter
@@ -394,7 +395,7 @@ class JWInstrument(poppy.instrument.Instrument):
             raise ValueError("You cannot specify simultaneously the oversample= option with the detector_oversample and fft_oversample options. Pick one or the other!")
         elif oversample is None and detector_oversample is None and fft_oversample is None:
             # nothing set -> set oversample = 4
-            oversample = conf.default_oversampling()
+            oversample = conf.default_oversampling
         if detector_oversample is None: detector_oversample = oversample
         if fft_oversample is None: fft_oversample = oversample
         local_options['detector_oversample']=detector_oversample
@@ -465,7 +466,7 @@ class JWInstrument(poppy.instrument.Instrument):
 
             Modifies the 'result' HDUList object.
         """
-        output_mode = options.get('output_mode',conf.default_output_mode())
+        output_mode = options.get('output_mode',conf.default_output_mode)
 
         if output_mode == 'Mock JWST DMS Output':
             # first rebin down to detector sampling
@@ -742,24 +743,24 @@ class MIRI(JWInstrument):
         # on the cross-hairs between four pixels. (Since that is where the FQPM itself is centered)
         # This is with respect to the intermediate calculation pixel scale, of course, not the
         # final detector pixel scale. 
-        if (self.image_mask is not None and 'FQPM' in self.image_mask) or 'force_fqpm_shift' in self.options.keys() : optsys.addPupil("FQPM_FFT_aligner")
+        if (self.image_mask is not None and 'FQPM' in self.image_mask) or 'force_fqpm_shift' in self.options.keys() : optsys.addPupil( poppy.FQPM_FFT_aligner() )
 
         if self.image_mask == 'FQPM1065':
             container = poppy.CompoundAnalyticOptic(name = "MIRI FQPM 1065",
                 opticslist = [  poppy.IdealFQPM(wavelength=10.65e-6, name=self.image_mask),
-                                poppy.IdealFieldStop(size=24, angle=-self._rotation)])
+                                poppy.SquareFieldStop(size=24, angle=-self._rotation)])
             optsys.addImage(container)
             trySAM = False
         elif self.image_mask == 'FQPM1140':
             container = poppy.CompoundAnalyticOptic(name = "MIRI FQPM 1140",
                 opticslist = [  poppy.IdealFQPM(wavelength=11.40e-6, name=self.image_mask),
-                                poppy.IdealFieldStop(size=24, angle=-self._rotation)])
+                                poppy.SquareFieldStop(size=24, angle=-self._rotation)])
             optsys.addImage(container)
             trySAM = False
         elif self.image_mask == 'FQPM1550':
             container = poppy.CompoundAnalyticOptic(name = "MIRI FQPM 1550",
                 opticslist = [  poppy.IdealFQPM(wavelength=15.50e-6, name=self.image_mask),
-                                poppy.IdealFieldStop(size=24, angle=-self._rotation)])
+                                poppy.SquareFieldStop(size=24, angle=-self._rotation)])
             optsys.addImage(container)
             trySAM = False
         elif self.image_mask =='LYOT2300':
@@ -770,9 +771,9 @@ class MIRI(JWInstrument):
             # position angle of strut mask is 355.5 degrees  (no = =360 -2.76 degrees
             #optsys.addImage(function='fieldstop',size=30)
             container = poppy.CompoundAnalyticOptic(name = "MIRI Lyot Occulter",
-                opticslist = [poppy.IdealCircularOcculter(radius =4.25/2, name=self.image_mask),
-                              poppy.IdealBarOcculter(width=0.722), 
-                              poppy.IdealFieldStop(size=30, angle=-self._rotation)] )
+                opticslist = [poppy.CircularOcculter(radius =4.25/2, name=self.image_mask),
+                              poppy.BarOcculter(width=0.722), 
+                              poppy.SquareFieldStop(size=30, angle=-self._rotation)] )
             optsys.addImage(container)
             trySAM = True
             SAM_box_size = [5,20]
@@ -781,13 +782,13 @@ class MIRI(JWInstrument):
             #           4.7 x 0.51 arcsec (measured for flight model. See MIRI-TR-00001-CEA)
             # 
             # Per Klaus Pontoppidan: The LRS slit is aligned with the detector x-axis, so that the dispersion direction is along the y-axis. 
-            optsys.addImage(optic=poppy.IdealRectangularFieldStop(width=5.5, height=0.6, angle=self._rotation, name= self.image_mask))
+            optsys.addImage(optic=poppy.RectangularFieldStop(width=5.5, height=0.6, angle=self._rotation, name= self.image_mask))
             trySAM = False
         else:
             optsys.addImage()
             trySAM = False
 
-        if (self.image_mask is not None and 'FQPM' in self.image_mask)  or 'force_fqpm_shift' in self.options.keys() : optsys.addPupil("FQPM_FFT_aligner", direction='backward')
+        if (self.image_mask is not None and 'FQPM' in self.image_mask)  or 'force_fqpm_shift' in self.options.keys() : optsys.addPupil( poppy.FQPM_FFT_aligner(direction='backward'))
 
         # add pupil plane mask
         if ('pupil_shift_x' in self.options.keys() and self.options['pupil_shift_x'] != 0) or \
@@ -911,23 +912,23 @@ class NIRCam(JWInstrument):
         #optsys.addImage(name='null for debugging NIRcam _addCoron') # for debugging
 
         if self.image_mask == 'MASK210R':
-            optsys.addImage(function='BandLimitedCoron', kind='nircamcircular', sigma=5.253 , name=self.image_mask)
+            optsys.addImage( poppy.BandLimitedCoron( kind='nircamcircular', sigma=5.253 , name=self.image_mask))
             trySAM = True
             SAM_box_size = 5.0
         elif self.image_mask == 'MASK335R':
-            optsys.addImage(function='BandLimitedCoron', kind='nircamcircular', sigma=3.2927866 , name=self.image_mask)
+            optsys.addImage( poppy.BandLimitedCoron(kind='nircamcircular', sigma=3.2927866 , name=self.image_mask))
             trySAM = True
             SAM_box_size = 5.0
         elif self.image_mask == 'MASK430R':
-            optsys.addImage(function='BandLimitedCoron', kind='nircamcircular', sigma=2.588496*0.99993495 , name=self.image_mask)
+            optsys.addImage( poppy.BandLimitedCoron(kind='nircamcircular', sigma=2.588496*0.99993495 , name=self.image_mask))
             trySAM = True
             SAM_box_size = 5.0
         elif self.image_mask == 'MASKSWB':
-            optsys.addImage(function='BandLimitedCoron', kind='nircamwedge', wavelength=2.1e-6, name=self.image_mask)
+            optsys.addImage( poppy.BandLimitedCoron(kind='nircamwedge', wavelength=2.1e-6, name=self.image_mask))
             trySAM = False #True FIXME
             SAM_box_size = [5,20]
         elif self.image_mask == 'MASKLWB':
-            optsys.addImage(function='BandLimitedCoron', kind='nircamwedge', wavelength=4.6e-6, name=self.image_mask)
+            optsys.addImage( poppy.BandLimitedCoron(kind='nircamwedge', wavelength=4.6e-6, name=self.image_mask))
             trySAM = False #True FIXME
             SAM_box_size = [5,20]
         else:
@@ -1034,19 +1035,19 @@ class NIRSpec(JWInstrument):
         SAM_box_size = None
         if self.image_mask == 'S200A1' or self.image_mask == 'S200A2' or self.image_mask == 'S200B1':
             # three identical slits, 0.2 x 3.2 arcsec in length
-            optsys.addImage(optic=poppy.IdealRectangularFieldStop(width=0.2, height=3.2, name= self.image_mask + " slit"))
+            optsys.addImage(optic=poppy.RectangularFieldStop(width=0.2, height=3.2, name= self.image_mask + " slit"))
         elif self.image_mask == 'S400A1':
             # one slit, 0.4 x 3.65 arcsec in height
-            optsys.addImage(optic=poppy.IdealRectangularFieldStop(width=0.4, height=3.65, name= self.image_mask + " slit"))
+            optsys.addImage(optic=poppy.RectangularFieldStop(width=0.4, height=3.65, name= self.image_mask + " slit"))
         elif self.image_mask == 'S1600A1':
             # square aperture for exoplanet spectroscopy
-            optsys.addImage(optic=poppy.IdealRectangularFieldStop(width=1.6, height=1.6, name= self.image_mask + " square aperture"))
+            optsys.addImage(optic=poppy.RectangularFieldStop(width=1.6, height=1.6, name= self.image_mask + " square aperture"))
         elif self.image_mask == 'MSA all open':
             # all MSA shutters open 
             optsys.addImage(optic=NIRSpec_MSA_open_grid(name= self.image_mask))
         elif self.image_mask == 'Single MSA open shutter':
             # one MSA open shutter aperture 
-            optsys.addImage(optic=poppy.IdealRectangularFieldStop(width=0.2, height=0.45, name= self.image_mask))
+            optsys.addImage(optic=poppy.RectangularFieldStop(width=0.2, height=0.45, name= self.image_mask))
         elif self.image_mask == 'Three adjacent MSA open shutters':
             optsys.addImage(optic=NIRSpec_three_MSA_shutters(name=self.image_mask))
 
@@ -1107,7 +1108,7 @@ class NIRISS(JWInstrument):
         JWInstrument.__init__(self, "NIRISS", pixelscale=0.064)
 
         self.image_mask_list = ['CORON058', 'CORON075','CORON150','CORON200'] # available but unlikely to be used...
-        self.pupil_mask_list = ['MASK_NRM','CLEAR', 'GR700XD']
+        self.pupil_mask_list = ['CLEAR', 'CLEARP', 'MASK_NRM','GR700XD']
 
         self._detector2siaf = {'NIRISS':'NIS_FULL_CNTR'}
         self.detector_list = ['NIRISS']
@@ -1159,11 +1160,14 @@ class NIRISS(JWInstrument):
         #elif self.pupil_mask == 'MASKC71N':
             #optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKC71np.fits", name=self.pupil_mask, shift=shift)
         if self.pupil_mask == 'MASK_NRM':
-            optsys.addPupil(transmission=self._datapath+"/coronagraph/MASK_NRM.fits.gz", name=self.pupil_mask, shift=shift)
+            optsys.addPupil(transmission=self._datapath+"/optics/MASK_NRM.fits.gz", name=self.pupil_mask, shift=shift)
         elif self.pupil_mask == 'CLEAR':
-            optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKCLEAR.fits.gz", name=self.pupil_mask, shift=shift)
+            optsys.addPupil(transmission=self._datapath+"/optics/MASKCLEAR.fits.gz", name=self.pupil_mask, shift=shift)
+        elif self.pupil_mask == 'CLEARP':
+            fn = os.path.join(self._datapath,"optics/MASK_CLEARP.fits.gz")
+            print fn
+            optsys.addPupil(transmission=fn, name=self.pupil_mask, shift=shift)
         elif self.pupil_mask == 'GR700XD':
-            #optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKSOSS.fits.gz", name=self.pupil_mask, shift=shift)
             optsys.addPupil(optic = NIRISS_GR700XD_Grism(shift=shift))
  
         elif (self.pupil_mask  is None and self.image_mask is not None):
@@ -1228,7 +1232,7 @@ class NIRSpec_three_MSA_shutters(poppy.AnalyticOpticalElement):
         msa_wall = 0.06
 
         if not isinstance(wave, poppy.Wavefront):
-            raise ValueError("IdealFieldStop getPhasor must be called with a Wavefront to define the spacing")
+            raise ValueError("FieldStop getPhasor must be called with a Wavefront to define the spacing")
         assert (wave.planetype == poppy.poppy_core._IMAGE)
 
         y, x= wave.coordinates()
@@ -1265,7 +1269,7 @@ class NIRSpec_MSA_open_grid(poppy.AnalyticOpticalElement):
         msa_y_pitch = 0.51
 
         if not isinstance(wave, poppy.Wavefront):
-            raise ValueError("IdealFieldStop getPhasor must be called with a Wavefront to define the spacing")
+            raise ValueError("FieldStop getPhasor must be called with a Wavefront to define the spacing")
         assert (wave.planetype == poppy.poppy_core._IMAGE)
 
         y, x= wave.coordinates()
@@ -1406,7 +1410,7 @@ class NIRISS_GR700XD_Grism(poppy.FITSOpticalElement):
         if which=='spare':
             raise NotImplementedError("Rotated field mask for spare grism not yet implemented!")
         else:
-            transmission=os.path.join( conf.get_webbpsf_data_path(), "NIRISS/optics/MASKGR700XD.fits.gz")
+            transmission=os.path.join( config.get_webbpsf_data_path(), "NIRISS/optics/MASKGR700XD.fits.gz")
 
         self.shift=shift
         poppy.FITSOpticalElement.__init__(self, name=name, transmission=transmission, planetype=poppy.poppy_core._PUPIL, shift=shift)
@@ -1695,7 +1699,7 @@ class DetectorGeometry(object):
         if shortname is not None: self.name=shortname
         from jwxml import SIAF
 
-        self.mysiaf = SIAF(instr=self.instrname, basepath=os.path.join( conf.get_webbpsf_data_path(), self.instrname) )
+        self.mysiaf = SIAF(instr=self.instrname, basepath=os.path.join( config.get_webbpsf_data_path(), self.instrname) )
         self.aperture = self.mysiaf[aperturename]
 
 

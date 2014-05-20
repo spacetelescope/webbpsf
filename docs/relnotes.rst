@@ -106,6 +106,9 @@ cross-platform widget toolkit, wxpython.
    grating wheel pupil stop geometry, and Charles Lajoie for information on the
    MIRI LRS pupil stop. 
 
+ * Added NIRISS CLEARP pupil mask; this includes the obscuration from the pupil alignment reference.
+   Given the pupil wheel layout, this unavoidably must be in the beam for any NIRISS 
+   long-wave PSFs, and WebbPSF will automatically configure it in the necessary cases. 
 
  * Bug fix to weak lens code for NIRCam, which previously had an incorrect scaling factor.  
 
