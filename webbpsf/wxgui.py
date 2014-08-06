@@ -8,7 +8,7 @@ import astropy.io.fits as fits
 from threading import Thread
 
 from . import config
-from .config import conf
+from . import conf
 
 __doc__ = """
 Graphical Interface for WebbPSF 
@@ -1312,7 +1312,7 @@ class WebbPSFPreferencesDialog(WebbPSFDialog):
 #            print results
 #            self.results = results # for access from calling routine
 
-            config.save_config()
+            utils.save_config()
             self.Close()
             #self.Destroy() # return... If called as a modal dialog, should ShowModal and Destroy from calling routine?
         except:
