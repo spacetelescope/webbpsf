@@ -56,6 +56,10 @@ The coronagraph optics models are based on the NIRCam instrument team's series o
     However, this algorithm could probably be improved further.
 
 
+Weak lenses: The lenses are nominally +- 8 and +4 waves at 2.14 microns. The as built defocus values are as follows based on component testing:  7.76198,
+-7.74260, 3.90240. 
+
+
 NIRSpec
 --------
 NIRspec field of view rotation: 41.5 degrees. Matt Lallo, draft SIAF information; and Ball SI Fields for WFS&C document, J. Scott Knight

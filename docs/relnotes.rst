@@ -110,7 +110,8 @@ cross-platform widget toolkit, wxpython.
    Given the pupil wheel layout, this unavoidably must be in the beam for any NIRISS 
    long-wave PSFs, and WebbPSF will automatically configure it in the necessary cases. 
 
- * Bug fix to weak lens code for NIRCam, which previously had an incorrect scaling factor.  
+ * Minor bug fix to weak lens code for NIRCam, which previously had an incorrect scaling factor.  
+   Weak lens defocus values updated to the as-built rather than ideal values (which differ by 3%, but the as built values are very well calibrated).
 
  * Added defocus option to all instruments, which can be used to simulate
    either internal focus mechanism moves or telescope defocus during MIMF. For

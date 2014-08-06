@@ -38,7 +38,6 @@ default_role='py:obj'
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 #extensions = ['sphinx.ext.autodoc', 'numpydoc','sphinx.ext.inheritance_diagram', 'sphinx.ext.pngmath', 'sphinx.ext.autosummary', 'sphinx.ext.graphviz', 'sphinxcontrib.cheeseshop']
 
-extensions += ['sphinxcontrib.cheeseshop']
 # Add any paths that contain templates here, relative to this directory.
 #templates_path = ['_templates']
 

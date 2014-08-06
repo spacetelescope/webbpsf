@@ -15,30 +15,26 @@ Software Requirements
 
 **Python modules**: Beyond the usual numpy/scipy/matplotlib core modules, the following are required. 
 
-* `astropy <http://astropy.org>`_, 0.2 or more recent.
-* `lxml <https://pypi.python.org/pypi/lxml>`_ for XML parsing
+* `astropy <http://astropy.org>`_, 0.4 or more recent.
+* `poppy <https://pypi.python.org/pypi/poppy>`_, 0.3.1 or more recent. 
 
   
-These are optional but recommended:
+The following are optional. 
+The first, ``pysynphot``, is recommended for most users. The other optional installs are only worth adding for speed improvements if you are spending substantial time running calculations.
 
 * `pysynphot <https://trac6.assembla.com/astrolib>`_ enables the simulation of PSFs with proper spectral response to realistic source spectra.  Without this, PSF fidelity is reduced. See below for :ref:`installation instructions for pysynphot <pysynphot_install>`. 
-* `psutil <https://pypi.python.org/pypi/psutil>`_ for cross-platform memory management enables better automatic selection of numbers of processes for multiprocess calculations.
+* `psutil <https://pypi.python.org/pypi/psutil>`_ enables slightly better automatic selection of numbers of processes for multiprocess calculations.
 * `pyFFTW <https://pypi.python.org/pypi/pyFFTW>`_. The FFTW library can speed up the FFTs used in coronagraphic simulations and slit spectroscopy. Since direct imaging simulations use a discrete matrix FFT instead, direct imaging simulation speed is unchanged.  pyFFTW is recommended if you expect to perform many coronagraphic calculations, particularly for MIRI.  (Note: WebbPSF previously made use of the PyFFTW3 package, which is *different* from pyFFTW. The latter is more actively maintained and supported today, hence the switch.) See the :ref:`performance_and_parallelization` page for more details.
 
-Additional requirement for the GUI: The :ref:`graphical user interface<gui>` requires 
 
-* **Either**  the `wxpython <http://www.wxpython.org>`_ interface to the ``wxwidgets`` widget library (recommended), 
+**Additional requirement for the GUI:** The :ref:`graphical user interface<gui>` requires 
 
+* *Either*  the `wxpython <http://www.wxpython.org>`_ interface to the ``wxwidgets`` widget library (recommended), 
+* *or*  the `ttk <http://docs.python.org/2/library/ttk.html>`_ enhanced version of the ``Tkinter`` widget library. 
 
-* **or**  the `ttk <http://docs.python.org/2/library/ttk.html>`_ enhanced version of the ``Tkinter`` widget library. 
-  (``ttk`` is not included by default on some installations of Python, for instance Mac OS 10.6's default of Python 2.6. 
-  You may wish to either upgrade to a more current Python, or else compile and install ``ttk`` for your platform. ``WebbPSF``
-  was developed using Python 2.7, which includes ``ttk`` by default, but it ought to work fine on any installations of
-  Python 2.5 or 2.6 provided ``ttk`` is available.)
-
-Similar GUIs are implemented in both widget tool kits, with the wxpython GUI
+Fairly similar GUIs are implemented in both widget tool kits, with the wxpython GUI
 providing additional functionality. Future development will 
-concentrate on the wxpython toolkit only, but for now both are supported.
+concentrate on the wxpython toolkit only, but for now both are more or less supported.
 
 Alternatively, you can just skip using the GUI; the optical modeling classes
 themselves have no dependency on these widgets.
