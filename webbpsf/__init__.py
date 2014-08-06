@@ -16,6 +16,7 @@ filter transmission curves, and coronagraph Lyot mask shapes. These data files a
 source distribution available from PYPI. Please see the main WebbPSF web page, linked above, to download
 the required data tar file.
 
+This is an Astropy affiliated package.
 """
 
 # Affiliated packages may add whatever they like to this file, but
@@ -24,7 +25,10 @@ the required data tar file.
 from ._astropy_init import *
 # ----------------------------------------------------------------------------
 
-import warnings
+# For egg_info test builds to pass, put package imports here.
+#if not _ASTROPY_SETUP_:
+#    from example_mod import *
+#import warnings
 
 import astropy
 from astropy import config as _config
