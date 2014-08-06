@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 #
-# webbpsf documentation build configuration file, created by
-# sphinx-quickstart on Mon Nov 29 15:57:01 2010.
+# Astropy documentation build configuration file.
 #
 # This file is execfile()d with the current directory set to its containing dir.
 #
@@ -26,30 +25,36 @@
 # Thus, any C-extensions that are needed to build the documentation will *not*
 # be accessible, and the documentation will not build correctly.
 
+import datetime
+import os
+import sys
+
+try:
+    import astropy_helpers
+except ImportError:
+    # Building from inside the docs/ directory?
+    if os.path.basename(os.getcwd()) == 'docs':
+        a_h_path = os.path.abspath(os.path.join('..', 'astropy_helpers'))
+        if os.path.isdir(a_h_path):
+            sys.path.insert(1, a_h_path)
+
 # Load all of the global Astropy configuration
-from astropy.sphinx.conf import *
+from astropy_helpers.sphinx.conf import *
 
+# Get configuration information from setup.cfg
+from distutils import config
+conf = config.ConfigParser()
+conf.read([os.path.join(os.path.dirname(__file__), '..', 'setup.cfg')])
+setup_cfg = dict(conf.items('metadata'))
 
-# -- General configuration -----------------------------------------------------
-
-default_role='py:obj'
-
-# Add any Sphinx extension module names here, as strings. They can be extensions
-# coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
-#extensions = ['sphinx.ext.autodoc', 'numpydoc','sphinx.ext.inheritance_diagram', 'sphinx.ext.pngmath', 'sphinx.ext.autosummary', 'sphinx.ext.graphviz', 'sphinxcontrib.cheeseshop']
-
-extensions += ['sphinxcontrib.cheeseshop']
-# Add any paths that contain templates here, relative to this directory.
-#templates_path = ['_templates']
-
-# The suffix of source filenames.
-#source_suffix = '.rst'
-
-# The master toctree document.
-#master_doc = 'index'
+# -- General configuration ----------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
-#needs_sphinx = '1.1'
+#needs_sphinx = '1.2'
+
+# To perform a Sphinx version check that needs to be more specific than
+# major.minor, call `check_sphinx_version("x.y.z")` here.
+# check_sphinx_version("1.2.1")
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -63,40 +68,32 @@ rst_epilog += """
 # -- Project information ------------------------------------------------------
 
 # This does not *have* to match the package name, but typically does
-project = u'WebbPSF'
-author = u'Marshall Perrin'
-copyright = u'2010-2013, ' + author
-
+project = setup_cfg['package_name']
+author = setup_cfg['author']
+copyright = '{0}, {1}'.format(
+    datetime.datetime.now().year, setup_cfg['author'])
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
 # built documents.
-#
+
+__import__(setup_cfg['package_name'])
+package = sys.modules[setup_cfg['package_name']]
+
 # The short X.Y version.
-import webbpsf
-# The short X.Y version.
-version = webbpsf.__version__.split('-', 1)[0]
+version = package.__version__.split('-', 1)[0]
 # The full version, including alpha/beta/rc tags.
-release = webbpsf.__version__
-
-# List of directories, relative to source directory, that shouldn't be searched
-# for source files.
-exclude_trees = []
-
-# The name of the Pygments (syntax highlighting) style to use.
-pygments_style = 'sphinx'
+release = package.__version__
 
 
 # -- Options for HTML output ---------------------------------------------------
 
 # A NOTE ON HTML THEMES
-#
-# The global astropy configuration uses a custom theme,
-# 'bootstrap-astropy', which is installed along with astropy. The
-# theme has options for controlling the text of the logo in the upper
-# left corner. This is how you would specify the options in order to
-# override the theme defaults (The following options *are* the
-# defaults, so we do not actually need to set them here.)
+# The global astropy configuration uses a custom theme, 'bootstrap-astropy',
+# which is installed along with astropy. A different theme can be used or
+# the options for this theme can be modified by overriding some of the
+# variables set in the global configuration. The variables set in the
+# global configuration are listed below, commented out.
 
 html_theme_options = {
     'logotext1': 'JWST ',  # white,  semi-bold
@@ -104,10 +101,6 @@ html_theme_options = {
     'logotext3': ':docs'   # white,  light
     }
 
-# A different theme can be used, or other parts of this theme can be
-# modified, by overriding some of the variables set in the global
-# configuration. The variables set in the global configuration are
-# listed below, commented out.
 
 # Add any paths that contain custom themes here, relative to this directory.
 # To use a different custom theme, add the directory containing the theme.
@@ -117,6 +110,7 @@ html_theme_path = ['_themes']
 # a list of builtin themes. To override the custom theme, set this to the
 # name of a builtin theme or the name of a custom theme in html_theme_path.
 html_theme = 'theme_webbpsf'
+#html_theme = None
 
 # Custom sidebar templates, maps document names to template names.
 #html_sidebars = {}
@@ -154,18 +148,17 @@ man_pages = [('index', project.lower(), project + u' Documentation',
               [author], 1)]
 
 
-# -- Options for the edit_on_github extension ----------------------------------------
+## -- Options for the edit_on_github extension ----------------------------------------
 
-extensions += ['astropy.sphinx.ext.edit_on_github']
+if eval(setup_cfg.get('edit_on_github')):
+    extensions += ['astropy.sphinx.ext.edit_on_github']
 
-# Don't import the module as "version" or it will override the
-# "version" configuration parameter
-from webbpsf import version as versionmod
-edit_on_github_project = "mperrin/webbpsf"
-if versionmod.release:
-    edit_on_github_branch = "v" + versionmod.version
-else:
-    edit_on_github_branch = "master"
+    versionmod = __import__(setup_cfg['package_name'] + '.version')
+    edit_on_github_project = setup_cfg['github_project']
+    if versionmod.version.release:
+        edit_on_github_branch = "v" + versionmod.version.version
+    else:
+        edit_on_github_branch = "master"
 
-edit_on_github_source_root = ""
-edit_on_github_doc_root = "docs"
+    edit_on_github_source_root = ""
+    edit_on_github_doc_root = "docs"

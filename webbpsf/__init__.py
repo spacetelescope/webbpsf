@@ -1,6 +1,20 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
-""" WebbPSF
-PSF simulations for the James Webb Space Telescope
+""" 
+WebbPSF: Simulated Point Spread Functions for the James Webb Space Telescope
+-------------------------------------------------------------------------------
+
+WebbPSf produces simulated PSFs for the James Webb Space Telescope, NASA's next flagship
+infrared space telescope. WebbPSF can simulate images for any of the four science instruments plus the
+fine guidance sensor, including both direct imaging and coronagraphic modes. 
+
+Developed by Marshall Perrin at STScI, 2010-2012. 
+
+Documentation can be found online at http://www.stsci.edu/jwst/software/webbpsf/
+
+WebbPSF requires a large amount of input data for its simulations, including optical path difference (OPD) maps,
+filter transmission curves, and coronagraph Lyot mask shapes. These data files are not included in this
+source distribution available from PYPI. Please see the main WebbPSF web page, linked above, to download
+the required data tar file.
 
 """
 

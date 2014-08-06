@@ -1,8 +1,30 @@
-Documentation
-
+# Compiled files
 *.py[co]
+*.a
+*.o
+*.so
+__pycache__
 
-# Packages
+# Ignore .c files by default to avoid including generated code. If you want to
+# add a non-generated .c extension, use `git add -f filename.c`.
+*.c
+
+# Other generated files
+*/version.py
+*/cython_version.py
+htmlcov
+.coverage
+
+# Sphinx
+docs/api
+docs/_build
+
+# Eclipse editor project files
+.project
+.pydevproject
+.settings
+
+# Packages/installer info
 *.egg
 *.egg-info
 dist
@@ -14,10 +36,6 @@ var
 sdist
 develop-eggs
 .installed.cfg
-
-# Other generated files
-webbpsf/version.py
-webbpsf/cython_version.py
 
 # Installer logs
 pip-log.txt
@@ -32,9 +50,6 @@ pip-log.txt
 #Mr Developer
 .mr.developer.cfg
 
-# vim scratchfiles
-.*.sw[poq]
-
 # Mac OS
 .DS_Store
 
@@ -43,3 +58,12 @@ pip-log.txt
 docs/_build
 docs/_generated
 app/
+distribute-*.tar.gz
+
+# Other
+.*.swp
+.*.sw[poq]
+*~
+
+# Mac OSX
+.DS_Store
