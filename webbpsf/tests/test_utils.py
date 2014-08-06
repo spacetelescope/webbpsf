@@ -11,7 +11,7 @@ _log.addHandler(logging.NullHandler())
 
 from .. import webbpsf_core
 from .. import utils
-from ..config import conf
+from .. import conf
 
 
 def test_logging_restart():
