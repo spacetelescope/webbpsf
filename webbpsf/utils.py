@@ -7,7 +7,7 @@ _log = logging.getLogger('webbpsf')
 import ConfigParser 
 
 
-from astropy.config import ConfigurationItem, get_config_dir, save_config
+#from astropy.config import ConfigurationItem, get_config_dir, save_config
 
 from . import conf
 
@@ -15,17 +15,22 @@ from . import conf
 def restart_logging(verbose=True):
     """ Restart logging using the same settings as the last WebbPSF session, as stored in the configuration system. """
 
-    level = conf.logging_level()
+    level = str(conf.logging_level).upper()
     lognames = ['webbpsf', 'poppy']
-    if level.upper() =='NONE':
+
+
+    if level =='NONE':
         # disable logging
         lev = logging.CRITICAL  # we don't generate any CRITICAL flagged log items, so
                                 # setting the level to this is effectively the same as ignoring
                                 # all log events. FIXME there's likely a cleaner way to do this.
         if verbose: print "No log messages will be shown from WebbPSF."
-    else:
-        lev = logging.__dict__[level.upper()] # obtain one of the DEBUG, INFO, WARN, or ERROR constants
+    elif level in ['DEBUG', 'INFO','WARN','ERROR']:
+        lev = logging.__dict__[level] # obtain one of the DEBUG, INFO, WARN, or ERROR constants
         if verbose: print "WebbPSF log messages of level {0} and above will be shown.".format(level)
+    else:
+        print "Invalid logging level: "+level
+        return
 
     for name in lognames:
         logging.getLogger(name).setLevel(lev)
@@ -35,7 +40,7 @@ def restart_logging(verbose=True):
     if verbose: print("WebbPSF log outputs will be directed to the screen.")
 
     # set up file logging
-    filename = conf.logging_filename()
+    filename = conf.logging_filename
     if filename.strip().lower() != 'none':
         hdlr = logging.FileHandler(filename)
 
@@ -98,17 +103,17 @@ def setup_logging(level='INFO',  filename=None):
     # defaults into the configuration system, then calls restart_logging to
     # do the actual work.
 
-    level = level.upper()
+    level = str(level).upper()
 
 
-    conf.logging_level.set(level)
+    conf.logging_level = level
 
 
     if filename is None: filename='none' # must be a string to write into the config system
-    conf.logging_filename.set(filename)
+    conf.logging_filename = filename
 
-    conf.logging_level.save()
-    conf.logging_filename.save()
+    #conf.logging_level.save()
+    #conf.logging_filename.save()
 
     restart_logging(verbose=True)
 
@@ -119,13 +124,15 @@ def check_for_new_install(force=False):
     print a hopefully helpful explanatory message.
     """
 
-    from .version import version
-    if conf.last_version_ran() == '0.0' or force:
+    from ._version import __version__
+    if conf.last_version_ran == '0.0' or force:
         from astropy.config import save_config, get_config_dir
 
-        conf.last_version_ran.set(version)
-        conf.last_version_ran.save()
-        save_config('webbpsf') # save default values to text file
+        conf.last_version_ran = __version__
+        from .config import save_config
+        save_config()
+        #conf.last_version_ran.save()
+        #save_config('webbpsf') # save default values to text file
 
         print """
   ***************************************************
@@ -153,7 +160,6 @@ def check_for_new_install(force=False):
 
         # check for data dir?
         path_from_env_var = os.getenv('WEBBPSF_PATH') 
-        WEBBPSF_PATH = ConfigurationItem('webbpsf_data_path','unknown','Directory path to data files required for WebbPSF calculations, such as OPDs and filter transmissions.', module='webbpsf.webbpsf_core')
 
         if path_from_env_var is not None:
             print """
@@ -163,7 +169,7 @@ def check_for_new_install(force=False):
         else:
             # the following will automatically print an error message if
             # the path is unknown in the config file.
-            path_from_config = WEBBPSF_PATH()
+            path_from_config = conf.WEBBPSF_PATH
 
             if path_from_config != 'unknown':
                 print """

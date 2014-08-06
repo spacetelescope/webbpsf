@@ -18,27 +18,79 @@ the required data tar file.
 
 """
 
+# Affiliated packages may add whatever they like to this file, but
+# should keep this content at the top.
+# ----------------------------------------------------------------------------
+from ._astropy_init import *
+# ----------------------------------------------------------------------------
 
 import warnings
 
 import astropy
+from astropy import config as _config
 
-try:
-    from .version import version as __version__
-except ImportError:
-    # TODO: Issue a warning using the logging framework
-    __version__ = ''
-try:
-    from .version import githash as __githash__
-except ImportError:
-    # TODO: Issue a warning using the logging framework
-    __githash__ = ''
+class Conf(_config.ConfigNamespace):
+    """
+    Configuration parameters for `poppy`.
+    """
+
+    use_multiprocessing = _config.ConfigItem(False,
+            'Should PSF calculations run in parallel using multiple processers'+
+            'using the Python multiprocessing framework (if True; faster but '+
+            'does not allow display of each wavelength) or run serially in a '+
+            'single process(if False; slower but shows the calculation in '+
+            'progress. Also a bit more robust.?)')
+
+
+# Should probably be science state in astropy>=0.4 schema:
+
+    default_oversampling = _config.ConfigItem(4, 'Default '+
+            'oversampling factor: number of times more finely sampled than '+
+            'an integer pixel for the grid spacing in the PSF calculation.')
+
+    default_output_mode = _config.ConfigItem('both', "Should output include the oversampled PSF, a copy rebinned onto the integer detector spacing, or both? Options: 'oversampled','detector','both' ")
+    default_fov_arcsec = _config.ConfigItem( 5.0, "Default field of view size, in arcseconds per side of the square ")
+
+# Should be package settings:
+    WEBBPSF_PATH = _config.ConfigItem('unknown','Directory path to data files required for WebbPSF calculations, such as OPDs and filter transmissions. This will be overridden by the environment variable $WEBBPSF_PATH, if present.')
+
+
+# Settings cloned here from poppy
+#   see _apply_settings_to_poppy below...
+#    use_multiprocessing= _config.ConfigItem( False, 'Should PSF calculations run in parallel using the Python multiprocessing framework (if True; faster but does not allow display of each wavelength) or run serially in a single process (if False; slower but shows the calculation in progress. Also a bit more robust.?)')
+#    n_processes= _config.ConfigItem(4, 'Maximum number of additional worker processes to spawn. PSF calculations are likely RAM limited more than CPU limited for higher N on modern machines, particularly for oversampling >=4. Set to 0 to have the computer attempt to choose an intelligent default based on available cores and RAM.')
+#    use_fftw = _config.ConfigItem(True, 'Use FFTW for FFTs (assuming it is available)?  Set to False to force numpy.fft always, True to try importing and using FFTW via PyFFTW.')
+
+
+    # the default value is the first item in the options list:
+    logging_level =  _config.ConfigItem(['INFO','DEBUG','WARN','ERROR','NONE'],'Desired logging level for WebbPSF optical calculations.')
+    logging_filename =  _config.ConfigItem("none", "Desired filename to save log messages to.")
+    last_version_ran =  _config.ConfigItem('0.0', 'Most recently used version of WebbPSF on this computer. This is used for detecting new or upgraded installations and providing some additional information to users.')
+
+
+
+#def _apply_settings_to_poppy():
+#    """Use webbpsf's settings to override any of the
+#    same settings in poppy. This is admittedly perhaps overbuilt to have identical
+#    settings in both packages, but the intent is to shield typical users of webbpsf
+#    from having to think about the existence of the underlying library. They can 
+#    just deal with one set of settings.
+#    """
+#
+#    import poppy
+#
+#    poppy.conf.use_multiprocessing =   conf.use_multiprocessing
+#    poppy.conf.n_processes =   conf.n_processes
+#    poppy.conf.use_fftw = conf.use_fftw
+#    poppy.conf.default_image_display_fov = conf.default_fov_arcsec
+ 
+conf = Conf()
+
 
 
 from poppy import (display_PSF, display_PSF_difference, display_EE, display_profiles, radial_profile,
         measure_EE, measure_radial, measure_fwhm, measure_sharpness, measure_centroid, measure_strehl,
         specFromSpectralType, fwcentroid)
-
 
 from .webbpsf_core import Instrument, JWInstrument, NIRCam, NIRISS, NIRSpec,MIRI,FGS
 
@@ -51,21 +103,21 @@ utils.restart_logging()          # restart logging based on saved settings.
 
 
 
-#try: 
-#    from .wxgui import wxgui  
-#    HAVE_WX_GUI = True
-#except ImportError:
-HAVE_WX_GUI = False
+try: 
+    from .wxgui import wxgui  
+    _HAVE_WX_GUI = True
+except ImportError:
+    _HAVE_WX_GUI = False
 
 try: 
     from .tkgui import tkgui  
-    HAVE_TK_GUI = True
+    _HAVE_TK_GUI = True
 except ImportError:
-    HAVE_TK_GUI = False
+    _HAVE_TK_GUI = False
 
 
 
-if not (HAVE_WX_GUI or HAVE_TK_GUI):
+if not (_HAVE_WX_GUI or _HAVE_TK_GUI):
     warnings.warn("Warning: Neither Tk nor wx GUIs could be imported. "
                   "Graphical interface disabled")
 else:
@@ -79,13 +131,14 @@ else:
 
 
         """
-        if preferred == 'wx' and HAVE_WX_GUI:
+        if preferred == 'wx' and _HAVE_WX_GUI:
+            wxgui()
             #try:
 #            wxgui()
             #except:
                 #raise ImportError("wxpython GUI for webbpsf not available ")
             pass
-        elif preferred=='ttk' or HAVE_TK_GUI:
+        elif preferred=='ttk' or _HAVE_TK_GUI:
             #try:
             tkgui()
             #except:
@@ -93,19 +146,19 @@ else:
         else:
             raise NotImplementedError("Neither TK nor WX GUI libraries are available. Cannot start GUI.")
 
-def test( verbose=False ) :
-    import os, pytest
-
-    # find the directory where the test package lives
-    from . import tests
-    dir = os.path.dirname( tests.__file__ )
-
-    # assemble the py.test args
-    args = [ dir ]
-
-    # run py.test
-    try :
-        return pytest.main( args )
-    except SystemExit as e :
-        return e.code
-
+#def test( verbose=False ) :
+#    import os, pytest
+#
+#    # find the directory where the test package lives
+#    from . import tests
+#    dir = os.path.dirname( tests.__file__ )
+#
+#    # assemble the py.test args
+#    args = [ dir ]
+#
+#    # run py.test
+#    try :
+#        return pytest.main( args )
+#    except SystemExit as e :
+#        return e.code
+#
