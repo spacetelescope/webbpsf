@@ -36,7 +36,7 @@ def _default_options():
     return {'force_coron': False, 'no_sam': False, 'parity':'Either',
                 'psf_scale':'log', 'psf_normalize':'Peak', 
                 'psf_cmap_str': 'Jet (blue to red)', 'psf_cmap': matplotlib.cm.jet,
-                'psf_vmin':1e-8, 'psf_vmax':1.0, 'monochromatic': False, 'fov_in_arcsec': True,
+                'psf_vmin':1e-4, 'psf_vmax':1.0, 'monochromatic': False, 'fov_in_arcsec': True,
                 'parallelization': conf.use_multiprocessing }
 
 
