@@ -38,12 +38,12 @@ class Conf(_config.ConfigNamespace):
     Configuration parameters for `poppy`.
     """
 
-    use_multiprocessing = _config.ConfigItem(False,
-            'Should PSF calculations run in parallel using multiple processers'+
-            'using the Python multiprocessing framework (if True; faster but '+
-            'does not allow display of each wavelength) or run serially in a '+
-            'single process(if False; slower but shows the calculation in '+
-            'progress. Also a bit more robust.?)')
+    #use_multiprocessing = _config.ConfigItem(False,
+    #        'Should PSF calculations run in parallel using multiple processers'+
+    #        'using the Python multiprocessing framework (if True; faster but '+
+    #        'does not allow display of each wavelength) or run serially in a '+
+    #        'single process(if False; slower but shows the calculation in '+
+    #        'progress. Also a bit more robust.?)')
 
 
 # Should probably be science state in astropy>=0.4 schema:
@@ -56,7 +56,7 @@ class Conf(_config.ConfigNamespace):
     default_fov_arcsec = _config.ConfigItem( 5.0, "Default field of view size, in arcseconds per side of the square ")
 
 # Should be package settings:
-    WEBBPSF_PATH = _config.ConfigItem('unknown','Directory path to data files required for WebbPSF calculations, such as OPDs and filter transmissions. This will be overridden by the environment variable $WEBBPSF_PATH, if present.')
+    WEBBPSF_PATH = _config.ConfigItem('from_environment_variable','Directory path to data files required for WebbPSF calculations, such as OPDs and filter transmissions. This will be overridden by the environment variable $WEBBPSF_PATH, if present.')
 
 
 # Settings cloned here from poppy

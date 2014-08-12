@@ -40,6 +40,7 @@ import poppy
 
 #from . import config
 from . import conf
+from . import utils
 
 
 try: 

@@ -118,6 +118,44 @@ def setup_logging(level='INFO',  filename=None):
     restart_logging(verbose=True)
 
 
+def get_webbpsf_data_path():
+    """ Get webbpsf data path
+
+    Simply checking an environment variable is not always enough, since 
+    for packaging this code as a Mac .app bundle, environment variables are 
+    not available since .apps run outside the Terminal or X11 environments.
+
+    Therefore, check first the environment variable WEBBPSF_PATH, and secondly
+    check the configuration file in the user's home directory.
+    """
+    import os
+    path = os.getenv('WEBBPSF_PATH') #, default= os.path.dirname(os.path.dirname(os.path.abspath(poppy.__file__))) +os.sep+"data" )
+    if path is None:
+        path = conf.WEBBPSF_PATH # read from astropy configuration system
+
+    if (path is None) or not os.path.isdir(path):
+        #(path == 'unknown') or (path == 'from_environment_variable'):
+        _log.critical("Fatal error: Unable to find required WebbPSF data files!")
+        print """
+ ********* WARNING ****** WARNING ****** WARNING ****** WARNING *************
+ *                                                                          *
+ *  WebbPSF requires several data files to operate.                         *
+ *  These files could not be located automatically at this                  *
+ *  time. Please download them to a location of your                        *
+ *  choosing and either                                                     *
+ *   - set the environment variable $WEBBPSF_PATH to point there, or        *
+ *   - set the WEBBPSF_PATH variable in your webbpsf.cfg config file        *
+ *     (probably in ~/.astropy/config/ or similar location)                 *
+ *                                                                          *
+ *  See the WebbPSF documentation for more details.                         *
+ *  WebbPSF will not be able to function properly until this has been done. *
+ *                                                                          *
+ ****************************************************************************
+    """
+
+    return path
+
+
 
 def check_for_new_install(force=False):
     """ Check for a new installation, and if so

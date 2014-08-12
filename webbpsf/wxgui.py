@@ -32,12 +32,12 @@ _log = logging.getLogger('webbpsf')
 
 
 def _default_options():
-
+    import poppy
     return {'force_coron': False, 'no_sam': False, 'parity':'Either',
                 'psf_scale':'log', 'psf_normalize':'Peak', 
                 'psf_cmap_str': 'Jet (blue to red)', 'psf_cmap': matplotlib.cm.jet,
                 'psf_vmin':1e-4, 'psf_vmax':1.0, 'monochromatic': False, 'fov_in_arcsec': True,
-                'parallelization': conf.use_multiprocessing }
+                'parallelization': poppy.conf.use_multiprocessing }
 
 
 
@@ -437,6 +437,7 @@ class WebbPSF_GUI(wx.Frame):
 
     def ev_options(self, event):
         import copy
+        import poppy
         oldoptions = copy.copy(self.advanced_options)
 
         dlg = WebbPSFOptionsDialog(self, input_options = self.advanced_options)
@@ -469,7 +470,7 @@ class WebbPSF_GUI(wx.Frame):
                     else:
                         newfov = int(newfov)
                     self._setFOV( newfov)
-            conf.use_multiprocessing = self.advanced_options['parallelization']
+            poppy.conf.use_multiprocessing = self.advanced_options['parallelization']
  
         dlg.Destroy()
 
@@ -1198,7 +1199,7 @@ class WebbPSFPreferencesDialog(WebbPSFDialog):
 
         r=1
         self._add_labeled_entry("WEBBPSF_PATH", panel1,sizer, label='    WebbPSF Data Path:', 
-            value = conf.WEBBPSF_PATH, 
+            value = str(conf.WEBBPSF_PATH), 
             format="%50s", position=(r,0))
 
         self.ButtonBrowseDir = wx.Button(panel1, label='Browse...')
@@ -1239,10 +1240,10 @@ class WebbPSFPreferencesDialog(WebbPSFDialog):
 
         r+=1
         self._add_labeled_dropdown("use_fftw", panel3,sizer, label='    Use FFTW for FFTs:', choices=['True','False'],
-                default="True" if conf.use_fftw else "False", position=(r,0))
+                default="True" if poppy.conf.use_fftw else "False", position=(r,0))
         r+=1
         self._add_labeled_dropdown("use_multiprocessing", panel3,sizer, label='    Use Multiprocessing for DFTs:', choices=['True','False'],
-                default="True" if conf.use_multiprocessing else "False", position=(r,0))
+                default="True" if poppy.conf.use_multiprocessing else "False", position=(r,0))
 
         panel3.SetSizerAndFit(sizer)
 #
@@ -1469,14 +1470,15 @@ def synplot(thing, waveunit='micron', label=None, **kwargs):
 
 
 def wxgui(fignum=1, showlog=True):
+    import poppy
     # enable log message printout
     logging.basicConfig(level=logging.INFO,format='%(name)-10s: %(levelname)-8s %(message)s')
 
 
     # GUI does not play well with multiprocessing, so avoid that.
-    if conf.use_multiprocessing:
+    if poppy.conf.use_multiprocessing:
         _log.error('Multiprocessing is not compatible with the GUI right now. Falling back to single-threaded.')
-        conf.use_multiprocessing = False 
+        poppy.conf.use_multiprocessing = False 
 
     # start the GUI
     app = wx.App()
