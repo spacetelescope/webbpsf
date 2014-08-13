@@ -162,7 +162,7 @@ def check_for_new_install(force=False):
     print a hopefully helpful explanatory message.
     """
 
-    from ._version import __version__
+    from .version import version as __version__
     if conf.last_version_ran == '0.0' or force:
         from astropy.config import save_config, get_config_dir
 

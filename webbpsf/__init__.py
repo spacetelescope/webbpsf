@@ -150,6 +150,13 @@ else:
         else:
             raise NotImplementedError("Neither TK nor WX GUI libraries are available. Cannot start GUI.")
 
+
+
+# this should display a warning to the user if they don't have WEBBPSF_PATH
+# defined in either the environment or in webbpsf.cfg
+data_path = utils.get_webbpsf_data_path()
+
+
 #def test( verbose=False ) :
 #    import os, pytest
 #
