@@ -102,6 +102,10 @@ from . import utils
 from .utils import setup_logging #, _system_diagnostic, _check_for_new_install, _restart_logging
 
 if not _ASTROPY_SETUP_:
+#try:
+#    utils.check_for_new_install()    # display informative message if so.
+#except:
+#    pass
 
     utils.check_for_new_install()    # display informative message if so.
 
