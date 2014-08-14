@@ -101,9 +101,11 @@ from .webbpsf_core import Instrument, JWInstrument, NIRCam, NIRISS, NIRSpec,MIRI
 from . import utils
 from .utils import setup_logging #, _system_diagnostic, _check_for_new_install, _restart_logging
 
-utils.check_for_new_install()    # display informative message if so.
+if not _ASTROPY_SETUP_:
 
-utils.restart_logging()          # restart logging based on saved settings.
+    utils.check_for_new_install()    # display informative message if so.
+
+    utils.restart_logging()          # restart logging based on saved settings.
 
 
 
