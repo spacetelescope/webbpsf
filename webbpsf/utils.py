@@ -7,7 +7,6 @@ _log = logging.getLogger('webbpsf')
 import ConfigParser 
 
 
-#from astropy.config import ConfigurationItem, get_config_dir, save_config
 
 from . import conf
 
@@ -29,7 +28,7 @@ def restart_logging(verbose=True):
         lev = logging.__dict__[level] # obtain one of the DEBUG, INFO, WARN, or ERROR constants
         if verbose: print "WebbPSF log messages of level {0} and above will be shown.".format(level)
     else:
-        print "Invalid logging level: "+level
+        raise ValueError("Invalid logging level: "+level)
         return
 
     for name in lognames:
@@ -41,7 +40,7 @@ def restart_logging(verbose=True):
 
     # set up file logging
     filename = conf.logging_filename
-    if filename.strip().lower() != 'none':
+    if filename is None or filename.strip().lower() != 'none':
         hdlr = logging.FileHandler(filename)
 
         formatter = logging.Formatter('%(asctime)s %(name)-10s: %(levelname)-8s %(message)s')
@@ -105,11 +104,12 @@ def setup_logging(level='INFO',  filename=None):
 
     level = str(level).upper()
 
-
+    # The astropy config system will enforce the limited set of values for the logging_level parameter
+    # by raising a TypeError on this next line if we feed in an invalid string.
     conf.logging_level = level
 
 
-    if filename is None: filename='none' # must be a string to write into the config system
+    if filename is None: filename='none' # must be a string to store into the config system
     conf.logging_filename = filename
 
     #conf.logging_level.save()
@@ -137,7 +137,7 @@ def get_webbpsf_data_path():
         #(path == 'unknown') or (path == 'from_environment_variable'):
         _log.critical("Fatal error: Unable to find required WebbPSF data files!")
         print """
- ********* WARNING ****** WARNING ****** WARNING ****** WARNING *************
+ *********  ERROR  ******  ERROR  ******  ERROR  ******  ERROR  *************
  *                                                                          *
  *  WebbPSF requires several data files to operate.                         *
  *  These files could not be located automatically at this                  *
@@ -152,6 +152,7 @@ def get_webbpsf_data_path():
  *                                                                          *
  ****************************************************************************
     """
+        raise IOError('Missing or invalid WEBBPSF_PATH to required data files')
 
     return path
 
@@ -164,11 +165,12 @@ def check_for_new_install(force=False):
 
     from .version import version as __version__
     if conf.last_version_ran == '0.0' or force:
-        from astropy.config import save_config, get_config_dir
+
+        from . import _save_config
+        import astropy.config
 
         conf.last_version_ran = __version__
-        from .config import save_config
-        save_config()
+        _save_config()
         #conf.last_version_ran.save()
         #save_config('webbpsf') # save default values to text file
 
@@ -191,16 +193,17 @@ def check_for_new_install(force=False):
     WebbPSF has some options that can be set using a 
     configuration file. An example configuration file with
     default values has been created in 
-            {0}/webbpsf.cfg
+            {0}/webbpsf.{1}.cfg
     (unless such a config file was already present there)
     You can examine that file and change settings if desired.
-    See the WebbPSF documentation for more detail. """.format(get_config_dir())
+    See the WebbPSF documentation for more detail. """.format(astropy.config.get_config_dir(), __version__)
 
         # check for data dir?
         path_from_env_var = os.getenv('WEBBPSF_PATH') 
 
         if path_from_env_var is not None:
             print """
+
     WebbPSF's required data files appear to be 
     installed at a path given by $WEBBPSF_PATH :
     {0} """.format(path_from_env_var)

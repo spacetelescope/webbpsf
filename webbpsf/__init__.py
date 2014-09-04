@@ -71,25 +71,20 @@ class Conf(_config.ConfigNamespace):
     logging_filename =  _config.ConfigItem("none", "Desired filename to save log messages to.")
     last_version_ran =  _config.ConfigItem('0.0', 'Most recently used version of WebbPSF on this computer. This is used for detecting new or upgraded installations and providing some additional information to users.')
 
-
-
-#def _apply_settings_to_poppy():
-#    """Use webbpsf's settings to override any of the
-#    same settings in poppy. This is admittedly perhaps overbuilt to have identical
-#    settings in both packages, but the intent is to shield typical users of webbpsf
-#    from having to think about the existence of the underlying library. They can 
-#    just deal with one set of settings.
-#    """
-#
-#    import poppy
-#
-#    poppy.conf.use_multiprocessing =   conf.use_multiprocessing
-#    poppy.conf.n_processes =   conf.n_processes
-#    poppy.conf.use_fftw = conf.use_fftw
-#    poppy.conf.default_image_display_fov = conf.default_fov_arcsec
- 
 conf = Conf()
 
+def _save_config():
+    """ Save package configuration variables using the Astropy.config system 
+    
+    NOTE: The functionality for saving config was was deprecated as of astropy v0.4 
+    See http://astropy.readthedocs.org/en/latest/config/config_0_4_transition.html
+
+    This code is an undocumented workaround as advised by mdboom for the specific
+    purpose of saving webbpsf GUI state, logging state, and related.
+    """
+
+    from astropy.config import configuration
+    configuration._save_config("webbpsf")
 
 
 from poppy import (display_PSF, display_PSF_difference, display_EE, display_profiles, radial_profile,
@@ -102,12 +97,13 @@ from . import utils
 from .utils import setup_logging #, _system_diagnostic, _check_for_new_install, _restart_logging
 
 if not _ASTROPY_SETUP_:
-#try:
-#    utils.check_for_new_install()    # display informative message if so.
-#except:
-#    pass
 
     utils.check_for_new_install()    # display informative message if so.
+
+    # this should display a warning to the user if they don't have WEBBPSF_PATH
+    # defined in either the environment or in webbpsf.cfg
+    _data_path = utils.get_webbpsf_data_path()
+
 
     utils.restart_logging()          # restart logging based on saved settings.
 
@@ -158,24 +154,4 @@ else:
 
 
 
-# this should display a warning to the user if they don't have WEBBPSF_PATH
-# defined in either the environment or in webbpsf.cfg
-data_path = utils.get_webbpsf_data_path()
 
-
-#def test( verbose=False ) :
-#    import os, pytest
-#
-#    # find the directory where the test package lives
-#    from . import tests
-#    dir = os.path.dirname( tests.__file__ )
-#
-#    # assemble the py.test args
-#    args = [ dir ]
-#
-#    # run py.test
-#    try :
-#        return pytest.main( args )
-#    except SystemExit as e :
-#        return e.code
-#

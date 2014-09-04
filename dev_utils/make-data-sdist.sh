@@ -19,7 +19,7 @@ cat filters.txt | grep -v FND >  webbpsf-data/filters.txt
 \rm -r webbpsf-data/MIRI/filters
 ln -s tophat_filters webbpsf-data/MIRI/filters
 # create public distributable tar file
-$TAR -cvz -L  --exclude .svn --exclude OPD_RevT --exclude TFI --exclude .DS_Store --exclude sources --exclude "*FND*" --exclude "*_filters" -f webbpsf/dist/webbpsf-data-public-$VER.tar.gz webbpsf-data
+$TAR -cvz -L  --exclude .svn --exclude OPD_RevT --exclude TFI --exclude .DS_Store --exclude sources --exclude "*FND*" --exclude "*_filters" --exclude "*py" --exclude "_Obsolete" -f webbpsf/dist/webbpsf-data-public-$VER.tar.gz webbpsf-data
 
 
 # Make a copy with more real data, for internal or CoroWG use

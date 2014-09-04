@@ -1771,7 +1771,7 @@ def Instrument(name):
     if name == 'tfi': return TFI()
     if name == 'fgs': return FGS()
     else: raise ValueError("Incorrect instrument name "+name)
-Instrument.list = ['nircam', 'nirspec', 'tfi', 'miri'] # useful list for iteration
+Instrument.list = ['nircam', 'nirspec', 'niriss', 'miri'] # useful list for iteration
 
 
 def calc_or_load_PSF(filename, inst, clobber=False, **kwargs):
@@ -1893,27 +1893,4 @@ class DetectorGeometry(object):
 #########################3
 
 
-if __name__ == "__main__":
 
-    logging.basicConfig(level=logging.INFO,format='%(name)-10s: %(levelname)-8s %(message)s')
-
-#
-#    nc = NIRCam()
-#    nc.filter = 'F460M'
-#    nc.image_mask = 'MASK430R'
-#    nc.pupil_mask = 'CIRCLYOT'
-#    #nc.calcPSF('test_nircam.fits', mono=False)
-#
-    miri=MIRI()
-    miri.image_mask = 'LYOT2300'
-    miri.pupil_mask = 'MASKLYOT'
-    miri.filter='F2300C'
-    plt.clf()
-    miri.display()
-#
-#    #miri.display()
-#    nircam=NIRCam()
-#    tfi = TFI()
-#    tfi.image_mask = "CORON058"
-#    tfi.pupil_mask = 'MASKC66N'
-#    nirspec = NIRSpec()
