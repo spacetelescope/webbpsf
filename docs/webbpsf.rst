@@ -209,10 +209,25 @@ As just explained, WebbPSF can easily calculate PSFs on a finer grid than the de
 The default behavior is 'both'. Note that at some point in the future, this default is likely to change to detector sampling. 
 
 
+PSF normalization
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+By default, PSFs are normalized to total intensity = 1.0 at the entrance pupil (i.e. at the JWST OTE primary). A PSF calculated for an infinite aperture would thus have integrated intensity =1.0. A PSF calculated on any smaller finite subarray will have some finite encircled energy less than one. For instance, at 2 microns a 10 arcsecond size FOV will enclose about 99% of the energy of the PSF.  Note that if there are any additional obscurations in the optical system (such as coronagraph masks, spectrograph slits, etc), then the fraction of light that reaches the final focal plane will typically be significantly less than 1, even if calculated on an arbitrarily large aperture. For instance the NIRISS NRM mask has a throughput of about 15%, so a PSF calculated in this mode with the default normalization will have integrated total intensity approximately 0.15 over a large FOV.
+
+If a different normalization is desired, there are a few options that can be set in calls to calcPSF::
+
+    >  psf = nc.calcPSF(normalize='last')
+
+The above will normalize a PSF after the calculation, so the output (i.e. the PSF on whatever finite subarray) has total integrated intensity =1.0.  ::    
+    >  psf = nc.calcPSF(normalize='exit_pupil')
+
+The above will normalize a PSF at the exit pupil (i.e. last pupil plane in the optical model). This normalization takes out the effect of any pupil obscurations such as coronagraph masks, spectrograph slits or pupil masks, the NIRISS NRM mask, and so forth. However it still leaves in the effect of any finite FOV. In other words, PSFs calculated in this mode will have integrated total intensity = 1.0 over an infinitely large FOV, even after the effects of any obscurations.
+
+
 Advanced Usage: Output file format, OPDs, and more
 -------------------------------------------------------------
 
-This section serves as a catch-all for some more esoteric customizations and applications. See also the :ref:`_more_examples` page.
+This section serves as a catch-all for some more esoteric customizations and applications. See also the :ref:`more_examples` page.
 
 Writing out only downsampled images
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
