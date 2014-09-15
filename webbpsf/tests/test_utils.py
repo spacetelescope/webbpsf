@@ -3,6 +3,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 import astropy.io.fits as fits
 
+try:
+    import pytest
+    _HAVE_PYTEST = True
+except:
+    _HAVE_PYTEST = False
+
+
+
 
 import logging
 _log = logging.getLogger('test_webbpsf')
@@ -29,13 +37,26 @@ def test_logging_restart():
 
 
 def test_logging_setup():
-    """ Test turning off and on the logging, and then put it back the way it was."""
+    """ Test changing log config settings, and then put it back the way it was."""
     loglevel = conf.logging_level
     logfn = conf.logging_filename
 
-    utils.setup_logging(level=None, filename='')
+    _log.debug("Setting logging to OFF")
+    utils.setup_logging(level=None, filename=None)
+    _log.debug("Setting logging to WARN, and writing to file")
     utils.setup_logging(level='WARN', filename='test_log_file.txt')
+    _log.debug("Setting logging to previous settings: {0}, {1}".format(loglevel, logfn))
     utils.setup_logging(level=loglevel, filename=logfn)
+
+    try:
+        import pytest
+    except:
+        _log.warning('Skipping last step in test_logging_setup because pytest is not installed.')
+        return # We can't do this next test if we don't have the pytest.raises function.
+
+    with pytest.raises(TypeError) as excinfo:
+        utils.setup_logging(level='some junk')
+    assert excinfo.value.message.startswith('Provided value for configuration item logging_level not valid:')
 
 
 def test_diagnostic():

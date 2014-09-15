@@ -1,0 +1,56 @@
+import sys, os
+import numpy as np
+import matplotlib.pyplot as plt
+import astropy.io.fits as fits
+
+import logging
+_log = logging.getLogger('test_webbpsf')
+_log.addHandler(logging.NullHandler())
+
+from .. import webbpsf_core
+import poppy
+
+
+#------------------    MIRI Tests    ----------------------------
+
+from test_webbpsf import generic_output_test, do_test_source_offset
+
+test_miri= lambda : generic_output_test('MIRI')
+test_miri_00 = lambda : do_test_source_offset('MIRI', theta=0.0)
+test_miri_45 = lambda : do_test_source_offset('MIRI', theta=45.0)
+
+
+def test_miri_fqpm(theta=0.0, nsteps=3, nlambda=1, clobber=True, outputdir=None):
+    #poppy._FLUXCHECK=True
+    miri = webbpsf_core.MIRI()
+    miri.pupilopd = None
+    miri.filter='F1065C'
+    miri.image_mask = 'FQPM1065'
+    miri.pupil_mask = 'MASKFQPM'
+    
+    oversample=2
+
+    if outputdir is None:
+        import tempfile
+        outputdir = tempfile.gettempdir()
+
+    for offset in np.linspace(0.0, 1.0, nsteps):
+        miri.options['source_offset_theta'] = 0.0
+        miri.options['source_offset_r'] = offset
+        #if not os.path.isdir('test_outputs/'): os.mkdir('test_outputs')
+
+        for angle in [0,45]:
+
+            fn = os.path.join(outputdir, 'test_miri_fqpm_t{0}_r{1:.2f}.fits'.format(angle,offset))
+            if not os.path.exists(fn) or clobber:
+                miri.options['source_offset_theta'] = angle 
+                psf = miri.calcPSF(oversample=oversample, nlambda=nlambda, save_intermediates=False, display=True)#, monochromatic=10.65e-6)
+                psf.writeto(fn, clobber=clobber)
+
+    #    fn_45 = os.path.join(outputdir, 'test_miri_fqpm_t45_r%.2f.fits' % offset)
+    #    if not os.path.exists('test_outputs/test_miri_fqpm_t45_r%.2f.fits' % offset) or clobber:
+    #        psf = miri.calcPSF(oversample=oversample, nlambda=nlambda, save_intermediates=False, display=True)#, monochromatic=10.65e-6)
+    #        psf.writeto('test_outputs/test_miri_fqpm_t45_r%.2f.fits' % offset, clobber=clobber)
+    #FIXME - add some assertion tests here. 
+
+
