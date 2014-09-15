@@ -47,6 +47,14 @@ optical propagation library (:py:mod:`POPPY <poppy>`) plus an implementation of 
 JWST instruments using that library (:py:mod:`WebbPSF <webbpsf>`).  This documentation explains the programming interfaces and graphical user interface, and provides usage examples for each.
 
 
+.. admonition:: Quickstart IPython Notebook
+
+       This documentation is complemented by an `IPython Notebook format quickstart tutorial <http://nbviewer.ipython.org/github/mperrin/webbpsf/blob/master/WebbPSF_tutorial.ipynb>`_.
+
+       Downloading and running that notebook is a great way to get started using WebbPSF. The documentation following here provides greater details on the algorithms and API.
+
+
+
 .. note::
 
 

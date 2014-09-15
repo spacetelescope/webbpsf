@@ -60,7 +60,7 @@ models (particularly for slit and slitless spectroscopy), and extensive software
 improvements and under-the-hood infrastructure code updates. Many 
 default settings can now be customized by a text configuration file in your home
 directory. The GUI has also been completely revamped to use a better
-cross-platform widget toolkit, wxpython. 
+cross-platform widget toolkit, wxpython, although the older tkinter-based GUI is also still available. 
 
 
 **Updates to the optical models**:
@@ -108,7 +108,7 @@ cross-platform widget toolkit, wxpython.
 
  * Added NIRISS CLEARP pupil mask; this includes the obscuration from the pupil alignment reference.
    Given the pupil wheel layout, this unavoidably must be in the beam for any NIRISS 
-   long-wave PSFs, and WebbPSF will automatically configure it in the necessary cases. 
+   long-wave PSFs, and WebbPSF will automatically configure it in the necessary cases. Thanks to Anand Sivaramakrishnan.
 
  * Minor bug fix to weak lens code for NIRCam, which previously had an incorrect scaling factor.  
    Weak lens defocus values updated to the as-built rather than ideal values (which differ by 3%, but the as built values are very well calibrated).
@@ -156,10 +156,12 @@ cross-platform widget toolkit, wxpython.
     * ``psutil`` strongly recommended for cross-platform detection of
       available free RAM to enable better parallelization.
 
+* Improved packaging infrastructure. Thanks to Christine Slocum, Erik Bray, Mark Sienkiewicz, Michael Droetboom, 
+  and the developers of the `Astropy affiliated package template <https://github.com/astropy/package-template>`_. 
+  Thanks in particular to Christine Slocum for integration into the STScI SSB software distribution.
 
 * Improvements to parallelization code. Better :ref:`documentation for parallelization <performance_and_parallelization>`.  PyFFTW3 replaced with pyFFTW for optimized 
   FFTs (yes, those are two entirely different packages). 
-
 
 * New GUI using the wxpython widget toolkit in place of the older/less
   functional Tkinter tool kit. Thanks to Klaus Pontoppidan for useful advice in

@@ -43,6 +43,7 @@ themselves have no dependency on these widgets.
 Installing WebbPSF
 ----------------------
 
+
 .. warning::
   For a prerelease version, you can't install off of PyPI yet. Please use the download links below.
 
@@ -73,6 +74,11 @@ Future versions may be installed with ``pip install --upgrade webbpsf`` when the
 
     $ pip install webbpsf --user
 
+
+STScI shared installation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+ 
 
 Installing WebbPSF manually
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -113,17 +119,6 @@ However, the above installs only the program code. You still must download and i
 Installing WebbPSF development versions, and/or contributing to its development
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 The `webbpsf source code repository <https://github.com/mperrin/webbpsf>`_ is hosted at GitHub, as is the repository for `poppy <https://github.com/mperrin/poppy>`_. Users may clone or fork in the usual manner. Pull requests with code enhancements welcomed.  
-
-.. _data_install:
-
-Installing the Required Data Files
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-1. Download the following file:  `webbpsf-data-0.3.0.tar.gz <http://www.stsci.edu/~mperrin/software/webbpsf/webbpsf-data-0.3.0.tar.gz>`_  [417 MB]
-2. Untar ``webbpsf-data-0.3.0.tar.gz`` into a directory of your choosing.
-3. Set the environment variable ``WEBBPSF_PATH`` to point to that directory. e.g. ``setenv WEBBPSF_PATH $HOME/data/webbpsf-data`` for tcsh/csh, or ``WEBBPSF_PATH=$HOME/data/webbpsf-data; export WEBBPSF_PATH`` for bash.
-
-
 
 
 Optional: sign up to receive announcement of updates
@@ -189,23 +184,43 @@ internal files, but this is not required.
 
 
 
+.. _data_install:
+
+Installing the Required Data Files
+---------------------------------------------
+
+1. Download the following file:  `webbpsf-data-0.3.0.tar.gz <http://www.stsci.edu/~mperrin/software/webbpsf/webbpsf-data-0.3.0.tar.gz>`_  [417 MB]
+2. Untar ``webbpsf-data-0.3.0.tar.gz`` into a directory of your choosing.
+3. Set the environment variable ``WEBBPSF_PATH`` to point to that directory. e.g. ``setenv WEBBPSF_PATH $HOME/data/webbpsf-data`` for tcsh/csh, or ``WEBBPSF_PATH=$HOME/data/webbpsf-data; export WEBBPSF_PATH`` for bash.
+
+
+
 
 
 Note for STScI Internal Users
 ---------------------------------
 
 
-Webbpsf is installed centrally on the WITServ computers for use by all members of the Webb instrument teams. 
+WebbPSF is now included in the SSB Python software distributions based on Ureka. 
 
-The directory ``/witserv/data10/software`` contains shared software tools, currently a handful of Python modules, WebbPSF, and a copy of CDBS. 
+.. admonition:: For STScI Users Only
 
-The file ``/witserv/data10/software/README.txt`` gives a little bit of documentation, but briefly, it should be enough to add the line::
+  Users at STScI may access WebbPSF through the standard `SSB software distributions <http://ssb.stsci.edu/ssb_software.shtml>`_. 
+  In particular, webbpsf and its required dependencies are now included in SSBDEV and will soon be in SSBX.  To make use of this,
+  it should be sufficient to:
 
-    source /witserv/data10/software/setup.tcsh
+    1. Install SSBDEV and select that version of Python (e.g. ``us_setup common ssbdev``)
+    2. ``setenv WEBBPSF_PATH /grp/jwst/ote/webbpsf-data``  
+    3. ``setenv PYSYN_CDBS /grp/hst/cdbs`` 
 
-to your shell startup files on witserv* (assuming you're using tcsh), and then you should be able to run ``webbpsfgui`` from the command line, or start a python session and ``import webbpsf``.
-
-Prerelease access to updated versions of the CDBS files may be available; contact Marshall if interested. 
+ 
+.. comment
+        Webbpsf is installed centrally on the WITServ computers for use by all members of the Webb instrument teams. 
+        The directory ``/witserv/data10/software`` contains shared software tools, currently a handful of Python modules, WebbPSF, and a copy of CDBS. 
+        The file ``/witserv/data10/software/README.txt`` gives a little bit of documentation, but briefly, it should be enough to add the line::
+            source /witserv/data10/software/setup.tcsh
+        to your shell startup files on witserv* (assuming you're using tcsh), and then you should be able to run ``webbpsfgui`` from the command line, or start a python session and ``import webbpsf``.
+        Prerelease access to updated versions of the CDBS files may be available; contact Marshall if interested. 
 
 
 
