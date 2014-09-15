@@ -560,7 +560,7 @@ class SIAF(object):
         self.instrument=instr
 
         if filename is None:
-            self.filename=os.path.join(basepath, instr+'_SIAF.XML')
+            self.filename=os.path.join(basepath, instr+'_SIAF.xml')
         else:
             self.filename = filename
 
