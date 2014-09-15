@@ -59,13 +59,6 @@ class Conf(_config.ConfigNamespace):
     WEBBPSF_PATH = _config.ConfigItem('from_environment_variable','Directory path to data files required for WebbPSF calculations, such as OPDs and filter transmissions. This will be overridden by the environment variable $WEBBPSF_PATH, if present.')
 
 
-# Settings cloned here from poppy
-#   see _apply_settings_to_poppy below...
-#    use_multiprocessing= _config.ConfigItem( False, 'Should PSF calculations run in parallel using the Python multiprocessing framework (if True; faster but does not allow display of each wavelength) or run serially in a single process (if False; slower but shows the calculation in progress. Also a bit more robust.?)')
-#    n_processes= _config.ConfigItem(4, 'Maximum number of additional worker processes to spawn. PSF calculations are likely RAM limited more than CPU limited for higher N on modern machines, particularly for oversampling >=4. Set to 0 to have the computer attempt to choose an intelligent default based on available cores and RAM.')
-#    use_fftw = _config.ConfigItem(True, 'Use FFTW for FFTs (assuming it is available)?  Set to False to force numpy.fft always, True to try importing and using FFTW via PyFFTW.')
-
-
     # the default value is the first item in the options list:
     logging_level =  _config.ConfigItem(['INFO','DEBUG','WARN','ERROR','NONE'],'Desired logging level for WebbPSF optical calculations.')
     logging_filename =  _config.ConfigItem("none", "Desired filename to save log messages to.")

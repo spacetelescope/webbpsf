@@ -192,6 +192,11 @@ class JWInstrument(poppy.instrument.Instrument):
         self.detector_coordinates = (0,0) # where is the source on the detector, in 'Science frame' pixels?
 
     def _validate_config(self):
+        """Validate the configuration in some sense; details depend on instrument.
+
+        This is called automatically when assembling an OpticalSystem object prior to any
+        calculation.
+        """
         pass
 
     # create properties with error checking
@@ -220,7 +225,7 @@ class JWInstrument(poppy.instrument.Instrument):
             else:
                 name = name.upper() # force to uppercase
                 if name not in self.image_mask_list: # if still not found, that's an error.
-                    raise ValueError("Instrument %s doesn't have an image mask called %s." % (self.name, name))
+                    raise ValueError("Instrument %s doesn't have an image mask called '%s'." % (self.name, name))
         self._image_mask = name
 
     @property
@@ -236,7 +241,7 @@ class JWInstrument(poppy.instrument.Instrument):
             else:
                 name = name.upper() # force to uppercase
                 if name not in self.pupil_mask_list:
-                    raise ValueError("Instrument %s doesn't have an pupil mask called %s." % (self.name, name))
+                    raise ValueError("Instrument %s doesn't have a pupil mask called '%s'." % (self.name, name))
 
         self._pupil_mask = name
 
@@ -334,7 +339,9 @@ class JWInstrument(poppy.instrument.Instrument):
 
         """
 
-        if calc_oversample is not None: fft_oversample = calc_oversample # back compatibility hook for deprecated arg name.
+        if calc_oversample is not None: 
+            raise DeprecationWarning("The calc_oversample parameter is deprecated and will be removed in webbpsf 0.4. User fft_oversample instead.")
+            fft_oversample = calc_oversample # back compatibility hook for deprecated arg name.
 
         _log.info("Setting up PSF calculation for "+self.name)
 
@@ -366,7 +373,7 @@ class JWInstrument(poppy.instrument.Instrument):
                 _log.debug("Automatically selecting # of wavelengths: %d" % nlambda)
             except:
                 nlambda=10
-                _log.warn("unrecognized filter %s. setting default nlambda=%d" % (self.filter, nlambda))
+                _log.warn("Filter %s not found in lookup table for default number of wavelengths to use.. setting default nlambda=%d" % (self.filter, nlambda))
         local_options['nlambda'] = nlambda
 
 
@@ -568,6 +575,7 @@ class JWInstrument(poppy.instrument.Instrument):
 
         #--- add the detector element. 
         if fov_pixels is None:
+            if not np.isscalar(fov_arcsec): fov_arcsec = np.asarray(fov_arcsec) # cast to ndarray if 2D
             fov_pixels = np.round(fov_arcsec/self.pixelscale)
             if 'parity' in options.keys():
                 if options['parity'].lower() == 'odd'  and np.remainder(fov_pixels,2)==0: fov_pixels +=1
@@ -686,6 +694,8 @@ class MIRI(JWInstrument):
         self.detector=self.detector_list[0]
 
     def _validate_config(self):
+        """Validate instrument config for MIRI
+        """
         #_log.debug("MIRI validating:    %s, %s, %s " % (self.filter, self.image_mask, self.pupil_mask))
         if self.filter.startswith("MRS-IFU"): raise NotImplementedError("The MIRI MRS is not yet implemented.")
 
@@ -863,7 +873,9 @@ class NIRCam(JWInstrument):
 
 
     def _validate_config(self):
-        """For NIRCam, this checks whenever you change a filter and updates the pixelscale appropriately"""
+        """Validate instrument config for NIRCam
+
+        For NIRCam, this checks whenever you change a filter and updates the pixelscale appropriately"""
         filtwave = float(self.filter[1:4])/100
         newscale = self._pixelscale_short if filtwave < 2.4 else self._pixelscale_long
         # update the pixel scale if it has changed *and*
@@ -1028,18 +1040,22 @@ class NIRSpec(JWInstrument):
 
 
     def _validate_config(self):
-        if (not self.image_mask is None) or (not self.pupil_mask is None):
-            raise ValueError('NIRSpec does not have image or pupil masks!')
-            self.image_mask = None
-            self.pupil_mask = None
+        #if (not self.image_mask is None) or (not self.pupil_mask is None):
+        #    raise ValueError('NIRSpec does not have image or pupil masks!')
+        #    self.image_mask = None
+        #    self.pupil_mask = None
+        if self.filter.startswith("IFU"): raise NotImplementedError("The NIRSpec IFU is not yet implemented.")
+
     def _addAdditionalOptics(self,optsys, oversample=2):
         """ Add fixed slit optics for NIRSpec
 
         See Table 3-6 of NIRSpec Ops Concept Document, ESA-JWST-TN-0297 / JWST-OPS-003212
 
         """
+        from .optics import NIRSpec_three_MSA_shutters, NIRSpec_MSA_open_grid
         trySAM = False # semi-analytic method never applicable here. 
         SAM_box_size = None
+
         if self.image_mask == 'S200A1' or self.image_mask == 'S200A2' or self.image_mask == 'S200B1':
             # three identical slits, 0.2 x 3.2 arcsec in length
             optsys.addImage(optic=poppy.RectangularFieldStop(width=0.2, height=3.2, name= self.image_mask + " slit"))
@@ -1077,8 +1093,6 @@ class NIRSpec(JWInstrument):
 
         return (optsys, trySAM, SAM_box_size)
 
-    def _validate_config(self):
-        if self.filter.startswith("IFU"): raise NotImplementedError("The NIRSpec IFU is not yet implemented.")
 
 
     def _getFITSHeader(self, hdulist, options):
@@ -1138,6 +1152,8 @@ class NIRISS(JWInstrument):
         self.auto_pupil = auto_pupil
 
     def _validate_config(self):
+        """Validate instrument config for NIRISS
+        """
         pass
 
     def _addAdditionalOptics(self,optsys, oversample=2):
@@ -1146,6 +1162,8 @@ class NIRISS(JWInstrument):
             These are probably not going to be used much in practice for NIRISS, but they
             are present, so we might as well still provide the ability to simulate 'em. 
         """
+
+        from .optics import NIRISS_GR700XD_Grism, NIRISS_CLEARP
         if self.image_mask == 'CORON058':
             radius = 0.58/2
             optsys.addImage(function='CircularOcculter', radius=radius, name=self.image_mask)
@@ -1197,14 +1215,8 @@ class NIRISS(JWInstrument):
             #  6.0 mm radius for central obstruction
             # Note the circumscribing pupil of JWST is 6603.464 mm in diameter
             #  (Ball SER on geometric optics model: BALL-JWST-SYST-05-003)
-            pupil_mag = 6.603464/39.0
-            clearp =  poppy.CompoundAnalyticOptic( (
-                    poppy.AsymmetricSecondaryObscuration( secondary_radius = 6.0*pupil_mag, 
-                                                          support_width = 2.0*pupil_mag,
-                                                          support_angle = [0,120,240]), 
-                    poppy.CircularAperture( radius = 39 * pupil_mag /2) ), name = 'CLEARP')
 
-            optsys.addPupil(clearp)
+            optsys.addPupil(optic = NIRISS_CLEARP())
         elif self.pupil_mask == 'GR700XD':
             optsys.addPupil(optic = NIRISS_GR700XD_Grism(shift=shift))
  
@@ -1238,510 +1250,18 @@ class FGS(JWInstrument):
 
 
     def _validate_config(self):
-        if (not self.image_mask is None) or (not self.pupil_mask is None):
-            raise ValueError('FGS does not have image or pupil masks!')
-            self.image_mask = None
-            self.pupil_mask = None
-        #TODO only one possible filter fot the FGS, too. 
+        """Validate instrument config for FGS 
+        """
+        # No user configurable options.
+        pass
+ 
     def _addAdditionalOptics(self,optsys):
-        raise NotImplementedError("No Coronagraph in FGS!")
+        raise NotImplementedError("No user-selectable optics in FGS.")
 
     def _getFITSHeader(self, hdulist, options):
         """ Format FGS-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
         JWInstrument._getFITSHeader(self, hdulist, options)
         hdulist[0].header['FOCUSPOS'] = (0,'FGS focus mechanism not yet modeled.')
-
-
-#######  Custom Optics used in JWInstrument classes  #####
-
-
-class NIRSpec_three_MSA_shutters(poppy.AnalyticOpticalElement):
-    """ Three NIRSpec MSA shutters, adjacent vertically."""
-
-    def getPhasor(self,wave):
-        """ Compute the transmission inside/outside of the field stop.
-
-        The area of an open shutter is 0.2 x 0.45, while the shutter pitch is 0.26x0.51
-        The walls separating adjaced shutters are 0.06 arcsec wide.
-        """
-
-        msa_width = 0.2
-        msa_height = 0.45
-        msa_wall = 0.06
-
-        if not isinstance(wave, poppy.Wavefront):
-            raise ValueError("FieldStop getPhasor must be called with a Wavefront to define the spacing")
-        assert (wave.planetype == poppy.poppy_core._IMAGE)
-
-        y, x= wave.coordinates()
-        #xnew =  x*np.cos(np.deg2rad(self.angle)) + y*np.sin(np.deg2rad(self.angle))
-        #ynew = -x*np.sin(np.deg2rad(self.angle)) + y*np.cos(np.deg2rad(self.angle))
-        #x,y = xnew, ynew
-
-
-        self.transmission = np.zeros(wave.shape)
-        # get the innermost shutter than spans the Y axis
-        w_inside_1 = np.where( (abs(y) < (msa_height/2))  & (abs(x) < (msa_width/2)))
-        self.transmission[w_inside_1] = 1
-        # get the adjacent shutters one above and one below.
-        w_inside_2 = np.where( (abs(y) > (msa_height/2)+msa_wall) & (abs(y) < msa_height*1.5+msa_wall)  & (abs(x) < (msa_width/2)))
-        self.transmission[w_inside_2] = 1
-
-        return self.transmission
-
-
-class NIRSpec_MSA_open_grid(poppy.AnalyticOpticalElement):
-    """ An infinite repeating region of the NIRSpec MSA grid"""
-
-    def getPhasor(self,wave):
-        """ Compute the transmission inside/outside of the field stop.
-
-        The area of an open shutter is 0.2 x 0.45, while the shutter pitch is 0.26x0.51
-        The walls separating adjaced shutters are 0.06 arcsec wide.
-        """
-
-        msa_width = 0.2
-        msa_height = 0.45
-        msa_wall = 0.06
-        msa_x_pitch = 0.26
-        msa_y_pitch = 0.51
-
-        if not isinstance(wave, poppy.Wavefront):
-            raise ValueError("FieldStop getPhasor must be called with a Wavefront to define the spacing")
-        assert (wave.planetype == poppy.poppy_core._IMAGE)
-
-        y, x= wave.coordinates()
-        #xnew =  x*np.cos(np.deg2rad(self.angle)) + y*np.sin(np.deg2rad(self.angle))
-        #ynew = -x*np.sin(np.deg2rad(self.angle)) + y*np.cos(np.deg2rad(self.angle))
-        #x,y = xnew, ynew
-
-        mask_vert_walls  = np.abs(np.mod(np.abs(x), msa_x_pitch) - (msa_x_pitch/2)) < msa_wall/2
-        mask_horz_walls  = np.abs(np.mod(np.abs(y), msa_y_pitch) - (msa_y_pitch/2)) < msa_wall/2
-
-
-
-        self.transmission = np.ones(wave.shape)
-        self.transmission[mask_vert_walls] = 0
-        self.transmission[mask_horz_walls] = 0
-
-        return self.transmission
-
-
-class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
-    """ Custom optic class to model the NIRISS SOSS grim GR700XD
-
-    This includes both the pupil mask file and the cylindrical lens
-
-    Based on inputs from Loic Albert, Anand Sivaramakrishnan, and Andre Martel
-    In particular see FGS_TFI_UdM_035_RevD for details of the NIRISS GR700XD
-    measurement, and JWST-STScI-003338 for detector orientation and layout.
-
-    GRISM DESIGN:
-
-    The grism (and cylinder) are per design rotated by 2 degrees so as to be able
-    to sample an emission line across different pixel position along the spatial
-    direction (kind of resampling the line and not be limited by intra pixel
-    response).  
-
-    From Loic Albert's NIRISS technical report:
-
-        * surface sag for the cylinder: 3.994 micron peak
-        * limited to 3.968 microns for the 26 mm FOV mask
-
-    From Loic Albert's email to Marshall 2013-07-18:
-
-            I do have an update concerning the geometry of the GR700XD pupil
-            mask. It turns out that they clocked the grism by about 2.25 degrees wrt the
-            OTE system of coordinates. However, the field mask did not follow and is still
-            aligned along the OTE s.o.c. That was a mistake that fortunately does have much
-            impact.
-
-            Comdev is in the process of modelling a new mask for the
-            Spare grism. Remember that we will swap the current FLight GR700XD for
-            its Spare which offers much improved performances. The mask size will
-            be a little different (rectangular) and this time will be clocked 2.25
-            degrees along with the grism.
-
-            The sign of the rotation of the grism will have to be
-            devised by trying the 2 possibilities an looking at the resulting tilt
-            of the monochromatic PSF and the position of that PSF on the detector.
-            Attached is a simulation of what we expect based on my own PSF
-            generator.
-
-            The cylinder lens has a well characterized power (actually radius of curvature). The values are:
-                current Flight: 22.85 meters
-                Spare: 22.39 meters 
-
-            Prism physical size: pupil is 26 mm on a side for the current prism, will be 28 mm for the spare
-
-    From Loic Albert's email to Marshall 2013-09-19:
-
-        The latest news on this front are:
-
-        1 - The current Flight mask is attached. It is 26x26 mm. The mask and grism are
-            *not* aligned along the same coordinates. That was a mistake. I'll forward you
-            a message from Michael M., our optics expert at CSA. 
-
-        2 - The Spare mask (likely the one which will fly) is not built yet. The mask
-            will be aligned along the grism coordinate and both will be clocked 2.2 deg wrt
-            the OTE.
-
-        3 - A ghost analysis showed that the current grism clocking will suffer from
-            large ghosts. So we are studying how to clock the Spare grism in its cell to
-            minimize ghosts. Likely a 90 degrees rotation will be applied to baseline of
-            point 2.
-
-        From Michael.Maszkiewicz@asc-csa.gc.ca:
-
-            As far as I understand now, we have two rotations in the as-built
-            GR700. One rotation is for the prism-grism combo by 2 deg CCW, looking along
-            the local +z axis, and the second rotation is for  the mask by 3.05 deg  but
-            CW. As a result there is total 5.05 deg rotation between grism and its mask.
-            See my annotations to your drawing attached.
-
-    From Loic Albert's email to Marshall 2014-05-20:
-
-        I should have pointed that the power assumed in my simulations for the cylindrical lens was off. It was one of the conclusions of CV1RR. The actual radius of curvature of the cylinder is 25.3 meters (rather than the smaller figure I used before).
-   
-     ORIENTATION:
-
-        See Figure 2 of JWST-STScI-003338
-        In "DMS" coordinates, as projected looking outwards onto the sky,
-        The GR700XD grating trace is near the extreme right edge of the detector
-        with long wavelengths closest to (2048,2048) and short wavelengths nearest (2048,0)
-        (The raw detector coordinates are very different from this due to a 180 degree rotation)
-
-        **PLEASE NOTE** that the DMS when processing spectral data performs an additional transformation:
-            For spectral data, the science X-axis is aligned with the detector
-            dispersion direction and the science frame Y-axis is at a right angle
-            to the X-axis in a right-handed coordinate system (Swade 2003)
-
-        We choose here to ignore that complication; WebbPSF simulates the 2D sky projected
-        image in "Sci" coordinates in the terminology for SIAF from Lallo et al. 
-        In this coordinate system, the dispersion from the cylinder lens is aligned 
-        almost along V2 and the longer wavelengths are oriented toward +V3. 
-        
-
-   
-
-    Parameters
-    ----------
-    which : string
-        'initial' or 'spare'. Properties are hard coded. 
-    """
-    #
-    #    transmission : string filename
-    #        file for the pupil transmission function
-    #    cylinder_sag_mm : float
-    #        physical thickness of the cylindrical lens, in millimeters
-    #    rotation_angle : float
-    #        degrees clockwise for the orientation of the cylinder's dispersing axis. Default
-    #        of 92.25 should be consistent with initial NIRISS girsm and spare, except for
-    #        sign ambiguity.
-    #    rotate_mask : bool
-    #        should the field mask be rotated along with the cylinder? False for first gen initial 
-    #        prism, true for expected spare replacement.
-
-    def __init__(self, name='GR700XD', which='Bach',
-            #cylinder_radius=22.85,  cylinder_sag_mm=4.0, rotation_angle=92.25, rotate_mask=False, transmission=None, 
-            shift=None):
-        # Initialize the base optical element with the pupil transmission and zero OPD
-
-
-        if which=='LLNL':
-            raise NotImplementedError("Rotated field mask for LLNL grism not yet implemented!")
-        elif which=='Bach':
-            transmission=os.path.join( utils.get_webbpsf_data_path(), "NIRISS/optics/MASKGR700XD.fits.gz")
-        else:
-            raise NotImplementedError("Unknown grating name:"+which)
-
-        self.shift=shift
-        #poppy.FITSOpticalElement.__init__(self, name=name, transmission=transmission, planetype=poppy.poppy_core._PUPIL, shift=shift)
-        poppy.AnalyticOpticalElement.__init__(self, name=name, planetype=poppy.poppy_core._PUPIL)
-
-        # UPDATED NUMBERS 2013-07:
-        # See Document FGS_TFI_UdM_035_RevD
-
-        _log.debug("Computing properties for {0} grism".format(which))
-        if which =='Bach':
-            #---- Phase properties ---------------
-            # 3.994 microns P-V over 27.02 mm measured (Loic's email)
-            # This is **surface sag**, corresponding to P-V of 6.311 waves at lambda=632.8 nm.
-            # should correspond to 3.698 microns over 26 mm clear aperture. 
-            #self.cylinder_radius = 22.85 # radius of curvature
-            self.cylinder_radius = 25.3 # radius of curvature
-            self.prism_size = 0.02702 # 27.02 millimeters for the physical prism
-            self.prism_clear_aperture = 0.0260 # 26 mm clear aperture for the prism + mount
-            self.cylinder_rotation_angle = 2 # was 2.25
-
-            # From Lafreniere's wfe_cylindricallens.pro:
-            #   ;For the Bach grism, we have the wavefront of the weak lens:
-            #    ;3.994 microns of surface sag over 27.02 mm
-            # but they discarded that and used 25.3 instead
-
-            # My arbitrary rescaling for debugging - DO NOT TRUST:
-            self.cylinder_radius = 31.0 # radius of curvature
-
-
-            # pupil magnification computed from 22 mm clear aperture reported = 
-            # 857-169 pixels = 699 pixels in the 2D array which has scale =.00645604
-            # = 4.44175 meters projected on the primary
-
-            # 2014-05-21 but wait, that's actually 26 mm!
-            # so the 699 pixels at 0.00645604 m/pixel = 4.512 meters implies the magnificationa 173 not 170
-            # but, double wait, it's actually more like 687 pixels across rather than 699 so that makes it 170 again.
-
-            # therefore the magnification is 0.1708 meters projected on the primary / mm in the NIRISS pupil
-            #self.pupil_demagnification =  170.8367 # meters on the primary / meters in the NIRISS pupil
-            #self.pupil_demagnification =  173.56 # meters on the primary / meters in the NIRISS pupil
-
-            # Anand says: 
-            #  nominally the circumscribing circle at the PW of NIRISS is ~40mm.  I use 39mm for the nrm, but it's slightly field-dependent.  Compare that to the 6.6... PM circle?
-            self.pupil_demagnification = 6.6 / 0.040 # about 165
-
-            #---- Amplitude Transmission / Pupil shape ---------------
-            self.pupil_size_mm = 26.0
-            # Note that the IDL code says 26 mm is 683.75 pixels using the assumed demagnification
-            self.pupil_rotation_angle = 2.0 
-
-        else:
-            # 5.8 microns P-V over 32.15 mm (Loic's email)
-            # should correspond to 4.38 microns over 28 mm clear aperture
-            self.cylinder_radius = 22.39 # radius of curvature
-            self.prism_size = 0.03215 # millimeters for the physical prism
-            self.prism_clear_aperture = 0.0280 # clear aperture for the prism + mount
-            self.cylinder_rotation_angle = 2.25
-
-        # initial population of the OPD array for display etc.
-        #self.opd = self.makeCylinder( 2.0e-6) 
-        tmp = self.getPhasor(poppy.Wavefront(2e-6))
-
-    def makeCylinder(self, wave):
-        if isinstance(wave, poppy.Wavefront):
-            wavelength=wave.wavelength
-        else:
-            wavelength=float(wave)
-            wave =  poppy.Wavefront(wavelength=wave)
-
-        # compute indices in pixels, relative to center of plane, with rotation
-        # units of these are meters
-        #y, x = np.indices(self.opd.shape, dtype=float)
-        #y-= (self.opd.shape[0]-1)/2.
-        #x-= (self.opd.shape[1]-1)/2.  
-        y, x = wave.coordinates()
- 
-        ang = np.deg2rad(self.cylinder_rotation_angle )
-        x = np.cos(ang)*x - np.sin(ang)*y
-        y = np.sin(ang)*x + np.cos(ang)*y
-
-        _log.debug("Rotating local grism axes by {0} degrees".format(self.cylinder_rotation_angle))
-        
-
-        # From IDL code by David Lafreniere:
-        #  ;the cylindrical defocus
-        #x=(dindgen(pupdim)-pupdim/2)#replicate(1,pupdim)
-        #y0=(rpuppix^2+sag[s]^2)/(2*sag[s])
-        #wfe1=y0-sqrt(y0^2-x^2)
-        #if sag[s] lt 1.e-5 then wfe1=0.d0
-
-        # Here I will just translate that to Python exactly, making use of the
-        # variables here:
-
-        # rpuppix = radius of pupil in pixels
-        #rpuppix = self.amplitude_header['DIAM'] / self.amplitude_header['PUPLSCAL'] / 2
-        # Calculate the radius of curvature of the cylinder, bsaed on 
-        # the chord length and height 
-
-        # In this case we're assuming the cylinder is precisely as wide as the projected
-        # telescope pupil. This doesn't seem guaranteed:
-        #  * actual chord length across cylinder: 27.02 mm. 
-        #  * projected primary scale at NIRISS = ?
-
-        _log.debug(" Computing GR700XD cylinder based on RoC: {0:.3g} meters".format(self.cylinder_radius))
-        _log.debug(" Computing GR700XD cylinder based on pupil demagnification: {0:.3g} primary to grism".format(self.pupil_demagnification))
-
-
-        # Compute the overall sag of the cylinder lens at its outer edge. This is not actually used, it's
-        # just for cross-check of the values
-        # the sag will depend on half the pupil size since that's the offset from center to edge
-        sag0 = np.sqrt(self.cylinder_radius**2 - (self.prism_size/2)**2) - self.cylinder_radius
-        _log.debug(" Computed GR700XD cylinder sag at lens outer edge (for cross check only): {0:.3g} meters".format(sag0))
-
-        # now compute the spatially dependent sag of the cylinder, as projected onto the primary
-
-        # what is the pupil scale at the *reimaged pupil* of the grism?
-        pupil_scale_m_per_pix = 38.0255e-6 # Based on UdeM info in wfe_cylindricallens.pro
-        #sag = np.sqrt(self.cylinder_radius**2 - (x*self.amplitude_header['PUPLSCAL']/self.pupil_demagnification)**2) - self.cylinder_radius
-        sag = self.cylinder_radius -  np.sqrt(self.cylinder_radius**2 - (x * pupil_scale_m_per_pix )**2 )
-
-
-        # what we really want to do is take the physical properties of the as-built optic, and interpolate into that
-        # to compute the OPD after remapping based on the pupil scale (and distortion?)
-        #y0=(rpuppix**2+self.cylinder_sag**2)/(2*self.cylinder_sag)
-        
-        #wfe1=y0-np.sqrt(y0**2-x**2)
-
-        _log.debug(" Cylinder P-V: {0:.4g} meters physical sag across full array".format(sag.max()-sag.min()) )
-
-        #fits.writeto('py_opd.fits', sag*(self.ZnSe_index(wavelength) -1), clobber=True)
-
-        # remove piston offset 
-        #sag -= sag[wnz].min()   # normalize to 0 at the minimum
-        #sag -= sag[wnz].mean()    # normalize around the mean
-        sag[self.amplitude == 0] = 0 # no OPD in opaque regions (makes no difference in propagation but improves display)
-        wnz = np.where(self.amplitude != 0) # this is just for display of the log messages:
-        _log.debug(" Cylinder P-V: {0:.4g} meters physical sag across clear aperture".format(sag[wnz].max()-sag[wnz].min()) )
-
-
-        # scale for ZnSe index of refraction, 
-        opd = sag *  (self.ZnSe_index(wavelength) -1)
-        _log.debug(" Scaling for ZnSe index of refraction")
-        _log.debug(" Cylinder P-V: {0:.4g} meters optical sag at {1:.3g} microns across clear aperture".format(opd[wnz].max()-opd[wnz].min(), wavelength*1e6) )
-        return opd
-
-        #stop()
-
-    def makePupil(self, wave):
-        if isinstance(wave, poppy.Wavefront):
-            wavelength=wave.wavelength
-        else:
-            wavelength=float(wave)
-            wave =  poppy.Wavefront(wavelength=wave)
-        y, x = wave.coordinates()
-        ang = np.deg2rad(self.pupil_rotation_angle )
-        x = np.cos(ang)*x - np.sin(ang)*y
-        y = np.sin(ang)*x + np.cos(ang)*y
-
-        _log.debug("Rotating local pupil mask axes by {0} degrees".format(self.cylinder_rotation_angle))
- 
-        pupil_halfsize_m = self.pupil_size_mm / 2  / 1000 * self.pupil_demagnification
-        pupilmask = np.ones_like(x)
-        pupilmask[np.abs(x) > pupil_halfsize_m] = 0
-        pupilmask[np.abs(y) > pupil_halfsize_m] = 0
-
-        return pupilmask
-
-    def ZnSe_index(self, wavelength):
-        """ Return cryogenic index of refraction of ZnSe at an arbitrary wavelength
-        """
-        # From ZnSe_index.txt provided by Loic Albert
-        #from Michael M. Nov 9 2012 in excel table],
-        #ZnSe-40K index,  ],
-        # ZnSe
-        ZnSe_data =np.asarray([[500,  2.7013],
-                                [540,  2.6508],
-                                [600,  2.599],
-                                [644,  2.56937],
-                                [688,  2.54709],
-                                [732,  2.52977],
-                                [776,  2.51596],
-                                [820,  2.50472],
-                                [864,  2.49542],
-                                [900,  2.4876],
-                                [908,  2.48763],
-                                [952,  2.48103],
-                                [996,  2.47537],
-                                [1040,  2.47048],
-                                [1084,  2.46622],
-                                [1128,  2.46249],
-                                [1172,  2.4592],
-                                [1216,  2.45628],
-                                [1260,  2.45368],
-                                [1304,  2.45134],
-                                [1348,  2.44924],
-                                [1392,  2.44734],
-                                [1436,  2.44561],
-                                [1480,  2.44405],
-                                [1524,  2.44261],
-                                [1568,  2.4413],
-                                [1612,  2.44009],
-                                [1656,  2.43897],
-                                [1700,  2.43794],
-                                [1744,  2.43699],
-                                [1788,  2.4361],
-                                [1832,  2.43527],
-                                [1876,  2.4345],
-                                [1920,  2.43378],
-                                [1964,  2.4331],
-                                [2008,  2.43247],
-                                [2052,  2.43187],
-                                [2096,  2.4313],
-                                [2140,  2.43077],
-                                [2184,  2.43026],
-                                [2228,  2.42978],
-                                [2272,  2.42933],
-                                [2316,  2.4289],
-                                [2360,  2.42848],
-                                [2404,  2.42809],
-                                [2448,  2.42771],
-                                [2492,  2.42735],
-                                [2536,  2.42701],
-                                [2580,  2.42667],
-                                [2624,  2.42635],
-                                [2668,  2.42604],
-                                [2712,  2.42575],
-                                [2756,  2.42546],
-                                [2800,  2.42518],
-                                [2844,  2.42491],
-                                [2888,  2.42465],
-                                [2932,  2.4244],
-                                [2976,  2.42416],
-                                [3020,  2.42392]] )
-
-        interpol_znse = scipy.interpolate.interp1d( ZnSe_data[:,0]*1e-9, ZnSe_data[:,1] )
-        return interpol_znse(wavelength)
-
-    def getPhasor(self, wave):
-        """ Scale the cylindrical lens OPD appropriately for the current wavelength
-            Then call the regular getphasor method of the parent class 
-
-        """
-        # Pupil shape part: 
-        self.amplitude = self.makePupil(wave)
-
-        # Phase part: 
-        self.opd = self.makeCylinder(wave)
-
-        # Return the OPD derived from them both
-        #return poppy.FITSOpticalElement.getPhasor(self, wave)
-        return   poppy.OpticalElement.getPhasor(self, wave)
-
-
-    def display(self, opd_vmax=6e-6, *args, **kwargs):
-        "Same as regular display for any other optical element, except opd_vmax default changed"
-        #poppy.FITSOpticalElement.display(self,*args, opd_vmax=opd_vmax, **kwargs)
-        poppy.AnalyticOpticalElement.display(self,*args, opd_vmax=opd_vmax, **kwargs)
-
-
-class NIRISS_CLEARP(poppy.CompoundAnalyticOptic):
-    """NIRISS 'CLEARP' pupil, including PAR obscuration
-
-        CLEARP pupil info from:
-           MODIFIED CALIBRATION OPTIC HOLDER - NIRISS
-           DRAWING NO 196847  REV 0  COMDEV
-           Design file name 196847Rev0.pdf sent by Loic Albert
-
-        Properties:
-          39 mm outer diam, corresponds to the circumscribing pupil of JWST
-          2.0 mm vane width
-          6.0 mm radius for central obstruction
-
-        Note the circumscribing pupil of JWST is 6603.464 mm in diameter
-        (Ball SER on geometric optics model: BALL-JWST-SYST-05-003)
-        and therefore the NIRISS pupil magnification is 6.603464/39.0 
-        = 0.1693 meters (JWST primary) per mm (NIRISS internal pupil)
-
-        Pupil distortions are not included in this model.
-
-    """
-    def __init__(self):
-            pupil_mag = 6.603464/39.0
-            poppy.CompoundAnalyticOptic.__init__( self, (
-                    poppy.SecondaryObscuration( secondary_radius = 6.0*pupil_mag,
-                                                          support_width = 2.0*pupil_mag,
-                                                          n_supports = 3,
-                                                          support_angle_offset=90), # align first support with +V2 axis
-                    poppy.CircularAperture( radius = 39 * pupil_mag /2) ), name = 'CLEARP')
 
 
 
@@ -1801,31 +1321,6 @@ def calc_or_load_PSF(filename, inst, clobber=False, **kwargs):
     else: 
         return inst.calcPSF(outfile = filename, **kwargs)
 
-
-def MakePSF(self, instrument=None, pupil_file=None, phase_file=None, output=None,
-                  diameter=None, oversample=4, type=np.float64,
-                  filter=((1.,),(1.,)),
-                  output_size=512, pixel_size=None, verbose=False):
-    """This is a wrapper function to provide back-compatibility with the
-    interface of the original JWPSF. New code should make use of the
-    object-oriented interface instead. 
-    """
-    instr = Instrument(name)
-    raise NotImplementedError("finish me!")
-
-    if diameter is not None or float(diameter) != 6.5:
-        raise NotImplementedError("Changing diameters is not supported by this version of JWPSF. Nor by JWST itself, for that matter!")
-
-    if pixel_size is not None:
-        instr.pixelscale = pixel_size
-    # set pupil files
-    instr.pupil = pupil_file
-    instr.pupilopd = phase_file
-
-    # deal with filter? 
-    # pick the mean wavelen and use the closest filter to that?
-
-    return instr.calcPSF(oversample=oversample, fov_pixels=output_size)
 
 
 
