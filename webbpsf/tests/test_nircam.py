@@ -114,8 +114,9 @@ def do_test_nircam_blc(clobber=False, kind='circular', angle=0, save=False, disp
         else:
             raise ValueError("Don't know how to check fluxes for angle={0}".format(angle))
 
-    nlam = 3 #20
-    oversample=2
+    # If you change either of the following, the expected flux values will need to be updated:
+    nlam = 3
+    oversample=4
 
     if outputdir is None:
         import tempfile

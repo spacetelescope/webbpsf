@@ -114,8 +114,8 @@ def do_test_source_offset(iname, distance=0.5,  nsteps=1, theta=0.0, tolerance=0
         _log.info("   Shift_requested:\t(%10.3f, %10.3f) arcsec" % (rx, ry))
         shift = (cent-cent0) * (si.pixelscale/oversample)
         _log.info("   Shift_achieved: \t(%10.3f, %10.3f) arcsec" % (shift[1], shift[0]))
-        assert( abs(rx -  shift[1]) <  (si.pixelscale/20) )
-        assert( abs(ry -  shift[0]) <  (si.pixelscale/20) )
+        assert( abs(rx -  shift[1]) <  (si.pixelscale*tolerance) )
+        assert( abs(ry -  shift[0]) <  (si.pixelscale*tolerance) )
 
 
 
@@ -191,12 +191,16 @@ def test_instrument():
     assert excinfo.value.message.startswith('Incorrect instrument name')
 
 
-def test_calc_or_load_PSF():
+def test_calc_or_load_PSF(outputdir=None):
+    if outputdir is None:
+        import tempfile
+        outputdir = tempfile.gettempdir()
+
+
     nc = webbpsf_core.NIRCam()
 
-    if not os.path.isdir('test_outputs/'): os.mkdir('test_outputs')
 
-    filename =  "test_outputs/test_calc_or_load_output.fits"
+    filename =  os.path.join(outputdir, "test_calc_or_load_output.fits")
     if os.path.exists(filename): os.unlink(filename)
 
     webbpsf_core.calc_or_load_PSF(filename, nc, monochromatic=2e-6)

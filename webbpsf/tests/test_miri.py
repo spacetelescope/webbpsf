@@ -37,7 +37,6 @@ def test_miri_fqpm(theta=0.0, nsteps=3, nlambda=1, clobber=True, outputdir=None)
     for offset in np.linspace(0.0, 1.0, nsteps):
         miri.options['source_offset_theta'] = 0.0
         miri.options['source_offset_r'] = offset
-        #if not os.path.isdir('test_outputs/'): os.mkdir('test_outputs')
 
         for angle in [0,45]:
 
@@ -47,10 +46,6 @@ def test_miri_fqpm(theta=0.0, nsteps=3, nlambda=1, clobber=True, outputdir=None)
                 psf = miri.calcPSF(oversample=oversample, nlambda=nlambda, save_intermediates=False, display=True)#, monochromatic=10.65e-6)
                 psf.writeto(fn, clobber=clobber)
 
-    #    fn_45 = os.path.join(outputdir, 'test_miri_fqpm_t45_r%.2f.fits' % offset)
-    #    if not os.path.exists('test_outputs/test_miri_fqpm_t45_r%.2f.fits' % offset) or clobber:
-    #        psf = miri.calcPSF(oversample=oversample, nlambda=nlambda, save_intermediates=False, display=True)#, monochromatic=10.65e-6)
-    #        psf.writeto('test_outputs/test_miri_fqpm_t45_r%.2f.fits' % offset, clobber=clobber)
     #FIXME - add some assertion tests here. 
 
 
