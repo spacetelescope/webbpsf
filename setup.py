@@ -9,12 +9,6 @@ import sys
 import setuptools_bootstrap
 from setuptools import setup, find_packages
 
-import astropy
-from astropy.setup_helpers import (register_commands, adjust_compiler,
-                                   filter_packages, update_package_files,
-                                   get_debug_option)
-from astropy.version_helpers import get_git_devstr, generate_version_py
-
 import ah_bootstrap
 from setuptools import setup
 
