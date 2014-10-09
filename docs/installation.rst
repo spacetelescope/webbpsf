@@ -124,6 +124,27 @@ You should now be able to successfully ``import webbpsf`` in a Python session, o
 Alternate Installation Methods
 ---------------------------------------
 
+Installing with `conda <http://conda.pydata.org>`_ or `miniconda <http://conda.pydata.org/miniconda.html>`_
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Many users have expressed a preference for the `Anaconda <https://store.continuum.io/cshop/anaconda/>`_ distribution of scientific computing tools. Fortunately, it is straightforward to install WebbPSF into a ``conda`` environment.
+
+1. Create a new environment for WebbPSF to live in::
+
+    conda create -n webbpsf numpy scipy matplotlib pip
+
+2. Activate the environment so that the next command takes effect in the new environment::
+
+    source activate webbpsf
+
+3. Install WebbPSF with pip::
+
+    pip install webbpsf
+
+You must next download and install the data files, as described in :ref:`data_install`. To obtain source spectra for calculations, you should also follow :ref:`installation instructions for pysynphot <pysynphot_install>`.
+
+Later, when you open a new terminal window, remember to run ``source activate webbpsf`` before running ``webbpsfgui`` or attempting to ``import webbpsf``. You may also install webbpsf in the default environment, if that is more convenient for you. Simply ensure the packages listed in step 1 are installed with ``conda install``, then ``pip install webbpsf``.
+
 Installing a pre-release version or contributing to WebbPSF development
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
