@@ -5,7 +5,9 @@ WebbPSF uses the Python Package Index (PyPI) to distribute new versions. If you 
 
     $ pip install numpy && pip install -U webbpsf
 
-You can then proceed to :ref:`installing the required data files <data_install>`. (Why install NumPy first? To work around a bug! See `numpy/numpy#2434 <https://github.com/numpy/numpy/issues/2434>`_ for details.)
+*If you do not have access to install packages system-wide, replace* ``pip install`` *with* ``pip install --user``.
+
+Once the WebbPSF code has been installed, you can then proceed to :ref:`installing the required data files <data_install>`. (Why install NumPy first? To work around a bug! See `numpy/numpy#2434 <https://github.com/numpy/numpy/issues/2434>`_ for details.)
 
 For ease of installation, we recommend a scientific Python distribution like `Ureka <http://ssb.stsci.edu/ureka/>`_. Ureka includes NumPy, SciPy, matplotlib, and other packages that can be tricky to compile on your own machine.
 
@@ -13,7 +15,7 @@ For ease of installation, we recommend a scientific Python distribution like `Ur
 
     This is entirely optional, but you may wish to sign up to the mailing list ``webbpsf-users@stsci.edu``. This is a low-traffic moderated announce-only list, to which we will periodically post announcements of updates to this software.
 
-    To subscribe, email `majordomo@stsci.edu` with the message body text ``subscribe webbpsf-users``.
+    To subscribe, email majordomo@stsci.edu with the message body text ``subscribe webbpsf-users``.
 
 Software Requirements
 -----------------------
@@ -43,7 +45,7 @@ Pysynphot is recommended for most users. If you are only using WebbPSF through t
 Installing WebbPSF
 ----------------------
 
-WebbPSF and its underlying optical library POPPY are both installable from the `Python Package Index <http://pypi.python.org/pypi>`_ via the standard toolchain using `pip <https://pip.pypa.io/>`_.  This is the easiest installation method if you already have a working copy of Python, NumPy, and matplotlib on your computer.
+The latest stable version of WebbPSF and its underlying optical library POPPY are both installable from the `Python Package Index <http://pypi.python.org/pypi>`_ via the standard toolchain using `pip <https://pip.pypa.io/>`_.  This is the easiest installation method if you already have a working copy of Python, NumPy, and matplotlib on your computer. (Alternatively, see the section on :ref:`alternate_install`.)
 
 Simply invoke pip in the usual manner::
 
@@ -51,8 +53,6 @@ Simply invoke pip in the usual manner::
     [... progress report ...]
 
     Successfully installed webbpsf
-
-You should now be able to do ``import webbpsf`` in a Python session to start WebbPSF. 
 
 However, ``pip install webbpsf`` only installs the program code. You still must download and install the data files, as :ref:`described below <data_install>`. To obtain source spectra for calculations, you should also follow :ref:`installation instructions for pysynphot <pysynphot_install>`.
 
@@ -68,44 +68,10 @@ Future versions may be installed with ``pip install --upgrade webbpsf`` when the
 .. warning::
   If you get the message ``SystemError: Cannot compile 'Python.h'. Perhaps you need to install python-dev|python-devel.`` during install *even when Python.h is available*, this means ``setup.py`` was unable to install NumPy. This can sometimes be fixed by executing ``pip install numpy`` separately, before installing webbpsf. See the bug report at `numpy/numpy#2434 <https://github.com/numpy/numpy/issues/2434>`_ for details.
 
-Installing a pre-release version or contributing to WebbPSF development
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-The `WebbPSF source code repository <https://github.com/mperrin/webbpsf>`_ is hosted at GitHub, as is the repository for `POPPY <https://github.com/mperrin/poppy>`_. Users may clone or fork in the usual manner. Pull requests with code enhancements welcomed.
-
-To install the current development version of WebbPSF, you can use ``pip`` to install directly from a ``git`` repository. To install WebbPSF and POPPY from ``git``, uninstall any existing copies of WebbPSF and POPPY, then invoke pip as follows::
-
-    $ pip install -e git+https://github.com/mperrin/poppy.git#egg=poppy \
-       -e git+https://github.com/mperrin/webbpsf.git#egg=webbpsf
-
-This will create directories ``./src/poppy`` and ``./src/webbpsf`` in your current directory containing the cloned repository. If you have commit access to the repository, you may want to clone via ssh with a URL like ``git+ssh://git@github.com:mperrin/webbpsf.git``. Documentation of the available options for installing directly from Git can be found at http://pip.readthedocs.org/en/latest/reference/pip_install.html#git
-
-Remember to :ref:`install the required data files <data_install>`, if you have not already installed them.
-
-Installing WebbPSF manually
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-If for some reason you don't wish to use PyPI, you can just install from the source directly:
-
-1. Download the following files.
-
- * http://www.stsci.edu/~mperrin/software/webbpsf/webbpsf-0.3rc2.tar.gz
- * http://www.stsci.edu/~mperrin/software/webbpsf/poppy-0.3rc2.tar.gz
-
-2. Untar each into a temporary working directory. 
-3. Run ``python setup.py install`` in each of those directories to install first ``poppy`` and then ``webbpsf``. 
-
-You should now be able to do ``import webbpsf`` in a Python session to start WebbPSF. 
-
-However, the above installs only the program code. You still must download and install the data files, as :ref:`described below <data_install>`. 
-
-.. note::
-   If you lack the filesystem permissions to write into the system Python directory (for instance, on a machine you don't have root on), you can do ``python setup.py install --user`` to install locally in your home directory.
-
 .. _pysynphot_install:
 
 Installing or updating pysynphot
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+---------------------------------
 
 Pysynphot is an optional dependency, but is highly recommended. 
 
@@ -141,6 +107,8 @@ Files containing such information as the JWST pupil shape, instrument throughput
 
    for bash. (You will probably want to add this to your ``.cshrc`` or ``.bashrc``.)
 
+You should now be able to successfully ``import webbpsf`` in a Python session, or start the GUI with the command ``webbpsfgui``.
+
 .. admonition:: For STScI Users Only
 
   Users at STScI may access WebbPSF through the standard `SSB software distributions <http://ssb.stsci.edu/ssb_software.shtml>`_. 
@@ -150,3 +118,42 @@ Files containing such information as the JWST pupil shape, instrument throughput
     1. Install SSBDEV and select that version of Python (e.g. ``us_setup common ssbdev``)
     2. ``setenv WEBBPSF_PATH /grp/jwst/ote/webbpsf-data``  
     3. ``setenv PYSYN_CDBS /grp/hst/cdbs`` 
+
+.. _alternate_install:
+
+Alternate Installation Methods
+---------------------------------------
+
+Installing a pre-release version or contributing to WebbPSF development
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The `WebbPSF source code repository <https://github.com/mperrin/webbpsf>`_ is hosted at GitHub, as is the repository for `POPPY <https://github.com/mperrin/poppy>`_. Users may clone or fork in the usual manner. Pull requests with code enhancements welcomed.
+
+To install the current development version of WebbPSF, you can use ``pip`` to install directly from a ``git`` repository. To install WebbPSF and POPPY from ``git``, uninstall any existing copies of WebbPSF and POPPY, then invoke pip as follows::
+
+    $ pip install -e git+https://github.com/mperrin/poppy.git#egg=poppy \
+       -e git+https://github.com/mperrin/webbpsf.git#egg=webbpsf
+
+This will create directories ``./src/poppy`` and ``./src/webbpsf`` in your current directory containing the cloned repository. If you have commit access to the repository, you may want to clone via ssh with a URL like ``git+ssh://git@github.com:mperrin/webbpsf.git``. Documentation of the available options for installing directly from Git can be found in the `pip documentation <http://pip.readthedocs.org/en/latest/reference/pip_install.html#git>`_.
+
+Remember to :ref:`install the required data files <data_install>`, if you have not already installed them.
+
+Installing WebbPSF manually
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If for some reason you don't wish to use PyPI, you can just install from the source directly:
+
+1. Download the following files.
+
+ * http://www.stsci.edu/~mperrin/software/webbpsf/webbpsf-0.3rc2.tar.gz
+ * http://www.stsci.edu/~mperrin/software/webbpsf/poppy-0.3rc2.tar.gz
+
+2. Untar each into a temporary working directory.
+3. Run ``python setup.py install`` in each of those directories to install first ``poppy`` and then ``webbpsf``.
+
+You should now be able to do ``import webbpsf`` in a Python session to start WebbPSF.
+
+However, the above installs only the program code. You still must download and install the data files, as :ref:`described below <data_install>`.
+
+.. note::
+   If you lack the filesystem permissions to write into the system Python directory (for instance, on a machine you don't have root on), you can do ``python setup.py install --user`` to install locally in your home directory.
