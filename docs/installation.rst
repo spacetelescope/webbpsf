@@ -115,7 +115,7 @@ You should now be able to successfully ``import webbpsf`` in a Python session, o
   In particular, webbpsf and its required dependencies are now included in SSBDEV and will soon be in SSBX.  To make use of this,
   it should be sufficient to:
 
-    1. Install SSBDEV and select that version of Python (e.g. ``us_setup common ssbdev``)
+    1. Install SSBDEV and select that version of Python (e.g. ``ur_setup common ssbdev``)
     2. ``setenv WEBBPSF_PATH /grp/jwst/ote/webbpsf-data``  
     3. ``setenv PYSYN_CDBS /grp/hst/cdbs`` 
 
