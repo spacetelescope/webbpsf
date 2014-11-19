@@ -171,7 +171,21 @@ def test_return_intermediates():
     assert isinstance(intermediates[0], poppy.Wavefront)
     assert isinstance(psf, astropy.io.fits.HDUList)
 
+def test_unicode_filter_names():
+    """ See https://github.com/mperrin/webbpsf/issues/18
+    Bug reported by Brian York in which unicode filternames made
+    webbpsf 0.2.8 fail during atpy table lookup. Believed to actually be
+    an atpy bug, now irrelevant since we're using astropy.table, but
+    let's add an easy test case to be sure.
+    """
+    
+    nc = webbpsf_core.NIRCam()
+    nc.filter=unicode('f212n')
+    psf_unicode = nc.calcPSF(nlambda=1)
+    nc.filter='f212n'
+    psf_str = nc.calcPSF(nlambda=1)
 
+    assert np.array_equal(psf_unicode[0].data, psf_str[0].data)
 
 #------------------    Utility Function Tests    ----------------------------
 
