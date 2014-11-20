@@ -67,3 +67,7 @@ distribute-*.tar.gz
 
 # Mac OSX
 .DS_Store
+
+# Example IPython notebook files
+.ipynb_checkpoints/
+my_log.txt
