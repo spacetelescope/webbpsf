@@ -978,21 +978,21 @@ class NIRCam(JWInstrument):
             optsys.addPupil(poppy.ThinLens(
                 name='Weak Lens +4',
                 nwaves=WLP4_diversity / WL_wavelength,
-                reference_wavelength=WL_wavelength,
+                reference_wavelength=WL_wavelength*1e-6, #convert microns to meters
                 radius=self.pupil_radius
             ))
         elif self.pupil_mask == 'WEAK LENS +8':
             optsys.addPupil(poppy.ThinLens(
                 name='Weak Lens +8',
                 nwaves=WLP8_diversity / WL_wavelength,
-                reference_wavelength=WL_wavelength,
+                reference_wavelength=WL_wavelength*1e-6,
                 radius=self.pupil_radius
             ))
         elif self.pupil_mask == 'WEAK LENS -8':
             optsys.addPupil(poppy.ThinLens(
                 name='Weak Lens -8',
                 nwaves=WLM8_diversity / WL_wavelength,
-                reference_wavelength=WL_wavelength,
+                reference_wavelength=WL_wavelength*1e-6,
                 radius=self.pupil_radius
             ))
         elif self.pupil_mask == 'WEAK LENS +12 (=4+8)':
@@ -1000,13 +1000,13 @@ class NIRCam(JWInstrument):
                 poppy.ThinLens(
                     name='Weak Lens +4',
                     nwaves=WLP4_diversity / WL_wavelength,
-                    reference_wavelength=WL_wavelength,
+                    reference_wavelength=WL_wavelength*1e-6,
                     radius=self.pupil_radius
                 ),
                 poppy.ThinLens(
                     name='Weak Lens +8',
                     nwaves=WLP8_diversity / WL_wavelength,
-                    reference_wavelength=WL_wavelength,
+                    reference_wavelength=WL_wavelength*1e-6,
                     radius=self.pupil_radius
                 )]
             )
@@ -1016,13 +1016,13 @@ class NIRCam(JWInstrument):
                 poppy.ThinLens(
                     name='Weak Lens +4',
                     nwaves=WLP4_diversity / WL_wavelength,
-                    reference_wavelength=WL_wavelength,
+                    reference_wavelength=WL_wavelength*1e-6,
                     radius=self.pupil_radius
                 ),
                 poppy.ThinLens(
                     name='Weak Lens -8',
                     nwaves=WLM8_diversity / WL_wavelength,
-                    reference_wavelength=WL_wavelength,
+                    reference_wavelength=WL_wavelength*1e-6,
                     radius=self.pupil_radius
                 )]
             )
