@@ -273,13 +273,6 @@ def system_diagnostic():
     except:
         astropy_version = 'not found'
 
-    try:
-        import pyfits
-        pyfits_version = pyfits.__version__
-    except:
-        pyfits_version = 'not found'
-
-
     result = """
     OS: {os}
     Python version: {python}
@@ -292,17 +285,17 @@ def system_diagnostic():
 
     astropy version: {astropy}
     pysynphot version: {pysyn}
-    pyfits version: {pyfits}
-    PyFFTW version: {fftw3} """.format( os=platform.platform(), 
-            numpy = numpy.__version__,
-            python=sys.version.replace("\n"," "), 
-            poppy=poppy.__version__, 
-            webbpsf=version,
-            tkinter=ttk_version,
-            wxpython=wx_version,
-            fftw3=fftw3_version,
-            pysyn=pysynphot_version,
-            astropy=astropy_version, 
-            pyfits=pyfits_version)
+    PyFFTW version: {fftw3} """.format(
+        os=platform.platform(),
+        numpy = numpy.__version__,
+        python=sys.version.replace("\n"," "),
+        poppy=poppy.__version__,
+        webbpsf=version,
+        tkinter=ttk_version,
+        wxpython=wx_version,
+        fftw3=fftw3_version,
+        pysyn=pysynphot_version,
+        astropy=astropy_version
+    )
     return result
 

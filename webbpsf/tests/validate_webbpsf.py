@@ -1,5 +1,5 @@
 import os
-import pyfits
+from astropy.io import fits
 import numpy as N
 import matplotlib
 import pylab as P
@@ -385,7 +385,7 @@ def validate_vs_krist_blc(which='spot'):
 
     P.clf()
     mask1 = 'nircam_4600nm_%s_occ.fits' % wedge
-    mask1f = pyfits.open(mask1)
+    mask1f = fits.open(mask1)
 
     #P.subplot(332)
     os = nc._getOpticalSystem()
@@ -467,7 +467,7 @@ def validate_vs_krist_sims(clobber=False, normalize=False, which='spot', no_sam=
 
     P.subplot(331)
     mask1 = 'nircam_4600nm_%s_occ.fits' % which
-    mask1f = pyfits.open(mask1)
+    mask1f = fits.open(mask1)
     poppy.display_PSF(mask1f, title="", pixelscale='PIXSIZE', vmin=0, vmax=1, scale='linear', cmap=matplotlib.cm.gray)
 
     P.subplot(332)
@@ -492,7 +492,7 @@ def validate_vs_krist_sims(clobber=False, normalize=False, which='spot', no_sam=
     poppy.imshow_with_mouseover(to_plot, cmap=matplotlib.cm.gray, vmin=vmin, vmax=vmax, extent=[-8, 8, -8, 8])
     P.colorbar(P.gca().images[0], orientation='vertical')
     try:
-        pyfits.PrimaryHDU(trans).writeto('test_nircam_4600nm_%s_occ.fits' % which, clobber=clobber)
+        fits.PrimaryHDU(trans).writeto('test_nircam_4600nm_%s_occ.fits' % which, clobber=clobber)
     except:
         pass
 
@@ -503,7 +503,7 @@ def validate_vs_krist_sims(clobber=False, normalize=False, which='spot', no_sam=
     #---- occulted --
     P.subplot(334)
     k1 = 'nircam_4600nm_%s.fits' % which
-    k1f = pyfits.open(k1)
+    k1f = fits.open(k1)
 
     print "Total of %s is %f" % (k1, k1f[0].data.sum())
     poppy.display_PSF(k1f,  title="", pixelscale='SAMPLING', vmin=cor_vmin, vmax=cor_vmax)
@@ -522,7 +522,7 @@ def validate_vs_krist_sims(clobber=False, normalize=False, which='spot', no_sam=
     #---- unocculted --
     P.subplot(337)
     k2 = 'nircam_4600nm_%s_fieldpsf.fits' % which
-    k2f = pyfits.open(k2)
+    k2f = fits.open(k2)
     poppy.display_PSF(k2f,  title="", pixelscale='SAMPLING')
     print "Total of %s is %f" % (k2, k2f[0].data.sum())
 
@@ -682,9 +682,9 @@ def validate_vs_jwpsf_nircam():
         if not os.path.exists( my_fn):
             my_psf = nc.calcPSF(my_fn, oversample=oversamp, fov_pixels=512./oversamp)
         else:
-            my_psf = pyfits.open(my_fn)
+            my_psf = fits.open(my_fn)
 
-        jw_psf = pyfits.open(jw_fn)
+        jw_psf = fits.open(jw_fn)
         jw_psf[0].header.update('PIXELSCL', jw_psf[0].header['CDELT1']*3600)
 
 
@@ -798,8 +798,8 @@ def compare_pupils_tv( oversample=8, vmax=1e-5, skipone=True):
         stop()
         P.clf()
 
-    psf_V = pyfits.open('test_NIRCam_perfect_rev%s_o%d.fits'  % ('V', oversample))
-    psf_T = pyfits.open('test_NIRCam_perfect_rev%s_o%d.fits'  % ('T', oversample))
+    psf_V = fits.open('test_NIRCam_perfect_rev%s_o%d.fits'  % ('V', oversample))
+    psf_T = fits.open('test_NIRCam_perfect_rev%s_o%d.fits'  % ('T', oversample))
     P.subplot(221)
     poppy.display_PSF_difference(psf_V, psf_tri, vmax=vmax, title="Rev V - tricontagon")
     P.subplot(222)
