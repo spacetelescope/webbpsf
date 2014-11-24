@@ -20,7 +20,7 @@ For ease of installation, we recommend a scientific Python distribution like `Ur
 Software Requirements
 -----------------------
 
-**Required Python version**: Python 2.6 or higher is required. Python 2.7 is required for the GUI (see below) and strongly recommended overall. WebbPSF is not yet Python 3 compatible.
+**Required Python version**: Python 2.7 or higher is required. (WebbPSF is not yet Python 3 compatible.)
 
 **Required Python packages**:
 
@@ -31,9 +31,8 @@ Software Requirements
 **Recommended Python packages**:
 
 * `pysynphot <https://pypi.python.org/pypi/pysynphot>`_ enables the simulation of PSFs with proper spectral response to realistic source spectra.  Without this, PSF fidelity is reduced. See below for :ref:`installation instructions for pysynphot <pysynphot_install>`.
-* `ttk <http://docs.python.org/2/library/ttk.html>`_ (included with Python 2.7) or `wxPython <http://www.wxpython.org>`_ is required for the :ref:`graphical user interface<gui>`.
 
-Pysynphot is recommended for most users. If you are only using WebbPSF through the API, you do not need a GUI toolkit, but ttk should be present by default on Python 2.7 and newer. The optional packages below are only worth adding for speed improvements if you are spending substantial time running calculations.
+Pysynphot is recommended for most users. The optional packages below are only worth adding for speed improvements if you are spending substantial time running calculations.
 
 **Optional Python packages**:
 
@@ -174,7 +173,7 @@ If for some reason you don't wish to use PyPI, you can just install from the sou
 
 You should now be able to do ``import webbpsf`` in a Python session to start WebbPSF.
 
-However, the above installs only the program code. You still must download and install the data files, as :ref:`described below <data_install>`.
+However, the above installs only the program code. You must next download and install the data files, as described in :ref:`data_install`.
 
 .. note::
    If you lack the filesystem permissions to write into the system Python directory (for instance, on a machine you don't have root on), you can do ``python setup.py install --user`` to install locally in your home directory.
