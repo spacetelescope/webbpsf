@@ -1,5 +1,4 @@
-#import os,sys
-import pyfits
+from astropy.io import fits
 import numpy as N
 import pylab as P
 import logging
@@ -35,9 +34,9 @@ def validate_vs_jwpsf_nircam():
         if not os.path.exists( my_fn):
             my_psf = nc.calcPSF(my_fn, oversample=oversamp, fov_pixels=512./oversamp)
         else:
-            my_psf = pyfits.open(my_fn)
+            my_psf = fits.open(my_fn)
 
-        jw_psf = pyfits.open(jw_fn)
+        jw_psf = fits.open(jw_fn)
         jw_psf[0].header.update('PIXELSCL', jw_psf[0].header['CDELT1']*3600)
 
 
@@ -149,8 +148,8 @@ def compare_pupils_tv( oversample=8, vmax=1e-5, skipone=True):
         stop()
         P.clf()
 
-    psf_V = pyfits.open('test_NIRCam_perfect_rev%s_o%d.fits'  % ('V', oversample))
-    psf_T = pyfits.open('test_NIRCam_perfect_rev%s_o%d.fits'  % ('T', oversample))
+    psf_V = fits.open('test_NIRCam_perfect_rev%s_o%d.fits'  % ('V', oversample))
+    psf_T = fits.open('test_NIRCam_perfect_rev%s_o%d.fits'  % ('T', oversample))
     P.subplot(221)
     webbpsf.display_PSF_difference(psf_V, psf_tri, vmax=vmax, title="Rev V - tricontagon")
     P.subplot(222)
