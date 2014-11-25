@@ -7,7 +7,7 @@ Using WebbPSF via the Graphical User Interface
 
 
 The WebbPSF GUI provides an easy interface to most, but not quite all, of the functionality of WebbPSF. 
-(Not all of the advanced settings in the ``options`` structure for :py:class:`webbpsf.JWInstrument` are exposed in the GUI yet, and
+(Not all of the advanced settings in the :py:attr:`~webbpsf.JWInstrument.options` structure for :py:class:`webbpsf.JWInstrument` are exposed in the GUI yet, and
 the programming API is better suited for scripting batch calculations.)
 
 
