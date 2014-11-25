@@ -1431,5 +1431,3 @@ class DetectorGeometry(object):
 
 #########################3
 
-
-

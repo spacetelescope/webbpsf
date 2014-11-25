@@ -269,29 +269,35 @@ Subclassing a JWInstrument to add additional functionality
 
 Perhaps you want to modify the OPD used for a given instrument, for instance to
 add a defocus. You can do this by subclassing one of the existing instrument
-classes to override the _getOpticalSystem function. An :py:class:`OpticalSystem <poppy.OpticalSystem>` is
+classes to override the :py:meth:`JWInstrument._addAdditionalOptics` function. An :py:class:`OpticalSystem <poppy.OpticalSystem>` is
 basically a list so it's straightforward to just add another optic there. In
 this example it's a lens for defocus but you could just as easily add another
 :py:class:`FITSOpticalElement <poppy.FITSOpticalElement>` instead to read in a disk file.
 
 
-    >>> class TF_with_defocus(webbpsf.TFI):
-    >>>         def __init__(self, *args, **kwargs):
-    >>>                 webbpsf.TFI.__init__(self, *args, **kwargs)
-    >>>                 # modify the following as needed to get your desired defocus
-    >>>                 self.defocus_waves = 0
-    >>>                 self.defocus_lambda = 4e-6
-    >>>         def _getOpticalSystem(self, *args, **kwargs):
-    >>>                 osys = webbpsf.TFI._getOpticalSystem(self, *args, **kwargs)
-    >>>                 lens = poppy.ThinLens(name='my lens', nwaves=self.defocus_waves, reference_wavelength=self.defocus_lambda)  
-    >>>                 lens.planetype=poppy.PUPIL # needed to flag plane location for the propagation algorithms
-    >>>                 osys.planes.insert(1, lens)
-    >>>                 return osys
-    >>> 
-    >>> tf2 = TF_with_defocus()
-    >>> tf2.defocus= 4  # means 4 waves of defocus at the wavelength defined by tf2.defocus_lambda
-    >>> psf = tf2.calcPSF()
+    >>> class FGS_with_defocus(webbpsf.FGS):
+    >>>     def __init__(self, *args, **kwargs):
+    >>>         webbpsf.FGS.__init__(self, *args, **kwargs)
+    >>>         # modify the following as needed to get your desired defocus
+    >>>         self.defocus_waves = 0
+    >>>         self.defocus_lambda = 4e-6
+    >>>     def _addAdditionalOptics(self, optsys, *args, **kwargs):
+    >>>         optsys = webbpsf.FGS._addAdditionalOptics(self, optsys, *args, **kwargs)
+    >>>         lens = poppy.ThinLens(
+    >>>             name='FGS Defocus',
+    >>>             nwaves=self.defocus_waves,
+    >>>             reference_wavelength=self.defocus_lambda
+    >>>         )
+    >>>         lens.planetype = poppy.PUPIL  # tell propagation algorithm which this is
+    >>>         optsys.planes.insert(1, lens)
+    >>>         return optsys
     >>>
+    >>> fgs2 = FGS_with_defocus()
+    >>> # apply 4 waves of defocus at the wavelength
+    >>> # defined by FGS_with_defocus.defocus_lambda
+    >>> fgs2.defocus_waves = 4
+    >>> psf = fgs2.calcPSF()
+    >>> webbpsf.display_PSF(psf)
 
 --------------
 
