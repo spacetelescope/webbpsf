@@ -145,6 +145,8 @@ You must next download and install the data files, as described in :ref:`data_in
 
 Later, when you open a new terminal window, remember to run ``source activate webbpsf`` before running ``webbpsfgui`` or attempting to ``import webbpsf``. You may also install webbpsf in the default environment, if that is more convenient for you. Simply ensure the packages listed in step 1 are installed with ``conda install``, then ``pip install webbpsf``.
 
+.. _install_dev_version:
+
 Installing a pre-release version or contributing to WebbPSF development
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
