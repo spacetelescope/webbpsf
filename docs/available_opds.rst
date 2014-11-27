@@ -27,28 +27,52 @@ The units of the supplied OPD files are wavefront error in microns.
 
 .. table:: Rev V OPDs
 
-    =========================       ======= ================================================================================
-                         File       RMS WFE                                                                         Contents
-    =========================       ======= ================================================================================
-        OPD_RevV_fgs_150.fits         150.0                OPD for OTE+ISIM with all reserves and stability; NO image motion
+    =========================       ======= =============================================================================================
+                         File       RMS WFE                                                                                      Contents
+    =========================       ======= =============================================================================================
+        OPD_RevV_fgs_150.fits         150.0             OPD for OTE+ISIM with all reserves and stability; NO image motion
         OPD_RevV_fgs_163.fits         163.0 Observatory OPD for OTE+ISIM with all reserves and stability, and image motion as defocus
         OPD_RevV_fgs_186.fits         186.0 Observatory OPD for OTE+ISIM+SI with all reserves and stability, and image motion as defocus
-       OPD_RevV_miri_204.fits         204.0                OPD for OTE+ISIM with all reserves and stability; NO image motion
+       OPD_RevV_miri_204.fits         204.0             OPD for OTE+ISIM with all reserves and stability; NO image motion
        OPD_RevV_miri_220.fits         220.0 Observatory OPD for OTE+ISIM with all reserves and stability, and image motion as defocus
        OPD_RevV_miri_421.fits         421.0 Observatory OPD for OTE+ISIM+SI with all reserves and stability, and image motion as defocus
-     OPD_RevV_nircam_115.fits         115.0                OPD for OTE+ISIM with all reserves and stability; NO image motion
-     OPD_RevV_nircam_123.fits         123.0                OPD for OTE+ISIM with all reserves and stability; NO image motion
+     OPD_RevV_nircam_115.fits         115.0             OPD for OTE+ISIM with all reserves and stability; NO image motion
+     OPD_RevV_nircam_123.fits         123.0             OPD for OTE+ISIM with all reserves and stability; NO image motion
      OPD_RevV_nircam_132.fits         132.0 Observatory OPD for OTE+ISIM with all reserves and stability, and image motion as defocus
      OPD_RevV_nircam_136.fits         136.0 Observatory OPD for OTE+ISIM with all reserves and stability, and image motion as defocus
      OPD_RevV_nircam_150.fits         150.0 Observatory OPD for OTE+ISIM+SI with all reserves and stability, and image motion as defocus
      OPD_RevV_nircam_155.fits         155.0 Observatory OPD for OTE+ISIM+SI with all reserves and stability, and image motion as defocus
-    OPD_RevV_nirspec_125.fits         125.0                OPD for OTE+ISIM with all reserves and stability; NO image motion
+    OPD_RevV_nirspec_125.fits         125.0             OPD for OTE+ISIM with all reserves and stability; NO image motion
     OPD_RevV_nirspec_145.fits         145.0 Observatory OPD for OTE+ISIM with all reserves and stability, and image motion as defocus
     OPD_RevV_nirspec_238.fits         238.0 Observatory OPD for OTE+ISIM+SI with all reserves and stability, and image motion as defocus
-         OPD_RevV_tf_144.fits         144.0                OPD for OTE+ISIM with all reserves and stability; NO image motion
-         OPD_RevV_tf_162.fits         162.0 Observatory OPD for OTE+ISIM with all reserves and stability, and image motion as defocus
-         OPD_RevV_tf_180.fits         180.0 Observatory OPD for OTE+ISIM+SI with all reserves and stability, and image motion as defocus
-    =========================       ======= ================================================================================
+     OPD_RevV_niriss_144.fits         144.0             OPD for OTE+ISIM with all reserves and stability; NO image motion
+     OPD_RevV_niriss_162.fits         162.0 Observatory OPD for OTE+ISIM with all reserves and stability, and image motion as defocus
+     OPD_RevV_niriss_180.fits         180.0 Observatory OPD for OTE+ISIM+SI with all reserves and stability, and image motion as defocus
+    =========================       ======= =============================================================================================
+
+    =========================  ==========     =======  ========================  ==========================  =======
+                         File  Instrument     RMS WFE  Includes OTE + ISIM OPD?  Image motion (as defocus)?  SI OPD?
+    =========================  ==========     =======  ========================  ==========================  =======
+        OPD_RevV_fgs_150.fits  FGS              150.0  Yes                       No                          No
+        OPD_RevV_fgs_163.fits  FGS              163.0  Yes                       Yes                         No
+        OPD_RevV_fgs_186.fits  FGS              186.0  Yes                       Yes                         Yes
+       OPD_RevV_miri_204.fits  MIRI             204.0  Yes                       No                          No
+       OPD_RevV_miri_220.fits  MIRI             220.0  Yes                       Yes                         No
+       OPD_RevV_miri_421.fits  MIRI             421.0  Yes                       Yes                         Yes
+     OPD_RevV_nircam_115.fits  NIRCam           115.0  Yes, optimistic case      No                          No
+     OPD_RevV_nircam_123.fits  NIRCam           123.0  Yes                       No                          No
+     OPD_RevV_nircam_132.fits  NIRCam           132.0  Yes, optimistic case      Yes                         No
+     OPD_RevV_nircam_136.fits  NIRCam           136.0  Yes                       Yes                         No
+     OPD_RevV_nircam_150.fits  NIRCam           150.0  Yes, optimistic case      Yes                         Yes
+     OPD_RevV_nircam_155.fits  NIRCam           155.0  Yes                       Yes                         Yes
+    OPD_RevV_nirspec_125.fits  NIRSpec          125.0  Yes                       No                          No
+    OPD_RevV_nirspec_145.fits  NIRSpec          145.0  Yes                       Yes                         No
+    OPD_RevV_nirspec_238.fits  NIRSpec          238.0  Yes                       Yes                         Yes
+     OPD_RevV_niriss_144.fits  NIRISS           144.0  Yes                       No                          No
+     OPD_RevV_niriss_162.fits  NIRISS           162.0  Yes                       Yes                         No
+     OPD_RevV_niriss_180.fits  NIRISS           180.0  Yes                       Yes                         Yes
+    =========================  ==========     =======  ========================  ==========================  ======
+
 
 
 
