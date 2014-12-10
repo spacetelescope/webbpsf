@@ -64,12 +64,14 @@ class JWInstrument(poppy.instrument.Instrument):
     The instrument constructors do not take any arguments. Instead, create an instrument object and then
     configure the `filter` or other attributes as desired. The most commonly accessed parameters are 
     available as object attributes: `filter`, `image_mask`, `pupil_mask`, `pupilopd`. More advanced
-    configuration can be done by editing the :ref:`JWInstrument.options` dictionary, either by passing options to __init__ or by directly editing the dict afterwards.
+    configuration can be done by editing the :ref:`JWInstrument.options` dictionary, either by passing options to ``__init__`` or by directly editing the dict afterwards.
     """
 
     options = {} # options dictionary
     """ A dictionary capable of storing other arbitrary options, for extensibility. The following are all optional, and
     may or may not be meaningful depending on which instrument is selected.
+
+    Some of these options are provided by :py:attr:`poppy.Instrument.options`. See that documentation for details.
 
     Parameters
     ----------
