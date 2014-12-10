@@ -20,7 +20,7 @@ WebbPSF is a Python package that computes simulated PSFs for the JWST instrument
 * Uses OPD map(s) precomputed by a detailed optical simulation of JWST
 * Computes from those a PSF image with requested properties for any of JWST's instruments
 * Supports imaging & coronagraphy modes with all of JWST's instruments. Spectroscopy is a work in progress, IFUs are yet to come.
-* Provides a suite of tools for quantifying PSF properies such as FWHM, Strehl ratio, etc.
+* Provides a suite of tools for quantifying PSF properties such as FWHM, Strehl ratio, etc.
 
 **What this software does NOT do:**
 
