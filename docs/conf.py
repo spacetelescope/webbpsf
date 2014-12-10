@@ -65,6 +65,10 @@ exclude_patterns.append('_templates')
 rst_epilog += """
 """
 
+intersphinx_mapping.update({
+    'poppy': ('http://pythonhosted.org/poppy/', None),
+})
+
 # -- Project information ------------------------------------------------------
 
 # This does not *have* to match the package name, but typically does

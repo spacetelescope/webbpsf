@@ -1,5 +1,3 @@
-.. module:: poppy
-
 *********************************************************
 Overview of POPPY (Physical Optics Propagation in Python)
 *********************************************************
