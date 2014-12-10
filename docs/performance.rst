@@ -49,7 +49,7 @@ machines such as a 16-core computer it's not likely to work well to attempt to
 run 1 process per core since that would require more RAM than is available. 
 WebbPSF attempts to automatically choose a number of processes based on available CPUs and free memory that will
 optimize computation speed without exhausting available RAM. This is implemented in the 
-function ``poppy.utils.estimate_optimal_nprocesses``.  
+function :py:func:`poppy.utils.estimate_optimal_nprocesses`.
 
 If desired, the number of processes can be explicitly specified::
 
