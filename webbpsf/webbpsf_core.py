@@ -1,12 +1,9 @@
-#!/usr/bin/env python
 """
-=======
-WebbPSF
-=======
+============
+WebbPSF Core
+============
 
 An object-oriented modeling system for the JWST instruments.
-
-Full documentation at http://www.stsci.edu/~mperrin/software/webbpsf/
 
 Classes:
   * JWInstrument
@@ -16,12 +13,8 @@ Classes:
     * NIRISS
     * FGS
 
-
 WebbPSF makes use of python's ``logging`` facility for log messages, using
 the logger name "webbpsf".
-
-
-Code by Marshall Perrin <mperrin@stsci.edu>
 """
 import os
 import types
