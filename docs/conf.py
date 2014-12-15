@@ -66,7 +66,7 @@ rst_epilog += """
 """
 
 intersphinx_mapping.update({
-    'poppy': ('http://pythonhosted.org/poppy/', None),
+    'poppy': ('https://pythonhosted.org/poppy/', None),
 })
 
 # -- Project information ------------------------------------------------------
