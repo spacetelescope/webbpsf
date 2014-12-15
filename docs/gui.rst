@@ -16,15 +16,10 @@ Alternatively, you may start the GUI from an interactive session::
 >>> import webbpsf
 >>> webbpsf.gui()
 
-.. image:: ./fig_webbpsf_gui_tk.png
+.. figure:: ./fig_gui_main.png
    :scale: 75%
    :align: center
-   :alt: WebbPSFGui main window (tk interface)
-
-.. figure:: ./fig_webbpsf_gui_tk.png
-   :scale: 75%
-   :align: center
-   :alt: WebbPSFGui main window (tk interface)
+   :alt: The main window of ``webbpsfgui`` when first launched.
 
    The main window of ``webbpsfgui`` when first launched.
 

@@ -1,17 +1,11 @@
-.. JWST-PSFs documentation master file, created by
-   sphinx-quickstart on Mon Nov 29 15:57:01 2010.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
-
 Introduction
 ============
 
 
-Conceptually, this simulation code has three layers of abstraction: 
- * A base package for wavefront propagation through generic optical systems (provided by :py:mod:`POPPY <poppy>`).
+Conceptually, this simulation code has three layers of abstraction:
+ * A base package for wavefront propagation through generic optical systems (provided by :py:mod:`POPPY <poppy>`)
  * Models of the JWST instruments implemented on top of that base system (provided by :py:mod:`WebbPSF <webbpsf>`)
- * And an optional :ref:`graphical user interface <gui>`.
+ * An optional :ref:`graphical user interface <gui>`
    
 It is entirely possible (and indeed recommended for scripting) to just use the :py:mod:`WebbPSF <webbpsf>` interface without the GUI, but the
 GUI can provide a quicker method for many simple interactive calculations.
@@ -101,10 +95,12 @@ First, download and install the software (as described in the next page of this 
 
 and you should be able to test drive things using the GUI: 
 
-.. image:: ./fig_webbpsfgui_main.png
+.. figure:: ./fig_gui_main.png
    :scale: 75%
-   :align: center 
-   :alt: WebbPSFGui main window
+   :align: center
+   :alt: The main window of the WebbPSF GUI when first launched.
+
+   The main window of the WebbPSF GUI when first launched.
 
 
 
