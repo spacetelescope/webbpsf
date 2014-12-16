@@ -20,8 +20,7 @@ test_miri_00 = lambda : do_test_source_offset('MIRI', theta=0.0)
 test_miri_45 = lambda : do_test_source_offset('MIRI', theta=45.0)
 
 
-def test_miri_fqpm(theta=0.0, nsteps=3, nlambda=1, clobber=True, outputdir=None):
-    #poppy._FLUXCHECK=True
+def test_miri_fqpm(theta=0.0, nsteps=3, nlambda=1, clobber=True, outputdir=None, display=False):
     miri = webbpsf_core.MIRI()
     miri.pupilopd = None
     miri.filter='F1065C'
@@ -39,11 +38,10 @@ def test_miri_fqpm(theta=0.0, nsteps=3, nlambda=1, clobber=True, outputdir=None)
         miri.options['source_offset_r'] = offset
 
         for angle in [0,45]:
-
             fn = os.path.join(outputdir, 'test_miri_fqpm_t{0}_r{1:.2f}.fits'.format(angle,offset))
             if not os.path.exists(fn) or clobber:
                 miri.options['source_offset_theta'] = angle 
-                psf = miri.calcPSF(oversample=oversample, nlambda=nlambda, save_intermediates=False, display=True)#, monochromatic=10.65e-6)
+                psf = miri.calcPSF(oversample=oversample, nlambda=nlambda, save_intermediates=False, display=display)
                 psf.writeto(fn, clobber=clobber)
 
     #FIXME - add some assertion tests here. 
