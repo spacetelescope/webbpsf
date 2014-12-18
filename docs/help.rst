@@ -5,7 +5,7 @@ If something does not work right, the first place to look is the :ref:`known_iss
 
 To report a new issue, you will need a free GitHub account. Alternatively, you may report the issue via email to the project maintainers. Include code that exhibits the issue to facilitate debugging.
 
-
+WebbPSF includes a helper function that will return a report with information that may be useful for troubleshooting. An example of its usage is given below::
 
    In [1]: import webbpsf
    WebbPSF log messages of level INFO and above will be shown.
@@ -26,6 +26,7 @@ To report a new issue, you will need a free GitHub account. Alternatively, you m
    pysynphot version: 0.9.6
    pyFFTW version: 0.9.2
 
+   Floating point type information for numpy.float:
    Machine parameters for float64
    ---------------------------------------------------------------------
    precision= 15   resolution= 1.0000000000000001e-15
@@ -36,6 +37,7 @@ To report a new issue, you will need a free GitHub account. Alternatively, you m
    nexp  =    11   min=        -max
    ---------------------------------------------------------------------
 
+   Floating point type information for numpy.complex:
    Machine parameters for float64
    ---------------------------------------------------------------------
    precision= 15   resolution= 1.0000000000000001e-15

@@ -232,7 +232,9 @@ astropy version: {astropy}
 pysynphot version: {pysyn}
 pyFFTW version: {pyfftw}
 
+Floating point type information for numpy.float:
 {finfo_float}
+Floating point type information for numpy.complex:
 {finfo_complex}
 """
 
