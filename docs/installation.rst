@@ -72,9 +72,9 @@ Future versions may be installed with ``pip install --upgrade webbpsf`` when the
 Installing or updating pysynphot
 ---------------------------------
 
-Pysynphot is an optional dependency, but is highly recommended. 
+Pysynphot is an optional dependency, but is highly recommended.
 
-To install or update ``pysynphot``, simply invoke ``pip install -U pysynphot``. WebbPSF has most recently been tested using pysynphot 0.9.5 but is known to work well with earlier versions as well.
+To install or update ``pysynphot``, simply invoke ``pip install -U pysynphot``. WebbPSF has most recently been tested using pysynphot version 0.9.6, but if you have an earlier version already installed it will likely work.
 
 If you already have the CDBS data package installed, or are using WebbPSF at STScI, then you're all set and can skip the rest of this section.
 

@@ -31,38 +31,44 @@ WebbPSF is a Python package that computes simulated PSFs for the JWST instrument
 
 The WebbPSF software system is composed of two Python packages: a lower-level optical propagation library (:py:mod:`POPPY <poppy>`) plus an implementation of the JWST instruments using that library (:py:mod:`WebbPSF <webbpsf>`).  This documentation explains the programming interfaces and graphical user interface of WebbPSF, as well as providing a :ref:`quick overview <poppy_overiew>` of POPPY.
 
-.. admonition:: Quickstart IPython Notebook
-
-   This documentation is complemented by an `IPython Notebook format quickstart tutorial <http://nbviewer.ipython.org/github/mperrin/webbpsf/blob/master/WebbPSF_tutorial.ipynb>`_.
-
-   Downloading and running that notebook is a great way to get started using WebbPSF. The documentation following here provides greater details on the algorithms and API.
-
-
-Contents
---------
+Getting Started with WebbPSF
+----------------------------
 
 .. toctree::
    :maxdepth: 1
 
    intro.rst
    installation.rst
-   relnotes.rst
-   :maxdepth: 1
    webbpsf.rst
-   gui.rst  
+   gui.rst
    more_examples.rst
    poppy.rst
+
+.. admonition:: Quickstart IPython Notebook
+
+   This documentation is complemented by an `IPython Notebook format quickstart tutorial <http://nbviewer.ipython.org/github/mperrin/webbpsf/blob/master/WebbPSF_tutorial.ipynb>`_. Downloading and running that notebook is a great way to get started using WebbPSF.
+
+Advanced Usage
+--------------
+
+.. toctree::
+   :maxdepth: 1
+
    api_reference.rst
    help.rst
-   available_opds.rst
-   references.rst
    performance.rst
    sampling.rst
    fft_optimization.rst
 
+Appendices and Reference
+------------------------
 
-Indices and tables
-------------------
+.. toctree::
+   :maxdepth: 1
+
+   available_opds.rst
+   references.rst
+   relnotes.rst
 
 * :ref:`genindex`
 * :ref:`search`
