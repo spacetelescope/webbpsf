@@ -86,7 +86,7 @@ As a convenience, webbpsf includes a function to retrieve an appropriate :py:cla
 Adjusting source position, centering, and output format
 -------------------------------------------------------
 
-A number of non-instrument-specific calculation options can be adjusted through the `options` dictionary attribute on each instrument instance. A few common options are discussed below; for a complete listing of options available, consult :py:attr:`JWInstrument.options`. :py:attr:`poppy.Instrument.options`.
+A number of non-instrument-specific calculation options can be adjusted through the `options` dictionary attribute on each instrument instance. (For a complete listing of options available, consult :py:attr:`JWInstrument.options`.)
 
 Input Source position offsets
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -99,6 +99,14 @@ The PSF may be shifted off-center by adjusting the offset of the stellar source.
 If these options are set, the offset is applied relative to the central coordinates as defined by the output array size and parity (described just below).
 
 For coronagraphic modes, the coronagraph occulter is always assumed to be at the center of the output array. Therefore, these options let you offset the source away from the coronagraph.
+
+Simulating telescope jitter
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Space-based observatories don't have to contend with the seeing limit, but imprecisions in telescope pointing can have the effect of smearing out the PSF. To simulate this with WebbPSF, the option names are ``jitter`` and ``jitter_sigma``.
+
+>>> instrument.options['jitter'] = 'gaussian'   # jitter model name or None
+>>> instrument.options['jitter_sigma'] = 0.009  # in arcsec, default 0.007
 
 Array sizes, star positions, and centering
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -121,7 +129,7 @@ If one of these is particularly desirable to you, set the parity option appropri
 Setting one of these options will ensure that a field of view specified in arcseconds is properly rounded to either odd or even when converted from arcsec to pixels. Alternatively, 
 you may also just set the desired number of pixels explicitly in the call to calcPSF():
 
->>>  instrument.calcPSF(fov_npixels = 512)
+>>>  instrument.calcPSF(fov_npixels=512)
 
 
 .. note::
