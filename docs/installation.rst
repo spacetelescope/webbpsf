@@ -1,21 +1,27 @@
+.. _installation:
+
 Requirements & Installation
 ============================
 
-WebbPSF uses the Python Package Index (PyPI) to distribute new versions. If you have Python 2.7 and ``pip`` installed, you can easily install or upgrade to the latest stable version of WebbPSF with::
+WebbPSF uses the `Python Package Index <https://pypi.python.org>`_ (PyPI) to distribute new versions. For ease of installation, we recommend a scientific Python distribution like `Ureka <http://ssb.stsci.edu/ureka/>`_. Ureka includes NumPy, SciPy, matplotlib, and other packages that can be tricky to compile on your own machine.
 
-    $ pip install numpy && pip install -U webbpsf
+If you have Python 2.7, pip, and NumPy already installed, you can easily install or upgrade WebbPSF with::
 
-*If you do not have access to install packages system-wide, replace* ``pip install`` *with* ``pip install --user``.
+    $ pip install -U webbpsf
 
-Once the WebbPSF code has been installed, you can then proceed to :ref:`installing the required data files <data_install>`. (Why install NumPy first? To work around a bug! See `numpy/numpy#2434 <https://github.com/numpy/numpy/issues/2434>`_ for details.)
+Once the WebbPSF code has been installed, you can then proceed to :ref:`installing the required data files <data_install>`. You may also wish to :ref:`set up Pysynphot <pysynphot_install>`, a recommended optional dependency that improves PSF fidelity.
 
-For ease of installation, we recommend a scientific Python distribution like `Ureka <http://ssb.stsci.edu/ureka/>`_. Ureka includes NumPy, SciPy, matplotlib, and other packages that can be tricky to compile on your own machine.
+For detailed instructions and software requirements, read on.
+
+------------
 
 .. admonition:: Optional: sign up to receive announcement of updates
 
-    This is entirely optional, but you may wish to sign up to the mailing list ``webbpsf-users@stsci.edu``. This is a low-traffic moderated announce-only list, to which we will periodically post announcements of updates to this software.
+   This is entirely optional, but you may wish to sign up to the mailing list ``webbpsf-users@stsci.edu``. This is a low-traffic moderated announce-only list, to which we will periodically post announcements of updates to this software.
 
-    To subscribe, email majordomo@stsci.edu with the message body text ``subscribe webbpsf-users``.
+   To subscribe, email majordomo@stsci.edu with the message body text ``subscribe webbpsf-users``.
+
+------------
 
 Software Requirements
 -----------------------
