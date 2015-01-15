@@ -1,5 +1,6 @@
-
 .. module:: webbpsf
+
+.. _using_api:
 
 ********************************
 Using WebbPSF via the Python API
