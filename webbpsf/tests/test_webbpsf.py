@@ -178,7 +178,7 @@ def test_unicode_filter_names():
     an atpy bug, now irrelevant since we're using astropy.table, but
     let's add an easy test case to be sure.
     """
-    
+
     nc = webbpsf_core.NIRCam()
     nc.filter=unicode('f212n')
     psf_unicode = nc.calcPSF(nlambda=1)
