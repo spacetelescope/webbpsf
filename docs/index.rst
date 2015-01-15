@@ -84,7 +84,3 @@ Appendices and Reference
 **Version Information**
 
 The current version of WebbPSF is version 0.2.8, released Nov 7, 2011. If you would like to receive email announcements of future versions, please contact Marshall Perrin, or send an email to "webbpsf-users-request@stsci.edu" containing the message "subscribe".
-
---------------
-
-Documentation last updated on |today|
