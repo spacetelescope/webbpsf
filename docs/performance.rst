@@ -36,17 +36,11 @@ The configuration options to enable multiprocessing live in :py:mod:`poppy`, the
    >>> poppy.conf.use_multiprocessing = True
    >>> poppy.conf.use_fftw = False
 
-One caveat with running multiple processes is that, for large oversampling
-factors the memory demands can become substantial.  For instance a
-1024-pixel-across pupil with oversampling = 4 results in arrays that are 256 MB
-each. Several such arrays are needed in memory per calculation, with peak
-memory utilization reaching ~ 1 GB per process for ``oversampling=4`` and over
-4 GB per process for ``oversamping=8``.  Thus for highly multiprocessor
-machines such as a 16-core computer it's not likely to work well to attempt to
-run 1 process per core since that would require more RAM than is available. 
-WebbPSF attempts to automatically choose a number of processes based on available CPUs and free memory that will
-optimize computation speed without exhausting available RAM. This is implemented in the 
-function :py:func:`poppy.utils.estimate_optimal_nprocesses`.
+One caveat with running multiple processes is that the memory demands can become substantial for large oversampling factors.  For instance, a 1024-pixel-across pupil with ``oversampling=4`` results in arrays that are 256 MB each. Several such arrays are needed in memory per calculation, with peak memory utilization reaching ~ 1 GB per process for ``oversampling=4`` and over 4 GB per process for ``oversamping=8``.
+
+Thus, if running on a 16-core computer, ensure at least 32 GB of RAM are available before using one process per core. If you are constrained by the amount of RAM available, you may experience better performance using fewer processes than the number of processor cores in your computer.
+
+By default, WebbPSF attempts to automatically choose a number of processes based on available CPUs and free memory that will optimize computation speed without exhausting available RAM. This is implemented in the function :py:func:`poppy.utils.estimate_optimal_nprocesses`.
 
 If desired, the number of processes can be explicitly specified::
 
