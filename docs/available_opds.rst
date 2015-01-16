@@ -41,9 +41,3 @@ The units of the supplied OPD files are wavefront error in microns.
      OPD_RevV_niriss_162.fits  NIRISS           162.0  Yes                       Yes                         No
      OPD_RevV_niriss_180.fits  NIRISS           180.0  Yes                       Yes                         Yes
     =========================  ==========     =======  ========================  ==========================  =======
-
-
---------------
-
-Documentation last updated on |today|
-

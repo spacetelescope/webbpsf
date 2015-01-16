@@ -307,8 +307,3 @@ this example it's a lens for defocus but you could just as easily add another
     >>> fgs2.defocus_waves = 4
     >>> psf = fgs2.calcPSF()
     >>> webbpsf.display_PSF(psf)
-
---------------
-
-Documentation last updated on |today|
-

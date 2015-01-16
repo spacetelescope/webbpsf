@@ -87,9 +87,3 @@ The 'More Options...' button on the toolbar will bring up a window that allows y
    :scale: 75%
    :align: center
    :alt: Sample "More Options" dialog box.
-
---------------
-
-Documentation last updated on |today|
-
-
