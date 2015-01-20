@@ -250,6 +250,18 @@ Or if you really care about writing it as a primary HDU rather than an extension
 
    >>> pyfits.PrimaryHDU(data=result['DET_SAMP'].data, header=result['DET_SAMP'].header).writeto(outputfilename)
 
+Writing out intermediate images
+-------------------------------
+
+Your calculation may involve intermediate pupil and image planes (in fact, it most likely does). WebbPSF / POPPY allow you to inspect the intermediate pupil and image planes visually with the display keyword argument to :py:meth:`~webbpsf.JWInstrument.calcPSF`. Sometimes, however, you may want to save these arrays to FITS files for analysis. This is done with the ``save_intermediates`` keyword argument to :py:meth:`~webbpsf.JWInstrument.calcPSF`.
+
+The intermediate wavefront planes will be written out to FITS files in the current directory, named in the format ``wavefront_plane_%03d.fits``. You can additionally specify what representation of the wavefront you want saved with the ``save_intermediates_what`` argument to :py:meth:`~webbpsf.JWInstrument.calcPSF`. This can be ``all``, ``parts``, ``amplitude``, ``phase`` or ``complex``, as defined as in :py:meth:`poppy.Wavefront.asFITS`. The default is to write ``all`` (intensity, amplitude, and phase as three 2D slices of a data cube).
+
+If you pass ``return_intermediates=True`` as well, the return value of calcPSF is then ``psf, intermediate_wavefronts_list`` rather than the usual ``psf``.
+
+.. warning::
+
+   The ``save_intermediates`` keyword argument does not work when using parallelized computation, and WebbPSF will fail with an exception if you attempt to pass ``save_intermediates=True`` when running in parallel. The ``return_intermediates`` option has this same restriction.
 
 Providing your own OPDs or pupils from some other source
 --------------------------------------------------------
