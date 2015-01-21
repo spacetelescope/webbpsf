@@ -1,21 +1,27 @@
+.. _installation:
+
 Requirements & Installation
 ============================
 
-WebbPSF uses the Python Package Index (PyPI) to distribute new versions. If you have Python 2.7 and ``pip`` installed, you can easily install or upgrade to the latest stable version of WebbPSF with::
+WebbPSF uses the `Python Package Index <https://pypi.python.org>`_ (PyPI) to distribute new versions. For ease of installation, we recommend a scientific Python distribution like `Ureka <http://ssb.stsci.edu/ureka/>`_. Ureka includes NumPy, SciPy, matplotlib, and other packages that can be tricky to compile on your own machine.
 
-    $ pip install numpy && pip install -U webbpsf
+If you have Python 2.7, pip, and NumPy already installed, you can easily install or upgrade WebbPSF with::
 
-*If you do not have access to install packages system-wide, replace* ``pip install`` *with* ``pip install --user``.
+    $ pip install -U webbpsf
 
-Once the WebbPSF code has been installed, you can then proceed to :ref:`installing the required data files <data_install>`. (Why install NumPy first? To work around a bug! See `numpy/numpy#2434 <https://github.com/numpy/numpy/issues/2434>`_ for details.)
+Once the WebbPSF code has been installed, you can then proceed to :ref:`installing the required data files <data_install>`. You may also wish to :ref:`set up Pysynphot <pysynphot_install>`, a recommended optional dependency that improves PSF fidelity.
 
-For ease of installation, we recommend a scientific Python distribution like `Ureka <http://ssb.stsci.edu/ureka/>`_. Ureka includes NumPy, SciPy, matplotlib, and other packages that can be tricky to compile on your own machine.
+For detailed instructions and software requirements, read on.
+
+------------
 
 .. admonition:: Optional: sign up to receive announcement of updates
 
-    This is entirely optional, but you may wish to sign up to the mailing list ``webbpsf-users@stsci.edu``. This is a low-traffic moderated announce-only list, to which we will periodically post announcements of updates to this software.
+   This is entirely optional, but you may wish to sign up to the mailing list ``webbpsf-users@stsci.edu``. This is a low-traffic moderated announce-only list, to which we will periodically post announcements of updates to this software.
 
-    To subscribe, email majordomo@stsci.edu with the message body text ``subscribe webbpsf-users``.
+   To subscribe, email majordomo@stsci.edu with the message body text ``subscribe webbpsf-users``.
+
+------------
 
 Software Requirements
 -----------------------
@@ -39,7 +45,7 @@ Pysynphot is recommended for most users. The optional packages below are only wo
 * `psutil <https://pypi.python.org/pypi/psutil>`_ enables slightly better automatic selection of numbers of processes for multiprocess calculations.
 * `pyFFTW <https://pypi.python.org/pypi/pyFFTW>`_. The FFTW library can speed up the FFTs used in coronagraphic simulations and slit spectroscopy. Since direct imaging simulations use a discrete matrix FFT instead, direct imaging simulation speed is unchanged.  pyFFTW is recommended if you expect to perform many coronagraphic calculations, particularly for MIRI.
 
-(Note: WebbPSF previously made use of the PyFFTW3 package, which is *different* from pyFFTW. The latter is more actively maintained and supported today, hence the switch.) See the :ref:`performance_and_parallelization` page for more details.
+**Note:** WebbPSF previously made use of the PyFFTW3 package, which is *different* from pyFFTW. The latter is more actively maintained and supported today, hence the switch. See the :ref:`performance_and_parallelization` page for more details.
 
 Installing WebbPSF
 ----------------------
@@ -72,9 +78,9 @@ Future versions may be installed with ``pip install --upgrade webbpsf`` when the
 Installing or updating pysynphot
 ---------------------------------
 
-Pysynphot is an optional dependency, but is highly recommended. 
+Pysynphot is an optional dependency, but is highly recommended.
 
-To install or update ``pysynphot``, simply invoke ``pip install -U pysynphot``. WebbPSF has most recently been tested using pysynphot 0.9.5 but is known to work well with earlier versions as well.
+To install or update ``pysynphot``, simply invoke ``pip install -U pysynphot``. WebbPSF has most recently been tested using pysynphot version 0.9.6, but if you have an earlier version already installed it will likely work.
 
 If you already have the CDBS data package installed, or are using WebbPSF at STScI, then you're all set and can skip the rest of this section.
 
@@ -143,6 +149,8 @@ Many users have expressed a preference for the `Anaconda <https://store.continuu
 You must next download and install the data files, as described in :ref:`data_install`. To obtain source spectra for calculations, you should also follow :ref:`installation instructions for pysynphot <pysynphot_install>`.
 
 Later, when you open a new terminal window, remember to run ``source activate webbpsf`` before running ``webbpsfgui`` or attempting to ``import webbpsf``. You may also install webbpsf in the default environment, if that is more convenient for you. Simply ensure the packages listed in step 1 are installed with ``conda install``, then ``pip install webbpsf``.
+
+.. _install_dev_version:
 
 Installing a pre-release version or contributing to WebbPSF development
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

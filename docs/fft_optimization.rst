@@ -1,32 +1,16 @@
-.. JWST-PSFs documentation master file, created by
-   sphinx-quickstart on Mon Nov 29 15:57:01 2010.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
-
-
-Appendix: Optimizing FFT Performance for PSF Computations with FFTW
+Optimizing FFT Performance for PSF Computations with FFTW
 =====================================================================
 
-
-Ooptimizing numerical performance of FFTs is a very complicated subject. 
-Just using the FFTW library is no guarantee of optimal performance; you need to know how to 
-configure it. 
-
-
+Optimizing numerical performance of FFTs is a very complicated subject. Just using the FFTW library is no guarantee of optimal performance; you need to know how to configure it.
 
 .. note::
-  The following tests were performed using the older PyFFTW3 package, and have not yet been updated
-  for the newer pyFFTW package. However, performance considerations are expected to be fairly similar
-  for both packages since the underlying FFTW library is the same. 
+   The following tests were performed using the older PyFFTW3 package, and have not yet been updated for the newer pyFFTW package. However, performance considerations are expected to be fairly similar for both packages since the underlying FFTW library is the same.
 
-  See discussion and test results at https://github.com/mperrin/webbpsf/issues/10 
-
+   See discussion and test results at https://github.com/mperrin/webbpsf/issues/10
 
 This is probably fairly sensitive to hardware details. The following benchmarks were performed on a Mac Pro, dual quad-core 2.66 GHz Xeon, 12 GB RAM.
 
-
- * Unlike many of the array operations in numpy, the fft operation is not threaded for execution across multiple processors. It is thus slow and inefficient.
+ * Unlike many of the array operations in :py:mod:`numpy`, the :py:mod:`~numpy.fft` operation is not threaded for execution across multiple processors. It is thus slow and inefficient.
  * Numpy and Scipy no longer include FFTW, but luckily there is an independently maintained pyfftw3 module.  See https://launchpad.net/pyfftw/
  * Using pyfftw3 can result in a 3-4x speedup for moderately large arrays.  However, there are two significant gotchas to be aware of:
 
@@ -259,11 +243,3 @@ This leads to substantial savings in total computation time::
 
 Users are encouraged to try different approaches to optimizing performance on their own machines. 
 Set `__timetests__=True` in `poppy.py` to enable some rudimentary benchmarking for the FFT section of the code.
-
-
-
-
---------------
-
-Documentation last updated on |today|
-

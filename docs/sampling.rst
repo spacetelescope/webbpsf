@@ -1,5 +1,4 @@
-
-Appendix: Sampling Requirements for Numerical Accuracy
+Sampling Requirements for Numerical Accuracy
 ============================================================
 
 The purpose of this appendix is to help you decide how many wavelengths and how much oversampling is required for your

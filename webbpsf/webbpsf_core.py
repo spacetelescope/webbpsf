@@ -1,12 +1,9 @@
-#!/usr/bin/env python
 """
-=======
-WebbPSF
-=======
+============
+WebbPSF Core
+============
 
 An object-oriented modeling system for the JWST instruments.
-
-Full documentation at http://www.stsci.edu/~mperrin/software/webbpsf/
 
 Classes:
   * JWInstrument
@@ -16,12 +13,8 @@ Classes:
     * NIRISS
     * FGS
 
-
 WebbPSF makes use of python's ``logging`` facility for log messages, using
 the logger name "webbpsf".
-
-
-Code by Marshall Perrin <mperrin@stsci.edu>
 """
 import os
 import types
@@ -71,12 +64,14 @@ class JWInstrument(poppy.instrument.Instrument):
     The instrument constructors do not take any arguments. Instead, create an instrument object and then
     configure the `filter` or other attributes as desired. The most commonly accessed parameters are 
     available as object attributes: `filter`, `image_mask`, `pupil_mask`, `pupilopd`. More advanced
-    configuration can be done by editing the :ref:`JWInstrument.options` dictionary, either by passing options to __init__ or by directly editing the dict afterwards.
+    configuration can be done by editing the :ref:`JWInstrument.options` dictionary, either by passing options to ``__init__`` or by directly editing the dict afterwards.
     """
 
     options = {} # options dictionary
     """ A dictionary capable of storing other arbitrary options, for extensibility. The following are all optional, and
     may or may not be meaningful depending on which instrument is selected.
+
+    This is a superset of the options provided in :py:attr:`poppy.Instrument.options`.
 
     Parameters
     ----------
@@ -93,14 +88,17 @@ class JWInstrument(poppy.instrument.Instrument):
         Relative rotation of the intermediate (coronagraphic) pupil relative to the telescope entrace pupil, expressed in degrees counterclockwise. 
         This option only has an effect for optical models that have something at an intermediate pupil plane between the telescope aperture and the detector.
     rebin : bool
-        For output files, write an additional FITS extension including a version of the output array 
+        For output files, write an additional FITS extension including a version of the output array
         rebinned down to the actual detector pixel scale?
-    jitter : string
-        Type of jitter model to apply. Currently not implemented
+    jitter : string "gaussian" or None
+        Type of jitter model to apply. Currently only convolution with a Gaussian kernel of specified
+        width `jitter_sigma` is implemented. (default: None)
+    jitter_sigma : float
+        Width of the jitter kernel in arcseconds (default: 0.007 arcsec)
     parity : string "even" or "odd"
         You may wish to ensure that the output PSF grid has either an odd or even number of pixels.
         Setting this option will force that to be the case by increasing npix by one if necessary.
-        Note that this applies to the number detector pixels, rather than the subsampled pixels if oversample>1. 
+        Note that this applies to the number detector pixels, rather than the subsampled pixels if oversample > 1.
     force_coron : bool
         Set this to force full coronagraphic optical propagation when it might not otherwise take place
         (e.g. calculate the non-coronagraphic images via explicit propagation to all optical surfaces, FFTing 
@@ -1430,6 +1428,4 @@ class DetectorGeometry(object):
 
 
 #########################3
-
-
 
