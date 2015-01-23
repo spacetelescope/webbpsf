@@ -190,31 +190,11 @@ class JWInstrument(poppy.instrument.Instrument):
 
         self.detector_coordinates = (0,0) # where is the source on the detector, in 'Science frame' pixels?
 
-    def _validate_config(self):
-        """Validate the configuration in some sense; details depend on instrument.
-
-        This is called automatically when assembling an OpticalSystem object prior to any
-        calculation.
-        """
-        pass
-
-    # create properties with error checking
-#    @property
-#    def filter(self):
-#        'Currently selected filter name (e.g. "F200W")'
-#        return self._filter
-#    @filter.setter
-#    def filter(self, value):
-#        value = value.upper() # force to uppercase
-#        if value not in self.filter_list:
-#            raise ValueError("Instrument %s doesn't have a filter called %s." % (self.name, value))
-#        self._filter = value
-#        self._validate_config()
-
     @property
     def image_mask(self):
         'Currently selected image plane mask, or None for direct imaging'
         return self._image_mask
+
     @image_mask.setter
     def image_mask(self, name):
         if name is "": name = None
@@ -231,6 +211,7 @@ class JWInstrument(poppy.instrument.Instrument):
     def pupil_mask(self):
         'Currently selected Lyot pupil mask, or None for direct imaging'
         return self._pupil_mask
+
     @pupil_mask.setter
     def pupil_mask(self,name):
         if name is "": name = None
@@ -244,11 +225,11 @@ class JWInstrument(poppy.instrument.Instrument):
 
         self._pupil_mask = name
 
- 
     @property
     def detector(self):
         'Currently selected detector name (for instruments with multiple detectors)'
         return self._detector.name
+
     @detector.setter
     def detector(self,detname):
         #if name is "": name = None
@@ -414,6 +395,8 @@ class JWInstrument(poppy.instrument.Instrument):
         #----- compute weights for each wavelength based on source spectrum
         wavelens, weights = self._getWeights(source=source, nlambda=nlambda, monochromatic=monochromatic)
 
+        # Validate that the calculation we're about to do makes sense with this instrument config
+        self._validate_config(wavelengths=wavelens)
 
         #---- now at last, actually do the PSF calc:
         #  instantiate an optical system using the current parameters
@@ -513,8 +496,6 @@ class JWInstrument(poppy.instrument.Instrument):
             an optical system instance representing the desired configuration.
 
         """
-
-        self._validate_config()
 
         _log.info("Creating optical system model:")
 
@@ -698,37 +679,12 @@ class MIRI(JWInstrument):
         self._detector2siaf = {'MIRIM':'MIRIM_FULL_ILLCNTR'}
         self.detector=self.detector_list[0]
 
-    def _validate_config(self):
+    def _validate_config(self, **kwargs):
         """Validate instrument config for MIRI
         """
-        #_log.debug("MIRI validating:    %s, %s, %s " % (self.filter, self.image_mask, self.pupil_mask))
-        if self.filter.startswith("MRS-IFU"): raise NotImplementedError("The MIRI MRS is not yet implemented.")
-
-        #_log.warn("MIRI config validation disabled for now - TBD rewrite ")
-        return
-
-        if self.image_mask is not None or self.pupil_mask is not None:
-            if self.filter == 'F1065C':
-                assert self.image_mask == 'FQPM1065', 'Invalid configuration'
-                assert self.pupil_mask == 'MASKFQPM', 'Invalid configuration'
-            elif self.filter == 'F1140C':
-                assert self.image_mask == 'FQPM1140', 'Invalid configuration'
-                assert self.pupil_mask == 'MASKFQPM', 'Invalid configuration'
-            elif self.filter == 'F1550C':
-                assert self.image_mask == 'FQPM1550', 'Invalid configuration'
-                assert self.pupil_mask == 'MASKFQPM', 'Invalid configuration'
-            elif self.filter == 'F2300C':
-                assert self.image_mask == 'LYOT2300', 'Invalid configuration'
-                assert self.pupil_mask == 'MASKLYOT', 'Invalid configuration'
-            else:
-                #raise ValueError("Invalid configuration selected!")
-                _log.warn("*"*80)
-                _log.warn("WARNING: you appear to have selected an invalid/nonphysical configuration of that instrument!")
-                _log.warn("")
-                _log.warn("I'm going to continue trying the calculation, but YOU are responsible for interpreting")
-                _log.warn("any results in a meaningful fashion or discarding them..")
-                _log.warn("*"*80)
-
+        if self.filter.startswith("MRS-IFU"):
+            raise NotImplementedError("The MIRI MRS is not yet implemented.")
+        return super(MIRI, self)._validate_config(**kwargs)
 
     def _addAdditionalOptics(self,optsys, oversample=2):
         """Add coronagraphic or spectrographic optics for MIRI.
@@ -875,20 +831,28 @@ class NIRCam(JWInstrument):
         for name in self.detector_list: self._detector2siaf[name] = 'NRC{0}_FULL_CNTR'.format(name)
         self.detector=self.detector_list[0]
 
-
-
-    def _validate_config(self):
+    def _validate_config(self, **kwargs):
         """Validate instrument config for NIRCam
 
-        For NIRCam, this checks whenever you change a filter and updates the pixelscale appropriately"""
-        filtwave = float(self.filter[1:4])/100
-        newscale = self._pixelscale_short if filtwave < 2.4 else self._pixelscale_long
-        # update the pixel scale if it has changed *and*
-        # only if the user has not already set the pixel scale to some custom value
-        if newscale != self.pixelscale and (self.pixelscale == self._pixelscale_short or self.pixelscale==self._pixelscale_long):
-            self.pixelscale = newscale
-            _log.info("NIRCam pixel scale updated to %f arcsec/pixel to match channel for the selected filter." % self.pixelscale)
-
+        For NIRCam, this selects a pixelscale based on the wavelengths requested
+        """
+        if self.pixelscale in (self._pixelscale_short, self._pixelscale_long):
+            wavelengths = np.array(kwargs['wavelengths'])
+            if np.max(wavelengths) < self.SHORT_WAVELENGTH_MAX:
+                new_scale = self._pixelscale_short
+            elif np.min(wavelengths) > self.LONG_WAVELENGTH_MIN:
+                new_scale = self._pixelscale_long
+            else:
+                raise RuntimeError("Wavelengths requested don't fit entirely on either NIRCam short"
+                                   " or long wavelength channels")
+            self.pixelscale = new_scale
+            _log.info("NIRCam pixel scale updated to %f arcsec/pixel to match "
+                      "the requested wavelength range." % self.pixelscale)
+        else:
+            # If the user has set the pixel scale to a custom value, let them worry about the
+            # physical meaning of their calculation
+            pass
+        return super(NIRCam, self)._validate_config(**kwargs)
 
     def _addAdditionalOptics(self,optsys, oversample=2):
         """Add coronagraphic optics for NIRCam
@@ -1081,12 +1045,10 @@ class NIRSpec(JWInstrument):
         self.detector=self.detector_list[0]
 
 
-    def _validate_config(self):
-        #if (not self.image_mask is None) or (not self.pupil_mask is None):
-        #    raise ValueError('NIRSpec does not have image or pupil masks!')
-        #    self.image_mask = None
-        #    self.pupil_mask = None
-        if self.filter.startswith("IFU"): raise NotImplementedError("The NIRSpec IFU is not yet implemented.")
+    def _validate_config(self, **kwargs):
+        if self.filter.startswith("IFU"):
+            raise NotImplementedError("The NIRSpec IFU is not yet implemented.")
+        return super(NIRSpec, self)._validate_config(**kwargs)
 
     def _addAdditionalOptics(self,optsys, oversample=2):
         """ Add fixed slit optics for NIRSpec
@@ -1193,11 +1155,6 @@ class NIRISS(JWInstrument):
 
         self.auto_pupil = auto_pupil
 
-    def _validate_config(self):
-        """Validate instrument config for NIRISS
-        """
-        pass
-
     def _addAdditionalOptics(self,optsys, oversample=2):
         """Add NRM or slitless spectroscopy optics for NIRISS. 
 
@@ -1289,13 +1246,6 @@ class FGS(JWInstrument):
         self._detector2siaf = dict()
         for name in self.detector_list: self._detector2siaf[name] = 'FGS{0}_FULL_CNTR'.format(name)
         self.detector=self.detector_list[0]
-
-
-    def _validate_config(self):
-        """Validate instrument config for FGS 
-        """
-        # No user configurable options.
-        pass
  
     def _addAdditionalOptics(self,optsys):
         raise NotImplementedError("No user-selectable optics in FGS.")
