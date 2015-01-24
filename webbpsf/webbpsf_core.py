@@ -408,12 +408,11 @@ class JWInstrument(poppy.instrument.Instrument):
         local_options['detector_oversample']=detector_oversample
         local_options['fft_oversample']=fft_oversample
 
-
-        _log.info("PSF calc using fov_%s, oversample = %d, nlambda = %d" % (fov_spec, detector_oversample, nlambda) )
-
         #----- compute weights for each wavelength based on source spectrum
         wavelens, weights = self._getWeights(source=source, nlambda=nlambda, monochromatic=monochromatic)
 
+        _log.info("PSF calc using fov_%s, oversample = %d, number of wavelengths = %d" % (
+                  fov_spec, detector_oversample, len(wavelens)))
 
         #---- now at last, actually do the PSF calc:
         #  instantiate an optical system using the current parameters
