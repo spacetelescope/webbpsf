@@ -156,7 +156,7 @@ def test_calcPSF_rectangular_FOV():
 def test_cast_to_str():
     nc = webbpsf_core.NIRCam()
 
-    assert str(nc)=='JWInstrument name=NIRCam'
+    assert str(nc)=='<JWST: NIRCam>'
 
 def test_return_intermediates():
     import poppy

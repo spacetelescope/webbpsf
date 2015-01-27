@@ -254,7 +254,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
             self._detector = DetectorGeometry(self.name, siaf_aperture_name, shortname=detname)
 
     def __str__(self):
-        return "<{instrument_name}>".format(instrument_name=self.name)
+        return "<{telescope}: {instrument_name}>".format(telescope=self.telescope, instrument_name=self.name)
 
     #----- actual optical calculations follow here -----
     def calcPSF(self, outfile=None, source=None, filter=None, nlambda=None, monochromatic=None,
