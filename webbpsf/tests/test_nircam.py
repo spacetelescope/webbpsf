@@ -14,8 +14,8 @@ import poppy
 #------------------    NIRCam Tests    ----------------------------
 from test_webbpsf import generic_output_test, do_test_source_offset
 test_nircam = lambda : generic_output_test('NIRCam')
-test_nircam_00 = lambda : do_test_source_offset('NIRCam', theta=0.0)
-test_nircam_45 = lambda : do_test_source_offset('NIRCam', theta=45.0)
+test_nircam_source_offset_00 = lambda : do_test_source_offset('NIRCam', theta=0.0)
+test_nircam_source_offset_45 = lambda : do_test_source_offset('NIRCam', theta=45.0)
 
 test_nircam_blc_circ_45 =  lambda : do_test_nircam_blc(kind='circular', angle=45)
 test_nircam_blc_circ_0 =   lambda : do_test_nircam_blc(kind='circular', angle=0)
@@ -23,6 +23,11 @@ test_nircam_blc_wedge_0 =  lambda : do_test_nircam_blc(kind='linear', angle=0)
 test_nircam_blc_wedge_45 = lambda : do_test_nircam_blc(kind='linear', angle=45)
 
 
+import pytest
+# The test setup for this one is not quite right yet
+#  See https://github.com/mperrin/webbpsf/issues/30
+#  and https://github.com/mperrin/poppy/issues/29
+@pytest.mark.xfail
 def test_nircam_SAMC(oversample=4):
 
     _log.info("Comparing semi-analytic and direct FFT calculations for NIRCam coronagraphy")

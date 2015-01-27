@@ -14,7 +14,7 @@ import poppy
 
 from test_webbpsf import generic_output_test, do_test_source_offset
 test_niriss= lambda : generic_output_test('NIRISS')
-test_niriss_00 = lambda : do_test_source_offset('NIRISS', theta=0.0)
-test_niriss_45 = lambda : do_test_source_offset('NIRISS', theta=45.0)
+test_niriss_source_offset_00 = lambda : do_test_source_offset('NIRISS', theta=0.0)
+test_niriss_source_offset_45 = lambda : do_test_source_offset('NIRISS', theta=45.0)
 
 

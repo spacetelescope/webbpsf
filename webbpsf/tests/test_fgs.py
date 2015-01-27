@@ -17,6 +17,6 @@ import poppy
 from test_webbpsf import generic_output_test, do_test_source_offset
 
 test_fgs= lambda : generic_output_test('FGS')
-test_fgs_00 = lambda : do_test_source_offset('FGS', theta=0.0)
-test_fgs_45 = lambda : do_test_source_offset('FGS', theta=45.0)
+test_fgs_source_offset_00 = lambda : do_test_source_offset('FGS', theta=0.0)
+test_fgs_source_offset_45 = lambda : do_test_source_offset('FGS', theta=45.0)
 

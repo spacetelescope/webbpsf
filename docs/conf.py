@@ -56,6 +56,9 @@ setup_cfg = dict(conf.items('metadata'))
 # major.minor, call `check_sphinx_version("x.y.z")` here.
 # check_sphinx_version("1.2.1")
 
+# Remove buggy astropy extension
+extensions.remove('astropy_helpers.sphinx.ext.astropyautosummary')
+
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 exclude_patterns.append('_templates')
@@ -65,13 +68,17 @@ exclude_patterns.append('_templates')
 rst_epilog += """
 """
 
+intersphinx_mapping.update({
+    'poppy': ('https://pythonhosted.org/poppy/', None),
+})
+
 # -- Project information ------------------------------------------------------
 
 # This does not *have* to match the package name, but typically does
 project = setup_cfg['package_name']
-author = setup_cfg['author']
+author = u'Association of Universities for Research in Astronomy'
 copyright = '{0}, {1}'.format(
-    datetime.datetime.now().year, setup_cfg['author'])
+    datetime.datetime.now().year, author)
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the

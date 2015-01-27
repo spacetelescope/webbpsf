@@ -1,10 +1,7 @@
 .. _detailed_api:
 
 =================================
-Detailed Reference/API
+Detailed API Reference
 =================================
 
 .. automodapi:: webbpsf
-
-.. automodapi:: poppy
-

@@ -1,14 +1,20 @@
-webbpsf
-=======
+WebbPSF: Simulated Point Spread Functions for the James Webb Space Telescope
+----------------------------------------------------------------------------
 
-WebbPSF is a simple tool for simulating point spread functions for the 
-James Webb Space Telescope, inspired by TinyTim for Hubble.
+WebbPSF produces simulated PSFs for the James Webb Space Telescope, NASA's next
+flagship infrared space telescope. WebbPSF can simulate images for any of the
+four science instruments plus the fine guidance sensor, including both direct
+imaging and coronagraphic modes.
 
-It provides a relatively user-friendly interface for diffractive point spread 
-function modeling for JWST in the Fraunhofer domain based on precomputed telescope models.
-Documentation can be found at http://www.stsci.edu/jwst/software/webbpsf
+Developed by Marshall Perrin and contributors at STScI, 2010-2015.
 
-Developed by Marshall Perrin at STScI, 2010-2013. 
+Documentation can be found online at https://pythonhosted.org/webbpsf/
 
-These packages have been developed on Python 2.7 but not yet tested for Python 3 compatibility.
+WebbPSF requires a large amount of input data for its simulations, including
+optical path difference (OPD) maps, filter transmission curves, and coronagraph
+Lyot mask shapes. These data files are not included in this source distribution.
 
+Please see the main WebbPSF web page, linked above, to download the required
+data files.
+
+This is an `Astropy <http://astropy.org/>`_ affiliated package.

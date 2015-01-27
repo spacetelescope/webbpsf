@@ -1,25 +1,18 @@
-.. JWST-PSFs documentation master file, created by
-   sphinx-quickstart on Mon Nov 29 15:57:01 2010.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
-
 Introduction
 ============
 
-
-Conceptually, this simulation code has three layers of abstraction: 
- * A base package for wavefront propagation through generic optical systems (provided by :py:mod:`POPPY <poppy>`).
+Conceptually, this simulation code has three layers of abstraction:
+ * A base package for wavefront propagation through generic optical systems (provided by :py:mod:`POPPY <poppy>`)
  * Models of the JWST instruments implemented on top of that base system (provided by :py:mod:`WebbPSF <webbpsf>`)
- * And an optional :ref:`graphical user interface <gui>`.
+ * An optional :ref:`graphical user interface <gui>`
    
 It is entirely possible (and indeed recommended for scripting) to just use the :py:mod:`WebbPSF <webbpsf>` interface without the GUI, but the
 GUI can provide a quicker method for many simple interactive calculations.
 
+.. _intro_why_webbpsf:
 
-
-Why WebbPSF? 
-----------------------
+Why WebbPSF?
+------------
 
 WebbPSF replaced an older PSF simulation package,  ``JWPSF``, that was in use prior to 2011. 
 From a user's perspective WebbPSF provides the following enhancements over JWPSF:
@@ -44,9 +37,10 @@ significant additions from a programmer's perspective include:
 * Optional parallelization for improved speed and efficient use of multiple processor cores. 
 * Uses ``pysynphot`` library (same as the HST & JWST exposure time calculators) for consistent treatment of filter bandpasses and source spectra.
 
+.. _intro_algorithms:
 
-Algorithm Overview
----------------------
+Algorithms Overview
+-------------------
 
 Read on if you're interested in details of how the computations are performed. Otherwise, jump to :ref:`Quick Start <quickstart>`.
 
@@ -87,38 +81,44 @@ with more computational efficiency, particularly for the case of highly oversamp
 
 See the :ref:`Appendix on Parallelization and Performance <performance_and_parallelization>` for more details on calculation performance.
 
+Getting WebbPSF
+---------------
 
+The WebbPSF software is installable through pip, but it depends on data files distributed through STScI. Since there is more than one way to install scientific Python software, the possibilities are covered in :ref:`installation`.
 
+The very short version, for those who have NumPy, SciPy, and matplotlib already installed::
+
+   $ pip install -U webbpsf
+
+This command installs (or upgrades) WebbPSF to the latest version on `PyPI <https://pypi.python.org/>`_. Next, :ref:`download the WebbPSF data files <data_install>` and set the ``WEBBPSF_DATA`` environment variable to point to the place you extracted them. You may also want to :ref:`install Pysynphot <pysynphot_install>`, an optional dependency, to improve PSF fidelity.
+
+For detailed installation instructions, refer to :ref:`installation`. (This document also explains how to :ref:`install into a conda environment <alternate_install>`, :ref:`install from GitHub source <install_dev_version>`, etc.)
 
 .. _quickstart:
 
 Quick Start
 ------------
-First, download and install the software (as described in the next page of this document).  Then just start python and
+First, download and install the software. Then just start ``python`` and
 
 >>> import webbpsf
 >>> webbpsf.gui()
 
 and you should be able to test drive things using the GUI: 
 
-.. image:: ./fig_webbpsfgui_main.png
+.. figure:: ./fig_gui_main.png
    :scale: 75%
-   :align: center 
-   :alt: WebbPSFGui main window
+   :align: center
+   :alt: The main window of the WebbPSF GUI when first launched.
 
+   The main window of the WebbPSF GUI when first launched.
 
-
-Most controls should be self-explanatory, so feel free to experiment. Detailed
-instructions on the GUI are available :ref:`here <gui>`.
+Most controls should be self-explanatory, so feel free to experiment. The article :ref:`gui` provides a detailed
+explanation of the GUI options.
 
 WebbPSF can save a detailed log of its calculations and results. This will by default be shown on screen but can also be saved to disk. 
 
 >>> webbpsf.setup_logging(filename='my_log_file.txt')
 
-Log settings are persistent between sessions, so you can just set this once the very first time you start WebbPSF and logging 
-will be enabled thereafter until you explicitly change it. 
+Log settings are persistent between sessions, so you can just set this once the very first time you start WebbPSF and logging will be enabled thereafter until you explicitly change it.
 
-
-*Now, onward to the installation instructions...*
-
-
+For further information, consult :ref:`using_api` or :ref:`gui`.

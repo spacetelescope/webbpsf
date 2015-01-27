@@ -1,12 +1,8 @@
-#!/usr/bin/env python
 import os, sys
+import ConfigParser
 
 import logging
 _log = logging.getLogger('webbpsf')
-
-import ConfigParser 
-
-
 
 from . import conf
 
@@ -50,8 +46,6 @@ def restart_logging(verbose=True):
             logging.getLogger(name).addHandler(hdlr)
 
         if verbose: print("WebbPSF log outputs will also be saved to file "+filename)
-
-
 
 
 def setup_logging(level='INFO',  filename=None):
@@ -157,7 +151,6 @@ def get_webbpsf_data_path():
     return path
 
 
-
 def check_for_new_install(force=False):
     """ Check for a new installation, and if so
     print a hopefully helpful explanatory message.
@@ -218,7 +211,6 @@ def check_for_new_install(force=False):
     installed at a path given in the config file:
     {0} """.format(path_from_config)
 
-
         print """
 
     This message will not be displayed again.
@@ -226,7 +218,25 @@ def check_for_new_install(force=False):
     """
         any_key = raw_input()
 
+DIAGNOSTIC_REPORT = """
+OS: {os}
+Python version: {python}
+numpy version: {numpy}
+poppy version: {poppy}
+webbpsf version: {webbpsf}
 
+tkinter version: {tkinter}
+wxpython version: {wxpython}
+
+astropy version: {astropy}
+pysynphot version: {pysyn}
+pyFFTW version: {pyfftw}
+
+Floating point type information for numpy.float:
+{finfo_float}
+Floating point type information for numpy.complex:
+{finfo_complex}
+"""
 
 def system_diagnostic():
     """ return various helpful/informative information about the
@@ -256,9 +266,9 @@ def system_diagnostic():
 
     try:
         import pyfftw
-        fftw3_version = 'yes, present'  # does not appear to have a version # string? 
+        pyfftw_version = pyfftw.version
     except:
-        fftw3_version = 'not found'
+        pyfftw_version = 'not found'
 
     try:
         import pysynphot
@@ -273,29 +283,18 @@ def system_diagnostic():
     except:
         astropy_version = 'not found'
 
-    result = """
-    OS: {os}
-    Python version: {python}
-    numpy version: {numpy}
-    poppy version: {poppy}
-    webbpsf version: {webbpsf}
-
-    tkinter version: {tkinter}
-    wxpython version: {wxpython}
-
-    astropy version: {astropy}
-    pysynphot version: {pysyn}
-    PyFFTW version: {fftw3} """.format(
+    result = DIAGNOSTIC_REPORT.format(
         os=platform.platform(),
-        numpy = numpy.__version__,
-        python=sys.version.replace("\n"," "),
+        numpy=numpy.__version__,
+        python=sys.version.replace("\n", " "),
         poppy=poppy.__version__,
         webbpsf=version,
         tkinter=ttk_version,
         wxpython=wx_version,
-        fftw3=fftw3_version,
+        pyfftw=pyfftw_version,
         pysyn=pysynphot_version,
-        astropy=astropy_version
+        astropy=astropy_version,
+        finfo_float=numpy.finfo(numpy.float),
+        finfo_complex=numpy.finfo(numpy.complex),
     )
     return result
-

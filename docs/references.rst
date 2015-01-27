@@ -148,9 +148,3 @@ In summary for the following subset of filters we take information from alternat
 The above filters' throughputs do not include the detector QE or OTE/SI optics throughputs versus wavelength (or the throughput of the 
 Germanium FQPM substrates for the MIRI coronagraphic filters). All other filters do include these effects to the extent that they are accurately 
 captured in the Calibration Database in support of the ETCs. 
-
-
---------------
-
-Documentation last updated on |today|
-
