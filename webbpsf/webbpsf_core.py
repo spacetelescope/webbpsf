@@ -809,6 +809,10 @@ class NIRCam(JWInstrument):
     based on whether you request a short or long wavelength filter.
  
     """
+    SHORT_WAVELENGTH_MIN = 0.6 * 1e-6
+    SHORT_WAVELENGTH_MAX = LONG_WAVELENGTH_MIN = 2.35 * 1e-6
+    LONG_WAVELENGTH_MAX = 5.0 * 1e-6
+
     def __init__(self):
         self.module='A'          # NIRCam A or B?
         self.pixelscale = 0.0317 # for short-wavelen channels
@@ -837,9 +841,13 @@ class NIRCam(JWInstrument):
         """
         if self.pixelscale in (self._pixelscale_short, self._pixelscale_long):
             wavelengths = np.array(kwargs['wavelengths'])
-            if np.max(wavelengths) < self.SHORT_WAVELENGTH_MAX:
+            if np.min(wavelengths) < self.SHORT_WAVELENGTH_MIN:
+                raise RuntimeError("The requested wavelengths are too short to be imaged with NIRCam")
+            if np.max(wavelengths) > self.LONG_WAVELENGTH_MAX:
+                raise RuntimeError("The requested wavelengths are too long to be imaged with NIRCam")
+            if np.max(wavelengths) <= self.SHORT_WAVELENGTH_MAX:
                 new_scale = self._pixelscale_short
-            elif np.min(wavelengths) > self.LONG_WAVELENGTH_MIN:
+            elif np.min(wavelengths) >= self.LONG_WAVELENGTH_MIN:
                 new_scale = self._pixelscale_long
             else:
                 raise RuntimeError("Wavelengths requested don't fit entirely on either NIRCam short"
