@@ -242,4 +242,24 @@ This leads to substantial savings in total computation time::
 
 
 Users are encouraged to try different approaches to optimizing performance on their own machines. 
-Set `__timetests__=True` in `poppy.py` to enable some rudimentary benchmarking for the FFT section of the code.
+To enable some rudimentary benchmarking for the FFT section of the code, set `poppy.conf.enable_speed_tests=True` and configure
+your logging display to show debug messages. (i.e. `webbpsf.configure_logging('debug')`). 
+Measured times will be printed in the log stream, for instance like so::
+
+    poppy     : INFO     Calculating PSF with 1 wavelengths
+    poppy     : INFO      Propagating wavelength = 1e-06 meters  with weight=1.00
+    poppy     : DEBUG    Creating input wavefront with wavelength=0.000001, npix=511, pixel scale=0.007828 meters/pixel
+    poppy     : DEBUG      Wavefront and optic Optic from fits.HDUList object already at same plane type, no propagation needed.
+    poppy     : DEBUG      Multiplied WF by phasor for Pupil plane: Optic from fits.HDUList object
+    poppy     : DEBUG    normalizing at first plane (entrance pupil) to 1.0 total intensity
+    poppy     : DEBUG      Propagating wavefront to Image plane: -empty- (Analytic).
+    poppy     : DEBUG    conf.use_fftw is True
+    poppy     : INFO     using numpy FFT of (511, 511) array
+    poppy     : DEBUG    using numpy FFT of (511, 511) array, direction=forward
+    poppy     : DEBUG       TIME 0.051085 s  for the FFT                                     # This line
+    poppy     : DEBUG      Multiplied WF by phasor for Image plane: -empty- (Analytic)
+    poppy     : DEBUG       TIME 0.063745 s for propagating one wavelength                   # and this one
+    poppy     : INFO       Calculation completed in 0.082 s
+    poppy     : INFO     PSF Calculation completed.
+
+
