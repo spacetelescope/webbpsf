@@ -393,7 +393,7 @@ class JWInstrument(poppy.instrument.Instrument):
         wavelens, weights = self._getWeights(source=source, nlambda=nlambda, monochromatic=monochromatic)
 
         # Validate that the calculation we're about to do makes sense with this instrument config
-        self._validate_config(wavelengths=wavelens)
+        self._validateConfig(wavelengths=wavelens)
         _log.info("PSF calc using fov_%s, oversample = %d, number of wavelengths = %d" % (
                   fov_spec, detector_oversample, len(wavelens)))
 
@@ -678,12 +678,12 @@ class MIRI(JWInstrument):
         self._detector2siaf = {'MIRIM':'MIRIM_FULL_ILLCNTR'}
         self.detector=self.detector_list[0]
 
-    def _validate_config(self, **kwargs):
+    def _validateConfig(self, **kwargs):
         """Validate instrument config for MIRI
         """
         if self.filter.startswith("MRS-IFU"):
             raise NotImplementedError("The MIRI MRS is not yet implemented.")
-        return super(MIRI, self)._validate_config(**kwargs)
+        return super(MIRI, self)._validateConfig(**kwargs)
 
     def _addAdditionalOptics(self,optsys, oversample=2):
         """Add coronagraphic or spectrographic optics for MIRI.
@@ -830,7 +830,7 @@ class NIRCam(JWInstrument):
         for name in self.detector_list: self._detector2siaf[name] = 'NRC{0}_FULL_CNTR'.format(name)
         self.detector=self.detector_list[0]
 
-    def _validate_config(self, **kwargs):
+    def _validateConfig(self, **kwargs):
         """Validate instrument config for NIRCam
 
         For NIRCam, this selects a pixelscale based on the wavelengths requested
@@ -851,7 +851,7 @@ class NIRCam(JWInstrument):
             # If the user has set the pixel scale to a custom value, let them worry about the
             # physical meaning of their calculation
             pass
-        return super(NIRCam, self)._validate_config(**kwargs)
+        return super(NIRCam, self)._validateConfig(**kwargs)
 
     def _addAdditionalOptics(self,optsys, oversample=2):
         """Add coronagraphic optics for NIRCam
@@ -1044,10 +1044,10 @@ class NIRSpec(JWInstrument):
         self.detector=self.detector_list[0]
 
 
-    def _validate_config(self, **kwargs):
+    def _validateConfig(self, **kwargs):
         if self.filter.startswith("IFU"):
             raise NotImplementedError("The NIRSpec IFU is not yet implemented.")
-        return super(NIRSpec, self)._validate_config(**kwargs)
+        return super(NIRSpec, self)._validateConfig(**kwargs)
 
     def _addAdditionalOptics(self,optsys, oversample=2):
         """ Add fixed slit optics for NIRSpec
