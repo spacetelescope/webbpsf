@@ -46,6 +46,14 @@ matrix:
         - python: 2.7
           env: NUMPY_VERSION=1.8 SETUP_CMD='test'
 
+        # Try released POPPY version
+        - python: 2.7
+          env: POPPY_VERSION=stable SETUP_CMD='test'
+
+        # Try released POPPY version and older NumPy
+        - python: 2.7
+          env: POPPY_VERSION=stable NUMPY_VERSION=1.8 SETUP_CMD='test'
+
 before_install:
 
     # Use utf8 encoding. Should be default, but this is insurance against
@@ -77,17 +85,16 @@ install:
     - if [[ $ASTROPY_VERSION == development ]]; then $PIP_INSTALL git+http://github.com/astropy/astropy.git#egg=astropy; fi
     - if [[ $ASTROPY_VERSION == stable ]]; then $CONDA_INSTALL numpy=$NUMPY_VERSION astropy; fi
 
-    # POPPY
-    - if [[ $POPPY_VERSION == development ]]; then $PIP_INSTALL git+http://github.com/mperrin/poppy.git#egg=poppy; fi
-    - if [[ $POPPY_VERSION == stable ]]; then $CONDA_INSTALL numpy=$NUMPY_VERSION poppy; fi
-
-    # OPTIONAL DEPENDENCIES
     # Here you can add any dependencies your package may have. You can use
     # conda for packages available through conda, or pip for any other
     # packages. You should leave the `numpy=$NUMPY_VERSION` in the `conda`
     # install since this ensures Numpy does not get automatically upgraded.
+
+    # matplotlib and SciPy
     - $CONDA_INSTALL numpy=$NUMPY_VERSION matplotlib scipy
-    # - if [[ $SETUP_CMD != egg_info ]]; then $PIP_INSTALL ...; fi
+    # POPPY
+    - if [[ $POPPY_VERSION == development ]]; then $PIP_INSTALL git+http://github.com/mperrin/poppy.git#egg=poppy; fi
+    - if [[ $POPPY_VERSION == stable ]]; then $PIP_INSTALL poppy; fi
 
     # DOCUMENTATION DEPENDENCIES
     # build_sphinx needs sphinx and matplotlib (for plot_directive). Note that
