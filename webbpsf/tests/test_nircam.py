@@ -160,27 +160,53 @@ def test_nircam_get_detector():
 
 
 def test_nircam_auto_pixelscale():
-
     nc = webbpsf_core.NIRCam()
 
     nc.filter='F200W'
-    nc._validate_config()
+    wavelengths, _ = nc._getWeights()
+    nc._validateConfig(wavelengths=wavelengths)
     assert nc.pixelscale == nc._pixelscale_short
 
     # auto switch to long
     nc.filter='F444W'
-    nc._validate_config()
+    wavelengths, _ = nc._getWeights()
+    nc._validateConfig(wavelengths=wavelengths)
     assert nc.pixelscale == nc._pixelscale_long
 
     # and it can switch back to short:
     nc.filter='F200W'
-    nc._validate_config()
+    wavelengths, _ = nc._getWeights()
+    nc._validateConfig(wavelengths=wavelengths)
     assert nc.pixelscale == nc._pixelscale_short
 
-    nc.pixelscale = 0.0123 # user is allowed to set something custom
+    nc.pixelscale = 0.0123  # user is allowed to set something custom
     nc.filter='F444W'
-    nc._validate_config()
-    assert nc.pixelscale == 0.0123 #and that persists & overrides the default switching.
+    wavelengths, _ = nc._getWeights()
+    nc._validateConfig(wavelengths=wavelengths)
+    assert nc.pixelscale == 0.0123  # and that persists & overrides the default switching.
 
+    # restore a standard pixel scale (long since we're testing short next)
+    nc.pixelscale = nc._pixelscale_long
 
+    # wavelengths fit on shortwave channel -> short channel pixel scale
+    nc._validateConfig(wavelengths=np.linspace(nc.SHORT_WAVELENGTH_MIN, nc.SHORT_WAVELENGTH_MAX, 3))
+    assert nc.pixelscale == nc._pixelscale_short
+
+    # wavelengths fit on long channel -> long pixel scale
+    nc._validateConfig(wavelengths=np.linspace(nc.LONG_WAVELENGTH_MIN, nc.LONG_WAVELENGTH_MAX, 3))
+    assert nc.pixelscale == nc._pixelscale_long
+
+    # wavelengths don't fit on one channel -> exception
+    with pytest.raises(RuntimeError) as excinfo:
+        nc._validateConfig(wavelengths=np.linspace(nc.SHORT_WAVELENGTH_MIN - 1e-6, nc.SHORT_WAVELENGTH_MIN, 3))
+    assert excinfo.value.message == "The requested wavelengths are too short to be imaged with NIRCam"
+
+    with pytest.raises(RuntimeError) as excinfo:
+        nc._validateConfig(wavelengths=np.linspace(nc.LONG_WAVELENGTH_MAX, nc.LONG_WAVELENGTH_MAX + 1e-6, 3))
+    assert excinfo.value.message == "The requested wavelengths are too long to be imaged with NIRCam"
+
+    with pytest.raises(RuntimeError) as excinfo:
+        nc._validateConfig(wavelengths=np.linspace(nc.SHORT_WAVELENGTH_MAX - 1e-6, nc.LONG_WAVELENGTH_MIN + 1e-6, 3))
+    assert excinfo.value.message == ("Wavelengths requested don't fit entirely on either NIRCam short"
+                                     " or long wavelength channels")
 
