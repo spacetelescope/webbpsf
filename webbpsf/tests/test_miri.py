@@ -20,30 +20,40 @@ test_miri_source_offset_00 = lambda : do_test_source_offset('MIRI', theta=0.0)
 test_miri_source_offset_45 = lambda : do_test_source_offset('MIRI', theta=45.0)
 
 
-def test_miri_fqpm(theta=0.0, nsteps=3, nlambda=1, clobber=True, outputdir=None, display=False):
+def do_test_miri_fqpm(nlambda=1, clobber=True, angle=0.0, offset=0.0, oversample=2, outputdir=None, display=False, save=False):
     miri = webbpsf_core.MIRI()
     miri.pupilopd = None
     miri.filter='F1065C'
     miri.image_mask = 'FQPM1065'
     miri.pupil_mask = 'MASKFQPM'
-    
-    oversample=2
+ 
+    #for offset in np.linspace(0.0, 1.0, nsteps):
+    #miri.options['source_offset_theta'] = 0.0
+    miri.options['source_offset_r'] = offset
 
-    if outputdir is None:
-        import tempfile
-        outputdir = tempfile.gettempdir()
+    #for angle in [0,45]:
+    miri.options['source_offset_theta'] = angle 
+    psf = miri.calcPSF(oversample=oversample, nlambda=nlambda, save_intermediates=False, display=display)
 
-    for offset in np.linspace(0.0, 1.0, nsteps):
-        miri.options['source_offset_theta'] = 0.0
-        miri.options['source_offset_r'] = offset
+    if save:
+        if outputdir is None:
+            import tempfile
+            outputdir = tempfile.gettempdir()
 
-        for angle in [0,45]:
-            fn = os.path.join(outputdir, 'test_miri_fqpm_t{0}_r{1:.2f}.fits'.format(angle,offset))
-            if not os.path.exists(fn) or clobber:
-                miri.options['source_offset_theta'] = angle 
-                psf = miri.calcPSF(oversample=oversample, nlambda=nlambda, save_intermediates=False, display=display)
-                psf.writeto(fn, clobber=clobber)
+
+        fn = os.path.join(outputdir, 'test_miri_fqpm_t{0}_r{1:.2f}.fits'.format(angle,offset))
+        psf.writeto(fn, clobber=clobber)
 
     #FIXME - add some assertion tests here. 
+
+def test_miri_fqpm_centered(*args, **kwargs):
+    do_test_miri_fqpm(angle=0.0, offset=0.0)
+
+
+def test_miri_fqpm_offset_00(*args, **kwargs):
+    do_test_miri_fqpm(angle=0.0, offset=1.0)
+
+def test_miri_fqpm_offset_45(*args, **kwargs):
+    do_test_miri_fqpm(angle=45.0, offset=1.0)
 
 

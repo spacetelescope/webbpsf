@@ -28,13 +28,15 @@ def generic_output_test(iname):
     pxscale = inst.pixelscale
     fov_arcsec = 5.0
 
+    # fov in pixels
     PSF = inst.calcPSF(nlambda=1, fov_pixels = 100, oversample=1)
     assert(PSF[0].data.shape[0] == 100)
-
+    # fov in arcsec
     PSF = inst.calcPSF(nlambda=1, fov_arcsec = fov_arcsec, oversample=1)
     fov_pix = int(np.round(fov_arcsec / pxscale))
     assert(PSF[0].data.shape[0] == fov_pix)
 
+    # even and odd array sizes, no oversampling
     inst.options['parity'] = 'odd'
     PSF = inst.calcPSF(nlambda=1, fov_arcsec = fov_arcsec, oversample=1)
     assert( np.remainder(PSF[0].data.shape[0],2) == 1)
