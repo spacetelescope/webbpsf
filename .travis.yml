@@ -110,6 +110,7 @@ before_script:
     - wget http://www.stsci.edu/~mperrin/software/webbpsf/minimal-webbpsf-data.tar.gz  -O /tmp/minimal-webbpsf-data.tar.gz
     - tar -xzf /tmp/minimal-webbpsf-data.tar.gz
     - export WEBBPSF_PATH=$PWD/webbpsf-data 
+    - export WEBBPSF_SKIP_CHECK=1
 
 script:
    - python setup.py $SETUP_CMD

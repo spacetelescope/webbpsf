@@ -157,6 +157,9 @@ def check_for_new_install(force=False):
     """
 
     from .version import version as __version__
+
+    if os.getenv('WEBBPSF_SKIP_CHECK') is not None: return
+
     if conf.last_version_ran == '0.0' or force:
 
         from . import _save_config
