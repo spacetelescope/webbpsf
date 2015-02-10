@@ -99,6 +99,12 @@ install:
     # COVERAGE DEPENDENCIES
     - if [[ $SETUP_CMD == 'test --coverage' ]]; then $PIP_INSTALL coverage coveralls; fi
 
+before_script:
+    # Get WebbPSF data files (just a subset of the usual 500 MB!) and set up environment variable
+    - wget https://www.stsci.edu/~mperrin/software/webbpsf/minimal-webbpsf.data.tar.gz  -O /tmp/minimal-webbpsf.data.tar.gz
+    - tar -xzf /tmp/minimal-webbpsf.data.tar.gz
+    - export WEBBPSF_PATH=$PWD/webbpsf-data 
+
 script:
    - python setup.py $SETUP_CMD
 
