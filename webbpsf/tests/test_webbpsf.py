@@ -57,7 +57,7 @@ def generic_output_test(iname):
 
 
 
-def do_test_source_offset(iname, distance=0.5,  nsteps=1, theta=0.0, tolerance=0.05, display=False):
+def do_test_source_offset(iname, distance=0.5,  nsteps=1, theta=0.0, tolerance=0.05, monochromatic=None, display=False):
     """ Test source offsets
     Does the star PSF center end up in the desired location?
 
@@ -90,7 +90,7 @@ def do_test_source_offset(iname, distance=0.5,  nsteps=1, theta=0.0, tolerance=0
         si.options['source_offset_theta'] = theta
         #nc.options['source_offset_r'] = i*nc.pixelscale*5
         shift_req.append(si.options['source_offset_r'])
-        psfs.append(  si.calcPSF(nlambda=1, oversample=oversample) )
+        psfs.append(  si.calcPSF(nlambda=1, monochromatic=monochromatic, oversample=oversample) )
 
 
     # Control case: an unshifted image
@@ -116,8 +116,13 @@ def do_test_source_offset(iname, distance=0.5,  nsteps=1, theta=0.0, tolerance=0
         _log.info("   Shift_requested:\t(%10.3f, %10.3f) arcsec" % (rx, ry))
         shift = (cent-cent0) * (si.pixelscale/oversample)
         _log.info("   Shift_achieved: \t(%10.3f, %10.3f) arcsec" % (shift[1], shift[0]))
-        assert( abs(rx -  shift[1]) <  (si.pixelscale*tolerance) )
-        assert( abs(ry -  shift[0]) <  (si.pixelscale*tolerance) )
+
+        deltax =  abs(rx -  shift[1])
+        deltay =  abs(ry -  shift[0])
+        _log.info("   X offset:\t{0:.3f}\t\tTolerance:\t{1:.3f}".format(deltax, (si.pixelscale*tolerance)))
+        assert( deltax  <  (si.pixelscale*tolerance) )
+        _log.info("   Y offset:\t{0:.3f}\t\tTolerance:\t{1:.3f}".format(deltay, (si.pixelscale*tolerance)))
+        assert( deltay  <  (si.pixelscale*tolerance) )
 
 
 

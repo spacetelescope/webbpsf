@@ -16,8 +16,8 @@ import poppy
 from test_webbpsf import generic_output_test, do_test_source_offset
 
 test_miri= lambda : generic_output_test('MIRI')
-test_miri_source_offset_00 = lambda : do_test_source_offset('MIRI', theta=0.0)
-test_miri_source_offset_45 = lambda : do_test_source_offset('MIRI', theta=45.0)
+test_miri_source_offset_00 = lambda : do_test_source_offset('MIRI', theta=0.0, monochromatic=8e-6)
+test_miri_source_offset_45 = lambda : do_test_source_offset('MIRI', theta=45.0, monochromatic=8e-6)
 
 
 def do_test_miri_fqpm(nlambda=1, clobber=True, angle=0.0, offset=0.0, oversample=2, outputdir=None, display=False, save=False):

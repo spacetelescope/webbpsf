@@ -14,8 +14,8 @@ import poppy
 #------------------    NIRCam Tests    ----------------------------
 from test_webbpsf import generic_output_test, do_test_source_offset
 test_nircam = lambda : generic_output_test('NIRCam')
-test_nircam_source_offset_00 = lambda : do_test_source_offset('NIRCam', theta=0.0)
-test_nircam_source_offset_45 = lambda : do_test_source_offset('NIRCam', theta=45.0)
+test_nircam_source_offset_00 = lambda : do_test_source_offset('NIRCam', theta=0.0, monochromatic=2e-6)
+test_nircam_source_offset_45 = lambda : do_test_source_offset('NIRCam', theta=45.0, monochromatic=2e-6)
 
 test_nircam_blc_circ_45 =  lambda : do_test_nircam_blc(kind='circular', angle=45)
 test_nircam_blc_circ_0 =   lambda : do_test_nircam_blc(kind='circular', angle=0)
