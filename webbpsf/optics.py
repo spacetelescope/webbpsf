@@ -16,7 +16,7 @@ class NIRSpec_three_MSA_shutters(poppy.AnalyticOpticalElement):
         """ Compute the transmission inside/outside of the field stop.
 
         The area of an open shutter is 0.2 x 0.45, while the shutter pitch is 0.26x0.51
-        The walls separating adjaced shutters are 0.06 arcsec wide.
+        The walls separating adjacent shutters are 0.06 arcsec wide.
         """
 
         msa_width = 0.2
@@ -51,7 +51,7 @@ class NIRSpec_MSA_open_grid(poppy.AnalyticOpticalElement):
         """ Compute the transmission inside/outside of the field stop.
 
         The area of an open shutter is 0.2 x 0.45, while the shutter pitch is 0.26x0.51
-        The walls separating adjaced shutters are 0.06 arcsec wide.
+        The walls separating adjacent shutters are 0.06 arcsec wide.
         """
 
         msa_width = 0.2

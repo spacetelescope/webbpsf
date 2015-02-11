@@ -243,7 +243,7 @@ This leads to substantial savings in total computation time::
 
 Users are encouraged to try different approaches to optimizing performance on their own machines. 
 To enable some rudimentary benchmarking for the FFT section of the code, set `poppy.conf.enable_speed_tests=True` and configure
-your logging display to show debug messages. (i.e. `webbpsf.configure_logging('debug')`). 
+your logging display to show debug messages. (i.e. `webbpsf.configure_logging('debug')`).
 Measured times will be printed in the log stream, for instance like so::
 
     poppy     : INFO     Calculating PSF with 1 wavelengths
@@ -261,5 +261,3 @@ Measured times will be printed in the log stream, for instance like so::
     poppy     : DEBUG       TIME 0.063745 s for propagating one wavelength                   # and this one
     poppy     : INFO       Calculation completed in 0.082 s
     poppy     : INFO     PSF Calculation completed.
-
-

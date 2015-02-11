@@ -6,20 +6,24 @@ WebbPSF Core
 An object-oriented modeling system for the JWST instruments.
 
 Classes:
-  * JWInstrument
-    * MIRI
-    * NIRCam
-    * NIRSpec
-    * NIRISS
-    * FGS
+  * SpaceTelescopeInstrument
+    * JWInstrument
+      * MIRI
+      * NIRCam
+      * NIRSpec
+      * NIRISS
+      * FGS
 
 WebbPSF makes use of python's ``logging`` facility for log messages, using
 the logger name "webbpsf".
+
+Code by Marshall Perrin <mperrin@stsci.edu>
 """
 import os
 import types
 import glob
 import time
+from collections import namedtuple
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.interpolate, scipy.ndimage
@@ -46,16 +50,16 @@ except:
 import logging
 _log = logging.getLogger('webbpsf')
 
+Filter = namedtuple('Filter', ['name', 'filename', 'default_nlambda'])
 
-
-class JWInstrument(poppy.instrument.Instrument):
-    """ A generic JWST Instrument class.
+class SpaceTelescopeInstrument(poppy.instrument.Instrument):
+    """ A generic Space Telescope Instrument class.
 
     *Note*: Do not use this class directly - instead use one of the specific instrument subclasses!
 
-    This class provides a simple interface for modeling PSF formation through the JWST instruments, 
-    with configuration options and software interface loosely resembling the configuration of the instrument 
-    hardware mechanisms.   
+    This class provides a simple interface for modeling PSF formation through the instrument,
+    with configuration options and software interface loosely resembling the configuration of the instrument
+    hardware mechanisms.
     
     This module currently only provides a modicum of error checking, and relies on the user
     being knowledgable enough to avoid trying to simulate some physically impossible or just plain silly
@@ -64,9 +68,9 @@ class JWInstrument(poppy.instrument.Instrument):
     The instrument constructors do not take any arguments. Instead, create an instrument object and then
     configure the `filter` or other attributes as desired. The most commonly accessed parameters are 
     available as object attributes: `filter`, `image_mask`, `pupil_mask`, `pupilopd`. More advanced
-    configuration can be done by editing the :ref:`JWInstrument.options` dictionary, either by passing options to ``__init__`` or by directly editing the dict afterwards.
+    configuration can be done by editing the :ref:`SpaceTelescopeInstrument.options` dictionary, either by passing options to ``__init__`` or by directly editing the dict afterwards.
     """
-
+    telescope = "Generic Space Telescope"
     options = {} # options dictionary
     """ A dictionary capable of storing other arbitrary options, for extensibility. The following are all optional, and
     may or may not be meaningful depending on which instrument is selected.
@@ -111,66 +115,64 @@ class JWInstrument(poppy.instrument.Instrument):
 
     """
 
+    def _get_filters(self):
+        filter_table = ioascii.read(os.path.join(self._WebbPSF_basepath, self.name, 'filters.tsv'))
+        filter_info = {}
+        filter_list = []  # preserve the order from the table
+
+        for filter_row in filter_table:
+            filter_filename = os.path.join(
+                self._WebbPSF_basepath,
+                self.name,
+                'filters',
+                '{}_throughput.fits'.format(filter_row['filter'])
+            )
+            filter_info[filter_row['filter']] = Filter(
+                name=filter_row['filter'],
+                filename=filter_filename,
+                default_nlambda=filter_row['nlambda']
+            )
+            filter_list.append(filter_row['filter'])
+        return filter_list, filter_info
+
     def __init__(self, name="", pixelscale = 0.064):
-        self.name=name
-        self.pixelscale = pixelscale
+        self.name = name
 
         self._WebbPSF_basepath = utils.get_webbpsf_data_path()
 
         self._datapath = self._WebbPSF_basepath + os.sep + self.name + os.sep
-        self._filter = None
         self._image_mask = None
         self._pupil_mask = None
-        self.pupil = os.path.abspath(self._datapath+"../pupil_RevV.fits")
+
+        self.pupil = None
         "Filename *or* fits.HDUList for JWST pupil mask. Usually there is no need to change this."
+        #TODO:jlong: is it enough to move this to JWInstr?
         self.pupilopd = None   # This can optionally be set to a tuple indicating (filename, slice in datacube)
         """Filename *or* fits.HDUList for JWST pupil OPD.
 
-        
+
         This can be either a full absolute filename, or a relative name in which case it is
         assumed to be within the instrument's `data/OPDs/` directory, or an actual fits.HDUList object corresponding to such a file.
         If the file contains a datacube, you may set this to a tuple (filename, slice) to select a given slice, or else
         the first slice will be used."""
         self.pupil_radius = None  # Set when loading FITS file in _getOpticalSystem
 
-        self.options = {} # dict for storing other arbitrary options. 
+        self.options = {}  # dict for storing other arbitrary options.
 
-        #create private instance variables. These will be
-        # wrapped just below to create properties with validation.
-        self._filter=None
+        # filter_list   available filter names in order by wavelength for public api
+        # _filters      a dict of named tuples with name, filename, & default_nlambda
+        #               with the filter name as the key
+        self.filter_list, self._filters = self._get_filters()
 
-        filter_table = ioascii.read(self._WebbPSF_basepath + os.sep+ 'filters.txt')
-        wmatch = np.where(filter_table['instrument'] == self.name)
-        self.filter_list = filter_table['filter'][wmatch].tolist()
-        "List of available filters"
-        self._filter_nlambda_default = dict(zip(filter_table['filter'][wmatch], filter_table['nlambda'][wmatch]))
-
-        #self._filter_files= [os.path.abspath(f) for f in glob.glob(self._datapath+os.sep+'filters/*_thru.fits')]
-        #self.filter_list=[os.path.basename(f).split("_")[0] for f in self._filter_files]
-        if len(self.filter_list) ==0: 
-            #self.filter_list=[''] # don't crash for FGS which lacks filters in the usual sense
-            raise ValueError("No filters available!")
-
-        def sort_filters(filtname):
-            try:
-                if name =='MIRI': return int(filtname[1:-1]) # MIRI filters have variable length number parts
-                else: return int(filtname[1:4]) # the rest do not, but have variable numbers of trailing characters
-            except:
-                return filtname
-        self.filter_list.sort(key=sort_filters)
-        self._filter_files = [self._datapath+os.sep+'filters/'+f+"_throughput.fits" for f in self.filter_list]
-
+        # choose a default filter, in case the user doesn't specify one
         self.filter = self.filter_list[0]
+
         self._rotation = None
 
-
-        #self.opd_list = [os.path.basename(os.path.abspath(f)) for f in glob.glob(self._datapath+os.sep+'OPD/*.fits')]
         self.opd_list = [os.path.basename(os.path.abspath(f)) for f in glob.glob(self._datapath+os.sep+'OPD/OPD*.fits')]
         self.opd_list.sort()
         if len(self.opd_list) > 0:
             self.pupilopd = self.opd_list[-1]
-            #self.pupilopd = self.opd_list[len(self.opd_list)/2]
-        #self.opd_list.insert(0,"Zero OPD (Perfect)")
 
         self._image_mask=None
         self.image_mask_list=[]
@@ -188,11 +190,12 @@ class JWInstrument(poppy.instrument.Instrument):
         self.detector_list = ['Default']
         self._detector = None
 
-        self.detector_coordinates = (0,0) # where is the source on the detector, in 'Science frame' pixels?
+        # where is the source on the detector, in 'Science frame' pixels?
+        self.detector_coordinates = (0, 0)
 
     @property
     def image_mask(self):
-        'Currently selected image plane mask, or None for direct imaging'
+        """Currently selected image plane mask, or None for direct imaging"""
         return self._image_mask
 
     @image_mask.setter
@@ -209,15 +212,16 @@ class JWInstrument(poppy.instrument.Instrument):
 
     @property
     def pupil_mask(self):
-        'Currently selected Lyot pupil mask, or None for direct imaging'
+        """Currently selected Lyot pupil mask, or None for direct imaging"""
         return self._pupil_mask
 
     @pupil_mask.setter
     def pupil_mask(self,name):
-        if name is "": name = None
+        if name is "":
+            name = None
         if name is not None:
             if name in self.pupil_mask_list:
-                pass # there's a perfect match, this is fine.
+                pass  # there's a perfect match, this is fine.
             else:
                 name = name.upper() # force to uppercase
                 if name not in self.pupil_mask_list:
@@ -227,27 +231,28 @@ class JWInstrument(poppy.instrument.Instrument):
 
     @property
     def detector(self):
-        'Currently selected detector name (for instruments with multiple detectors)'
+        """Currently selected detector name (for instruments with multiple detectors)"""
         return self._detector.name
 
     @detector.setter
-    def detector(self,detname):
-        #if name is "": name = None
+    def detector(self, detname):
         if detname is not None:
-            detname = detname.upper() # force to uppercase
+            detname = detname.upper()  # force to uppercase
             try:
                 siaf_aperture_name = self._detector2siaf[detname]
             except:
-                raise ValueError("Unknown name: {0} is not a valid known name for a detector for instrument {1}".format(detname, self.name))
+                raise ValueError("Unknown name: {0} is not a valid known name for a detector "
+                                 "for instrument {1}".format(detname, self.name))
             self._detector = DetectorGeometry(self.name, siaf_aperture_name, shortname=detname)
 
     def __str__(self):
-        return "JWInstrument name="+self.name
+        return "<{telescope}: {instrument_name}>".format(telescope=self.telescope, instrument_name=self.name)
 
     #----- actual optical calculations follow here -----
-    def calcPSF(self, outfile=None, source=None, filter=None,  nlambda=None, monochromatic=None ,
-            fov_arcsec=None, fov_pixels=None,  oversample=None, detector_oversample=None, fft_oversample=None, calc_oversample=None, rebin=True,
-            clobber=True, display=False, return_intermediates=False, **kwargs):
+    def calcPSF(self, outfile=None, source=None, filter=None, nlambda=None, monochromatic=None,
+                fov_arcsec=None, fov_pixels=None,  oversample=None, detector_oversample=None,
+                fft_oversample=None, calc_oversample=None, rebin=True, clobber=True, display=False,
+                return_intermediates=False, **kwargs):
         """ Compute a PSF.
 
         The result can either be written to disk (set outfile="filename") or else will be returned as
@@ -457,7 +462,7 @@ class JWInstrument(poppy.instrument.Instrument):
         """
         output_mode = options.get('output_mode',conf.default_output_mode)
 
-        if output_mode == 'Mock JWST DMS Output':
+        if output_mode == 'Mock JWST DMS Output': #TODO:jlong: move out to JWInstrument
             # first rebin down to detector sampling
             # then call mockdms routines to embed in larger detector etc
             raise NotImplementedError('Not implemented yet')
@@ -502,35 +507,61 @@ class JWInstrument(poppy.instrument.Instrument):
         if detector_oversample is None: detector_oversample = fft_oversample
 
         _log.debug("Oversample: %d  %d " % (fft_oversample, detector_oversample))
-        optsys = poppy.OpticalSystem(name='JWST+'+self.name, oversample=fft_oversample)
-        if 'source_offset_r' in options.keys(): optsys.source_offset_r = options['source_offset_r']
-        if 'source_offset_theta' in options.keys(): optsys.source_offset_theta = options['source_offset_theta']
+        optsys = poppy.OpticalSystem(
+            name='{telescope}+{instrument}'.format(telescope=self.telescope, instrument=self.name),
+            oversample=fft_oversample
+        )
+        if 'source_offset_r' in options.keys():
+            optsys.source_offset_r = options['source_offset_r']
+        if 'source_offset_theta' in options.keys():
+            optsys.source_offset_theta = options['source_offset_theta']
 
 
         #---- set pupil OPD
         if isinstance(self.pupilopd, str):  # simple filename
-            full_opd_path = self.pupilopd if os.path.exists( self.pupilopd) else os.path.join(self._datapath, "OPD",self.pupilopd)
+            opd_map = self.pupilopd if os.path.exists( self.pupilopd) else os.path.join(self._datapath, "OPD",self.pupilopd)
         elif hasattr(self.pupilopd, '__getitem__') and isinstance(self.pupilopd[0], basestring): # tuple with filename and slice
-            full_opd_path =  (self.pupilopd[0] if os.path.exists( self.pupilopd[0]) else os.path.join(self._datapath, "OPD",self.pupilopd[0]), self.pupilopd[1])
-        elif isinstance(self.pupilopd, fits.HDUList) or isinstance(self.pupilopd, poppy.OpticalElement): # OPD supplied as FITS object
-            full_opd_path = self.pupilopd # not a path per se but this works correctly to pass it to poppy
+            opd_map =  (self.pupilopd[0] if os.path.exists( self.pupilopd[0]) else os.path.join(self._datapath, "OPD",self.pupilopd[0]), self.pupilopd[1])
+        elif isinstance(self.pupilopd, (fits.HDUList, poppy.OpticalElement)):
+            opd_map = self.pupilopd # not a path per se but this works correctly to pass it to poppy
         elif self.pupilopd is None: 
-            full_opd_path = None
+            opd_map = None
         else:
             raise TypeError("Not sure what to do with a pupilopd of that type:"+str(type(self.pupilopd)))
 
         #---- set pupil intensity
-        if isinstance(self.pupil, str): # simple filename
-            full_pupil_path = self.pupil if os.path.exists( self.pupil) else os.path.join(self._WebbPSF_basepath,self.pupil)
-        elif isinstance(self.pupil, fits.HDUList): # pupil supplied as FITS object
-            full_pupil_path = self.pupil
-        else: 
-            raise TypeError("Not sure what to do with a pupil of that type:"+str(type(self.pupil)))
+        if self.pupil is None:
+            raise RuntimeError("The pupil shape must be specified in the "
+                               "instrument class or by setting self.pupil")
+        if isinstance(self.pupil, poppy.OpticalElement):
+            # supply to POPPY as-is
+            pupil_optic = optsys.addPupil(self.pupil)
+        else:
+            # wrap in an optic and supply to POPPY
+            if isinstance(self.pupil, str): # simple filename
+                if os.path.exists(self.pupil):
+                    pupil_transmission = self.pupil
+                else:
+                    pupil_transmission = os.path.join(
+                        self._WebbPSF_basepath,
+                        self.pupil
+                    )
+            elif isinstance(self.pupil, fits.HDUList):
+                # POPPY can use self.pupil as-is
+                pupil_transmission = self.pupil
+            else:
+                raise TypeError("Not sure what to do with a pupil of "
+                                "that type: {}".format(type(self.pupil)))
+            #---- apply pupil intensity and OPD to the optical model
+            pupil_optic = optsys.addPupil(
+                name='{} Pupil'.format(self.telescope),
+                transmission=pupil_transmission,
+                opd=opd_map,
+                opdunits='micron',
+                rotation=self._rotation
+            )
+        self.pupil_radius = pupil_optic.pupil_diam / 2.0
 
-
-        #---- apply pupil intensity and OPD to the optical model
-        jwpupil = optsys.addPupil(name='JWST Pupil', transmission=full_pupil_path, opd=full_opd_path, opdunits='micron', rotation=self._rotation)
-        self.pupil_radius = jwpupil.pupil_diam / 2.0
 
         #---- Add defocus if requested
         if 'defocus_waves' in options.keys(): 
@@ -588,8 +619,8 @@ class JWInstrument(poppy.instrument.Instrument):
         return optsys
 
     def _addAdditionalOptics(self,optsys, oversample=2):
-        """Add instrument-internal optics to an optical system, typically coronagraphic or spectrographic in nature. 
-        This method must be provided by derived instrument classes. 
+        """Add instrument-internal optics to an optical system, typically coronagraphic or
+        spectrographic in nature. This method must be provided by derived instrument classes.
 
         Returns
         --------
@@ -607,44 +638,66 @@ class JWInstrument(poppy.instrument.Instrument):
     def _getSynphotBandpass(self, filtername):
         """ Return a pysynphot.ObsBandpass object for the given desired band. 
 
-        By subclassing this, you can define whatever custom bandpasses are appropriate for your instrument
-
+        By subclassing this, you can define whatever custom bandpasses are appropriate for
+        your instrument
         """
+        obsmode = '{instrument},im,{filter}'.format(instrument=self.name, filter=filtername)
         try:
-            band = pysynphot.ObsBandpass( ('%s,im,%s'%(self.name, filtername)).lower())
+            band = pysynphot.ObsBandpass(obsmode.lower())
+            return band
         except:
-            _log.warn("Filter %s not supported in available pysynphot/CDBS. Falling back to local filter transmission files" % filtername)
-            _log.warn("These may be less accurate.")
+            #TODO:jlong: what exceptions can this raise?
+            _log.warn("Couldn't find filter '{}' in PySynphot, falling back to "
+                      "local throughput files".format(filtername))
 
-            # the requested band is not yet supported in synphot/CDBS. (those files are still a
-            # work in progress...). Therefore, use our local throughput files and create a synphot
-            # transmission object.
-            wf = np.where(np.asarray(self.filter_list)== filtername)[0]
+        # the requested band is not yet supported in synphot/CDBS. (those files are still a
+        # work in progress...). Therefore, use our local throughput files and create a synphot
+        # transmission object.
+        try:
+            filter_info = self._filters[filtername]
+        except KeyError:
+            msg = "Couldn't find filter '{}' for {} in PySynphot or local throughput files"
+            raise RuntimeError(msg.format(filtername, self.name))
 
-            if len(wf) != 1:
-                _log.error("Could not find a match for filter name = %s in the filters for %s." % (filtername, self.name))
-            else:
-                wf = wf[0]
-            # The existing FITS files all have wavelength in ANGSTROMS since that is the pysynphot convention...
-            filterfits = fits.open(self._filter_files[wf])
-            filterdata = filterfits[1].data 
-            try:
-                f1 = filterdata.WAVELENGTH
-                d2 = filterdata.THROUGHPUT
-            except:
-                raise ValueError("The supplied file, %s, does not appear to be a FITS table with WAVELENGTH and THROUGHPUT columns." % self._filter_files[wf] )
-            try:
-                if filterfits[1].header['WAVEUNIT'] != 'Angstrom': raise ValueError("The supplied file, %s, does not have WAVEUNIT = Angstrom as expected." % self._filter_files[wf] )
-            except:
-                _log.warn('The supplied file, %s, does not have a WAVEUNIT keyword. Assuming it is Angstroms.' %  self._filter_files[wf])
- 
-            band = pysynphot.spectrum.ArraySpectralElement(throughput=filterdata.THROUGHPUT,
-                                wave=filterdata.WAVELENGTH, waveunits='angstrom',name=filtername)
+        # The existing FITS files all have wavelength in ANGSTROMS since that is
+        # the pysynphot convention...
+        filterfits = fits.open(filter_info.filename)
+        waveunit = filterfits[1].header.get('WAVEUNIT')
+        if waveunit is None:
+            _log.warn('The supplied file, {}, does not have a WAVEUNIT keyword. Assuming it '
+                      'is Angstroms.'.format(filter_info.filename))
+            waveunit = 'angstrom'
+
+        filterdata = filterfits[1].data
+        try:
+            band = pysynphot.spectrum.ArraySpectralElement(
+                throughput=filterdata.THROUGHPUT, wave=filterdata.WAVELENGTH,
+                waveunits=waveunit, name=filtername
+            )
+        except AttributeError:
+            raise ValueError("The supplied file, %s, does not appear to be a FITS table "
+                             "with WAVELENGTH and THROUGHPUT columns." % filter_info.filename)
+
         return band
 
-
-
 #######  JWInstrument classes  #####
+
+
+class JWInstrument(SpaceTelescopeInstrument):
+    telescope = "JWST"
+
+    def __init__(self, *args, **kwargs):
+        super(JWInstrument, self).__init__(*args, **kwargs)
+
+        self.pupil = os.path.abspath(self._datapath+"../pupil_RevV.fits")
+        "Filename *or* fits.HDUList for JWST pupil mask. Usually there is no need to change this."
+        self.pupilopd = None   # This can optionally be set to a tuple indicating (filename, slice in datacube)
+        """Filename *or* fits.HDUList for JWST pupil OPD.
+
+        This can be either a full absolute filename, or a relative name in which case it is
+        assumed to be within the instrument's `data/OPDs/` directory, or an actual fits.HDUList object corresponding to such a file.
+        If the file contains a datacube, you may set this to a tuple (filename, slice) to select a given slice, or else
+        the first slice will be used."""
 
 class MIRI(JWInstrument):
     """ A class modeling the optics of MIRI, the Mid-InfraRed Instrument.
@@ -668,15 +721,20 @@ class MIRI(JWInstrument):
 
         for i in range(4):
             self.filter_list.append('MRS-IFU Ch%d'% (i+1) )
-        self.monochromatic= 8.0
-        self._IFU_pixelscale = {'Ch1':(0.18, 0.19), 'Ch2':(0.28, 0.19), 'Ch3': (0.39, 0.24), 'Ch4': (0.64, 0.27) }
-            # The above tuples give the pixel resolution (perpendicular to the slice, along the slice). 
-            # The pixels are not square.
+        self.monochromatic = 8.0
+        self._IFU_pixelscale = {
+            'Ch1': (0.18, 0.19),
+            'Ch2': (0.28, 0.19),
+            'Ch3': (0.39, 0.24),
+            'Ch4': (0.64, 0.27),
+        }
+        # The above tuples give the pixel resolution (perpendicular to the slice, along the slice).
+        # The pixels are not square.
 
         #self._default_aperture='MIRIM_center' # reference into SIAF for ITM simulation V/O coords
         self.detector_list = ['MIRIM']
-        self._detector2siaf = {'MIRIM':'MIRIM_FULL_ILLCNTR'}
-        self.detector=self.detector_list[0]
+        self._detector2siaf = {'MIRIM': 'MIRIM_FULL_ILLCNTR'}
+        self.detector = self.detector_list[0]
 
     def _validateConfig(self, **kwargs):
         """Validate instrument config for MIRI
@@ -690,7 +748,6 @@ class MIRI(JWInstrument):
         Semi-analytic coronagraphy algorithm used for the Lyot only.
 
         """
-
 
         # For MIRI coronagraphy, all the coronagraphic optics are rotated the same
         # angle as the instrument is, relative to the primary. So they see the unrotated
@@ -1261,9 +1318,6 @@ class FGS(JWInstrument):
         """ Format FGS-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
         JWInstrument._getFITSHeader(self, hdulist, options)
         hdulist[0].header['FOCUSPOS'] = (0,'FGS focus mechanism not yet modeled.')
-
-
-
 
 ###########################################################################
 # Generic utility functions

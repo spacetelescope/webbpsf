@@ -25,7 +25,7 @@ test_nircam_blc_wedge_45 = lambda : do_test_nircam_blc(kind='linear', angle=45)
 
 import pytest
 # The test setup for this one is not quite right yet
-#  See https://github.com/mperrin/webbpsf/issues/30 
+#  See https://github.com/mperrin/webbpsf/issues/30
 #  and https://github.com/mperrin/poppy/issues/29
 @pytest.mark.xfail
 def test_nircam_SAMC(oversample=4):
