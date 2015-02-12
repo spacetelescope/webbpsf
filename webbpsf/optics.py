@@ -210,7 +210,6 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
             raise NotImplementedError("Unknown grating name:"+which)
 
         self.shift=shift
-        #poppy.FITSOpticalElement.__init__(self, name=name, transmission=transmission, planetype=poppy.poppy_core._PUPIL, shift=shift)
         poppy.AnalyticOpticalElement.__init__(self, name=name, planetype=poppy.poppy_core._PUPIL)
 
         # UPDATED NUMBERS 2013-07:
@@ -222,41 +221,20 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
             # 3.994 microns P-V over 27.02 mm measured (Loic's email)
             # This is **surface sag**, corresponding to P-V of 6.311 waves at lambda=632.8 nm.
             # should correspond to 3.698 microns over 26 mm clear aperture. 
-            #self.cylinder_radius = 22.85 # radius of curvature
-            self.cylinder_radius = 25.3 # radius of curvature
             self.prism_size = 0.02702 # 27.02 millimeters for the physical prism
             self.prism_clear_aperture = 0.0260 # 26 mm clear aperture for the prism + mount
             self.cylinder_rotation_angle = 2 # was 2.25
 
-            # From Lafreniere's wfe_cylindricallens.pro:
-            #   ;For the Bach grism, we have the wavefront of the weak lens:
-            #    ;3.994 microns of surface sag over 27.02 mm
+            #self.cylinder_radius = 22.85 # radius of curvature  ; Nominal
             # but they discarded that and used 25.3 instead
-
-            # My arbitrary rescaling for debugging - DO NOT TRUST:
-            self.cylinder_radius = 31.0 # radius of curvature
-
-
-            # pupil magnification computed from 22 mm clear aperture reported = 
-            # 857-169 pixels = 699 pixels in the 2D array which has scale =.00645604
-            # = 4.44175 meters projected on the primary
-
-            # 2014-05-21 but wait, that's actually 26 mm!
-            # so the 699 pixels at 0.00645604 m/pixel = 4.512 meters implies the magnificationa 173 not 170
-            # but, double wait, it's actually more like 687 pixels across rather than 699 so that makes it 170 again.
-
-            # therefore the magnification is 0.1708 meters projected on the primary / mm in the NIRISS pupil
-            #self.pupil_demagnification =  170.8367 # meters on the primary / meters in the NIRISS pupil
-            #self.pupil_demagnification =  173.56 # meters on the primary / meters in the NIRISS pupil
-
-            # Anand says: 
-            #  nominally the circumscribing circle at the PW of NIRISS is ~40mm.  I use 39mm for the nrm, but it's slightly field-dependent.  Compare that to the 6.6... PM circle?
-            self.pupil_demagnification = 6.6 / 0.040 # about 165
+            # From Lafreniere's wfe_cylindricallens.pro:
+            #  "OVERRIDE PREVIOUS CASES AFTER CV1RR RESULTS:"
+            self.cylinder_radius = 25.3 # radius of curvature
 
             #---- Amplitude Transmission / Pupil shape ---------------
             self.pupil_size_mm = 26.0
             # Note that the IDL code says 26 mm is 683.75 pixels using the assumed demagnification
-            self.pupil_rotation_angle = 2.0 
+            self.pupil_rotation_angle = 2.0
 
         else:
             # 5.8 microns P-V over 32.15 mm (Loic's email)
@@ -266,11 +244,34 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
             self.prism_clear_aperture = 0.0280 # clear aperture for the prism + mount
             self.cylinder_rotation_angle = 2.25
 
-        # initial population of the OPD array for display etc.
-        #self.opd = self.makeCylinder( 2.0e-6) 
+        # We need to know the magnification scale of the NIRISS reimaged pupil
+        # in order to compute the curvature in the full-pupil units that POPPY uses
+        # internally
+
+        # pupil magnification computed from 22 mm clear aperture reported = 
+        # 857-169 pixels = 699 pixels in the 2D array which has scale =.00645604
+        # = 4.44175 meters projected on the primary
+
+        # 2014-05-21 but wait, that's actually 26 mm!
+        # so the 699 pixels at 0.00645604 m/pixel = 4.512 meters implies the magnificationa 173 not 170
+        # but, double wait, it's actually more like 687 pixels across rather than 699 so that makes it 170 again.
+
+        # therefore the magnification is 0.1708 meters projected on the primary / mm in the NIRISS pupil
+        #self.pupil_demagnification =  170.8367 # meters on the primary / meters in the NIRISS pupil
+        #self.pupil_demagnification =  173.56 # meters on the primary / meters in the NIRISS pupil
+
+        # Anand says: 
+        #  nominally the circumscribing circle at the PW of NIRISS is ~40mm.  I use 39mm for the nrm, but it's slightly field-dependent.  Compare that to the 6.6... PM circle?
+        self.pupil_demagnification = 6.6 / 0.040 # about 165
+
+        # perform an initial population of the OPD array for display etc.
         tmp = self.getPhasor(poppy.Wavefront(2e-6))
 
     def makeCylinder(self, wave):
+        """ Make an OPD array corresponding to the cylindrical weak lens
+        used for defocusing the spectrum in the perpendicular-to-dispersion direction.
+        """
+ 
         if isinstance(wave, poppy.Wavefront):
             wavelength=wave.wavelength
         else:
@@ -279,17 +280,13 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
 
         # compute indices in pixels, relative to center of plane, with rotation
         # units of these are meters
-        #y, x = np.indices(self.opd.shape, dtype=float)
-        #y-= (self.opd.shape[0]-1)/2.
-        #x-= (self.opd.shape[1]-1)/2.  
         y, x = wave.coordinates()
- 
+
         ang = np.deg2rad(self.cylinder_rotation_angle )
         x = np.cos(ang)*x - np.sin(ang)*y
         y = np.sin(ang)*x + np.cos(ang)*y
 
-        _log.debug("Rotating local grism axes by {0} degrees".format(self.cylinder_rotation_angle))
-        
+        _log.debug(" Rotating local grism axes by {0} degrees".format(self.cylinder_rotation_angle))
 
         # From IDL code by David Lafreniere:
         #  ;the cylindrical defocus
@@ -326,19 +323,18 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
         # what is the pupil scale at the *reimaged pupil* of the grism?
         pupil_scale_m_per_pix = 38.0255e-6 # Based on UdeM info in wfe_cylindricallens.pro
         #sag = np.sqrt(self.cylinder_radius**2 - (x*self.amplitude_header['PUPLSCAL']/self.pupil_demagnification)**2) - self.cylinder_radius
-        sag = self.cylinder_radius -  np.sqrt(self.cylinder_radius**2 - (x * pupil_scale_m_per_pix )**2 )
+        sag = np.sqrt(self.cylinder_radius**2 - (x/self.pupil_demagnification)**2) - self.cylinder_radius
+        #sag = self.cylinder_radius -  np.sqrt(self.cylinder_radius**2 - (x * pupil_scale_m_per_pix )**2 )
 
 
         # what we really want to do is take the physical properties of the as-built optic, and interpolate into that
         # to compute the OPD after remapping based on the pupil scale (and distortion?)
         #y0=(rpuppix**2+self.cylinder_sag**2)/(2*self.cylinder_sag)
-        
         #wfe1=y0-np.sqrt(y0**2-x**2)
 
         _log.debug(" Cylinder P-V: {0:.4g} meters physical sag across full array".format(sag.max()-sag.min()) )
 
         #fits.writeto('py_opd.fits', sag*(self.ZnSe_index(wavelength) -1), clobber=True)
-
         # remove piston offset 
         #sag -= sag[wnz].min()   # normalize to 0 at the minimum
         #sag -= sag[wnz].mean()    # normalize around the mean
@@ -347,15 +343,17 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
         _log.debug(" Cylinder P-V: {0:.4g} meters physical sag across clear aperture".format(sag[wnz].max()-sag[wnz].min()) )
 
 
-        # scale for ZnSe index of refraction, 
-        opd = sag *  (self.ZnSe_index(wavelength) -1)
-        _log.debug(" Scaling for ZnSe index of refraction")
+        # scale for index of refraction
+        index = self.ZnS_index(wavelength)
+        opd = sag *  ( index-1)
+        _log.debug(" Scaling for ZnS index of refraction {0} at {1:.3g} microns".format(index, wavelength*1e6))
         _log.debug(" Cylinder P-V: {0:.4g} meters optical sag at {1:.3g} microns across clear aperture".format(opd[wnz].max()-opd[wnz].min(), wavelength*1e6) )
         return opd
 
-        #stop()
-
     def makePupil(self, wave):
+        """ Make array for the pupil obscuration appropriate to the grism
+        """
+
         if isinstance(wave, poppy.Wavefront):
             wavelength=wave.wavelength
         else:
@@ -375,77 +373,40 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
 
         return pupilmask
 
-    def ZnSe_index(self, wavelength):
-        """ Return cryogenic index of refraction of ZnSe at an arbitrary wavelength
+
+    def ZnS_index(self, wavelength, temperature=40):
+        """ Return cryogenic index of refraction of ZnS (Cleartran)
+
+        Based on IDL function index_cleartran provided by Loic Albert at U de Montreal
+        Which was in turn based on Leviton and Fray 2013
+        http://proceedings.spiedigitallibrary.org/proceeding.aspx?articleid=1744938
+        doi:10.1117/12.2024817
+
         """
-        # From ZnSe_index.txt provided by Loic Albert
-        #from Michael M. Nov 9 2012 in excel table],
-        #ZnSe-40K index,  ],
-        # ZnSe
-        import scipy.interpolate
+        lambda_micron = wavelength*1e6
 
-        ZnSe_data =np.asarray([[500,  2.7013],
-                                [540,  2.6508],
-                                [600,  2.599],
-                                [644,  2.56937],
-                                [688,  2.54709],
-                                [732,  2.52977],
-                                [776,  2.51596],
-                                [820,  2.50472],
-                                [864,  2.49542],
-                                [900,  2.4876],
-                                [908,  2.48763],
-                                [952,  2.48103],
-                                [996,  2.47537],
-                                [1040,  2.47048],
-                                [1084,  2.46622],
-                                [1128,  2.46249],
-                                [1172,  2.4592],
-                                [1216,  2.45628],
-                                [1260,  2.45368],
-                                [1304,  2.45134],
-                                [1348,  2.44924],
-                                [1392,  2.44734],
-                                [1436,  2.44561],
-                                [1480,  2.44405],
-                                [1524,  2.44261],
-                                [1568,  2.4413],
-                                [1612,  2.44009],
-                                [1656,  2.43897],
-                                [1700,  2.43794],
-                                [1744,  2.43699],
-                                [1788,  2.4361],
-                                [1832,  2.43527],
-                                [1876,  2.4345],
-                                [1920,  2.43378],
-                                [1964,  2.4331],
-                                [2008,  2.43247],
-                                [2052,  2.43187],
-                                [2096,  2.4313],
-                                [2140,  2.43077],
-                                [2184,  2.43026],
-                                [2228,  2.42978],
-                                [2272,  2.42933],
-                                [2316,  2.4289],
-                                [2360,  2.42848],
-                                [2404,  2.42809],
-                                [2448,  2.42771],
-                                [2492,  2.42735],
-                                [2536,  2.42701],
-                                [2580,  2.42667],
-                                [2624,  2.42635],
-                                [2668,  2.42604],
-                                [2712,  2.42575],
-                                [2756,  2.42546],
-                                [2800,  2.42518],
-                                [2844,  2.42491],
-                                [2888,  2.42465],
-                                [2932,  2.4244],
-                                [2976,  2.42416],
-                                [3020,  2.42392]] )
+        # Sellmeier dispersion model
+        #From Leviton & Frey measurements (SPIE preprint) (assumes lambda in microns)
+        S_1 = np.asarray([[3.35933,-5.12262e-4,1.01086e-5,-4.14798e-8,6.91051e-11]])
+        S_2 = np.asarray([[0.706131,4.89603e-4,-8.91159e-6,3.81621e-8,-6.54805e-11]])
+        S_3 = np.asarray([[4.02154,-2.93193e-2,2.31080e-4,-7.57289e-07,8.31188e-10]])
+        S_ij = np.concatenate( (S_1,S_2,S_3), axis=0)
+        lambda_1 = np.array([[0.161151, -8.93057E-06, 2.73286E-07, -1.23408E-09, 2.29917E-12]])
+        lambda_2 = np.array([[0.282427, -4.66636E-05, 7.55906E-07, -2.77513E-09, 4.35237E-12]])
+        lambda_3 = np.array([[41.1590, -0.161010, 1.23906E-03, -3.95895E-06, 4.16370E-09]])
+        lambda_ij = np.concatenate((lambda_1,lambda_2,lambda_3))
 
-        interpol_znse = scipy.interpolate.interp1d( ZnSe_data[:,0]*1e-9, ZnSe_data[:,1] )
-        return interpol_znse(wavelength)
+
+        n2minus1 = 0.0
+        T=temperature
+        for i in range(3):
+            S_i =       S_ij[i,0]      + S_ij[i,1]     *T + S_ij[i,2]     *T**2.0 + S_ij[i,3]     *T**3.0 + S_ij[i,4]     *T**4.0
+            lambda_i =  lambda_ij[i,0] + lambda_ij[i,1]*T + lambda_ij[i,2]*T**2.0 + lambda_ij[i,3]*T**3.0 + lambda_ij[i,4]*T**4.0
+            n2minus1 += S_i*lambda_micron**2.0/(lambda_micron**2.0 - lambda_i**2.0)
+
+        cleartran_index = np.sqrt(1.0 + n2minus1)
+        return cleartran_index
+
 
     def getPhasor(self, wave):
         """ Scale the cylindrical lens OPD appropriately for the current wavelength
@@ -459,13 +420,11 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
         self.opd = self.makeCylinder(wave)
 
         # Return the OPD derived from them both
-        #return poppy.FITSOpticalElement.getPhasor(self, wave)
         return   poppy.OpticalElement.getPhasor(self, wave)
 
 
     def display(self, opd_vmax=6e-6, *args, **kwargs):
         "Same as regular display for any other optical element, except opd_vmax default changed"
-        #poppy.FITSOpticalElement.display(self,*args, opd_vmax=opd_vmax, **kwargs)
         poppy.AnalyticOpticalElement.display(self,*args, opd_vmax=opd_vmax, **kwargs)
 
 
