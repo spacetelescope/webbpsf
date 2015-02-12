@@ -52,10 +52,12 @@ Version History and Change Log
 -------------------------------
 
 
+.. _rel0.3.0:
+
 Version 0.3.0
 =================
 
-Released ?????
+Released 2015 February
 
 This is a major release of WebbPSF, with several additions to the optical
 models (particularly for slit and slitless spectroscopy), and extensive software
@@ -165,11 +167,10 @@ cross-platform widget toolkit, wxpython, although the older tkinter-based GUI is
 * Improvements to parallelization code. Better :ref:`documentation for parallelization <performance_and_parallelization>`.  PyFFTW3 replaced with pyFFTW for optimized 
   FFTs (yes, those are two entirely different packages). 
 
-* New GUI using the wxpython widget toolkit in place of the older/less
+* Alternate GUI using the wxpython widget toolkit in place of the older/less
   functional Tkinter tool kit. Thanks to Klaus Pontoppidan for useful advice in
   wxpython. This should offer better cross-platform support and improved long
-  term extensibility. (For now, the existing Tkinter GUI remains in place but
-  is deprecated and further development is not planned.) 
+  term extensibility. The existing Tkinter GUI remains in place as well.
 
     * The calculation options dialog box now has an option to toggle between monochromatic and broadband calculations. In monochromatic mode, the "# of wavelengths" field is 
       replaced by a "wavelength in microns" field. 
@@ -197,11 +198,16 @@ cross-platform widget toolkit, wxpython, although the older tkinter-based GUI is
   message providing some information of use to new users. This includes checking
   whether the requisite data files have been installed properly, and alerting users
   to the location of the configuration file, among other things.
+ 
+* Refactoring of instrument class and rebalancing where the lines between WebbPSF and POPPY had been blurry. 
 
 * Some bugfixes in the example code. Thanks to Diane Karakla, Anand Sivaramakrishnan, Schuyler Wolff.
 
 * Various updates & enhancements to this documentation. More extensive documentation for POPPY now available as well. Doc theme derived from astropy.
 
+* Improved unit test suite and test coverage. Integration with Travis CI for continuous testing: https://travis-ci.org/mperrin/webbpsf
+
+* Updated to astropy package helpers framework 0.4.4 
 
 
 Version 0.2.8
