@@ -20,9 +20,6 @@ env:
 
 matrix:
     include:
-        # Do a coverage test in Python 2.
-        - python: 2.7
-          env: SETUP_CMD='test --coverage'
         # Check for sphinx doc build warnings - we do this first because it
         # may run for a long time
         - python: 2.7
