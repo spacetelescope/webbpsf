@@ -9,7 +9,7 @@ The WebbPSF GUI provides an easy interface to most, but not quite all, of the fu
 Using the Graphical Interface
 =============================
 
-Once you have :ref:`installed WebbPSF <installation.rst>`, you should have the launcher script ``webbpsfgui`` available. (If not, verify that the WebbPSF installation directory is on your system ``$PATH``.)
+Once you have :ref:`installed WebbPSF <installation>`, you should have the launcher script ``webbpsfgui`` available. (If not, verify that the WebbPSF installation directory is on your system ``$PATH``.)
 
 Alternatively, you may start the GUI from an interactive session::
 
