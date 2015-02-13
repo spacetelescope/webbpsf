@@ -11,7 +11,7 @@ insts = ['FGS', 'NIRCam', 'NIRSpec','NIRISS','MIRI']
 
 subprocess.call("mkdir ~/tmp/minimal-webbpsf-data", shell=True)
 os.chdir(os.path.expanduser("~/tmp/minimal-webbpsf-data"))
-subprocess.call("tar xvzf ~/web/software/webbpsf/webbpsf-data-0.3.0.tar.gz", shell=True)
+subprocess.call("tar xvzf ~/web/software/webbpsf/webbpsf-data-0.3.1.tar.gz", shell=True)
 os.chdir("webbpsf-data")
 
 
