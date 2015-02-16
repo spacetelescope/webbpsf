@@ -416,6 +416,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         if return_intermediates: # this implies we got handed back a tuple, so split it apart
             result, intermediates = result
 
+        self._applyJitter(result, local_options)  # will immediately return if there is no jitter parameter in local_options
 
         self._getFITSHeader(result, local_options)
 
