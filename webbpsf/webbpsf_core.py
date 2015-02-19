@@ -416,6 +416,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         if return_intermediates: # this implies we got handed back a tuple, so split it apart
             result, intermediates = result
 
+        self._applyJitter(result, local_options)  # will immediately return if there is no jitter parameter in local_options
 
         self._getFITSHeader(result, local_options)
 
@@ -1204,6 +1205,11 @@ class NIRISS(JWInstrument):
     support in WebbPSF.
 
     """
+    SHORT_WAVELENGTH_MIN = 0.6 * 1e-6
+    SHORT_WAVELENGTH_MAX = LONG_WAVELENGTH_MIN = 2.35 * 1e-6
+    LONG_WAVELENGTH_MAX = 5.0 * 1e-6
+
+
     def __init__(self, auto_pupil=True):
         JWInstrument.__init__(self, "NIRISS", pixelscale=0.064)
 
@@ -1295,6 +1301,43 @@ class NIRISS(JWInstrument):
         if self.image_mask is not None:
             hdulist[0].header['CORONPOS'] = ( self.image_mask, 'NIRISS coronagraph spot location')
         hdulist[0].header['FOCUSPOS'] = (0,'NIRISS focus mechanism not yet modeled.')
+
+    def _validateConfig(self, **kwargs):
+        """Validate instrument config for NIRISS
+
+        For NIRISS, this optionally adjusts the instrument pupil scale
+        """
+        wavelengths = np.array(kwargs['wavelengths'])
+        if np.min(wavelengths) < self.SHORT_WAVELENGTH_MIN:
+            raise RuntimeError("The requested wavelengths are too short to be imaged with NIRISS")
+        if np.max(wavelengths) > self.LONG_WAVELENGTH_MAX:
+            raise RuntimeError("The requested wavelengths are too long to be imaged with NIRISS")
+        if (np.max(wavelengths) <= self.SHORT_WAVELENGTH_MAX and 
+            self.pupil=='NRM'):
+                raise RuntimeError('NRM pupil can only be used with long '
+                    'wavelength filters (F277W and longer)')
+
+
+        # NIRISS pupils: 
+        # Short wave filters can be used with a full (clear) pupil
+        # long filters have to be used with the CLEARP pupil that contains the
+        # PAR reference. 
+
+        if self.auto_pupil:
+            if (np.max(wavelengths) <= self.SHORT_WAVELENGTH_MAX and 
+                self.pupil_mask == 'CLEARP'): 
+                    new_pupil_mask=None 
+            elif  (np.min(wavelengths) >= self.LONG_WAVELENGTH_MIN and 
+                self.pupil_mask is None):
+                    new_pupil_mask='CLEARP'
+            else: new_pupil_mask=self.pupil_mask # default is same pupil
+
+            if new_pupil_mask != self.pupil_mask:
+                _log.info("NIRISS pupil obscuration updated to {0} to match "
+                          "the requested wavelength range".format(new_pupil_mask))
+                self.pupil_mask = new_pupil_mask
+
+        return super(NIRISS, self)._validateConfig(**kwargs)
 
 
 class FGS(JWInstrument):
