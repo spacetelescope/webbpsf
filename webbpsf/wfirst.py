@@ -1,3 +1,12 @@
+"""
+==============================
+WFIRST Instruments (pre-alpha)
+==============================
+
+WARNING: No realistic wavefront error map was available for WFIRST at release time.
+         This assumes a perfect telescope!
+"""
+
 import os.path
 import poppy
 
@@ -7,6 +16,9 @@ class WFIRSTInstrument(webbpsf_core.SpaceTelescopeInstrument):
     """
     WFIRSTInstrument contains data and functionality common to WFIRST
     instruments, such as setting the pupil shape
+
+    WARNING: No realistic wavefront error map was available for WFIRST at release time.
+             This assumes a perfect telescope!
     """
     def __init__(self, *args, **kwargs):
         super(WFIRSTInstrument, self).__init__(*args, **kwargs)
@@ -22,6 +34,9 @@ class WFIRSTImager(WFIRSTInstrument):
     """
     WFIRSTImager represents to the to-be-named wide field imager
     for the WFIRST mission
+
+    WARNING: No realistic wavefront error map was available for WFIRST at release time.
+             This assumes a perfect telescope!
     """
     def __init__(self):
         scale = 110e-3  # arcsec/px, WFIRST-AFTA SDT report v2 (p. 58)

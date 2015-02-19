@@ -105,32 +105,9 @@ def setup_logging(level='INFO',  filename=None):
 
     if filename is None: filename='none' # must be a string to store into the config system
     conf.logging_filename = filename
-
-    #conf.logging_level.save()
-    #conf.logging_filename.save()
-
     restart_logging(verbose=True)
 
-
-def get_webbpsf_data_path():
-    """ Get webbpsf data path
-
-    Simply checking an environment variable is not always enough, since 
-    for packaging this code as a Mac .app bundle, environment variables are 
-    not available since .apps run outside the Terminal or X11 environments.
-
-    Therefore, check first the environment variable WEBBPSF_PATH, and secondly
-    check the configuration file in the user's home directory.
-    """
-    import os
-    path = os.getenv('WEBBPSF_PATH') #, default= os.path.dirname(os.path.dirname(os.path.abspath(poppy.__file__))) +os.sep+"data" )
-    if path is None:
-        path = conf.WEBBPSF_PATH # read from astropy configuration system
-
-    if (path is None) or not os.path.isdir(path):
-        #(path == 'unknown') or (path == 'from_environment_variable'):
-        _log.critical("Fatal error: Unable to find required WebbPSF data files!")
-        print """
+MISSING_WEBBPSF_DATA_MESSAGE = """
  *********  ERROR  ******  ERROR  ******  ERROR  ******  ERROR  *************
  *                                                                          *
  *  WebbPSF requires several data files to operate.                         *
@@ -141,12 +118,35 @@ def get_webbpsf_data_path():
  *   - set the WEBBPSF_PATH variable in your webbpsf.cfg config file        *
  *     (probably in ~/.astropy/config/ or similar location)                 *
  *                                                                          *
- *  See the WebbPSF documentation for more details.                         *
+ *  See http://pythonhosted.org/webbpsf/installation.html, under            *
+ *  "Installing the Required Data Files", for more details.                 *
  *  WebbPSF will not be able to function properly until this has been done. *
  *                                                                          *
  ****************************************************************************
+"""
+
+def get_webbpsf_data_path():
+    """ Get webbpsf data path
+
+    Simply checking an environment variable is not always enough, since
+    for packaging this code as a Mac .app bundle, environment variables are
+    not available since .apps run outside the Terminal or X11 environments.
+
+    Therefore, check first the environment variable WEBBPSF_PATH, and secondly
+    check the configuration file in the user's home directory.
     """
-        raise IOError('Missing or invalid WEBBPSF_PATH to required data files')
+    import os
+    path_from_config = conf.WEBBPSF_PATH # read from astropy configuration
+    if path_from_config == 'from_environment_variable':
+        path = os.getenv('WEBBPSF_PATH')
+        if path is None:
+            raise EnvironmentError("Environment variable $WEBBPSF_PATH is not set!")
+    else:
+        path = path_from_config
+
+    # at minimum, the path must be a valid directory
+    if not os.path.isdir(path):
+        raise IOError("WEBBPSF_PATH ({}) is not a valid directory path!".format(path))
 
     return path
 
