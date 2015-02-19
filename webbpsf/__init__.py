@@ -85,15 +85,17 @@ from .utils import setup_logging, system_diagnostic #, _check_for_new_install, _
 if not _ASTROPY_SETUP_:
 
     utils.check_for_new_install()    # display informative message if so.
+    utils.restart_logging()          # restart logging based on saved settings.
 
     # this should display a warning to the user if they don't have WEBBPSF_PATH
     # defined in either the environment or in webbpsf.cfg
-    _data_path = utils.get_webbpsf_data_path()
-
-
-    utils.restart_logging()          # restart logging based on saved settings.
-
-
+    try:
+        utils.get_webbpsf_data_path()
+    except (EnvironmentError, IOError):
+        import traceback
+        import sys
+        traceback.print_exc()
+        sys.stderr.write(utils.MISSING_WEBBPSF_DATA_MESSAGE)
 
 try: 
     from .wxgui import wxgui  
