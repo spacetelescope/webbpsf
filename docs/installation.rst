@@ -13,15 +13,11 @@ Once the WebbPSF code has been installed, you should proceed to :ref:`install th
 
 For detailed instructions and software requirements, read on.
 
-------------
-
 .. admonition:: Optional: sign up to receive announcement of updates
 
    This is entirely optional, but you may wish to sign up to the mailing list ``webbpsf-users@stsci.edu``. This is a low-traffic moderated announce-only list, to which we will periodically post announcements of updates to this software.
 
    To subscribe, visit  the `maillist.stsci.edu server <https://maillist.stsci.edu/scripts/wa.exe?SUBED1=Webbpsf-users&A=1>`_
-
-------------
 
 Software Requirements
 -----------------------
@@ -68,14 +64,9 @@ for installing packages into your home directory. ::
 
     $ pip install webbpsf --user
 
-
-
-
 .. admonition:: For STScI Users Only
 
-   Users at STScI may also access WebbPSF through the standard `SSB software distributions <http://ssb.stsci.edu/ssb_software.shtml>`_.
-   Just select the desired version of SSB (``ssbx``, ``ssbdev``, or ``ssbrel``) and the webbpsf package will be available.
-
+   Users at STScI may also access WebbPSF through the standard `SSB software distributions <http://ssb.stsci.edu/ssb_software.shtml>`_. Set the environment variable ``WEBBPSF_PATH`` to ``/grp/jwst/ote/webbpsf-data``, select the desired version of SSB (``ssbx``, ``ssbdev``, or ``ssbrel``), and the webbpsf package will be available.
 
 The source code is hosted in `this repository on GitHub <https://github.com/mperrin/webbpsf>`_. See :ref:`below <install_dev_version>` for more on how
 to install from the development source.
