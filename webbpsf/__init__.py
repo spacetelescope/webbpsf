@@ -92,10 +92,9 @@ if not _ASTROPY_SETUP_:
     try:
         utils.get_webbpsf_data_path()
     except (EnvironmentError, IOError):
-        import traceback
         import sys
-        traceback.print_exc()
         sys.stderr.write(utils.MISSING_WEBBPSF_DATA_MESSAGE)
+        raise
 
 try: 
     from .wxgui import wxgui  
