@@ -67,6 +67,13 @@ default settings can now be customized by a text configuration file in your home
 directory.  
 
 
+.. warning::
+
+    When updating to version 0.3 you will need to also update your WebbPSF data files 
+    to the latest version as well. 
+
+
+
 **Updates to the optical models**:
 
 
