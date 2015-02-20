@@ -6,15 +6,21 @@ flagship infrared space telescope. WebbPSF can simulate images for any of the
 four science instruments plus the fine guidance sensor, including both direct
 imaging and coronagraphic modes.
 
-Developed by Marshall Perrin and contributors at STScI, 2010-2015.
+Developed by Marshall Perrin, Joseph Long, and collaborators, 2010-2015.
 
 Documentation can be found online at https://pythonhosted.org/webbpsf/
 
 WebbPSF requires a large amount of input data for its simulations, including
 optical path difference (OPD) maps, filter transmission curves, and coronagraph
 Lyot mask shapes. These data files are not included in this source distribution.
+Please see the documentation to download the required data files.
 
-Please see the main WebbPSF web page, linked above, to download the required
-data files.
+This is intended to be an `Astropy <http://astropy.org/>`_ affiliated package.
 
-This is an `Astropy <http://astropy.org/>`_ affiliated package.
+
+Status reports for developers
+-----------------------------
+
+.. image:: https://travis-ci.org/mperrin/webbpsf.png?branch=master
+    :target: https://travis-ci.org/mperrin/webbpsf
+        :alt: Test Status
