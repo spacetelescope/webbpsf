@@ -5,6 +5,9 @@ VER="0.3.1"
 TAR=/usr/bin/tar  # make sure to use the BSD version, required for the -L option
 DATAROOT=/itar/jwst/tel/share/webbpsf/webbpsf-data-source
 
+export COPYFILE_DISABLE=1 	# If on Mac OS, tell tar to not include ._* files for
+		   	# HFS-specific extended attributes
+
 # Create the data tarfile
 # make a copy of the filter file excluding FND to appease MIRI PI requirements
 # Also exclude various things we don't want to distribute, like .svn, the old OPDs, and the data source directories

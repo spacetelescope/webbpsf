@@ -8,15 +8,17 @@ import glob
 
 insts = ['FGS', 'NIRCam', 'NIRSpec','NIRISS','MIRI']
 
+WORKING_DIR =  os.path.expanduser("~/tmp/minimal-webbpsf-data")
+subprocess.call("mkdir "+WORKING_DIR, shell=True)
 
-subprocess.call("mkdir ~/tmp/minimal-webbpsf-data", shell=True)
-os.chdir(os.path.expanduser("~/tmp/minimal-webbpsf-data"))
+
+print "#### Expanding full tar file into temp directory ####"
+os.chdir(WORKING_DIR)
 subprocess.call("tar xvzf ~/web/software/webbpsf/webbpsf-data-0.3.1.tar.gz", shell=True)
-os.chdir("webbpsf-data")
 
-
+print "#### Trimming to only one OPD file per instrument ####"
 for instr in insts:
-    files = glob.glob(os.path.join(instr, "OPD", "*.fits"))
+    files = glob.glob(os.path.join(WORKING_DIR, 'webbpsf-data', instr, "OPD", "*.fits"))
     files.sort()
     print instr, files
     
@@ -32,11 +34,13 @@ for instr in insts:
     f0.flush()
     f0.close()
 
-os.remove('pupil_RevT.fits')
-os.remove('tricontagon.fits')
+print "#### Removing extra optional pupil files ####"
+os.remove(os.path.join(WORKING_DIR, 'webbpsf-data','pupil_RevT.fits'))
+os.remove(os.path.join(WORKING_DIR, 'webbpsf-data','tricontagon.fits'))
 
-
-subprocess.call('tar cvzf minimal-webbpsf-data.tar.gz', shell=True)
-print "===>  minimal-webbpsf-data.tar.gz "
+print "#### Creating tar file ####"
+os.chdir(WORKING_DIR)
+subprocess.call('tar cvzf minimal-webbpsf-data.tar.gz webbpsf-data', shell=True)
+print "===>  ~/tmp/minimal-webbpsf-data.tar.gz "
 
 
