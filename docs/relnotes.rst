@@ -52,6 +52,7 @@ Version History and Change Log
 -------------------------------
 
 
+.. _whatsnew:
 .. _rel0.3.0:
 
 Version 0.3.0
@@ -63,8 +64,7 @@ This is a major release of WebbPSF, with several additions to the optical
 models (particularly for slit and slitless spectroscopy), and extensive software
 improvements and under-the-hood infrastructure code updates. Many 
 default settings can now be customized by a text configuration file in your home
-directory. The GUI has also been completely revamped to use a better
-cross-platform widget toolkit, wxpython, although the older tkinter-based GUI is also still available. 
+directory.  
 
 
 **Updates to the optical models**:

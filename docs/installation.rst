@@ -103,6 +103,10 @@ Files containing such information as the JWST pupil shape, instrument throughput
 
 You should now be able to successfully ``import webbpsf`` in a Python session, or start the GUI with the command ``webbpsfgui``.
 
+
+.. warning::
+  If you have previously installed the data files for webbpsf 0.2, you will need to replace them with the updated data files for 0.3
+
 .. admonition:: For STScI Users Only
 
   Users at STScI may access the required data files from the Central Storage network. 
