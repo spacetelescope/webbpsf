@@ -1,5 +1,5 @@
 WebbPSF: Simulated Point Spread Functions for the James Webb Space Telescope
-----------------------------------------------------------------------------
+============================================================================
 
 WebbPSF produces simulated PSFs for the James Webb Space Telescope, NASA's next
 flagship infrared space telescope. WebbPSF can simulate images for any of the
