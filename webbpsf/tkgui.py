@@ -301,7 +301,7 @@ class WebbPSF_GUI(object):
         self._add_labeled_entry('nlambda', lf, label='# of wavelengths:',  width=3, value='', position=(r,0), postlabel='Leave blank for autoselect')
         r+=1
 
-        self._add_labeled_dropdown("jitter", lf, label='Jitter model:', values=  ['Just use OPDs' ], width=20, position=(r,0), sticky='W', columnspan=2)
+        self._add_labeled_dropdown("jitter", lf, label='Jitter model:', values=  ['Just use OPDs', 'Gaussian - 7 mas rms', 'Gaussian - 30 mas rms'], width=20, position=(r,0), sticky='W', columnspan=2)
         r+=1
         self._add_labeled_dropdown("output_format", lf, label='Output Format:', values=  ['Oversampled image','Detector sampled image','Both as FITS extensions', 'Mock JWST DMS Output' ], width=30, position=(r,0), sticky='W', columnspan=2)
         #self._add_labeled_dropdown("jitter", lf, label='Jitter model:', values=  ['Just use OPDs', 'Gaussian blur', 'Accurate yet SLOW grid'], width=20, position=(r,0), sticky='W', columnspan=2)
@@ -564,8 +564,15 @@ class WebbPSF_GUI(object):
         #options['downsample'] = bool(self.vars['downsamp'])
         options['rebin'] = not (self.output_type == 'Oversampled PSF only')  #was downsample, which seems wrong?
         options['mock_dms'] = (self.output_type == 'Mock full image from JWST DMS')
-        options['jitter'] = self.widgets['jitter'].get()
-        #print "Downsamp value: ",  options['downsample']
+        jitter_choice = self.widgets['jitter'].get()
+        if 'Gaussian' in jitter_choice:
+            options['jitter'] = 'gaussian'
+            if '7 mas' in jitter_choice:
+                options['jitter_sigma'] = 0.007
+            elif '30 mas' in jitter_choice:
+                options['jitter_sigma'] = 0.030
+        else:
+            options['jitter'] = None
 
         # and get the values that may have previously been set by the 'advanced options' dialog
         if self.advanced_options is not None:
