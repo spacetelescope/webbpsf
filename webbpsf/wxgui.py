@@ -739,10 +739,10 @@ class WebbPSF_GUI(wx.Frame):
         if jitterchoice == 'Just use OPDs':
             options['jitter'] = None
         elif jitterchoice == 'Gaussian jitter with 7 mas rms':
-            options['jitter'] = 'gauss'
+            options['jitter'] = 'gaussian'
             options['jitter_sigma'] = 0.007
         elif jitterchoice == 'Gaussian jitter with 30 mas rms':
-            options['jitter'] = 'gauss'
+            options['jitter'] = 'gaussian'
             options['jitter_sigma'] = 0.030
         else: 
             _log.error("Unknown value for jitter selection: "+jitterchoice)
