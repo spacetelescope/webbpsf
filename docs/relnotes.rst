@@ -54,6 +54,13 @@ Version History and Change Log
 
 .. _whatsnew:
 
+Version 0.3.3
+=================
+
+*Not yet released*
+
+.. _rel0.3.2:
+
 Version 0.3.2
 =================
 
