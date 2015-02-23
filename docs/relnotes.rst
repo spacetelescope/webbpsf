@@ -53,6 +53,17 @@ Version History and Change Log
 
 
 .. _whatsnew:
+
+Version 0.3.2
+=================
+
+Released February 23, 2015
+
+This is a bug-fix release to address an issue that rendered the GUI unusable.
+(See `#55 <https://github.com/mperrin/webbpsf/pull/55>`_.) API usage was unaffected.
+
+(Ask not what happened to 0.3.1.)
+
 .. _rel0.3.0:
 
 Version 0.3.0
