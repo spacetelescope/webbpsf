@@ -59,6 +59,8 @@ Version 0.3.3
 
 *Not yet released*
 
+* Fixed an issue that would prevent users from adding defocus to PSF calculations (`#59 <https://github.com/mperrin/webbpsf/issues/59>`)
+
 .. _rel0.3.2:
 
 Version 0.3.2
