@@ -11,8 +11,8 @@ _log.addHandler(logging.NullHandler())
 
 from .. import webbpsf_core
 import poppy
+from poppy.tests.test_errorhandling import _exception_message_starts_with
 
-#poppy._log.setLevel(logging.INFO)
 
 
 # The following functions are used in each of the test_<SI> files to
@@ -209,7 +209,7 @@ def test_instrument():
 
     with pytest.raises(ValueError) as excinfo:
         tmp = webbpsf_core.Instrument('ACS')
-    assert excinfo.value.message.startswith('Incorrect instrument name')
+    assert _exception_message_starts_with(excinfo,'Incorrect instrument name')
 
 
 def test_calc_or_load_PSF(outputdir=None):

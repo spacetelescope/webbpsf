@@ -84,7 +84,7 @@ from .utils import setup_logging, system_diagnostic #, _check_for_new_install, _
 
 if not _ASTROPY_SETUP_:
 
-    utils.check_for_new_install()    # display informative message if so.
+    #utils.check_for_new_install()    # display informative message if so.
     utils.restart_logging()          # restart logging based on saved settings.
 
     # this should display a warning to the user if they don't have WEBBPSF_PATH
@@ -111,6 +111,7 @@ except ImportError:
 
 
 if not (_HAVE_WX_GUI or _HAVE_TK_GUI):
+    import warnings
     warnings.warn("Warning: Neither Tk nor wx GUIs could be imported. "
                   "Graphical interface disabled")
 else:

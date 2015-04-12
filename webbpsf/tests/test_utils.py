@@ -9,13 +9,11 @@ try:
 except:
     _HAVE_PYTEST = False
 
-
-
-
 import logging
 _log = logging.getLogger('test_webbpsf')
 _log.addHandler(logging.NullHandler())
 
+from poppy.tests.test_errorhandling import _exception_message_starts_with
 
 from .. import webbpsf_core
 from .. import utils
@@ -56,7 +54,7 @@ def test_logging_setup():
 
     with pytest.raises(TypeError) as excinfo:
         utils.setup_logging(level='some junk')
-    assert excinfo.value.message.startswith('Provided value for configuration item logging_level not valid:')
+    assert _exception_message_starts_with(excinfo,'Provided value for configuration item logging_level not valid:')
 
 
 def test_diagnostic():

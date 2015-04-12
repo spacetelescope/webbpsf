@@ -22,7 +22,7 @@ Some code based on/borrowed from Scamp by Klaus Pontoppidan
 try:
     import wx, wx.html
 except ImportError:
-    raise ImportError,"The wxPython module is required to run this program."
+    raise ImportError("The wxPython module is required to run this program.")
 
 
 import logging
@@ -655,7 +655,7 @@ class WebbPSF_GUI(wx.Frame):
 
     def ev_update_OPD_labels(self, event):
         "Update the descriptive text for all OPD files"
-        for iname in self.instrument.keys():
+        for iname in self.instrument:
             self.ev_update_OPD_label(self.widgets[iname+"_opd"], self.widgets[iname+"_opd_label"], iname)
 
     def ev_update_OPD_label(self, widget_combobox, widget_label, iname):
@@ -751,7 +751,7 @@ class WebbPSF_GUI(wx.Frame):
 
         # and get the values that may have previously been set by the 'advanced options' dialog
         if self.advanced_options is not None:
-            for a in self.advanced_options.keys():
+            for a in self.advanced_options:
                 options[a] = self.advanced_options[a]
 
 
@@ -847,7 +847,7 @@ class PSFCalcThread(Thread):
             source = poppy.specFromSpectralType(masterapp.sptype)
         else:
             source=None # generic flat spectrum
-        print "starting calc in thread"
+        print("starting calc in thread")
 
         if instrument.options['fov_in_arcsec']:
             fov_arcsec = masterapp.FOV
@@ -1120,7 +1120,7 @@ class WebbPSFOptionsDialog(WebbPSFDialog):
                 default=self.input_options['psf_normalize'], position=(r,0))
         r+=1
         self._add_labeled_dropdown("psf_cmap", panel2,sizer, label='    Color table:', 
-                choices=[a for a in self.colortables.keys()],  
+                choices=[a for a in self.colortables],  
                 default=self.input_options['psf_cmap_str'], 
                 position=(r,0))
         panel2.SetSizerAndFit(sizer)
@@ -1142,12 +1142,12 @@ class WebbPSFOptionsDialog(WebbPSFDialog):
         self.SetSizerAndFit(topSizer)
         self.Show(True)
     #def OnButtonCancel(self, event):
-        #print "User pressed Cancel"
+        #print("User pressed Cancel")
         #self.Close()
         #self.Destroy()
 
     def OnButtonOK(self, event):
-        print "User pressed OK"
+        print("User pressed OK")
         try:
             results = {}
             results['force_coron'] =    self.widgets['force_coron'].GetValue() == 'full coronagraphic propagation (FFT/SAM)'
@@ -1164,7 +1164,7 @@ class WebbPSFOptionsDialog(WebbPSFDialog):
             results['psf_normalize'] =  self.widgets['psf_normalize'].GetValue()
 
 
-            print results
+            print(results)
             self.results = results # for access from calling routine
 
             self.Close()
@@ -1287,12 +1287,12 @@ class WebbPSFPreferencesDialog(WebbPSFDialog):
         dlg = wx.DirDialog(self, 'Choose WebbPSF Data Directory', defaultPath=os.getcwd())
 
         if dlg.ShowModal() == wx.ID_OK:
-            print "Directory Selected: "+dlg.GetPath()
+            print("Directory Selected: "+dlg.GetPath())
         else:
-            print "Dialog cancelled"
+            print("Dialog cancelled")
 
     def OnButtonOK(self, event):
-        print "User pressed OK"
+        print("User pressed OK")
         try:
             conf.default_oversampling = int(self.widgets['default_oversampling'].GetValue())
             conf.default_fov_arcsec = float(self.widgets['default_fov_arcsec'].GetValue())
@@ -1310,7 +1310,7 @@ class WebbPSFPreferencesDialog(WebbPSFDialog):
 #            results['psf_normalize'] =  self.widgets['psf_normalize'].GetValue()
 #
 #
-#            print results
+#            print(results)
 #            self.results = results # for access from calling routine
 
             utils.save_config()

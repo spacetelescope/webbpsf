@@ -9,6 +9,7 @@ _log.addHandler(logging.NullHandler())
 
 from .. import webbpsf_core
 import poppy
+from poppy.tests.test_errorhandling import _exception_message_starts_with
 
 
 #------------------    NIRCam Tests    ----------------------------
@@ -199,14 +200,14 @@ def test_nircam_auto_pixelscale():
     # wavelengths don't fit on one channel -> exception
     with pytest.raises(RuntimeError) as excinfo:
         nc._validateConfig(wavelengths=np.linspace(nc.SHORT_WAVELENGTH_MIN - 1e-6, nc.SHORT_WAVELENGTH_MIN, 3))
-    assert excinfo.value.message == "The requested wavelengths are too short to be imaged with NIRCam"
+    assert _exception_message_starts_with(excinfo,"The requested wavelengths are too short to be imaged with NIRCam")
 
     with pytest.raises(RuntimeError) as excinfo:
         nc._validateConfig(wavelengths=np.linspace(nc.LONG_WAVELENGTH_MAX, nc.LONG_WAVELENGTH_MAX + 1e-6, 3))
-    assert excinfo.value.message == "The requested wavelengths are too long to be imaged with NIRCam"
+    assert _exception_message_starts_with(excinfo,"The requested wavelengths are too long to be imaged with NIRCam")
 
     with pytest.raises(RuntimeError) as excinfo:
         nc._validateConfig(wavelengths=np.linspace(nc.SHORT_WAVELENGTH_MAX - 1e-6, nc.LONG_WAVELENGTH_MIN + 1e-6, 3))
-    assert excinfo.value.message == ("Wavelengths requested don't fit entirely on either NIRCam short"
+    assert _exception_message_starts_with(excinfo,"Wavelengths requested don't fit entirely on either NIRCam short"
                                      " or long wavelength channels")
 

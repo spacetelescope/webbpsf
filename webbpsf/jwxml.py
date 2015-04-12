@@ -42,7 +42,7 @@ class Segment_Update(object):
         self.units = dict()
         self.moves = dict()
         for move in iterchildren(xmlnode):
-            #print move.tag, move.text 
+            #print(move.tag, move.text )
             self.moves[move.tag] =float(move.text)
             self.units[move.tag] = move.attrib['units']
             #X_TRANS, Y_TRANS, PISTON, X_TILT, Y_TILT, CLOCK
@@ -71,7 +71,7 @@ class Segment_Update(object):
         """ The XML text representation of a given move """
         text= '        <UPDATE id="{0.id}" type="{0.type}" seg_id="{0.segment}" absolute="{absolute}" coord="{0.coord}" stage_type="{0.stage_type}">\n'.format( self, absolute = str(self.absolute).lower())
         for key in ['X_TRANS','Y_TRANS','PISTON','X_TILT', 'Y_TILT', 'CLOCK']:
-            if key in self.moves.keys():
+            if key in self.moves:
                 text+='            <{key}  units="{unit}">{val:E}</{key}>\n'.format(key=key, unit=self.units[key], val=self.moves[key])
         text+= '        </UPDATE>\n'
         return text
@@ -114,7 +114,6 @@ class SUR(object):
         for grp in self._tree.getroot().iter('GROUP'):
             myupdates = []
             for update in grp.iter('UPDATE'):
-                #print update
                 myupdates.append(Segment_Update(update))
             self.groups.append(myupdates)
 
@@ -229,7 +228,7 @@ class Aperture(object):
         for i in range(1,self.Sci2IdlDeg+1):
             for j in range(0,i+1):
                 #if self.AperName == 'FGS2_FULL_CNTR':
-                    #print 'Sci2IdlX{0:1d}{1:1d}'.format(i,j), self.__dict__['Sci2IdlX{0:1d}{1:1d}'.format(i,j)]
+                    #print('Sci2IdlX{0:1d}{1:1d}'.format(i,j), self.__dict__['Sci2IdlX{0:1d}{1:1d}'.format(i,j)])
                 self.Sci2IdlCoeffs_X[i,j] = self.__dict__['Sci2IdlX{0:1d}{1:1d}'.format(i,j)]
                 self.Sci2IdlCoeffs_Y[i,j] = self.__dict__['Sci2IdlY{0:1d}{1:1d}'.format(i,j)]
                 self.Idl2SciCoeffs_X[i,j] = self.__dict__['Idl2SciX{0:1d}{1:1d}'.format(i,j)]
@@ -324,7 +323,7 @@ class Aperture(object):
         XIdl = np.asarray(XIdl, dtype=float)
         YIdl = np.asarray(YIdl, dtype=float)
  
-        #print self.V2Ref, self.V3Ref
+        #print(self.V2Ref, self.V3Ref)
         #rad2arcsec = 1./(np.pi/180/60/60)
 
         #V2Ref and V3Ref are now in arcseconds in the XML file
@@ -704,7 +703,7 @@ def plotAllSIAFs(subarrays = True, showorigin=True, showchannels=True, **kwargs)
 
     for instr in ['NIRCam','NIRISS','NIRSpec','FGS','MIRI']:
         aps =SIAF(instr, **kwargs)
-        print "{0} has {1} apertures".format(aps.instrument, len(aps))
+        print("{0} has {1} apertures".format(aps.instrument, len(aps)))
 
         aps.plot(clear=False, subarrays=subarrays)
         if showorigin: aps.plotDetectorOrigin()
@@ -726,12 +725,12 @@ class Test_SIAF(unittest.TestCase):
         nca = siaf['NIRCAM A']
 
         self.assertAlmostEqualTwo( nca.Det2Sci(startx,starty), (1020.,1020.))
-        print "Det2Sci OK"
+        print("Det2Sci OK")
 
         self.assertAlmostEqualTwo( nca.Det2Idl(startx,starty), (0.0, 0.0))
-        print "Det2Idl OK"
+        print("Det2Idl OK")
         self.assertAlmostEqualTwo( nca.Det2Tel(startx,starty), (87.50, -497.10))
-        print "Det2Tel OK"
+        print("Det2Tel OK")
 
     def _test_down(self):
         siaf = SIAF("JwstSiaf-2010-10-05.xml")
@@ -740,14 +739,14 @@ class Test_SIAF(unittest.TestCase):
         nca = siaf['NIRCAM A']
 
         self.assertAlmostEqualTwo( nca.Sci2Det(1020., 1020), (1023.,1024.))
-        print "Sci2Det OK"
+        print("Sci2Det OK")
 
         self.assertAlmostEqualTwo( nca.Tel2Idl(startV2, startV3), (0.0, 0.0))
-        print "Tel2Idl OK"
+        print("Tel2Idl OK")
         self.assertAlmostEqualTwo( nca.Tel2Sci(startV2, startV3), (1020., 1020.))
-        print "Tel2Sci OK"
+        print("Tel2Sci OK")
         self.assertAlmostEqualTwo( nca.Tel2Det(startV2, startV3), (1023.,1024.))
-        print "Tel2Det OK"
+        print("Tel2Det OK")
 
     def test_inverses(self):
         siaf = SIAF("JwstSiaf-2010-10-05.xml")
@@ -755,15 +754,15 @@ class Test_SIAF(unittest.TestCase):
 
         self.assertAlmostEqualTwo( nca.Det2Sci(*nca.Sci2Det(1020., 1020)), (1020., 1020) )
         self.assertAlmostEqualTwo( nca.Sci2Det(*nca.Det2Sci(1020., 1020)), (1020., 1020) )
-        print "Det <-> Sci OK"
+        print("Det <-> Sci OK")
 
         self.assertAlmostEqualTwo( nca.Tel2Idl(*nca.Idl2Tel(10., 10)), (10., 10) )
         self.assertAlmostEqualTwo( nca.Idl2Tel(*nca.Tel2Idl(10., 10)), (10., 10) )
-        print "Tel <-> Idl OK"
+        print("Tel <-> Idl OK")
 
         self.assertAlmostEqualTwo( nca.Tel2Sci(*nca.Sci2Tel(10., 10)), (10., 10) )
         self.assertAlmostEqualTwo( nca.Sci2Tel(*nca.Tel2Sci(10., 10)), (10., 10) )
-        print "Tel <-> Sci OK"
+        print("Tel <-> Sci OK")
 
 
 # The ElementTree implementation in xml.etree does not support

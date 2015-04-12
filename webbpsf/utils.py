@@ -1,5 +1,4 @@
 import os, sys
-import ConfigParser
 
 import logging
 _log = logging.getLogger('webbpsf')
@@ -19,10 +18,10 @@ def restart_logging(verbose=True):
         lev = logging.CRITICAL  # we don't generate any CRITICAL flagged log items, so
                                 # setting the level to this is effectively the same as ignoring
                                 # all log events. FIXME there's likely a cleaner way to do this.
-        if verbose: print "No log messages will be shown from WebbPSF."
+        if verbose: print("No log messages will be shown from WebbPSF.")
     elif level in ['DEBUG', 'INFO','WARN','ERROR']:
         lev = logging.__dict__[level] # obtain one of the DEBUG, INFO, WARN, or ERROR constants
-        if verbose: print "WebbPSF log messages of level {0} and above will be shown.".format(level)
+        if verbose: print("WebbPSF log messages of level {0} and above will be shown.".format(level))
     else:
         raise ValueError("Invalid logging level: "+level)
         return
@@ -170,7 +169,7 @@ def check_for_new_install(force=False):
         #conf.last_version_ran.save()
         #save_config('webbpsf') # save default values to text file
 
-        print """
+        print("""
   ***************************************************
   *           WebbPSF Initialization & Setup         *
   ****************************************************
@@ -192,33 +191,33 @@ def check_for_new_install(force=False):
             {0}/webbpsf.{1}.cfg
     (unless such a config file was already present there)
     You can examine that file and change settings if desired.
-    See the WebbPSF documentation for more detail. """.format(astropy.config.get_config_dir(), __version__)
+    See the WebbPSF documentation for more detail. """.format(astropy.config.get_config_dir(), __version__))
 
         # check for data dir?
         path_from_env_var = os.getenv('WEBBPSF_PATH') 
 
         if path_from_env_var is not None:
-            print """
+            print("""
 
     WebbPSF's required data files appear to be 
     installed at a path given by $WEBBPSF_PATH :
-    {0} """.format(path_from_env_var)
+    {0} """.format(path_from_env_var))
         else:
-            # the following will automatically print an error message if
+            # the following will automatically print(an error message if
             # the path is unknown in the config file.
             path_from_config = conf.WEBBPSF_PATH
 
             if path_from_config != 'unknown':
-                print """
+                print("""
     WebbPSF's required data files appear to be 
     installed at a path given in the config file:
-    {0} """.format(path_from_config)
+    {0} """.format(path_from_config))
 
-        print """
+        print("""
 
     This message will not be displayed again.
     Press [Enter] to continue
-    """
+    """)
         any_key = raw_input()
 
 DIAGNOSTIC_REPORT = """

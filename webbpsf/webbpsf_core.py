@@ -23,6 +23,7 @@ import os
 import types
 import glob
 import time
+import six
 from collections import namedtuple
 import numpy as np
 import matplotlib.pyplot as plt
@@ -512,16 +513,16 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
             name='{telescope}+{instrument}'.format(telescope=self.telescope, instrument=self.name),
             oversample=fft_oversample
         )
-        if 'source_offset_r' in options.keys():
+        if 'source_offset_r' in options:
             optsys.source_offset_r = options['source_offset_r']
-        if 'source_offset_theta' in options.keys():
+        if 'source_offset_theta' in options:
             optsys.source_offset_theta = options['source_offset_theta']
 
 
         #---- set pupil OPD
         if isinstance(self.pupilopd, str):  # simple filename
             opd_map = self.pupilopd if os.path.exists( self.pupilopd) else os.path.join(self._datapath, "OPD",self.pupilopd)
-        elif hasattr(self.pupilopd, '__getitem__') and isinstance(self.pupilopd[0], basestring): # tuple with filename and slice
+        elif hasattr(self.pupilopd, '__getitem__') and isinstance(self.pupilopd[0], six.string_types): # tuple with filename and slice
             opd_map =  (self.pupilopd[0] if os.path.exists( self.pupilopd[0]) else os.path.join(self._datapath, "OPD",self.pupilopd[0]), self.pupilopd[1])
         elif isinstance(self.pupilopd, (fits.HDUList, poppy.OpticalElement)):
             opd_map = self.pupilopd # not a path per se but this works correctly to pass it to poppy
@@ -565,9 +566,9 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
 
         #---- Add defocus if requested
-        if 'defocus_waves' in options.keys(): 
+        if 'defocus_waves' in options: 
            defocus_waves = options['defocus_waves'] 
-           defocus_wavelength = float(options['defocus_wavelength']) if 'defocus_wavelength' in options.keys() else 2.0e-6
+           defocus_wavelength = float(options['defocus_wavelength']) if 'defocus_wavelength' in options else 2.0e-6
            _log.info("Adding defocus of %d waves at %.2f microns" % (defocus_waves, defocus_wavelength *1e6))
            lens = poppy.ThinLens(
                name='Defocus',
@@ -585,7 +586,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         if self.pupil_mask == "": self.pupil_mask = None
 
 
-        if self.image_mask is not None or self.pupil_mask is not None or ('force_coron' in options.keys() and options['force_coron']):
+        if self.image_mask is not None or self.pupil_mask is not None or ('force_coron' in options and options['force_coron']):
             _log.debug("Adding coronagraph/spectrograph optics...")
             optsys, trySAM, SAM_box_size = self._addAdditionalOptics(optsys, oversample=fft_oversample)
         else: trySAM = False
@@ -594,7 +595,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         if fov_pixels is None:
             if not np.isscalar(fov_arcsec): fov_arcsec = np.asarray(fov_arcsec) # cast to ndarray if 2D
             fov_pixels = np.round(fov_arcsec/self.pixelscale)
-            if 'parity' in options.keys():
+            if 'parity' in options:
                 if options['parity'].lower() == 'odd'  and np.remainder(fov_pixels,2)==0: fov_pixels +=1
                 if options['parity'].lower() == 'even' and np.remainder(fov_pixels,2)==1: fov_pixels +=1
         else:
@@ -603,7 +604,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         optsys.addDetector(self.pixelscale, fov_pixels = fov_pixels, oversample = detector_oversample, name=self.name+" detector")
 
         #---  invoke semi-analytic coronagraphic propagation
-        if trySAM and not ('no_sam' in self.options.keys() and self.options['no_sam']): # if this flag is set, try switching to SemiAnalyticCoronagraph mode. 
+        if trySAM and not ('no_sam' in self.options and self.options['no_sam']): # if this flag is set, try switching to SemiAnalyticCoronagraph mode. 
             _log.info("Trying to invoke switch to Semi-Analytic Coronagraphy algorithm")
             try: 
                 SAM_optsys = poppy.SemiAnalyticCoronagraph(optsys, oversample=fft_oversample, occulter_box = SAM_box_size )
@@ -762,17 +763,20 @@ class MIRI(JWInstrument):
         _log.debug('Amplitude:'+str(defaultpupil.amplitude_file))
         _log.debug('OPD:'+str(defaultpupil.opd_file))
         opd = defaultpupil.opd_file
-        if hasattr(defaultpupil,'opd_slice'): opd = (defaultpupil.opd_file, defaultpupil.opd_slice) # rebuild tuple if needed to slice
-        optsys.addPupil(name='JWST Pupil', transmission=defaultpupil.amplitude_file, opd=opd, opdunits='micron', rotation=None)
-        #optsys.addPupil('Circle', radius=6.5/2)
-
+        if hasattr(defaultpupil,'opd_slice'):
+            opd = (defaultpupil.opd_file, defaultpupil.opd_slice) # rebuild tuple if needed to slice
+        optsys.addPupil(name='JWST Pupil',
+                transmission=defaultpupil.amplitude_file, opd=opd,
+                opdunits='micron', rotation=None)
 
         # Add image plane mask
         # For the MIRI FQPMs, we require the star to be centered not on the middle pixel, but
         # on the cross-hairs between four pixels. (Since that is where the FQPM itself is centered)
         # This is with respect to the intermediate calculation pixel scale, of course, not the
         # final detector pixel scale. 
-        if (self.image_mask is not None and 'FQPM' in self.image_mask) or 'force_fqpm_shift' in self.options.keys() : optsys.addPupil( poppy.FQPM_FFT_aligner() )
+        if ((self.image_mask is not None and 'FQPM' in self.image_mask)
+            or 'force_fqpm_shift' in self.options) :
+                optsys.addPupil( poppy.FQPM_FFT_aligner() )
 
         if self.image_mask == 'FQPM1065':
             container = poppy.CompoundAnalyticOptic(name = "MIRI FQPM 1065",
@@ -817,15 +821,17 @@ class MIRI(JWInstrument):
             optsys.addImage()
             trySAM = False
 
-        if (self.image_mask is not None and 'FQPM' in self.image_mask)  or 'force_fqpm_shift' in self.options.keys() : optsys.addPupil( poppy.FQPM_FFT_aligner(direction='backward'))
+        if ((self.image_mask is not None and 'FQPM' in self.image_mask)
+            or 'force_fqpm_shift' in self.options) :
+                optsys.addPupil( poppy.FQPM_FFT_aligner(direction='backward'))
 
         # add pupil plane mask
-        if ('pupil_shift_x' in self.options.keys() and self.options['pupil_shift_x'] != 0) or \
-           ('pupil_shift_y' in self.options.keys() and self.options['pupil_shift_y'] != 0):
+        if ('pupil_shift_x' in self.options and self.options['pupil_shift_x'] != 0) or \
+           ('pupil_shift_y' in self.options and self.options['pupil_shift_y'] != 0):
 
             shift = (self.options['pupil_shift_x'], self.options['pupil_shift_y'])
             _log.info("Setting Lyot pupil shift to %s" % (str(shift)))
-        else: 
+        else:
             shift = None
             #_log.info('no pupil shift!')
 
@@ -982,10 +988,10 @@ class NIRCam(JWInstrument):
             # no occulter selected but coronagraphic mode anyway.
             trySAM = False
             SAM_box_size = 1.0 # irrelevant but variable still needs to be set.
- 
+
         # add pupil plane mask
-        if ('pupil_shift_x' in self.options.keys() and self.options['pupil_shift_x'] != 0) or \
-           ('pupil_shift_y' in self.options.keys() and self.options['pupil_shift_y'] != 0):
+        if ('pupil_shift_x' in self.options and self.options['pupil_shift_x'] != 0) or \
+           ('pupil_shift_y' in self.options and self.options['pupil_shift_y'] != 0):
             shift = (self.options['pupil_shift_x'], self.options['pupil_shift_y'])
         else: shift = None
 
@@ -1254,8 +1260,8 @@ class NIRISS(JWInstrument):
             radius = 0.0 # irrelevant but variable needs to be initialized
 
         # add pupil plane mask
-        if ('pupil_shift_x' in self.options.keys() and self.options['pupil_shift_x'] != 0) or \
-           ('pupil_shift_y' in self.options.keys() and self.options['pupil_shift_y'] != 0):
+        if ('pupil_shift_x' in self.options and self.options['pupil_shift_x'] != 0) or \
+           ('pupil_shift_y' in self.options and self.options['pupil_shift_y'] != 0):
             shift = (self.options['pupil_shift_x'], self.options['pupil_shift_y'])
         else: shift = None
 
@@ -1270,21 +1276,6 @@ class NIRISS(JWInstrument):
         elif self.pupil_mask == 'CLEAR':
             optsys.addPupil(transmission=self._datapath+"/optics/MASKCLEAR.fits.gz", name=self.pupil_mask, shift=shift)
         elif self.pupil_mask == 'CLEARP':
-            #fn = os.path.join(self._datapath,"optics/MASK_CLEARP.fits.gz")
-            #print fn
-            #optsys.addPupil(transmission=fn, name=self.pupil_mask, shift=shift)
-
-            # CLEARP pupil info from:
-            #   MODIFIED CALIBRATION OPTIC HOLDER - NIRISS
-            #   DRAWING NO 196847  REV 0  COMDEV
-            #   Design file name 196847Rev0.pdf sent by Loic Albert
-            # Properties:
-            #  39 mm outer diam, corresponds to the circumscribing pupil of JWST
-            #  2.0 mm vane width
-            #  6.0 mm radius for central obstruction
-            # Note the circumscribing pupil of JWST is 6603.464 mm in diameter
-            #  (Ball SER on geometric optics model: BALL-JWST-SYST-05-003)
-
             optsys.addPupil(optic = NIRISS_CLEARP())
         elif self.pupil_mask == 'GR700XD':
             optsys.addPupil(optic = NIRISS_GR700XD_Grism(shift=shift))

@@ -348,7 +348,7 @@ class WebbPSF_GUI(object):
                 parent=self.root)
         if len(filename) > 0:
             self.PSF_HDUlist.writeto(filename) 
-            print "Saved to %s" % filename
+            print("Saved to {}".format(filename))
 
     def ev_options(self):
         d = WebbPSFOptionsDialog(self.root, input_options = self.advanced_options)
@@ -361,11 +361,11 @@ class WebbPSF_GUI(object):
 
         #sptype = self.widgets['SpType'].get()
         #iname = self.widgets[self.widgets['tabset'].select()]
-        print "Spectral type is "+self.sptype
-        print "Selected instrument tab is "+self.iname
+        print("Spectral type is "+self.sptype)
+        print("Selected instrument tab is "+self.iname)
         #if iname != 'TFI':
             #filter = self.widgets[self.iname+"_filter"].get()
-        print "Selected instrument filter is "+self.filter
+        print("Selected instrument filter is "+self.filter)
 
 
         plt.clf()
@@ -427,14 +427,14 @@ class WebbPSF_GUI(object):
 
         ax1.set_xbound(0.1, 100)
 
-	self._refresh_window()
+        self._refresh_window()
 
     def _refresh_window(self):
-	""" Force the window to refresh, and optionally to show itself if hidden (for recent matplotlibs)"""
+        """ Force the window to refresh, and optionally to show itself if hidden (for recent matplotlibs)"""
         plt.draw()
-	from distutils.version import StrictVersion
-	if StrictVersion(matplotlib.__version__) >= StrictVersion('1.1'):
-		plt.show(block=False)
+        from distutils.version import StrictVersion
+        if StrictVersion(matplotlib.__version__) >= StrictVersion('1.1'):
+            plt.show(block=False)
 
     def ev_calcPSF(self):
         "Event handler for PSF Calculations"
@@ -452,8 +452,8 @@ class WebbPSF_GUI(object):
         #self.PSF_HDUlist.display()
         for w in ['Display PSF', 'Display profiles', 'Save PSF As...']:
            self.widgets[w].state(['!disabled'])
-	self._refresh_window()
-	_log.info("PSF calculation complete")
+        self._refresh_window()
+        _log.info("PSF calculation complete")
 
     def ev_displayPSF(self):
         "Event handler for Displaying the PSF"
@@ -462,13 +462,13 @@ class WebbPSF_GUI(object):
         plt.clf()
         poppy.display_PSF(self.PSF_HDUlist, vmin = self.advanced_options['psf_vmin'], vmax = self.advanced_options['psf_vmax'], 
                 scale = self.advanced_options['psf_scale'], cmap= self.advanced_options['psf_cmap'], normalize=self.advanced_options['psf_normalize'])
-	self._refresh_window()
+        self._refresh_window()
 
     def ev_displayProfiles(self):
         "Event handler for Displaying the PSF"
         #self._updateFromGUI()
         poppy.display_profiles(self.PSF_HDUlist)        
-	self._refresh_window()
+        self._refresh_window()
 
     def ev_displayOptics(self):
         "Event handler for Displaying the optical system"
@@ -477,7 +477,7 @@ class WebbPSF_GUI(object):
 
         plt.clf()
         self.inst.display()
-	self._refresh_window()
+        self._refresh_window()
 
     def ev_displayOPD(self):
         self._updateFromGUI()
@@ -504,14 +504,14 @@ class WebbPSF_GUI(object):
             f = plt.gcf()
             plt.text(0.4, 0.02, "OPD WFE = %6.2f nm RMS" % (masked_opd.std()*1000.), transform=f.transFigure)
 
-	self._refresh_window()
+        self._refresh_window()
 
     def ev_launch_ITM_dialog(self):
         tkMessageBox.showwarning( message="ITM dialog box not yet implemented", title="Can't Display") 
 
     def ev_update_OPD_labels(self):
         "Update the descriptive text for all OPD files"
-        for iname in self.instrument.keys():
+        for iname in self.instrument:
             self.ev_update_OPD_label(self.widgets[iname+"_opd"], self.widgets[iname+"_opd_label"], iname)
 
     def ev_update_OPD_label(self, widget_combobox, widget_label, iname):
@@ -576,7 +576,7 @@ class WebbPSF_GUI(object):
 
         # and get the values that may have previously been set by the 'advanced options' dialog
         if self.advanced_options is not None:
-            for a in self.advanced_options.keys():
+            for a in self.advanced_options:
                 options[a] = self.advanced_options[a]
 
 

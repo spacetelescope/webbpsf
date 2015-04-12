@@ -1,7 +1,6 @@
 # This file contains code for testing various error handlers and user interface edge cases,
 # as opposed to testing the main body of functionality of the code.
 
-
 import sys, os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -17,6 +16,7 @@ _log.addHandler(logging.NullHandler())
 from .. import webbpsf_core
 from .. import utils
 import poppy
+from poppy.tests.test_errorhandling import _exception_message_starts_with
 
 
 try:
@@ -34,7 +34,7 @@ if _HAVE_PYTEST:
 
         with pytest.raises(ValueError) as excinfo:
             psf = nc.calcPSF(oversample=2, detector_oversample=10, fft_oversample=4)
-        assert excinfo.value.message == "You cannot specify simultaneously the oversample= option with the detector_oversample and fft_oversample options. Pick one or the other!"
+        assert _exception_message_starts_with(excinfo,"You cannot specify simultaneously the oversample= option with the detector_oversample and fft_oversample options. Pick one or the other!")
 
 # Not clear we need to test this; astropy logging framework will protect against invalid levels I think.
 #    def test_invalid_logging_level():
@@ -53,7 +53,7 @@ if _HAVE_PYTEST:
 
         with pytest.raises(ValueError) as excinfo:
             nc.image_mask = 'junk'
-        assert excinfo.value.message == "Instrument NIRCam doesn't have an image mask called 'JUNK'."
+        assert _exception_message_starts_with(excinfo,"Instrument NIRCam doesn't have an image mask called 'JUNK'.")
 
         # now repeat for pupil masks:
         nc.pupil_mask = 'circlyot'
@@ -61,7 +61,7 @@ if _HAVE_PYTEST:
 
         with pytest.raises(ValueError) as excinfo:
             nc.pupil_mask = 'junk'
-        assert excinfo.value.message == "Instrument NIRCam doesn't have a pupil mask called 'JUNK'."
+        assert _exception_message_starts_with(excinfo, "Instrument NIRCam doesn't have a pupil mask called 'JUNK'.")
 
 
 
@@ -89,7 +89,7 @@ if _HAVE_PYTEST and False:
         conf.WEBBPSF_PATH = 'some junk'
         with pytest.raises(IOError) as excinfo:
             tmp = utils.get_webbpsf_data_path()
-        assert excinfo.value.message == 'Missing or invalid WEBBPSF_PATH to required data files'
+        assert _exception_message_starts_with(excinfo,'Missing or invalid WEBBPSF_PATH to required data files')
 
         conf.WEBBPSF_PATH = real_setting
         os.putenv('WEBBPSF_PATH', real_variable)
