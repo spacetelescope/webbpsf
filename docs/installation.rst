@@ -22,7 +22,7 @@ For detailed instructions and software requirements, read on.
 Software Requirements
 -----------------------
 
-**Required Python version**: Python 2.7 or higher is required. (WebbPSF is not yet Python 3 compatible.)
+**Required Python version**: WebbPSF is supported on both Python 2.7 and 3.4.
 
 **Required Python packages**:
 

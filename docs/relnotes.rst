@@ -45,7 +45,6 @@ Road Map for Future Releases
 * Support for the NIRSpec and MIRI IFUs may be added in a future release, level of detail is still TBD.
 * Improved models for pointing jitter. 
 * Possibly: separate handling of pre- and post- coronagraphic WFE in instruments, if this appears likely to be significant. 
-* Python 3 support will be added as soon as it is needed, but is not an immediate priority. Any users who would like to run webbpsf under python 3, please let me know.
 
 
 Version History and Change Log
@@ -59,7 +58,9 @@ Version 0.3.3
 
 *Not yet released*
 
+* Python 3 compatibility added. All tests pass on Python 3.4. (`#2 <https://github.com/mperrin/webbpsf/issues/2>`)
 * Fixed an issue that would prevent users from adding defocus to PSF calculations (`#59 <https://github.com/mperrin/webbpsf/issues/59>`)
+* WebbPSF no longer attempts to display a welcome message on new installs; that idea proved to be less helpful than originally expected.
 
 .. _rel0.3.2:
 
