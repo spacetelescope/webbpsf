@@ -574,7 +574,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
                name='Defocus',
                nwaves=defocus_waves,
                reference_wavelength=defocus_wavelength,
-               radius=jwpupil.pupil_diam
+               radius=self.pupil_radius
            )
            optsys.addPupil(optic=lens)
 
