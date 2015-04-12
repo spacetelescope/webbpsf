@@ -13,7 +13,7 @@ import logging
 _log = logging.getLogger('test_webbpsf')
 _log.addHandler(logging.NullHandler())
 
-from poppy.tests.test_errorhandling import _exception_message_starts_with
+from .test_errorhandling import _exception_message_starts_with
 
 from .. import webbpsf_core
 from .. import utils

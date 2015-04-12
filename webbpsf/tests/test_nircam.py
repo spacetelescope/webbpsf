@@ -9,7 +9,7 @@ _log.addHandler(logging.NullHandler())
 
 from .. import webbpsf_core
 import poppy
-from poppy.tests.test_errorhandling import _exception_message_starts_with
+from .test_errorhandling import _exception_message_starts_with
 
 
 #------------------    NIRCam Tests    ----------------------------

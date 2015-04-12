@@ -16,7 +16,12 @@ _log.addHandler(logging.NullHandler())
 from .. import webbpsf_core
 from .. import utils
 import poppy
-from poppy.tests.test_errorhandling import _exception_message_starts_with
+
+def _exception_message_starts_with(excinfo, message_body):
+    if sys.version_info.major<3:
+        return excinfo.value.message.startswith(message_body)
+    else:
+        return excinfo.value.args[0].startswith(message_body)
 
 
 try:
