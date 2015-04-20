@@ -79,7 +79,17 @@ propagating the entire wavefront from pupil to image and back to pupil in order 
 is actually blocked by the image occulter and then subtract it from the rest of the wavefront at the Lyot plane. This relies on Babinet's principle to achieve the same final PSF
 with more computational efficiency, particularly for the case of highly oversampled image planes (as is necessary to account for fine structure in image plane occulter masks). See Soummer et al. 2007 for a detailed description of this algorithm.
 
-See the :ref:`Appendix on Parallelization and Performance <performance_and_parallelization>` for more details on calculation performance.
+Types of Fourier Transform Calculation in WebbPSF
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+  * Any direct imaging calculation, any instrument: Matrix DFT
+  * NIRCam coronagraphy with circular occulters: Semi-Analytic Fast Coronagraphy and Matrix DFT
+  * NIRCam coronagraphy with wedge occulters: FFT and Matrix DFT
+  * MIRI Coronagraphy: FFT and Matrix DFT
+  * NIRISS NRM, GR799XD: Matrix DFT
+  * NIRSpec and NIRISS slit spectroscopy: FFT and Matrix DFT
+
+See :ref:`Optimizing Performance and Parallelization <performance_and_parallelization>` in the POPPY documentation for more details on calculation performance.
 
 Getting WebbPSF
 ---------------
