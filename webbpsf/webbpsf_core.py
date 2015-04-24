@@ -1220,7 +1220,7 @@ class NIRISS(JWInstrument):
         JWInstrument.__init__(self, "NIRISS", pixelscale=0.064)
 
         self.image_mask_list = ['CORON058', 'CORON075','CORON150','CORON200'] # available but unlikely to be used...
-        self.pupil_mask_list = ['CLEAR', 'CLEARP', 'MASK_NRM','GR700XD']
+        self.pupil_mask_list = ['CLEARP', 'MASK_NRM','GR700XD']
 
         self._detector2siaf = {'NIRISS':'NIS_FULL_CNTR'}
         self.detector_list = ['NIRISS']
@@ -1263,18 +1263,11 @@ class NIRISS(JWInstrument):
         if ('pupil_shift_x' in self.options and self.options['pupil_shift_x'] != 0) or \
            ('pupil_shift_y' in self.options and self.options['pupil_shift_y'] != 0):
             shift = (self.options['pupil_shift_x'], self.options['pupil_shift_y'])
-        else: shift = None
+        else:
+            shift = None
 
-        #if self.pupil_mask == 'MASKC21N':
-            #optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKC21np.fits", name=self.pupil_mask, shift=shift)
-        #elif self.pupil_mask == 'MASKC66N':
-            #optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKC66np.fits", name=self.pupil_mask, shift=shift)
-        #elif self.pupil_mask == 'MASKC71N':
-            #optsys.addPupil(transmission=self._datapath+"/coronagraph/MASKC71np.fits", name=self.pupil_mask, shift=shift)
         if self.pupil_mask == 'MASK_NRM':
             optsys.addPupil(transmission=self._datapath+"/optics/MASK_NRM.fits.gz", name=self.pupil_mask, shift=shift)
-        elif self.pupil_mask == 'CLEAR':
-            optsys.addPupil(transmission=self._datapath+"/optics/MASKCLEAR.fits.gz", name=self.pupil_mask, shift=shift)
         elif self.pupil_mask == 'CLEARP':
             optsys.addPupil(optic = NIRISS_CLEARP())
         elif self.pupil_mask == 'GR700XD':
