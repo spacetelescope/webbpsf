@@ -22,7 +22,11 @@ except ImportError:
 
 try:
     import pysynphot
-    _HAS_PYSYNPHOT=True
+    path = os.getenv('PYSYN_CDBS')
+    if path is not None and os.path.isdir(path):
+        _HAS_PYSYNPHOT=True
+    else:
+        _HAS_PYSYNPHOT=False
 except ImportError:
     _HAS_PYSYNPHOT=False
 
@@ -31,7 +35,7 @@ import poppy
 import webbpsf_core
 
 class WebbPSF_GUI(object):
-    """ A GUI for the PSF Simulator 
+    """ A GUI for the PSF Simulator
 
     Documentation TBD!
 
