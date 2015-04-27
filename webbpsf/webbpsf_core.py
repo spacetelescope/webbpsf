@@ -355,9 +355,9 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
             # Automatically determine number of appropriate wavelengths.
             # Make selection based on filter configuration file
             try:
-                nlambda = self._filter_nlambda_default[self.filter]
+                nlambda = self._filters[self.filter].default_nlambda
                 _log.debug("Automatically selecting # of wavelengths: %d" % nlambda)
-            except:
+            except KeyError:
                 nlambda=10
                 _log.warn("Filter %s not found in lookup table for default number of wavelengths to use.. setting default nlambda=%d" % (self.filter, nlambda))
         local_options['nlambda'] = nlambda
