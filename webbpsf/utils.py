@@ -257,32 +257,32 @@ def system_diagnostic():
     try:
         import ttk
         ttk_version = ttk.__version__
-    except:
+    except ImportError:
         ttk_version = 'not found'
 
     try:
         import wx
         wx_version = wx.__version__
-    except:
+    except ImportError:
         wx_version = 'not found'
 
     try:
         import pyfftw
         pyfftw_version = pyfftw.version
-    except:
+    except ImportError:
         pyfftw_version = 'not found'
 
     try:
         import pysynphot
         pysynphot_version = pysynphot.__version__
-    except:
+    except ImportError:
         pysynphot_version = 'not found'
 
 
     try:
         import astropy
         astropy_version = astropy.__version__
-    except:
+    except ImportError:
         astropy_version = 'not found'
 
     result = DIAGNOSTIC_REPORT.format(

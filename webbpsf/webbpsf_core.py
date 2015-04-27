@@ -44,7 +44,7 @@ from . import utils
 try: 
     import pysynphot
     _HAS_PYSYNPHOT = True
-except:
+except ImportError:
     _HAS_PYSYNPHOT = False
  
 
@@ -241,7 +241,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
             detname = detname.upper()  # force to uppercase
             try:
                 siaf_aperture_name = self._detector2siaf[detname]
-            except:
+            except KeyError:
                 raise ValueError("Unknown name: {0} is not a valid known name for a detector "
                                  "for instrument {1}".format(detname, self.name))
             self._detector = DetectorGeometry(self.name, siaf_aperture_name, shortname=detname)
