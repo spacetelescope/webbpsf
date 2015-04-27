@@ -522,18 +522,9 @@ class WebbPSF_GUI(wx.Frame):
             # Automatically determine number of appropriate wavelengths.
             # Make selection based on filter configuration file
             try:
-                #if self.inst.name=='TFI':    # filter names are irrelevant for TFI.
-                    #nlambda=5
-                #else:
-                    #filt_width = self.filter[-1]
-                    #lookup_table = {'NIRCam': {'2': 10, 'W':20,'M':3,'N':1}, 
-                                    #'NIRSpec':{'W':5,'M':3,'N':1}, 
-                                    #'MIRI':{'W':5,'M':3,'N':1}, 
-                                    #'FGS':{'W':5,'M':3,'N':1}}
 
-                    #nlambda = lookup_table[self.name][filt_width]
-                nlambda = self.inst._filter_nlambda_default[self.filter]
-            except:
+                nlambda = self.inst._filters[self.filter].default_nlambda
+            except KeyError:
                 nlambda=10
         else:
             nlambda = self.nlambda
@@ -667,7 +658,7 @@ class WebbPSF_GUI(wx.Frame):
         if filename.endswith(".fits"):
             try:
                 header_summary = fits.getheader(filename)['SUMMARY']
-            except:
+            except KeyError:
                 header_summary = 'could not obtain a summary from FITS header'
             #self.widgets[iname+"_opd_i"]['state'] = 'readonly'
         else:  # Special options for non-FITS file inputs

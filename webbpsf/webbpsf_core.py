@@ -41,12 +41,12 @@ from . import conf
 from . import utils
 
 
-try: 
+try:
     import pysynphot
     _HAS_PYSYNPHOT = True
 except ImportError:
     _HAS_PYSYNPHOT = False
- 
+
 
 import logging
 _log = logging.getLogger('webbpsf')
@@ -61,13 +61,13 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
     This class provides a simple interface for modeling PSF formation through the instrument,
     with configuration options and software interface loosely resembling the configuration of the instrument
     hardware mechanisms.
-    
+
     This module currently only provides a modicum of error checking, and relies on the user
     being knowledgable enough to avoid trying to simulate some physically impossible or just plain silly
     configuration (such as trying to use a FQPM with the wrong filter).
 
     The instrument constructors do not take any arguments. Instead, create an instrument object and then
-    configure the `filter` or other attributes as desired. The most commonly accessed parameters are 
+    configure the `filter` or other attributes as desired. The most commonly accessed parameters are
     available as object attributes: `filter`, `image_mask`, `pupil_mask`, `pupilopd`. More advanced
     configuration can be done by editing the :ref:`SpaceTelescopeInstrument.options` dictionary, either by passing options to ``__init__`` or by directly editing the dict afterwards.
     """
@@ -88,9 +88,9 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         Relative shift of the intermediate (coronagraphic) pupil in X and Y relative to the telescope entrace pupil, expressed as a decimal between 0.0-1.0
         Note that shifting an array too much will wrap around to the other side unphysically, but
         for reasonable values of shift this is a non-issue.  This option only has an effect for optical models that
-        have something at an intermediate pupil plane between the telescope aperture and the detector. 
+        have something at an intermediate pupil plane between the telescope aperture and the detector.
     pupil_rotation : float
-        Relative rotation of the intermediate (coronagraphic) pupil relative to the telescope entrace pupil, expressed in degrees counterclockwise. 
+        Relative rotation of the intermediate (coronagraphic) pupil relative to the telescope entrace pupil, expressed in degrees counterclockwise.
         This option only has an effect for optical models that have something at an intermediate pupil plane between the telescope aperture and the detector.
     rebin : bool
         For output files, write an additional FITS extension including a version of the output array
@@ -106,7 +106,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         Note that this applies to the number detector pixels, rather than the subsampled pixels if oversample > 1.
     force_coron : bool
         Set this to force full coronagraphic optical propagation when it might not otherwise take place
-        (e.g. calculate the non-coronagraphic images via explicit propagation to all optical surfaces, FFTing 
+        (e.g. calculate the non-coronagraphic images via explicit propagation to all optical surfaces, FFTing
         to intermediate pupil and image planes whether or not they contain any actual optics, rather than
         taking the straight-to-MFT shortcut)
     no_sam : bool
@@ -260,10 +260,10 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         an astropy.io.fits HDUList object.
 
 
-        Output sampling may be specified in one of two ways: 
+        Output sampling may be specified in one of two ways:
 
         1) Set `oversample=<number>`. This will use that oversampling factor beyond detector pixels
-           for output images, and beyond Nyquist sampling for any FFTs to prior optical planes. 
+           for output images, and beyond Nyquist sampling for any FFTs to prior optical planes.
         2) set `detector_oversample=<number>` and `fft_oversample=<other_number>`. This syntax lets
            you specify distinct oversampling factors for intermediate and final planes. This is generally
            only relevant in the case of coronagraphic calculations.
@@ -284,10 +284,10 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         source : pysynphot.SourceSpectrum or dict or tuple
             specification of source input spectrum. Default is a 5700 K sunlike star.
         nlambda : int
-            How many wavelengths to model for broadband? 
+            How many wavelengths to model for broadband?
             The default depends on how wide the filter is, as set by a lookup table in the webbpsf data distribution.
         monochromatic : float, optional
-            Setting this to a wavelength value (in meters) will compute a monochromatic PSF at that 
+            Setting this to a wavelength value (in meters) will compute a monochromatic PSF at that
             wavelength, overriding filter and nlambda parameters.
         fov_arcsec : float
             field of view in arcsec. Default=5
@@ -296,8 +296,8 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         outfile : string
             Filename to write. If None, then result is returned as an HDUList
         oversample, detector_oversample, fft_oversample : int
-            How much to oversample. Default=4. By default the same factor is used for final output 
-            pixels and intermediate optical planes, but you may optionally use different factors 
+            How much to oversample. Default=4. By default the same factor is used for final output
+            pixels and intermediate optical planes, but you may optionally use different factors
             if so desired.
         rebin : bool, optional
             If set, the output file will contain a FITS image extension containing the PSF rebinned
@@ -308,7 +308,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         display : bool
             Whether to display the PSF when done or not.
         save_intermediates, return_intermediates : bool
-            Options for saving to disk or returning to the calling function the intermediate optical planes during the propagation. 
+            Options for saving to disk or returning to the calling function the intermediate optical planes during the propagation.
             This is useful if you want to e.g. examine the intensity in the Lyot plane for a coronagraphic propagation. These have no
             effect for simple direct imaging calculations.
 
@@ -325,7 +325,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
         """
 
-        if calc_oversample is not None: 
+        if calc_oversample is not None:
             raise DeprecationWarning("The calc_oversample parameter is deprecated and will be removed in webbpsf 0.4. User fft_oversample instead.")
             fft_oversample = calc_oversample # back compatibility hook for deprecated arg name.
 
@@ -334,7 +334,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         # first make sure that webbpsf's configuration is used to override any of the
         # same configuration options in poppy. This is admittedly perhaps overbuilt to have identical
         # settings in both packages, but the intent is to shield typical users of webbpsf
-        # from having to think about the existence of the underlying library. They can 
+        # from having to think about the existence of the underlying library. They can
         # just deal with one set of settings.
         #config._apply_settings_to_poppy()
 
@@ -349,7 +349,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         local_options['monochromatic'] = monochromatic
 
 
-    
+
         #----- choose # of wavelengths intelligently. Do this first before generating the source spectrum weighting.
         if nlambda is None or nlambda==0:
             # Automatically determine number of appropriate wavelengths.
@@ -371,12 +371,12 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
             fov_spec = 'arcsec = %f' % fov_arcsec
         elif fov_pixels is not None:
 
-            if np.isscalar(fov_pixels): 
+            if np.isscalar(fov_pixels):
                 fov_spec = 'pixels = %d' % fov_pixels
             else:
                 fov_spec = 'pixels = (%d, %d)' % (fov_pixels[0], fov_pixels[1])
         elif fov_arcsec is not None:
-            if np.isscalar(fov_arcsec): 
+            if np.isscalar(fov_arcsec):
                 fov_spec = 'arcsec = %f' % fov_arcsec
             else:
                 fov_spec = 'arcsec = (%.3f, %.3f)' % (fov_arcsec[0], fov_arcsec[1])
@@ -433,7 +433,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
                 plt.text( 0.99, 0.04, "Calculation with %d wavelengths (%g - %g um)" % (nlambda, wavelens[0]*1e6, wavelens[-1]*1e6), transform=f.transFigure, horizontalalignment='right')
             else:
                 plt.suptitle( "{self.name},  $\lambda$ = {wavelen} um".format(self=self, wavelen = monochromatic*1e6), size='xx-large')
- 
+
         if outfile is not None:
             result[0].header["FILENAME"] = (os.path.basename (outfile), "Name of this file")
             result.writeto(outfile, clobber=clobber)
@@ -475,8 +475,8 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
     def _getOpticalSystem(self,fft_oversample=2, detector_oversample = None, fov_arcsec=2, fov_pixels=None, options=None):
         """ Return an OpticalSystem instance corresponding to the instrument as currently configured.
 
-        When creating such an OpticalSystem, you must specify the parameters needed to define the 
-        desired sampling, specifically the oversampling and field of view. 
+        When creating such an OpticalSystem, you must specify the parameters needed to define the
+        desired sampling, specifically the oversampling and field of view.
 
 
         Parameters
@@ -491,21 +491,21 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
             by still using some oversampling (i.e. *not* setting `oversample_detector=1`) and instead rebinning
             down the oversampled data.
         fov_pixels : float
-            Field of view in pixels. Overrides fov_arcsec if both set. 
+            Field of view in pixels. Overrides fov_arcsec if both set.
         fov_arcsec : float
             Field of view, in arcseconds. Default is 2
 
 
         Returns
         -------
-        osys : poppy.OpticalSystem 
+        osys : poppy.OpticalSystem
             an optical system instance representing the desired configuration.
 
         """
 
         _log.info("Creating optical system model:")
 
-        if options is None: options = self.options 
+        if options is None: options = self.options
         if detector_oversample is None: detector_oversample = fft_oversample
 
         _log.debug("Oversample: %d  %d " % (fft_oversample, detector_oversample))
@@ -526,7 +526,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
             opd_map =  (self.pupilopd[0] if os.path.exists( self.pupilopd[0]) else os.path.join(self._datapath, "OPD",self.pupilopd[0]), self.pupilopd[1])
         elif isinstance(self.pupilopd, (fits.HDUList, poppy.OpticalElement)):
             opd_map = self.pupilopd # not a path per se but this works correctly to pass it to poppy
-        elif self.pupilopd is None: 
+        elif self.pupilopd is None:
             opd_map = None
         else:
             raise TypeError("Not sure what to do with a pupilopd of that type:"+str(type(self.pupilopd)))
@@ -566,8 +566,8 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
 
         #---- Add defocus if requested
-        if 'defocus_waves' in options: 
-           defocus_waves = options['defocus_waves'] 
+        if 'defocus_waves' in options:
+           defocus_waves = options['defocus_waves']
            defocus_wavelength = float(options['defocus_wavelength']) if 'defocus_wavelength' in options else 2.0e-6
            _log.info("Adding defocus of %d waves at %.2f microns" % (defocus_waves, defocus_wavelength *1e6))
            lens = poppy.ThinLens(
@@ -591,7 +591,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
             optsys, trySAM, SAM_box_size = self._addAdditionalOptics(optsys, oversample=fft_oversample)
         else: trySAM = False
 
-        #--- add the detector element. 
+        #--- add the detector element.
         if fov_pixels is None:
             if not np.isscalar(fov_arcsec): fov_arcsec = np.asarray(fov_arcsec) # cast to ndarray if 2D
             fov_pixels = np.round(fov_arcsec/self.pixelscale)
@@ -604,18 +604,18 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         optsys.addDetector(self.pixelscale, fov_pixels = fov_pixels, oversample = detector_oversample, name=self.name+" detector")
 
         #---  invoke semi-analytic coronagraphic propagation
-        if trySAM and not ('no_sam' in self.options and self.options['no_sam']): # if this flag is set, try switching to SemiAnalyticCoronagraph mode. 
+        if trySAM and not ('no_sam' in self.options and self.options['no_sam']): # if this flag is set, try switching to SemiAnalyticCoronagraph mode.
             _log.info("Trying to invoke switch to Semi-Analytic Coronagraphy algorithm")
-            try: 
+            try:
                 SAM_optsys = poppy.SemiAnalyticCoronagraph(optsys, oversample=fft_oversample, occulter_box = SAM_box_size )
                 _log.info("SAC OK")
                 return SAM_optsys
-            except ValueError as err: 
+            except ValueError as err:
                 _log.warn("Could not switch to Semi-Analytic Coronagraphy mode; invalid set of optical planes? Using default propagation instead.")
                 _log.warn(str(err))
                 #_log.warn("ERROR ({0}): {1}".format(errno, strerror))
                 pass
- 
+
 
 
         return optsys
@@ -638,7 +638,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         raise NotImplementedError("needs to be subclassed.")
 
     def _getSynphotBandpass(self, filtername):
-        """ Return a pysynphot.ObsBandpass object for the given desired band. 
+        """ Return a pysynphot.ObsBandpass object for the given desired band.
 
         By subclassing this, you can define whatever custom bandpasses are appropriate for
         your instrument
@@ -703,12 +703,12 @@ class JWInstrument(SpaceTelescopeInstrument):
 
 class MIRI(JWInstrument):
     """ A class modeling the optics of MIRI, the Mid-InfraRed Instrument.
-    
+
     Relevant attributes include `filter`, `image_mask`, and `pupil_mask`.
 
     In addition to the actual filters, you may select 'MRS-IFU Ch1' to
     indicate use of the MIRI IFU in Channel 1, and so forth. In this case, the `monochromatic` attribute controls the simulated wavelength.
-    Note that the pixel scale varies with channel, which is why they are implemented separately. 
+    Note that the pixel scale varies with channel, which is why they are implemented separately.
     **Note: IFU to be implemented later**
 
 
@@ -773,7 +773,7 @@ class MIRI(JWInstrument):
         # For the MIRI FQPMs, we require the star to be centered not on the middle pixel, but
         # on the cross-hairs between four pixels. (Since that is where the FQPM itself is centered)
         # This is with respect to the intermediate calculation pixel scale, of course, not the
-        # final detector pixel scale. 
+        # final detector pixel scale.
         if ((self.image_mask is not None and 'FQPM' in self.image_mask)
             or 'force_fqpm_shift' in self.options) :
                 optsys.addPupil( poppy.FQPM_FFT_aligner() )
@@ -798,14 +798,14 @@ class MIRI(JWInstrument):
             trySAM = False
         elif self.image_mask =='LYOT2300':
             #diameter is 4.25 (measured) 4.32 (spec) supposedly 6 lambda/D
-            #optsys.addImage(function='CircularOcculter',radius =4.25/2, name=self.image_mask) 
+            #optsys.addImage(function='CircularOcculter',radius =4.25/2, name=self.image_mask)
             # Add bar occulter: width = 0.722 arcsec (or perhaps 0.74, Dean says there is ambiguity)
             #optsys.addImage(function='BarOcculter', width=0.722, angle=(360-4.76))
             # position angle of strut mask is 355.5 degrees  (no = =360 -2.76 degrees
             #optsys.addImage(function='fieldstop',size=30)
             container = poppy.CompoundAnalyticOptic(name = "MIRI Lyot Occulter",
                 opticslist = [poppy.CircularOcculter(radius =4.25/2, name=self.image_mask),
-                              poppy.BarOcculter(width=0.722), 
+                              poppy.BarOcculter(width=0.722),
                               poppy.SquareFieldStop(size=30, angle=-self._rotation)] )
             optsys.addImage(container)
             trySAM = True
@@ -813,8 +813,8 @@ class MIRI(JWInstrument):
         elif self.image_mask == 'LRS slit':
             # one slit, 5.5 x 0.6 arcsec in height (nominal)
             #           4.7 x 0.51 arcsec (measured for flight model. See MIRI-TR-00001-CEA)
-            # 
-            # Per Klaus Pontoppidan: The LRS slit is aligned with the detector x-axis, so that the dispersion direction is along the y-axis. 
+            #
+            # Per Klaus Pontoppidan: The LRS slit is aligned with the detector x-axis, so that the dispersion direction is along the y-axis.
             optsys.addImage(optic=poppy.RectangularFieldStop(width=5.5, height=0.6, angle=self._rotation, name= self.image_mask))
             trySAM = False
         else:
@@ -865,13 +865,13 @@ class MIRI(JWInstrument):
 
 
 class NIRCam(JWInstrument):
-    """ A class modeling the optics of NIRCam. 
-    
+    """ A class modeling the optics of NIRCam.
+
     Relevant attributes include `filter`, `image_mask`, and `pupil_mask`.
 
-    The NIRCam class is smart enough to automatically select the appropriate pixel scale for the short or long wavelength channel 
+    The NIRCam class is smart enough to automatically select the appropriate pixel scale for the short or long wavelength channel
     based on whether you request a short or long wavelength filter.
- 
+
     """
     SHORT_WAVELENGTH_MIN = 0.6 * 1e-6
     SHORT_WAVELENGTH_MAX = LONG_WAVELENGTH_MIN = 2.35 * 1e-6
@@ -938,12 +938,12 @@ class NIRCam(JWInstrument):
         Two linear bar occulters: Wedges vary from HWHM = 2 lam/D to 6 lam/D at 2.1 and 4.6 micron
                     2.1e-6:    HWHM = 0.13327 to 0.3998
                     4.6e-6:    HWHM = 0.27290 to 0.8187
-            The matching Lyot stop for the wedges are tuned for 4 lam/D. 
+            The matching Lyot stop for the wedges are tuned for 4 lam/D.
             The linear ones have a fixed width at either side: maybe ~ 3-4 arcsec. Then a linear taper
-            in between. 
+            in between.
 
 
-        Values of Sigma: 
+        Values of Sigma:
             For circular occulters, 0.3998 requires sigma = 5.253
                                     0.8187 requires sigma = 2.5652
                                     sigma = 2.10013932 / loc
@@ -1000,7 +1000,7 @@ class NIRCam(JWInstrument):
         WLP4_diversity =  8.27398 # microns
         WLP8_diversity = 16.4554  # microns
         WLM8_diversity =-16.4143  # microns
-        WL_wavelength =   2.12    # microns 
+        WL_wavelength =   2.12    # microns
 
         #optsys.addPupil( name='null for debugging NIRcam _addCoron') # debugging
         if self.pupil_mask == 'CIRCLYOT':
@@ -1078,24 +1078,24 @@ class NIRCam(JWInstrument):
 
 
 class NIRSpec(JWInstrument):
-    """ A class modeling the optics of NIRSpec, in **imaging** mode. 
+    """ A class modeling the optics of NIRSpec, in **imaging** mode.
 
     This is not a substitute for a spectrograph model, but rather a way of simulating a PSF as it
-    would appear with NIRSpec in imaging mode (e.g. for target acquisition).  NIRSpec support is 
+    would appear with NIRSpec in imaging mode (e.g. for target acquisition).  NIRSpec support is
     relatively simplistic compared to the other instruments at this point.
-    
+
     Relevant attributes include `filter`. In addition to the actual filters, you may select 'IFU' to
     indicate use of the NIRSpec IFU, in which case use the `monochromatic` attribute to set the simulated wavelength.
 
     If a grating is selected in the pupil, then a rectangular pupil mask 8.41x7.91 m as projected onto the primary
-    is added to the optical system. This is an estimate of the pupil stop imposed by the outer edge of the grating 
+    is added to the optical system. This is an estimate of the pupil stop imposed by the outer edge of the grating
     clear aperture, estimated based on optical modeling by Erin Elliot and Marshall Perrin.
 
     **Note: IFU to be implemented later**
     """
     def __init__(self):
         JWInstrument.__init__(self, "NIRSpec")
-        self.pixelscale = 0.100 #  100 mas pixels. Microshutters are 0.2x0.46 but we ignore that here. 
+        self.pixelscale = 0.100 #  100 mas pixels. Microshutters are 0.2x0.46 but we ignore that here.
         self._rotation = None
         self._rotation = 90+41.5  # based on SIAF docs by M. Lallo & WFS FOV doc by S. Knight
         self.filter_list.append("IFU")
@@ -1128,7 +1128,7 @@ class NIRSpec(JWInstrument):
 
         """
         from .optics import NIRSpec_three_MSA_shutters, NIRSpec_MSA_open_grid
-        trySAM = False # semi-analytic method never applicable here. 
+        trySAM = False # semi-analytic method never applicable here.
         SAM_box_size = None
 
         if self.image_mask == 'S200A1' or self.image_mask == 'S200A2' or self.image_mask == 'S200B1':
@@ -1141,15 +1141,15 @@ class NIRSpec(JWInstrument):
             # square aperture for exoplanet spectroscopy
             optsys.addImage(optic=poppy.RectangularFieldStop(width=1.6, height=1.6, name= self.image_mask + " square aperture"))
         elif self.image_mask == 'MSA all open':
-            # all MSA shutters open 
+            # all MSA shutters open
             optsys.addImage(optic=NIRSpec_MSA_open_grid(name= self.image_mask))
         elif self.image_mask == 'Single MSA open shutter':
-            # one MSA open shutter aperture 
+            # one MSA open shutter aperture
             optsys.addImage(optic=poppy.RectangularFieldStop(width=0.2, height=0.45, name= self.image_mask))
         elif self.image_mask == 'Three adjacent MSA open shutters':
             optsys.addImage(optic=NIRSpec_three_MSA_shutters(name=self.image_mask))
 
- 
+
 
 
         if ((self.pupil_mask is not None) and  ('grating' in self.pupil_mask.lower())):
@@ -1180,12 +1180,12 @@ class NIRSpec(JWInstrument):
 class NIRISS(JWInstrument):
     """ A class modeling the optics of the Near-IR Imager and Slit Spectrograph
         (formerly TFI)
-    
+
     Relevant attributes include `image_mask`, and `pupil_mask`.
 
     **Imaging:**
 
-    WebbPSF models the direct imaging and nonredundant aperture masking modes of NIRISS in the usual manner. 
+    WebbPSF models the direct imaging and nonredundant aperture masking modes of NIRISS in the usual manner.
 
     Note that long wavelength filters (>2.5 microns) have a pupil which includes the pupil alignment reference.
     If auto_pupil is set, the pupil will be toggled between CLEAR and CLEARP automatically depending on filter.
@@ -1195,17 +1195,17 @@ class NIRISS(JWInstrument):
 
     Added in version 0.3 is partial support for the single-object slitless spectroscopy ("SOSS") mode using the
     GR700XD cross-dispersed grating. Currently this includes the clipping of the pupil due to the undersized grating
-    and its mounting hardware, and the cylindrical lens that partially defocuses the light in one direction. 
+    and its mounting hardware, and the cylindrical lens that partially defocuses the light in one direction.
 
-    .. warning :: 
+    .. warning ::
 
-        Prototype implementation - Not yet fully tested or verified. 
+        Prototype implementation - Not yet fully tested or verified.
 
     Note that WebbPSF does not model the spectral dispersion in any of NIRISS'
     slitless spectroscopy modes.  For wide-field slitless spectroscopy, this
     can best be simulated by using webbpsf output PSFs as input to the aXe
-    spectroscopy code. Contact Van Dixon at STScI for further information.   
-    For SOSS mode, contact Loic Albert at Universite de Montreal. 
+    spectroscopy code. Contact Van Dixon at STScI for further information.
+    For SOSS mode, contact Loic Albert at Universite de Montreal.
 
     The other two slitless spectroscopy grisms use the regular pupil and do not require any special
     support in WebbPSF.
@@ -1232,10 +1232,10 @@ class NIRISS(JWInstrument):
         self.auto_pupil = auto_pupil
 
     def _addAdditionalOptics(self,optsys, oversample=2):
-        """Add NRM or slitless spectroscopy optics for NIRISS. 
+        """Add NRM or slitless spectroscopy optics for NIRISS.
 
             These are probably not going to be used much in practice for NIRISS, but they
-            are present, so we might as well still provide the ability to simulate 'em. 
+            are present, so we might as well still provide the ability to simulate 'em.
         """
 
         from .optics import NIRISS_GR700XD_Grism, NIRISS_CLEARP
@@ -1272,7 +1272,7 @@ class NIRISS(JWInstrument):
             optsys.addPupil(optic = NIRISS_CLEARP())
         elif self.pupil_mask == 'GR700XD':
             optsys.addPupil(optic = NIRISS_GR700XD_Grism(shift=shift))
- 
+
         elif (self.pupil_mask  is None and self.image_mask is not None):
             optsys.addPupil(name='No Lyot Mask Selected!')
 
@@ -1296,22 +1296,22 @@ class NIRISS(JWInstrument):
             raise RuntimeError("The requested wavelengths are too short to be imaged with NIRISS")
         if np.max(wavelengths) > self.LONG_WAVELENGTH_MAX:
             raise RuntimeError("The requested wavelengths are too long to be imaged with NIRISS")
-        if (np.max(wavelengths) <= self.SHORT_WAVELENGTH_MAX and 
+        if (np.max(wavelengths) <= self.SHORT_WAVELENGTH_MAX and
             self.pupil=='NRM'):
                 raise RuntimeError('NRM pupil can only be used with long '
                     'wavelength filters (F277W and longer)')
 
 
-        # NIRISS pupils: 
+        # NIRISS pupils:
         # Short wave filters can be used with a full (clear) pupil
         # long filters have to be used with the CLEARP pupil that contains the
-        # PAR reference. 
+        # PAR reference.
 
         if self.auto_pupil:
-            if (np.max(wavelengths) <= self.SHORT_WAVELENGTH_MAX and 
-                self.pupil_mask == 'CLEARP'): 
-                    new_pupil_mask=None 
-            elif  (np.min(wavelengths) >= self.LONG_WAVELENGTH_MIN and 
+            if (np.max(wavelengths) <= self.SHORT_WAVELENGTH_MAX and
+                self.pupil_mask == 'CLEARP'):
+                    new_pupil_mask=None
+            elif  (np.min(wavelengths) >= self.LONG_WAVELENGTH_MIN and
                 self.pupil_mask is None):
                     new_pupil_mask='CLEARP'
             else: new_pupil_mask=self.pupil_mask # default is same pupil
@@ -1326,7 +1326,7 @@ class NIRISS(JWInstrument):
 
 class FGS(JWInstrument):
     """ A class modeling the optics of the FGS.
-    
+
     Not a lot to see here, folks: There are no selectable options, just a great big detector-wide bandpass.
     """
     def __init__(self):
@@ -1337,7 +1337,7 @@ class FGS(JWInstrument):
         self._detector2siaf = dict()
         for name in self.detector_list: self._detector2siaf[name] = 'FGS{0}_FULL_CNTR'.format(name)
         self.detector=self.detector_list[0]
- 
+
     def _addAdditionalOptics(self,optsys):
         raise NotImplementedError("No user-selectable optics in FGS.")
 
@@ -1351,17 +1351,17 @@ class FGS(JWInstrument):
 
 def Instrument(name):
     """This is just a convenience function, allowing one to access instrument objects based on a string.
-    For instance, 
+    For instance,
 
     >>> t = Instrument('NIRISS')
 
 
-    
+
     Parameters
     ----------
     name : string
         Name of the instrument class to return. Case insensitive.
-    
+
     """
     name = name.lower()
     if name == 'miri': return MIRI()
@@ -1376,20 +1376,20 @@ Instrument.list = ['nircam', 'nirspec', 'niriss', 'miri'] # useful list for iter
 
 def calc_or_load_PSF(filename, inst, clobber=False, **kwargs):
     """ Utility function for loading a precomputed PSF from disk, or else
-    if that files does not exist, then compute it and save to disk. 
+    if that files does not exist, then compute it and save to disk.
 
     This is useful for writing scripts that cache results - i.e. calculate the
     PSF the first time through and save it, then just load the PSF on subsequent
-    iterations. 
+    iterations.
 
     Parameters
     ------------
     filename : str
         Filename possibly including path
-    inst : JWInstrument 
+    inst : JWInstrument
         configured instance of a JWInstrument class
     **kwargs : dict
-        Parameters to pass to calcPSF() of that instrument. 
+        Parameters to pass to calcPSF() of that instrument.
 
     Note that no validation is performed of the PSF loaded from disk to make sure it
     matches the desired properties.  This is just a quick-and-dirty unofficial/undocumented
@@ -1398,7 +1398,7 @@ def calc_or_load_PSF(filename, inst, clobber=False, **kwargs):
     """
     if os.path.exists(filename) and not clobber:
         return fits.open(filename)
-    else: 
+    else:
         return inst.calcPSF(outfile = filename, **kwargs)
 
 
@@ -1407,7 +1407,7 @@ def calc_or_load_PSF(filename, inst, clobber=False, **kwargs):
 #########################
 
 class DetectorGeometry(object):
-    """ Utility class for converting between detector coordinates 
+    """ Utility class for converting between detector coordinates
     in science frame pixels and field of view angular coordinates in arcminutes.
 
 
@@ -1446,9 +1446,9 @@ class DetectorGeometry(object):
 
 
     def pix2angle(self, xpix, ypix):
-        """ Convert  from detector coordinates to telescope frame coordinates using SIAF transformations 
-        See the SIAF code in jwxml for all the full details, or Lallo & Cox Tech Reports 
-        
+        """ Convert  from detector coordinates to telescope frame coordinates using SIAF transformations
+        See the SIAF code in jwxml for all the full details, or Lallo & Cox Tech Reports
+
         Parameters
         ------------
         xpix, ypix : floats

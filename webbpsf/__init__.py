@@ -127,15 +127,8 @@ else:
         """
         if preferred == 'wx' and _HAVE_WX_GUI:
             wxgui()
-            #try:
-#            wxgui()
-            #except:
-                #raise ImportError("wxpython GUI for webbpsf not available ")
             pass
         elif preferred=='ttk' or _HAVE_TK_GUI:
-            #try:
             tkgui()
-            #except:
-                #raise ImportError("ttk GUI for webbpsf not available")
         else:
             raise NotImplementedError("Neither TK nor WX GUI libraries are available. Cannot start GUI.")

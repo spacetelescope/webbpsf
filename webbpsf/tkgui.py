@@ -363,12 +363,8 @@ class WebbPSF_GUI(object):
         "Event handler for Plot Spectrum "
         self._updateFromGUI()
 
-        #sptype = self.widgets['SpType'].get()
-        #iname = self.widgets[self.widgets['tabset'].select()]
         print("Spectral type is "+self.sptype)
         print("Selected instrument tab is "+self.iname)
-        #if iname != 'TFI':
-            #filter = self.widgets[self.iname+"_filter"].get()
         print("Selected instrument filter is "+self.filter)
 
 
@@ -385,7 +381,6 @@ class WebbPSF_GUI(object):
 
         ax2 = plt.subplot(312, sharex=ax1)
         ax2.set_ybound(0,1.1)
-        #try:
         band = self.inst._getSynphotBandpass(self.inst.filter) #pysynphot.ObsBandpass(obsname)
         band.name = "%s %s" % (self.iname, self.inst.filter)
         synplot(band) #, **kwargs)
@@ -400,18 +395,8 @@ class WebbPSF_GUI(object):
             # Automatically determine number of appropriate wavelengths.
             # Make selection based on filter configuration file
             try:
-                #if self.inst.name=='TFI':    # filter names are irrelevant for TFI.
-                    #nlambda=5
-                #else:
-                    #filt_width = self.filter[-1]
-                    #lookup_table = {'NIRCam': {'2': 10, 'W':20,'M':3,'N':1}, 
-                                    #'NIRSpec':{'W':5,'M':3,'N':1}, 
-                                    #'MIRI':{'W':5,'M':3,'N':1}, 
-                                    #'FGS':{'W':5,'M':3,'N':1}}
-
-                    #nlambda = lookup_table[self.name][filt_width]
-                nlambda = self.inst._filter_nlambda_default[self.filter]
-            except:
+                nlambda = self.inst._filters[self.filter].default_nlambda
+            except KeyError:
                 nlambda=10
         else:
             nlambda = self.nlambda
