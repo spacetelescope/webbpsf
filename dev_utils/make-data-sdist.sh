@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Script to make a distributable version of WebbPSF, with various packaging tweaks
 set -e
 
@@ -9,7 +9,7 @@ if ! [[ $1 ]]; then
 fi
 
 if ! [[ $DATAROOT ]]; then
-  DATAROOT=/itar/jwst/tel/share/webbpsf/webbpsf-data-source/
+  DATAROOT="/itar/jwst/tel/share/webbpsf/webbpsf-data-source/"
 fi
 echo "Using data from $DATAROOT"
 
@@ -19,10 +19,10 @@ export COPYFILE_DISABLE=1
 
 TMPDIR="/tmp/webbpsf-data"
 
-mkdir -p  $TMPDIR
-rsync -avz --exclude '._*' --exclude '_Obsolete' "$DATAROOT" $TMPDIR
+mkdir -p "$TMPDIR"
+rsync -avz --exclude '._*' --exclude '_Obsolete' "$DATAROOT" "$TMPDIR"
 
-VER=$1
+VER="$1"
 echo "$VER" > $TMPDIR/version.txt
 echo "Saving version number $VER to version.txt"
 
@@ -33,12 +33,12 @@ echo "Saving version number $VER to version.txt"
 # set MIRI filters to the square profiles for broad distribution
 echo "Setting up for simplified MIRI filter profiles"
 # remove symlink to DATAROOT
-rm -rfv $TMPDIR/MIRI/filters
+rm -rfv "$TMPDIR/MIRI/filters"
 # copy tophat filters into place
-cp -Rv $TMPDIR/MIRI/tophat_filters $TMPDIR/MIRI/filters
+cp -Rv "$TMPDIR/MIRI/tophat_filters" "$TMPDIR/MIRI/filters"
 
 # create public distributable tar file
-tar -cvz -C $TMPDIR/..  \
+tar -cvz -C "$TMPDIR/.." \
     --exclude .svn --exclude OPD_RevT --exclude TFI --exclude .DS_Store \
     --exclude sources --exclude "*FND*" --exclude "*_filters" --exclude "*py" \
     --exclude "_Obsolete" --exclude README_DEVEL.txt \
@@ -47,17 +47,18 @@ tar -cvz -C $TMPDIR/..  \
 # Make a copy with the complete MIRI filter profiles, for internal or CoroWG use
 echo "Setting up for measured MIRI filter profiles"
 # remove tophat filters
-rm -rfv $TMPDIR/MIRI/filters
+rm -rfv "$TMPDIR/MIRI/filters"
 # copy complete filter profiles into place
-cp -Rv $TMPDIR/MIRI/measured_filters $TMPDIR/MIRI/filters
+cp -Rv "$TMPDIR/MIRI/measured_filters" "$TMPDIR/MIRI/filters"
 
 # create internal distributable tar file
-tar -cvz -C $TMPDIR/..  \
+tar -cvz -C "$TMPDIR/.." \
     --exclude .svn --exclude OPD_RevT --exclude TFI --exclude .DS_Store \
     --exclude "*_filters" --exclude "*py" \
     --exclude "_Obsolete" --exclude README_DEVEL.txt \
     -f "webbpsf-data-internal-$VER.tar.gz" webbpsf-data
 
-echo "Public file output to:    $(pwd)/webbpsf-data-$VER.tar.gz"
-echo "Internal file output to:  $(pwd)/webbpsf-data-internal-$VER.tar.gz"
-
+echo "Public file output to:    $PWD/webbpsf-data-$VER.tar.gz"
+echo "Internal file output to:  $PWD/webbpsf-data-internal-$VER.tar.gz"
+echo
+echo "If those work, remove $TMPDIR"
