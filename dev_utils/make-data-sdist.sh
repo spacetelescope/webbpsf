@@ -56,7 +56,7 @@ tar -cvz -C $TMPDIR/..  \
     --exclude .svn --exclude OPD_RevT --exclude TFI --exclude .DS_Store \
     --exclude "*_filters" --exclude "*py" \
     --exclude "_Obsolete" --exclude README_DEVEL.txt \
-    -f "webbpsf-data-internal-$VER.tar.gz" webbpsf-data-source
+    -f "webbpsf-data-internal-$VER.tar.gz" webbpsf-data
 
 echo "Public file output to:    $(pwd)/webbpsf-data-$VER.tar.gz"
 echo "Internal file output to:  $(pwd)/webbpsf-data-internal-$VER.tar.gz"
