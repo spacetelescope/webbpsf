@@ -2,16 +2,17 @@
 # Script to make a distributable version of WebbPSF, with various packaging tweaks
 set -e
 
-if [ -z VER ]; then
-  echo "Provide a version: VER=\"0.3.3\" ./make-data-sdist.sh"
+if ! [[ $VER ]]; then
+  echo "Provide a version, e.g.:"
+  echo "    VER=\"0.3.3\" ./make-data-sdist.sh"
   exit 1
 fi
 
-if [ -z DATAROOT ]; then
+if ! [[ $DATAROOT ]]; then
   DATAROOT=/itar/jwst/tel/share/webbpsf/webbpsf-data-source
 fi
 
-if [ -z DEST ]; then
+if ! [[ $DEST ]]; then
   DEST="$(pwd)"
 fi
 
