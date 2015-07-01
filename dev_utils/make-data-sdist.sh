@@ -31,10 +31,11 @@ echo "Saving version number $VER to version.txt"
 # Also exclude various things we don't want to distribute, like .svn, the old OPDs, and the data source directories
 
 # set MIRI filters to the square profiles for broad distribution
-# link to tophat filters
 echo "Setting up for simplified MIRI filter profiles"
-rm -fv $TMPDIR/MIRI/filters
-ln -s $TMPDIR/MIRI/tophat_filters $TMPDIR/MIRI/filters
+# remove symlink to DATAROOT
+rm -rfv $TMPDIR/MIRI/filters
+# copy tophat filters into place
+cp -Rv $TMPDIR/MIRI/tophat_filters $TMPDIR/MIRI/filters
 
 # create public distributable tar file
 tar -cvz -C $TMPDIR/..  \
@@ -44,11 +45,11 @@ tar -cvz -C $TMPDIR/..  \
     -f "webbpsf-data-$VER.tar.gz" webbpsf-data
 
 # Make a copy with the complete MIRI filter profiles, for internal or CoroWG use
-
-# link to measured filters
 echo "Setting up for measured MIRI filter profiles"
-rm -fv $TMPDIR/MIRI/filters
-ln -s $TMPDIR/MIRI/measured_filters $TMPDIR/MIRI/filters
+# remove tophat filters
+rm -rfv $TMPDIR/MIRI/filters
+# copy complete filter profiles into place
+cp -Rv $TMPDIR/MIRI/measured_filters $TMPDIR/MIRI/filters
 
 # create internal distributable tar file
 tar -cvz -C $TMPDIR/..  \
