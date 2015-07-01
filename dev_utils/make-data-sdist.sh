@@ -20,7 +20,7 @@ export COPYFILE_DISABLE=1
 TMPDIR="/tmp/webbpsf-data"
 
 mkdir -p "$TMPDIR"
-rsync -avz --exclude '._*' --exclude '_Obsolete' "$DATAROOT" "$TMPDIR"
+rsync -avz --delete --exclude '._*' --exclude '_Obsolete' "$DATAROOT" "$TMPDIR"
 
 VER="$1"
 echo "$VER" > $TMPDIR/version.txt
