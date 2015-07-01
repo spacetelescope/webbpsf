@@ -81,7 +81,7 @@ class FieldDependentAberration(poppy.ZernikeWFE):
             wavelength = wave
         else:
             wavelength = wave.wavelength
-        self.coefficients = self.get_aberration_terms(wavelength)
+        self.coefficients = wavelength * self.get_aberration_terms(wavelength)
         return super(FieldDependentAberration, self).getPhasor(wave)
 
     def set_field_position(self, x_pixel, y_pixel):
@@ -117,7 +117,7 @@ class FieldDependentAberration(poppy.ZernikeWFE):
             (self.x_pixel, self.y_pixel),
             method='linear'
         )
-        return wavelength * computed_aberration
+        return computed_aberration
 
 def _load_wfi_aberration_apertures(filename):
     from astropy.io import ascii
