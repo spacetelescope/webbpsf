@@ -1,11 +1,6 @@
 Documentation for WebbPSF 
 ===============================
 
-.. comment:
-   .. warning::
-   This is a pre-release version of the documentation for WebbPSF version 0.3, which is not quite out yet. There are likely to be references to functionality not yet in the released code. Proceed at your own discretion!
-   To install the current development version, see :ref:`install_dev_version`.
-
 WebbPSF is a Python package that computes simulated PSFs for the JWST instruments, taking into account detector pixel scales, rotations, filter profiles, and point source spectra. It is *not* a full optical model of JWST, but rather a tool for transforming optical path difference (OPD) maps, created with some other tool, into the resulting PSFs as observed with JWST's instruments.
 
 .. figure:: ./fig_instrument_comparison.png
@@ -43,7 +38,7 @@ Getting Started with WebbPSF
 The WebbPSF software system is composed of two Python packages: a lower-level optical propagation library (:py:mod:`POPPY <poppy>`) plus an implementation of the JWST instruments using that library (:py:mod:`WebbPSF <webbpsf>`).  This documentation explains the programming interfaces and graphical user interface of WebbPSF, as well as providing a :ref:`quick overview <poppy_overiew>` of POPPY.
 
 
-:ref:`What's new in release 0.3? <rel0.3.0>`
+:ref:`What's new in release 0.3.3? <rel0.3.3>`
 
 
 .. toctree::
