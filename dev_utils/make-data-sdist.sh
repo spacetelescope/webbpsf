@@ -20,7 +20,11 @@ export COPYFILE_DISABLE=1
 TMPDIR="/tmp/webbpsf-data"
 
 mkdir -p "$TMPDIR"
-rsync -avz --delete --exclude '._*' --exclude '_Obsolete' "$DATAROOT" "$TMPDIR"
+rsync -avz --delete --exclude '._*' --exclude '_Obsolete' \
+    --exclude .svn --exclude OPD_RevT --exclude TFI --exclude .DS_Store \
+    --exclude sources --exclude "*FND*" --exclude "*py" \
+    --exclude README_DEVEL.txt \
+    "$DATAROOT" "$TMPDIR"
 
 VER="$1"
 echo "$VER" > $TMPDIR/version.txt
@@ -39,9 +43,6 @@ cp -Rv "$TMPDIR/MIRI/tophat_filters" "$TMPDIR/MIRI/filters"
 
 # create public distributable tar file
 tar -cvz -C "$TMPDIR/.." \
-    --exclude .svn --exclude OPD_RevT --exclude TFI --exclude .DS_Store \
-    --exclude sources --exclude "*FND*" --exclude "*_filters" --exclude "*py" \
-    --exclude "_Obsolete" --exclude README_DEVEL.txt \
     -f "webbpsf-data-$VER.tar.gz" webbpsf-data
 
 # Make a copy with the complete MIRI filter profiles, for internal or CoroWG use
@@ -53,9 +54,6 @@ cp -Rv "$TMPDIR/MIRI/measured_filters" "$TMPDIR/MIRI/filters"
 
 # create internal distributable tar file
 tar -cvz -C "$TMPDIR/.." \
-    --exclude .svn --exclude OPD_RevT --exclude TFI --exclude .DS_Store \
-    --exclude "*_filters" --exclude "*py" \
-    --exclude "_Obsolete" --exclude README_DEVEL.txt \
     -f "webbpsf-data-internal-$VER.tar.gz" webbpsf-data
 
 echo "Public file output to:    $PWD/webbpsf-data-$VER.tar.gz"
