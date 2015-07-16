@@ -76,6 +76,7 @@ Appendices and Reference
    available_opds.rst
    references.rst
    relnotes.rst
+   release.rst
 
 * :ref:`genindex`
 * :ref:`search`
