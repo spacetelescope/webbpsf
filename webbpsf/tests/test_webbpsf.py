@@ -55,8 +55,6 @@ def generic_output_test(iname):
     PSF = inst.calcPSF(nlambda=1, fov_arcsec = fov_arcsec, oversample=3)
     assert( np.remainder(PSF[0].data.shape[0],2) == 1)
 
-
-
 def do_test_source_offset(iname, distance=0.5,  nsteps=1, theta=0.0, tolerance=0.05, monochromatic=None, display=False):
     """ Test source offsets
     Does the star PSF center end up in the desired location?
@@ -127,6 +125,23 @@ def do_test_source_offset(iname, distance=0.5,  nsteps=1, theta=0.0, tolerance=0
 
 
 #------------------ generic infrastructure tests ----------------
+
+def test_opd_selected_by_default():
+    """
+    Regression test for https://github.com/mperrin/webbpsf/issues/73
+
+    Ensure an OPD map is set by default when instantiating an instrument
+    """
+    instruments = [
+        webbpsf_core.NIRCam,
+        webbpsf_core.MIRI,
+        webbpsf_core.NIRSpec,
+        webbpsf_core.NIRISS,
+        webbpsf_core.FGS
+    ]
+    for InstrumentClass in instruments:
+        ins = InstrumentClass()
+        assert ins.pupilopd is not None, "No pupilopd set for {}".format(InstrumentClass)
 
 def test_calcPSF_filter_arg():
     """ Tests the filter argument to the calcPSF function
