@@ -10,7 +10,7 @@ WARNING: No realistic wavefront error map was available for WFIRST at release ti
 import os.path
 import poppy
 import numpy as np
-import webbpsf.webbpsf_core
+from . import webbpsf_core
 from scipy.interpolate import griddata
 from astropy.io import fits
 import logging
