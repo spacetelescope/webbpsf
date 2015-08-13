@@ -10,8 +10,11 @@ WARNING: No realistic wavefront error map was available for WFIRST at release ti
 import os.path
 import poppy
 import numpy as np
-import webbpsf_core
+import webbpsf.webbpsf_core
 from scipy.interpolate import griddata
+from astropy.io import fits
+import logging
+_log = logging.getLogger('webbpsf')
 
 class WavelengthDependenceInterpolator(object):
     def __init__(self, n_wavelengths=16, n_zernikes=22):
@@ -176,11 +179,6 @@ class WFIRSTInstrument(webbpsf_core.SpaceTelescopeInstrument):
         self.pupilopd = None  # until we have some OPD maps and a FITS pupil of the right shape
 
 
-#TODO FIXME
-import logging
-_log = logging.getLogger('WFI')
-
-
 class WFIRSTImager(WFIRSTInstrument):
     """
     WFIRSTImager represents to the to-be-named wide field imager
@@ -192,7 +190,7 @@ class WFIRSTImager(WFIRSTInstrument):
     def __init__(self):
         scale = 110e-3  # arcsec/px, WFIRST-AFTA SDT report v2 (p. 58)
         super(WFIRSTImager, self).__init__("WFIRSTImager", pixelscale=scale)
-        self._apertures = _load_wfi_aberration_apertures('/Users/jlong/dev/webbpsf-data/WFIRSTImager/zernikes.csv')
+        self._apertures = _load_wfi_aberration_apertures(os.path.join(self._datapath, 'zernikes.csv'))
         self._aperture_name = self.aperture_list[0]
         assert len(self._apertures.keys()) > 0
 
@@ -213,6 +211,7 @@ class WFIRSTImager(WFIRSTInstrument):
     def aperture_list(self):
         return sorted(self._apertures.keys())
 
+    # TODO jlong de-duplicate this functionality by providing a better hook in SpaceTelescopeInstrument to add the field-dependent aberrations
     def _getOpticalSystem(self, fft_oversample=2, detector_oversample=None, fov_arcsec=2, fov_pixels=None, options=None):
         """ Return an OpticalSystem instance corresponding to the instrument as currently configured.
 
@@ -254,58 +253,56 @@ class WFIRSTImager(WFIRSTInstrument):
             name='{telescope}+{instrument}'.format(telescope=self.telescope, instrument=self.name),
             oversample=fft_oversample
         )
-#         if 'source_offset_r' in options:
-#             optsys.source_offset_r = options['source_offset_r']
-#         if 'source_offset_theta' in options:
-#             optsys.source_offset_theta = options['source_offset_theta']
+        if 'source_offset_r' in options:
+            optsys.source_offset_r = options['source_offset_r']
+        if 'source_offset_theta' in options:
+            optsys.source_offset_theta = options['source_offset_theta']
 
 
-#         #---- set pupil OPD
-#         if isinstance(self.pupilopd, str):  # simple filename
-#             opd_map = self.pupilopd if os.path.exists( self.pupilopd) else os.path.join(self._datapath, "OPD",self.pupilopd)
-#         elif hasattr(self.pupilopd, '__getitem__') and isinstance(self.pupilopd[0], six.string_types): # tuple with filename and slice
-#             opd_map =  (self.pupilopd[0] if os.path.exists( self.pupilopd[0]) else os.path.join(self._datapath, "OPD",self.pupilopd[0]), self.pupilopd[1])
-#         elif isinstance(self.pupilopd, (fits.HDUList, poppy.OpticalElement)):
-#             opd_map = self.pupilopd # not a path per se but this works correctly to pass it to poppy
-#         elif self.pupilopd is None:
-#             opd_map = None
-#         else:
-#             raise TypeError("Not sure what to do with a pupilopd of that type:"+str(type(self.pupilopd)))
+        #---- set pupil OPD
+        if isinstance(self.pupilopd, str):  # simple filename
+            opd_map = self.pupilopd if os.path.exists( self.pupilopd) else os.path.join(self._datapath, "OPD",self.pupilopd)
+        elif hasattr(self.pupilopd, '__getitem__') and isinstance(self.pupilopd[0], six.string_types): # tuple with filename and slice
+            opd_map =  (self.pupilopd[0] if os.path.exists( self.pupilopd[0]) else os.path.join(self._datapath, "OPD",self.pupilopd[0]), self.pupilopd[1])
+        elif isinstance(self.pupilopd, (fits.HDUList, poppy.OpticalElement)):
+            opd_map = self.pupilopd # not a path per se but this works correctly to pass it to poppy
+        elif self.pupilopd is None:
+            opd_map = None
+        else:
+            raise TypeError("Not sure what to do with a pupilopd of that type:"+str(type(self.pupilopd)))
 
-#         #---- set pupil intensity
-#         if self.pupil is None:
-#             raise RuntimeError("The pupil shape must be specified in the "
-#                                "instrument class or by setting self.pupil")
-#         if isinstance(self.pupil, poppy.OpticalElement):
-#             # supply to POPPY as-is
-#             pupil_optic = optsys.addPupil(self.pupil)
-#         else:
-#             # wrap in an optic and supply to POPPY
-#             if isinstance(self.pupil, str): # simple filename
-#                 if os.path.exists(self.pupil):
-#                     pupil_transmission = self.pupil
-#                 else:
-#                     pupil_transmission = os.path.join(
-#                         self._WebbPSF_basepath,
-#                         self.pupil
-#                     )
-#             elif isinstance(self.pupil, fits.HDUList):
-#                 # POPPY can use self.pupil as-is
-#                 pupil_transmission = self.pupil
-#             else:
-#                 raise TypeError("Not sure what to do with a pupil of "
-#                                 "that type: {}".format(type(self.pupil)))
-#             #---- apply pupil intensity and OPD to the optical model
-#             pupil_optic = optsys.addPupil(
-#                 name='{} Pupil'.format(self.telescope),
-#                 transmission=pupil_transmission,
-#                 opd=opd_map,
-#                 opdunits='micron',
-#                 rotation=self._rotation
-#             )
-        pupil_optic = optsys.addPupil(self.pupil)
+        #---- set pupil intensity
+        if self.pupil is None:
+            raise RuntimeError("The pupil shape must be specified in the "
+                               "instrument class or by setting self.pupil")
+        if isinstance(self.pupil, poppy.OpticalElement):
+            # supply to POPPY as-is
+            pupil_optic = optsys.addPupil(self.pupil)
+        else:
+            # wrap in an optic and supply to POPPY
+            if isinstance(self.pupil, str): # simple filename
+                if os.path.exists(self.pupil):
+                    pupil_transmission = self.pupil
+                else:
+                    pupil_transmission = os.path.join(
+                        self._WebbPSF_basepath,
+                        self.pupil
+                    )
+            elif isinstance(self.pupil, fits.HDUList):
+                # POPPY can use self.pupil as-is
+                pupil_transmission = self.pupil
+            else:
+                raise TypeError("Not sure what to do with a pupil of "
+                                "that type: {}".format(type(self.pupil)))
+            #---- apply pupil intensity and OPD to the optical model
+            pupil_optic = optsys.addPupil(
+                name='{} Pupil'.format(self.telescope),
+                transmission=pupil_transmission,
+                opd=opd_map,
+                opdunits='micron',
+                rotation=self._rotation
+            )
         self.pupil_radius = pupil_optic.pupil_diam / 2.0
-
 
         #---- Add defocus if requested
         if 'defocus_waves' in options:
@@ -319,19 +316,6 @@ class WFIRSTImager(WFIRSTInstrument):
                radius=self.pupil_radius
            )
            optsys.addPupil(optic=lens)
-
-
-#         #---- add coronagraph or spectrograph optics if requested, and possibly flag to invoke semi-analytic coronagraphic propagation
-
-#         # first error check for null strings, which should be considered like None
-#         if self.image_mask == "": self.image_mask = None
-#         if self.pupil_mask == "": self.pupil_mask = None
-
-
-#         if self.image_mask is not None or self.pupil_mask is not None or ('force_coron' in options and options['force_coron']):
-#             _log.debug("Adding coronagraph/spectrograph optics...")
-#             optsys, trySAM, SAM_box_size = self._addAdditionalOptics(optsys, oversample=fft_oversample)
-#         else: trySAM = False
 
         #---- Create and insert virtual optic for field dependent aberration
         if 'pixel_position' in options:
@@ -351,18 +335,5 @@ class WFIRSTImager(WFIRSTInstrument):
             pass
 
         optsys.addDetector(self.pixelscale, fov_pixels = fov_pixels, oversample = detector_oversample, name=self.name+" detector")
-
-        #---  invoke semi-analytic coronagraphic propagation
-#         if trySAM and not ('no_sam' in self.options and self.options['no_sam']): # if this flag is set, try switching to SemiAnalyticCoronagraph mode.
-#             _log.info("Trying to invoke switch to Semi-Analytic Coronagraphy algorithm")
-#             try:
-#                 SAM_optsys = poppy.SemiAnalyticCoronagraph(optsys, oversample=fft_oversample, occulter_box = SAM_box_size )
-#                 _log.info("SAC OK")
-#                 return SAM_optsys
-#             except ValueError as err:
-#                 _log.warn("Could not switch to Semi-Analytic Coronagraphy mode; invalid set of optical planes? Using default propagation instead.")
-#                 _log.warn(str(err))
-#                 #_log.warn("ERROR ({0}): {1}".format(errno, strerror))
-#                 pass
 
         return optsys
