@@ -67,8 +67,10 @@ class WavelengthDependenceInterpolator(object):
 
 class FieldDependentAberration(poppy.ZernikeWFE):
     def __init__(self, pixel_width, pixel_height,
-                 name="Field-dependent Aberration", radius=1.0, oversample=1, interp_order=3):
+                 name="Field-dependent Aberration", radius=1.0, oversample=1, interp_order=3,
+                 omit_piston_tip_tilt=True):
         self.pixel_width, self.pixel_height = pixel_width, pixel_height
+        self.omit_piston_tip_tilt = omit_piston_tip_tilt
         self.x_pixel, self.y_pixel = pixel_width // 2, pixel_height // 2
         self._wavelength_interpolators = {}
         super(FieldDependentAberration, self).__init__(
@@ -85,6 +87,8 @@ class FieldDependentAberration(poppy.ZernikeWFE):
         else:
             wavelength = wave.wavelength
         self.coefficients = wavelength * self.get_aberration_terms(wavelength)
+        if self.omit_piston_tip_tilt:
+            self.coefficients[:3] = 0  # zero out Z1-3 since they don't add anything useful
         return super(FieldDependentAberration, self).getPhasor(wave)
 
     def set_field_position(self, x_pixel, y_pixel):
