@@ -177,10 +177,8 @@ class WFIRSTInstrument(webbpsf_core.SpaceTelescopeInstrument):
     telescope = "WFIRST"
     def __init__(self, *args, **kwargs):
         super(WFIRSTInstrument, self).__init__(*args, **kwargs)
-        self.pupil = poppy.FITSOpticalElement(
-            transmission=os.path.join(self._WebbPSF_basepath, 'AFTA-WFS_C5_Pupil_Mask.fits')
-        )
-        self.pupilopd = None  # until we have some OPD maps and a FITS pupil of the right shape
+        self.pupil = os.path.join(self._WebbPSF_basepath, 'AFTA_WFC_C5_Pupil_Shortwave_Norm_2048px.fits')
+        self.pupilopd = os.path.join(self._WebbPSF_basepath, 'upscaled_HST_OPD.fits')
 
 
 class WFIRSTImager(WFIRSTInstrument):
@@ -191,6 +189,8 @@ class WFIRSTImager(WFIRSTInstrument):
     WARNING: No realistic wavefront error map was available for WFIRST at release time.
              This assumes a perfect telescope!
     """
+    UNMASKED_PUPIL_WAVELENGTH_MIN, UNMASKED_PUPIL_WAVELENGTH_MAX = 0.760e-6, 1.454e-6
+    MASKED_PUPIL_WAVELENGTH_MIN, MASKED_PUPIL_WAVELENGTH_MAX = 1.380e-6, 2.000e-6
     def __init__(self):
         scale = 110e-3  # arcsec/px, WFIRST-AFTA SDT report v2 (p. 58)
         super(WFIRSTImager, self).__init__("WFIRSTImager", pixelscale=scale)
@@ -198,8 +198,36 @@ class WFIRSTImager(WFIRSTInstrument):
         self._aperture_name = self.aperture_list[0]
         assert len(self._apertures.keys()) > 0
 
-    def _validate_config(self):
-        return True
+        # Paths to the two possible pupils. The correct one is selected based on requested
+        # wavelengths in _validate_config()
+        self._unmasked_pupil_path = os.path.join(self._WebbPSF_basepath, 'AFTA_WFC_C5_Pupil_Shortwave_Norm_2048px.fits')
+        self._masked_pupil_path = os.path.join(self._WebbPSF_basepath, 'AFTA_WFC_C5_Pupil_Mask_Norm_2048px.fits')
+
+    def _validate_config(self, **kwargs):
+        if self.pupil in (self._unmasked_pupil_path, self._masked_pupil_path):
+            # Does the wavelength range fit entirely in an unmasked filter?
+            wavelengths = np.array(kwargs['wavelengths'])
+            wl_min, wl_max = np.min(wavelengths), np.max(wavelengths)
+            # test shorter filters first; if wl range fits entirely in one of them, it's not going
+            # to be the (masked) wideband filter
+            if wl_min >= UNMASKED_PUPIL_WAVELENGTH_MIN and wl_max <= UNMASKED_PUPIL_WAVELENGTH_MAX:
+                # use unmasked pupil optic
+                self.pupil = self._unmasked_pupil_path
+                _log.info("Using the unmasked WFI pupil shape based on wavelengths requested")
+            elif wl_min >= MASKED_PUPIL_WAVELENGTH_MIN and wl_max <= MASKED_PUPIL_WAVELENGTH_MAX:
+                # use masked pupil optic
+                self.pupil = self._masked_pupil_path
+                _log.info("Using the masked WFI pupil shape based on wavelengths requested")
+            else:
+                raise RuntimeError("Cannot figure out which WFI pupil shape to use from the "
+                                   "wavelengths requested! (If you know which one you want, "
+                                   "instantiate a poppy.FITSOpticalElement and assign it to the "
+                                   "'pupil' attribute.)")
+        else:
+            # If the user has set the pupil to a custom value, let them worry about the
+            # correct shape it should have
+            pass
+        return super(WFIRSTImager, self)._validateConfig(**kwargs)
 
     @property
     def aperture(self):
