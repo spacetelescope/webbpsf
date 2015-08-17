@@ -1,9 +1,9 @@
 from webbpsf import wfirst
 
-def test_wfirstimager_psf():
+def test_WFI_psf():
     """
-    Just test that instantiating WFIRSTImager works and can compute a PSF without raising
+    Just test that instantiating WFI works and can compute a PSF without raising
     any exceptions
     """
-    wi = wfirst.WFIRSTImager()
+    wi = wfirst.WFI()
     wi.calcPSF()

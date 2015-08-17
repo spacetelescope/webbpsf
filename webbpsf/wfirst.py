@@ -220,9 +220,9 @@ class WFIRSTInstrument(webbpsf_core.SpaceTelescopeInstrument):
         else:
             return None
 
-class WFIRSTImager(WFIRSTInstrument):
+class WFI(WFIRSTInstrument):
     """
-    WFIRSTImager represents to the to-be-named wide field imager
+    WFI represents to the to-be-named wide field imager
     for the WFIRST mission
 
     WARNING: No realistic wavefront error map was available for WFIRST at release time.
@@ -234,7 +234,7 @@ class WFIRSTImager(WFIRSTInstrument):
     MASKED_PUPIL_WAVELENGTH_MIN, MASKED_PUPIL_WAVELENGTH_MAX = 1.380e-6, 2.000e-6
     def __init__(self):
         scale = 110e-3  # arcsec/px, WFIRST-AFTA SDT report v2 (p. 58)
-        super(WFIRSTImager, self).__init__("WFIRSTImager", pixelscale=scale)
+        super(WFI, self).__init__("WFI", pixelscale=scale)
 
         self._apertures = _load_wfi_aberration_apertures(os.path.join(self._datapath, 'zernikes.csv'))
         self._aperture_name = self.aperture_list[0]
@@ -270,4 +270,4 @@ class WFIRSTImager(WFIRSTInstrument):
             # If the user has set the pupil to a custom value, let them worry about the
             # correct shape it should have
             pass
-        return super(WFIRSTImager, self)._validateConfig(**kwargs)
+        return super(WFI, self)._validateConfig(**kwargs)
