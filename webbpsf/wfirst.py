@@ -232,11 +232,14 @@ class WFIRSTImager(WFIRSTInstrument):
     WARNING: No realistic wavefront error map was available for WFIRST at release time.
              This assumes a perfect telescope!
     """
+    # "The H158, F184 and W149 filters and the grism are mounted with proximate cold pupil masks"
+    # from the final draft of the SDT report, page 92, table 3-2
     UNMASKED_PUPIL_WAVELENGTH_MIN, UNMASKED_PUPIL_WAVELENGTH_MAX = 0.760e-6, 1.454e-6
     MASKED_PUPIL_WAVELENGTH_MIN, MASKED_PUPIL_WAVELENGTH_MAX = 1.380e-6, 2.000e-6
     def __init__(self):
         scale = 110e-3  # arcsec/px, WFIRST-AFTA SDT report v2 (p. 58)
         super(WFIRSTImager, self).__init__("WFIRSTImager", pixelscale=scale)
+
         self._apertures = _load_wfi_aberration_apertures(os.path.join(self._datapath, 'zernikes.csv'))
         self._aperture_name = self.aperture_list[0]
         assert len(self._apertures.keys()) > 0
@@ -246,18 +249,19 @@ class WFIRSTImager(WFIRSTInstrument):
         self._unmasked_pupil_path = os.path.join(self._WebbPSF_basepath, 'AFTA_WFC_C5_Pupil_Shortwave_Norm_2048px.fits')
         self._masked_pupil_path = os.path.join(self._WebbPSF_basepath, 'AFTA_WFC_C5_Pupil_Mask_Norm_2048px.fits')
 
-    def _validate_config(self, **kwargs):
+    def _validateConfig(self, **kwargs):
         if self.pupil in (self._unmasked_pupil_path, self._masked_pupil_path):
+            _log.info("Evaluating wavelengths")
             # Does the wavelength range fit entirely in an unmasked filter?
             wavelengths = np.array(kwargs['wavelengths'])
             wl_min, wl_max = np.min(wavelengths), np.max(wavelengths)
             # test shorter filters first; if wl range fits entirely in one of them, it's not going
             # to be the (masked) wideband filter
-            if wl_min >= UNMASKED_PUPIL_WAVELENGTH_MIN and wl_max <= UNMASKED_PUPIL_WAVELENGTH_MAX:
+            if wl_min >= self.UNMASKED_PUPIL_WAVELENGTH_MIN and wl_max <= self.UNMASKED_PUPIL_WAVELENGTH_MAX:
                 # use unmasked pupil optic
                 self.pupil = self._unmasked_pupil_path
                 _log.info("Using the unmasked WFI pupil shape based on wavelengths requested")
-            elif wl_min >= MASKED_PUPIL_WAVELENGTH_MIN and wl_max <= MASKED_PUPIL_WAVELENGTH_MAX:
+            elif wl_min >= self.MASKED_PUPIL_WAVELENGTH_MIN and wl_max <= self.MASKED_PUPIL_WAVELENGTH_MAX:
                 # use masked pupil optic
                 self.pupil = self._masked_pupil_path
                 _log.info("Using the masked WFI pupil shape based on wavelengths requested")
