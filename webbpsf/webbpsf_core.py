@@ -768,8 +768,7 @@ class MIRI(JWInstrument):
         if hasattr(defaultpupil,'opd_slice'):
             opd = (defaultpupil.opd_file, defaultpupil.opd_slice) # rebuild tuple if needed to slice
         optsys.addPupil(name='JWST Pupil',
-                transmission=defaultpupil.amplitude_file, opd=opd,
-                opdunits='micron', rotation=None)
+                transmission=defaultpupil.amplitude_file, opd=opd, rotation=None)
 
         # Add image plane mask
         # For the MIRI FQPMs, we require the star to be centered not on the middle pixel, but
