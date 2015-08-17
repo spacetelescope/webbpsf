@@ -690,19 +690,18 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
 class JWInstrument(SpaceTelescopeInstrument):
     telescope = "JWST"
+    pupilopd = None
+    """Filename *or* fits.HDUList for JWST pupil OPD.
 
+    This can be either a full absolute filename, or a relative name in which case it is
+    assumed to be within the instrument's `data/OPDs/` directory, or an actual fits.HDUList object corresponding to such a file.
+    If the file contains a datacube, you may set this to a tuple (filename, slice) to select a given slice, or else
+    the first slice will be used."""
     def __init__(self, *args, **kwargs):
         super(JWInstrument, self).__init__(*args, **kwargs)
 
         self.pupil = os.path.abspath(self._datapath+"../pupil_RevV.fits")
         "Filename *or* fits.HDUList for JWST pupil mask. Usually there is no need to change this."
-        self.pupilopd = None   # This can optionally be set to a tuple indicating (filename, slice in datacube)
-        """Filename *or* fits.HDUList for JWST pupil OPD.
-
-        This can be either a full absolute filename, or a relative name in which case it is
-        assumed to be within the instrument's `data/OPDs/` directory, or an actual fits.HDUList object corresponding to such a file.
-        If the file contains a datacube, you may set this to a tuple (filename, slice) to select a given slice, or else
-        the first slice will be used."""
 
 class MIRI(JWInstrument):
     """ A class modeling the optics of MIRI, the Mid-InfraRed Instrument.
