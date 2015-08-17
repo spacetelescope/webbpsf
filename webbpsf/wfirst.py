@@ -154,7 +154,7 @@ def _load_wfi_aberration_apertures(filename):
                                                         n_zernikes=22)
         for row in rows:
             z = np.zeros(22)
-            for idx in xrange(22):
+            for idx in xrange(3, 22):  # omit piston, tip, tilt for WFI
                 z[idx] = row['Z{}'.format(idx + 1)]
             interpolator.set_aberration_terms(row['Wave(um)'] * 1e-6, z)
 
@@ -175,11 +175,54 @@ class WFIRSTInstrument(webbpsf_core.SpaceTelescopeInstrument):
              This assumes a perfect telescope!
     """
     telescope = "WFIRST"
+    _apertures = {}
+    """
+    Dictionary mapping aperture names to FieldDependentAberration optics.
+
+    (Subclasses must populate this at `__init__`.)
+    """
+    _aperture_name = None
+    """
+    The name of the currently selected aperture. Must be a key in _apertures, as validated by the
+    `aperture` property setter.
+
+    (Subclasses must populate this at `__init__`.)
+    """
+
     def __init__(self, *args, **kwargs):
         super(WFIRSTInstrument, self).__init__(*args, **kwargs)
         self.pupil = os.path.join(self._WebbPSF_basepath, 'AFTA_WFC_C5_Pupil_Shortwave_Norm_2048px.fits')
         self.pupilopd = os.path.join(self._WebbPSF_basepath, 'upscaled_HST_OPD.fits')
 
+        # n.b. WFIRSTInstrument subclasses must set these
+        self._apertures = {}
+        self._aperture_name = None
+
+    @property
+    def aperture(self):
+        return self._aperture_name
+
+    @aperture.setter
+    def aperture(self, value):
+        if value not in self.aperture_list:
+            raise ValueError("Invalid aperture. Valid aperture names are: {}".format(', '.join(self.aperture_list)))
+        self._aperture_name = value
+
+    @property
+    def aperture_list(self):
+        return sorted(self._apertures.keys())
+
+    def get_aberrations(self):
+        if 'pixel_position' in self.options:
+            x_pixel, y_pixel = self.options['pixel_position']
+            aperture_interpolator = self._apertures[self._aperture_name]
+            aperture_interpolator.set_field_position(x_pixel, y_pixel)
+            _log.info("Setting field position to ({}, {}) on {}".format(
+                x_pixel, y_pixel, self._aperture_name
+            ))
+            return aperture_interpolator
+        else:
+            return None
 
 class WFIRSTImager(WFIRSTInstrument):
     """
@@ -228,144 +271,3 @@ class WFIRSTImager(WFIRSTInstrument):
             # correct shape it should have
             pass
         return super(WFIRSTImager, self)._validateConfig(**kwargs)
-
-    @property
-    def aperture(self):
-        return self._aperture_name
-
-    @aperture.setter
-    def aperture(self, value):
-        if value not in self.aperture_list:
-            raise ValueError("Invalid aperture. Valid aperture names are: {}".format(', '.join(self.aperture_list)))
-        self._aperture_name = value
-
-    @property
-    def aperture_list(self):
-        return sorted(self._apertures.keys())
-
-    # TODO jlong de-duplicate this functionality by providing a better hook in SpaceTelescopeInstrument to add the field-dependent aberrations
-    def _getOpticalSystem(self, fft_oversample=2, detector_oversample=None, fov_arcsec=2, fov_pixels=None, options=None):
-        """ Return an OpticalSystem instance corresponding to the instrument as currently configured.
-
-        When creating such an OpticalSystem, you must specify the parameters needed to define the
-        desired sampling, specifically the oversampling and field of view.
-
-        Parameters
-        ----------
-
-        fft_oversample : int
-            Oversampling factor for intermediate plane calculations. Default is 2
-        detector_oversample: int, optional
-            By default the detector oversampling is equal to the intermediate calculation oversampling.
-            If you wish to use a different value for the detector, set this parameter.
-            Note that if you just want images at detector pixel resolution you will achieve higher fidelity
-            by still using some oversampling (i.e. *not* setting `oversample_detector=1`) and instead rebinning
-            down the oversampled data.
-        fov_pixels : float
-            Field of view in pixels. Overrides fov_arcsec if both set.
-        fov_arcsec : float
-            Field of view, in arcseconds. Default is 2
-
-        Returns
-        -------
-        osys : poppy.OpticalSystem
-            an optical system instance representing the desired configuration.
-
-        """
-
-        _log.info("Creating optical system model:")
-
-        if options is None:
-            options = self.options
-        if detector_oversample is None:
-            detector_oversample = fft_oversample
-
-        _log.debug("Oversample: %d  %d " % (fft_oversample, detector_oversample))
-        optsys = poppy.OpticalSystem(
-            name='{telescope}+{instrument}'.format(telescope=self.telescope, instrument=self.name),
-            oversample=fft_oversample
-        )
-        if 'source_offset_r' in options:
-            optsys.source_offset_r = options['source_offset_r']
-        if 'source_offset_theta' in options:
-            optsys.source_offset_theta = options['source_offset_theta']
-
-
-        #---- set pupil OPD
-        if isinstance(self.pupilopd, str):  # simple filename
-            opd_map = self.pupilopd if os.path.exists( self.pupilopd) else os.path.join(self._datapath, "OPD",self.pupilopd)
-        elif hasattr(self.pupilopd, '__getitem__') and isinstance(self.pupilopd[0], six.string_types): # tuple with filename and slice
-            opd_map =  (self.pupilopd[0] if os.path.exists( self.pupilopd[0]) else os.path.join(self._datapath, "OPD",self.pupilopd[0]), self.pupilopd[1])
-        elif isinstance(self.pupilopd, (fits.HDUList, poppy.OpticalElement)):
-            opd_map = self.pupilopd # not a path per se but this works correctly to pass it to poppy
-        elif self.pupilopd is None:
-            opd_map = None
-        else:
-            raise TypeError("Not sure what to do with a pupilopd of that type:"+str(type(self.pupilopd)))
-
-        #---- set pupil intensity
-        if self.pupil is None:
-            raise RuntimeError("The pupil shape must be specified in the "
-                               "instrument class or by setting self.pupil")
-        if isinstance(self.pupil, poppy.OpticalElement):
-            # supply to POPPY as-is
-            pupil_optic = optsys.addPupil(self.pupil)
-        else:
-            # wrap in an optic and supply to POPPY
-            if isinstance(self.pupil, str): # simple filename
-                if os.path.exists(self.pupil):
-                    pupil_transmission = self.pupil
-                else:
-                    pupil_transmission = os.path.join(
-                        self._WebbPSF_basepath,
-                        self.pupil
-                    )
-            elif isinstance(self.pupil, fits.HDUList):
-                # POPPY can use self.pupil as-is
-                pupil_transmission = self.pupil
-            else:
-                raise TypeError("Not sure what to do with a pupil of "
-                                "that type: {}".format(type(self.pupil)))
-            #---- apply pupil intensity and OPD to the optical model
-            pupil_optic = optsys.addPupil(
-                name='{} Pupil'.format(self.telescope),
-                transmission=pupil_transmission,
-                opd=opd_map,
-                opdunits='micron',
-                rotation=self._rotation
-            )
-        self.pupil_radius = pupil_optic.pupil_diam / 2.0
-
-        #---- Add defocus if requested
-        if 'defocus_waves' in options:
-           defocus_waves = options['defocus_waves']
-           defocus_wavelength = float(options['defocus_wavelength']) if 'defocus_wavelength' in options else 2.0e-6
-           _log.info("Adding defocus of %d waves at %.2f microns" % (defocus_waves, defocus_wavelength *1e6))
-           lens = poppy.ThinLens(
-               name='Defocus',
-               nwaves=defocus_waves,
-               reference_wavelength=defocus_wavelength,
-               radius=self.pupil_radius
-           )
-           optsys.addPupil(optic=lens)
-
-        #---- Create and insert virtual optic for field dependent aberration
-        if 'pixel_position' in options:
-            x_pixel, y_pixel = options['pixel_position']
-            aperture_interpolator = self._apertures[self._aperture_name]
-            aperture_interpolator.set_field_position(x_pixel, y_pixel)
-            optsys.addPupil(aperture_interpolator)
-
-        #--- add the detector element.
-        if fov_pixels is None:
-            if not np.isscalar(fov_arcsec): fov_arcsec = np.asarray(fov_arcsec) # cast to ndarray if 2D
-            fov_pixels = np.round(fov_arcsec/self.pixelscale)
-            if 'parity' in options:
-                if options['parity'].lower() == 'odd'  and np.remainder(fov_pixels,2)==0: fov_pixels +=1
-                if options['parity'].lower() == 'even' and np.remainder(fov_pixels,2)==1: fov_pixels +=1
-        else:
-            pass
-
-        optsys.addDetector(self.pixelscale, fov_pixels = fov_pixels, oversample = detector_oversample, name=self.name+" detector")
-
-        return optsys

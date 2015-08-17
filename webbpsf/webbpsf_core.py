@@ -559,11 +559,14 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
                 name='{} Pupil'.format(self.telescope),
                 transmission=pupil_transmission,
                 opd=opd_map,
-                opdunits='micron',
                 rotation=self._rotation
             )
         self.pupil_radius = pupil_optic.pupil_diam / 2.0
 
+        # Allow instrument subclass to add field-dependent aberrations
+        aberration_optic = self.get_aberrations()
+        if aberration_optic is not None:
+            optsys.addPupil(aberration_optic)
 
         #---- Add defocus if requested
         if 'defocus_waves' in options:
