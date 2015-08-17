@@ -233,7 +233,7 @@ class WFI(WFIRSTInstrument):
     UNMASKED_PUPIL_WAVELENGTH_MIN, UNMASKED_PUPIL_WAVELENGTH_MAX = 0.760e-6, 1.454e-6
     MASKED_PUPIL_WAVELENGTH_MIN, MASKED_PUPIL_WAVELENGTH_MAX = 1.380e-6, 2.000e-6
     def __init__(self):
-        scale = 110e-3  # arcsec/px, WFIRST-AFTA SDT report v2 (p. 58)
+        scale = 110e-3  # arcsec/px, WFIRST-AFTA SDT report final version (p. 91)
         super(WFI, self).__init__("WFI", pixelscale=scale)
 
         self._apertures = _load_wfi_aberration_apertures(os.path.join(self._datapath, 'zernikes.csv'))
