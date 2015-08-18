@@ -3,8 +3,9 @@
 WFIRST Instruments (pre-alpha)
 ==============================
 
-WARNING: No realistic wavefront error map was available for WFIRST at release time.
-         This assumes a perfect telescope!
+WARNING: This model has not yet been validated against other PSF
+         simulations, and uses several approximations (e.g. for
+         mirror polishing errors, which are taken from HST).
 """
 
 import os.path
@@ -17,6 +18,12 @@ import logging
 _log = logging.getLogger('webbpsf')
 
 class WavelengthDependenceInterpolator(object):
+    """WavelengthDependenceInterpolator can be configured with
+    `n_zernikes` worth of Zernike coefficients at up to `n_wavelengths`
+    wavelengths, and will let you `get_aberration_terms` for any
+    wavelength in range interpolated linearly between measured/known
+    points
+    """
     def __init__(self, n_wavelengths=16, n_zernikes=22):
         self._n_wavelengths = n_wavelengths
         self._n_zernikes = n_zernikes
@@ -24,6 +31,9 @@ class WavelengthDependenceInterpolator(object):
         self._wavelengths = []
 
     def set_aberration_terms(self, wavelength, zernike_array):
+        """Supply a reference `wavelength` and a `zernike_array`
+        (of length `n_zernikes`) where the aberration is known
+        """
         n_wavelengths_set = len(self._wavelengths)
         if wavelength not in self._wavelengths and n_wavelengths_set < self._n_wavelengths:
             self._wavelengths.append(wavelength)
@@ -40,6 +50,8 @@ class WavelengthDependenceInterpolator(object):
         self._aberration_terms[aberration_row_idx] = zernike_array
 
     def get_aberration_terms(self, wavelength):
+        """Return the Zernike coefficients as interpolated for this
+        `wavelength`"""
         # return array of length n_zernikes interpolated for this wavelength
         if wavelength in self._wavelengths:
             # aberration known exactly for this wavelength
@@ -50,6 +62,9 @@ class WavelengthDependenceInterpolator(object):
             return griddata(self._wavelengths, self._aberration_terms, wavelength, method='linear')
 
     def get_zernike_coefficient(self, wavelength, zernike_subscript):
+        """Return a single Zernike coefficient based on `wavelength`
+        and `zernike_subscript` (counting from 1 in the Noll indexing
+        convention)"""
         zernike_subscript -= 1  # 1-indexed to 0-indexed
         if zernike_subscript >= self._n_wavelengths:
             raise ValueError("No information at Zernike term Z_{}".format(zernike_subscript + 1))
@@ -66,6 +81,11 @@ class WavelengthDependenceInterpolator(object):
             )
 
 class FieldDependentAberration(poppy.ZernikeWFE):
+    """FieldDependentAberration incorporates aberrations that
+    are interpolated in wavelength, x, and y pixel positions by
+    computing the Zernike coefficients for a particular wavelength
+    and position.
+    """
     def __init__(self, pixel_width, pixel_height,
                  name="Field-dependent Aberration", radius=1.0, oversample=1, interp_order=3):
         self.pixel_width, self.pixel_height = pixel_width, pixel_height
@@ -80,6 +100,10 @@ class FieldDependentAberration(poppy.ZernikeWFE):
         )
 
     def getPhasor(self, wave):
+        """Set the Zernike coefficients (for ZernikeWFE.getPhasor) based
+        on the wavelength of the incoming wavefront and the pixel
+        position
+        """
         if not isinstance(wave, poppy.Wavefront):
             wavelength = wave
         else:
@@ -88,6 +112,8 @@ class FieldDependentAberration(poppy.ZernikeWFE):
         return super(FieldDependentAberration, self).getPhasor(wave)
 
     def set_field_position(self, x_pixel, y_pixel):
+        """Set the x and y pixel position on the detector for which to
+        interpolate aberrations"""
         if x_pixel > self.pixel_width or x_pixel < 0:
             raise ValueError("Requested pixel_x position lies outside "
                              "the aperture width ({})".format(x_pixel))
@@ -98,9 +124,13 @@ class FieldDependentAberration(poppy.ZernikeWFE):
         self.x_pixel, self.y_pixel = x_pixel, y_pixel
 
     def add_field_point(self, x_pixel, y_pixel, interpolator):
+        """Supply a wavelength-space interpolator for a pixel position
+        on the detector"""
         self._wavelength_interpolators[(x_pixel, y_pixel)] = interpolator
 
     def get_aberration_terms(self, wavelength):
+        """Supply the Zernike coefficients for the aberration based on
+        the wavelength and pixel position on the detector"""
         # short path: this is a known point
         if (self.x_pixel, self.y_pixel) in self._wavelength_interpolators:
             interpolator = self._wavelength_interpolators[(self.x_pixel, self.y_pixel)]
@@ -122,16 +152,18 @@ class FieldDependentAberration(poppy.ZernikeWFE):
         )
         return computed_aberration
 
-def _load_wfi_aberration_apertures(filename):
+def _load_wfi_detector_aberrations(filename):
     from astropy.io import ascii
     zernike_table = ascii.read(filename)
-    apertures = {}
+    detectors = {}
 
     def build_detector_from_table(number, zernike_table):
+        """Build a FieldDependentAberration optic for a detector using
+        Zernikes Z1-Z22 at various wavelengths and field points"""
         single_detector_info = zernike_table[zernike_table['Cnfg#'] == number]
         field_points = set(single_detector_info['Field'])
         interpolators = {}
-        aperture = FieldDependentAberration(4096, 4096, radius=2.36)
+        detector = FieldDependentAberration(4096, 4096, radius=2.36, name="Field Dependent Aberration (SCA{:02})".format(number))
         for field_id in field_points:
             field_point_rows = single_detector_info[single_detector_info['Field'] == field_id]
             local_x, local_y = field_point_rows[0]['Local_x'], field_point_rows[0]['Local_y']
@@ -141,10 +173,12 @@ def _load_wfi_aberration_apertures(filename):
             # (local_x in mm / 10 um pixel size) -> * 1e2
             pixx, pixy = midpoint_pixel + local_x * 1e2, midpoint_pixel + local_y * 1e2
 
-            aperture.add_field_point(pixx, pixy, interpolator)
-        return aperture
+            detector.add_field_point(pixx, pixy, interpolator)
+        return detector
 
     def build_wavelength_dependence(rows):
+        """Build an interpolator object that interpolates Z1-Z22 in
+        wavelength space"""
         wavelengths = set(rows['Wave(um)'])
         interpolator = WavelengthDependenceInterpolator(n_wavelengths=len(wavelengths),
                                                         n_zernikes=22)
@@ -156,33 +190,35 @@ def _load_wfi_aberration_apertures(filename):
 
         return interpolator
 
-    aperture_ids = set(zernike_table['Cnfg#'])
-    for apid in aperture_ids:
-        apertures["SCA{:02}".format(apid)] = build_detector_from_table(apid, zernike_table)
+    detector_ids = set(zernike_table['Cnfg#'])
+    for detid in detector_ids:
+        detectors["SCA{:02}".format(detid)] = build_detector_from_table(detid, zernike_table)
 
-    return apertures
+    return detectors
 
 class WFIRSTInstrument(webbpsf_core.SpaceTelescopeInstrument):
     """
     WFIRSTInstrument contains data and functionality common to WFIRST
     instruments, such as setting the pupil shape
-
-    WARNING: No realistic wavefront error map was available for WFIRST at release time.
-             This assumes a perfect telescope!
     """
     telescope = "WFIRST"
-    _apertures = {}
+    _detectors = {}
     """
-    Dictionary mapping aperture names to FieldDependentAberration optics.
+    Dictionary mapping detector names to FieldDependentAberration optics.
 
     (Subclasses must populate this at `__init__`.)
     """
-    _aperture_name = None
+    _selected_detector = None
     """
-    The name of the currently selected aperture. Must be a key in _apertures, as validated by the
-    `aperture` property setter.
+    The name of the currently selected detector. Must be a key in _detectors, as validated by the
+    `detector` property setter.
 
     (Subclasses must populate this at `__init__`.)
+    """
+    _detector_position = (2048.0, 2048.0)
+    """
+    The pixel position, accessed through the `detector_position` property
+    and validated to be in-range on the selected detector.
     """
 
     def __init__(self, *args, **kwargs):
@@ -191,42 +227,60 @@ class WFIRSTInstrument(webbpsf_core.SpaceTelescopeInstrument):
         self.pupilopd = os.path.join(self._WebbPSF_basepath, 'upscaled_HST_OPD.fits')
 
         # n.b. WFIRSTInstrument subclasses must set these
-        self._apertures = {}
-        self._aperture_name = None
+        self._detectors = {}
+        self._selected_detector = None
 
     @property
-    def aperture(self):
-        return self._aperture_name
+    def detector(self):
+        """Detector selected for simulated PSF
 
-    @aperture.setter
-    def aperture(self, value):
-        if value not in self.aperture_list:
-            raise ValueError("Invalid aperture. Valid aperture names are: {}".format(', '.join(self.aperture_list)))
-        self._aperture_name = value
+        Used in calculation of field-dependent aberrations. Must be
+        selected from detectors in the `detector_list` attribute.
+        """
+        return self._selected_detector
+
+    @detector.setter
+    def detector(self, value):
+        if value.upper() not in self.detector_list:
+            raise ValueError("Invalid aperture. Valid aperture names are: {}".format(', '.join(self.detector_list)))
+        self._selected_detector = value.upper()
 
     @property
-    def aperture_list(self):
-        return sorted(self._apertures.keys())
+    def detector_list(self):
+        """Detectors on which the simulated PSF could lie"""
+        return sorted(self._detectors.keys())
+
+    @property
+    def detector_position(self):
+        """The pixel position in (X, Y) on the detector"""
+        return self._detector_position
+
+    @detector_position.setter
+    def detector_position(self, position):
+        x_pixel, y_pixel = position
+        detector = self._detectors[self._selected_detector]
+        detector.set_field_position(x_pixel, y_pixel)
 
     def get_aberrations(self):
-        if 'pixel_position' in self.options:
-            x_pixel, y_pixel = self.options['pixel_position']
-            aperture_interpolator = self._apertures[self._aperture_name]
-            aperture_interpolator.set_field_position(x_pixel, y_pixel)
-            _log.info("Setting field position to ({}, {}) on {}".format(
-                x_pixel, y_pixel, self._aperture_name
-            ))
-            return aperture_interpolator
-        else:
-            return None
+        """Get the OpticalElement that applies the field-dependent
+        optical aberrations. (Called in _getOpticalSystem.)"""
+        return self._detectors[self._selected_detector]
+
+    def _getFITSHeader(self, result, options):
+        """Populate FITS Header keywords"""
+        super(WFIRSTInstrument, self)._getFITSHeader(result, options)
+        result[0].header['DETXCENTR'] = (self.detector_position[0], 'X pixel position (for field dependent aberrations)')
+        result[0].header['DETYCENTR'] = (self.detector_position[1], 'Y pixel position (for field dependent aberrations)')
+        result[0].header['DETECTOR'] = (self.detector, 'Detector selected')
 
 class WFI(WFIRSTInstrument):
     """
     WFI represents to the to-be-named wide field imager
     for the WFIRST mission
 
-    WARNING: No realistic wavefront error map was available for WFIRST at release time.
-             This assumes a perfect telescope!
+    WARNING: This model has not yet been validated against other PSF
+             simulations, and uses several approximations (e.g. for
+             mirror polishing errors, which are taken from HST).
     """
     # "The H158, F184 and W149 filters and the grism are mounted with proximate cold pupil masks"
     # from the final draft of the SDT report, page 92, table 3-2
@@ -236,9 +290,10 @@ class WFI(WFIRSTInstrument):
         scale = 110e-3  # arcsec/px, WFIRST-AFTA SDT report final version (p. 91)
         super(WFI, self).__init__("WFI", pixelscale=scale)
 
-        self._apertures = _load_wfi_aberration_apertures(os.path.join(self._datapath, 'zernikes.csv'))
-        self._aperture_name = self.aperture_list[0]
-        assert len(self._apertures.keys()) > 0
+        self._detectors = _load_wfi_detector_aberrations(os.path.join(self._datapath, 'zernikes.csv'))
+        assert len(self._detectors.keys()) > 0
+        self.detector = 'SCA01'
+        self.detector_position = (2048.0, 2048.0)
 
         # Paths to the two possible pupils. The correct one is selected based on requested
         # wavelengths in _validate_config()
@@ -246,8 +301,12 @@ class WFI(WFIRSTInstrument):
         self._masked_pupil_path = os.path.join(self._WebbPSF_basepath, 'AFTA_WFC_C5_Pupil_Mask_Norm_2048px.fits')
 
     def _validateConfig(self, **kwargs):
+        """Validates that the WFI is configured sensibly
+
+        This mainly consists of selecting the masked or unmasked pupil
+        appropriately based on the wavelengths requested.
+        """
         if self.pupil in (self._unmasked_pupil_path, self._masked_pupil_path):
-            _log.info("Evaluating wavelengths")
             # Does the wavelength range fit entirely in an unmasked filter?
             wavelengths = np.array(kwargs['wavelengths'])
             wl_min, wl_max = np.min(wavelengths), np.max(wavelengths)
@@ -270,4 +329,4 @@ class WFI(WFIRSTInstrument):
             # If the user has set the pupil to a custom value, let them worry about the
             # correct shape it should have
             pass
-        return super(WFI, self)._validateConfig(**kwargs)
+        super(WFI, self)._validateConfig(**kwargs)

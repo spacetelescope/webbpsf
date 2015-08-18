@@ -187,13 +187,6 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         "Detector pixel scale, in arcsec/pixel"
         self._spectra_cache = {}  # for caching pysynphot results.
 
-
-        self.detector_list = ['Default']
-        self._detector = None
-
-        # where is the source on the detector, in 'Science frame' pixels?
-        self.detector_coordinates = (0, 0)
-
     @property
     def image_mask(self):
         """Currently selected image plane mask, or None for direct imaging"""
@@ -230,21 +223,6 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
         self._pupil_mask = name
 
-    @property
-    def detector(self):
-        """Currently selected detector name (for instruments with multiple detectors)"""
-        return self._detector.name
-
-    @detector.setter
-    def detector(self, detname):
-        if detname is not None:
-            detname = detname.upper()  # force to uppercase
-            try:
-                siaf_aperture_name = self._detector2siaf[detname]
-            except KeyError:
-                raise ValueError("Unknown name: {0} is not a valid known name for a detector "
-                                 "for instrument {1}".format(detname, self.name))
-            self._detector = DetectorGeometry(self.name, siaf_aperture_name, shortname=detname)
 
     def __str__(self):
         return "<{telescope}: {instrument_name}>".format(telescope=self.telescope, instrument_name=self.name)
@@ -564,7 +542,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         self.pupil_radius = pupil_optic.pupil_diam / 2.0
 
         # Allow instrument subclass to add field-dependent aberrations
-        aberration_optic = self.get_aberrations()
+        aberration_optic = self._get_aberrations()
         if aberration_optic is not None:
             optsys.addPupil(aberration_optic)
 
@@ -702,6 +680,29 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         self.pupil = os.path.abspath(self._datapath+"../pupil_RevV.fits")
         "Filename *or* fits.HDUList for JWST pupil mask. Usually there is no need to change this."
+
+
+        self.detector_list = ['Default']
+        self._detector = None
+
+        # where is the source on the detector, in 'Science frame' pixels?
+        self.detector_coordinates = (0, 0)
+
+    @property
+    def detector(self):
+        """Currently selected detector name (for instruments with multiple detectors)"""
+        return self._detector.name
+
+    @detector.setter
+    def detector(self, detname):
+        if detname is not None:
+            detname = detname.upper()  # force to uppercase
+            try:
+                siaf_aperture_name = self._detector2siaf[detname]
+            except KeyError:
+                raise ValueError("Unknown name: {0} is not a valid known name for a detector "
+                                 "for instrument {1}".format(detname, self.name))
+            self._detector = DetectorGeometry(self.name, siaf_aperture_name, shortname=detname)
 
 class MIRI(JWInstrument):
     """ A class modeling the optics of MIRI, the Mid-InfraRed Instrument.
