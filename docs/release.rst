@@ -30,6 +30,8 @@ Invoke ``dev_utils/make-data-sdist.sh`` one of the following ways to make a gzip
 
 It is prudent to extract the resulting data archive and check that you can run WebbPSF's tests with ``WEBBPSF_PATH`` pointing to it. Also, make sure to update the link in ``installation.rst`` under :ref:`data_install`.
 
+If the new data package is **required** (meaning you can't run WebbPSF without it, or you can run but may get incorrect results), you should set ``DATA_VERSION_MIN`` in ``__init__.py`` to ``(0, X, Y)``.
+
 Releasing new versions on PyPI
 ==============================
 
