@@ -156,8 +156,11 @@ def get_webbpsf_data_path(data_version_min):
             parts = contents.split('.')[:3]
         version_tuple = tuple(map(int, parts))
     except (IOError, ValueError):
-        raise EnvironmentError("Couldn't read the version number from {}. (Do you need to "
-                               "update the WebbPSF data?)".format(version_file_path))
+        raise EnvironmentError(
+            "Couldn't read the version number from {}. (Do you need to update the WebbPSF data? "
+            "See http://pythonhosted.org/webbpsf/installation.html#data-install "
+            "for a link to the latest version.)".format(version_file_path)
+        )
 
     if not version_tuple >= data_version_min:
         raise EnvironmentError(
