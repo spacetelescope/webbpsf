@@ -261,7 +261,7 @@ class WFIRSTInstrument(webbpsf_core.SpaceTelescopeInstrument):
         detector = self._detectors[self._selected_detector]
         detector.set_field_position(x_pixel, y_pixel)
 
-    def get_aberrations(self):
+    def _get_aberrations(self):
         """Get the OpticalElement that applies the field-dependent
         optical aberrations. (Called in _getOpticalSystem.)"""
         return self._detectors[self._selected_detector]
