@@ -124,7 +124,7 @@ MISSING_WEBBPSF_DATA_MESSAGE = """
  ****************************************************************************
 """
 
-def get_webbpsf_data_path(data_version_min):
+def get_webbpsf_data_path(data_version_min=None):
     """Get the WebbPSF data path
 
     Simply checking an environment variable is not always enough, since
@@ -133,6 +133,10 @@ def get_webbpsf_data_path(data_version_min):
 
     Therefore, check first the environment variable WEBBPSF_PATH, and secondly
     check the configuration file in the user's home directory.
+
+    If data_version_min is supplied (as a 3-tuple of integers), it will be
+    compared with the version number from version.txt in the WebbPSF data
+    package.
     """
     import os
     path_from_config = conf.WEBBPSF_PATH  # read from astropy configuration
@@ -147,30 +151,31 @@ def get_webbpsf_data_path(data_version_min):
     if not os.path.isdir(path):
         raise IOError("WEBBPSF_PATH ({}) is not a valid directory path!".format(path))
 
-    # Check if the data in WEBBPSF_PATH meet the minimum data version
-    version_file_path = os.path.join(path, 'version.txt')
-    try:
-        with open(version_file_path) as f:
-            contents = f.read().strip()
-            # keep only first 3 elements for comparison (allows "0.3.4.dev" or similar)
-            parts = contents.split('.')[:3]
-        version_tuple = tuple(map(int, parts))
-    except (IOError, ValueError):
-        raise EnvironmentError(
-            "Couldn't read the version number from {}. (Do you need to update the WebbPSF data? "
-            "See http://pythonhosted.org/webbpsf/installation.html#data-install "
-            "for a link to the latest version.)".format(version_file_path)
-        )
-
-    if not version_tuple >= data_version_min:
-        raise EnvironmentError(
-            "WebbPSF data package has version {cur}, but {min} is needed. "
-            "See http://pythonhosted.org/webbpsf/installation.html#data-install "
-            "for a link to the latest version.".format(
-                cur=contents,
-                min='{}.{}.{}'.format(*data_version_min)
+    if data_version_min is not None:
+        # Check if the data in WEBBPSF_PATH meet the minimum data version
+        version_file_path = os.path.join(path, 'version.txt')
+        try:
+            with open(version_file_path) as f:
+                contents = f.read().strip()
+                # keep only first 3 elements for comparison (allows "0.3.4.dev" or similar)
+                parts = contents.split('.')[:3]
+            version_tuple = tuple(map(int, parts))
+        except (IOError, ValueError):
+            raise EnvironmentError(
+                "Couldn't read the version number from {}. (Do you need to update the WebbPSF "
+                "data? See http://pythonhosted.org/webbpsf/installation.html#data-install "
+                "for a link to the latest version.)".format(version_file_path)
             )
-        )
+
+        if not version_tuple >= data_version_min:
+            raise EnvironmentError(
+                "WebbPSF data package has version {cur}, but {min} is needed. "
+                "See http://pythonhosted.org/webbpsf/installation.html#data-install "
+                "for a link to the latest version.".format(
+                    cur=contents,
+                    min='{}.{}.{}'.format(*data_version_min)
+                )
+            )
 
     return path
 
