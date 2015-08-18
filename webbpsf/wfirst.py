@@ -269,8 +269,8 @@ class WFIRSTInstrument(webbpsf_core.SpaceTelescopeInstrument):
     def _getFITSHeader(self, result, options):
         """Populate FITS Header keywords"""
         super(WFIRSTInstrument, self)._getFITSHeader(result, options)
-        result[0].header['DETXCENTR'] = (self.detector_position[0], 'X pixel position (for field dependent aberrations)')
-        result[0].header['DETYCENTR'] = (self.detector_position[1], 'Y pixel position (for field dependent aberrations)')
+        result[0].header['DETXPIXL'] = (self.detector_position[0], 'X pixel position (for field dependent aberrations)')
+        result[0].header['DETYPIXL'] = (self.detector_position[1], 'Y pixel position (for field dependent aberrations)')
         result[0].header['DETECTOR'] = (self.detector, 'Detector selected')
 
 class WFI(WFIRSTInstrument):
