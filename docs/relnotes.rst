@@ -1,12 +1,6 @@
-.. JWST-PSFs documentation master file, created by
-   sphinx-quickstart on Mon Nov 29 15:57:01 2010.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
-
+#############
 Release Notes
-######################
-
+#############
 
 .. _known_issues:
 
@@ -46,21 +40,28 @@ Road Map for Future Releases
 * Improved models for pointing jitter. 
 * Possibly: separate handling of pre- and post- coronagraphic WFE in instruments, if this appears likely to be significant. 
 
+.. _whatsnew:
 
 Version History and Change Log
 -------------------------------
 
+Version 0.3.4
+=============
 
-.. _whatsnew:
+*Not yet released*
+
+.. _rel0.3.3:
 
 Version 0.3.3
 =================
 
-*Not yet released*
+Released July 1, 2015
 
-* Python 3 compatibility added. All tests pass on Python 3.4. (`#2 <https://github.com/mperrin/webbpsf/issues/2>`)
-* Fixed an issue that would prevent users from adding defocus to PSF calculations (`#59 <https://github.com/mperrin/webbpsf/issues/59>`)
+* **Python 3 compatibility added.** All tests pass on Python 3.4. (`#2 <https://github.com/mperrin/webbpsf/issues/2>`_)
+* Fixed an issue that would prevent users from adding defocus to PSF calculations
 * WebbPSF no longer attempts to display a welcome message on new installs; that idea proved to be less helpful than originally expected.
+* Added a ``CLEAR`` filter option for NIRISS, since the corresponding clear position is actually in the filter wheel rather than the pupil mask wheel. Rather than an actual filter, the profile for ``CLEAR`` is 1.0 between 0.6 microns and 5.0 microns per the stated limits of the detector, and 0.0 everywhere else. (`#64 <https://github.com/mperrin/webbpsf/issues/64>`_)
+* Multi-wavelength calculations across a filter were not choosing a sensible number of wavelengths from the tables included in ``webbpsf-data``. (`#68 <https://github.com/mperrin/webbpsf/issues/68>`_)
 
 .. _rel0.3.2:
 

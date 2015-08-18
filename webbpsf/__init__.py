@@ -17,10 +17,11 @@ Developed by Marshall Perrin and contributors at STScI, 2010-2015.
 from ._astropy_init import *
 # ----------------------------------------------------------------------------
 
-# For egg_info test builds to pass, put package imports here.
-#if not _ASTROPY_SETUP_:
-#    from example_mod import *
-#import warnings
+# This tuple gives the *minimum* version of the WebbPSF data package
+# required. If changes to the code and data mean WebbPSF won't work
+# properly with an old data package, increment this version number.
+# (It's checked against $WEBBPSF_DATA/version.txt)
+DATA_VERSION_MIN = (0, 3, 4)
 
 import astropy
 from astropy import config as _config
@@ -83,14 +84,12 @@ from . import utils
 from .utils import setup_logging, system_diagnostic #, _check_for_new_install, _restart_logging
 
 if not _ASTROPY_SETUP_:
-
-    #utils.check_for_new_install()    # display informative message if so.
     utils.restart_logging()          # restart logging based on saved settings.
 
     # this should display a warning to the user if they don't have WEBBPSF_PATH
     # defined in either the environment or in webbpsf.cfg
     try:
-        utils.get_webbpsf_data_path()
+        utils.get_webbpsf_data_path(data_version_min=DATA_VERSION_MIN)
     except (EnvironmentError, IOError):
         import sys
         sys.stderr.write(utils.MISSING_WEBBPSF_DATA_MESSAGE)
