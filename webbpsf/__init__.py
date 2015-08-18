@@ -83,8 +83,6 @@ from . import utils
 from .utils import setup_logging, system_diagnostic #, _check_for_new_install, _restart_logging
 
 if not _ASTROPY_SETUP_:
-
-    #utils.check_for_new_install()    # display informative message if so.
     utils.restart_logging()          # restart logging based on saved settings.
 
     # this should display a warning to the user if they don't have WEBBPSF_PATH

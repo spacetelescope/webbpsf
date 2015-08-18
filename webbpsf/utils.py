@@ -107,7 +107,7 @@ def setup_logging(level='INFO',  filename=None):
     restart_logging(verbose=True)
 
 MISSING_WEBBPSF_DATA_MESSAGE = """
- *********  ERROR  ******  ERROR  ******  ERROR  ******  ERROR  *************
+ ***********  ERROR  ******  ERROR  ******  ERROR  ******  ERROR  ***********
  *                                                                          *
  *  WebbPSF requires several data files to operate.                         *
  *  These files could not be located automatically at this                  *
@@ -147,78 +147,8 @@ def get_webbpsf_data_path():
     if not os.path.isdir(path):
         raise IOError("WEBBPSF_PATH ({}) is not a valid directory path!".format(path))
 
-    return path
 
 
-def check_for_new_install(force=False):
-    """ Check for a new installation, and if so
-    print a hopefully helpful explanatory message.
-    """
-
-    from .version import version as __version__
-
-    if os.getenv('WEBBPSF_SKIP_CHECK') is not None: return
-
-    if conf.last_version_ran == '0.0' or force:
-
-        from . import _save_config
-        import astropy.config
-
-        conf.last_version_ran = __version__
-        _save_config()
-        #conf.last_version_ran.save()
-        #save_config('webbpsf') # save default values to text file
-
-        print("""
-  ***************************************************
-  *           WebbPSF Initialization & Setup         *
-  ****************************************************
-
-    This appears to be the first time you have used WebbPSF. 
-    
-    Just so you know, there is a mailing list for users of
-    webbpsf to keep you informed about any announcements of
-    updates or enhancements to this software. If you would like
-    to subscribe, please email 
-        majordomo@stsci.edu
-    with the message 
-        subscribe webbpsf-users
-
-    
-    WebbPSF has some options that can be set using a 
-    configuration file. An example configuration file with
-    default values has been created in 
-            {0}/webbpsf.{1}.cfg
-    (unless such a config file was already present there)
-    You can examine that file and change settings if desired.
-    See the WebbPSF documentation for more detail. """.format(astropy.config.get_config_dir(), __version__))
-
-        # check for data dir?
-        path_from_env_var = os.getenv('WEBBPSF_PATH') 
-
-        if path_from_env_var is not None:
-            print("""
-
-    WebbPSF's required data files appear to be 
-    installed at a path given by $WEBBPSF_PATH :
-    {0} """.format(path_from_env_var))
-        else:
-            # the following will automatically print(an error message if
-            # the path is unknown in the config file.
-            path_from_config = conf.WEBBPSF_PATH
-
-            if path_from_config != 'unknown':
-                print("""
-    WebbPSF's required data files appear to be 
-    installed at a path given in the config file:
-    {0} """.format(path_from_config))
-
-        print("""
-
-    This message will not be displayed again.
-    Press [Enter] to continue
-    """)
-        any_key = raw_input()
 
 DIAGNOSTIC_REPORT = """
 OS: {os}
