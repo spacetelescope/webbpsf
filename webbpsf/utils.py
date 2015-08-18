@@ -124,8 +124,8 @@ MISSING_WEBBPSF_DATA_MESSAGE = """
  ****************************************************************************
 """
 
-def get_webbpsf_data_path():
-    """ Get webbpsf data path
+def get_webbpsf_data_path(data_version_min):
+    """Get the WebbPSF data path
 
     Simply checking an environment variable is not always enough, since
     for packaging this code as a Mac .app bundle, environment variables are
@@ -135,7 +135,7 @@ def get_webbpsf_data_path():
     check the configuration file in the user's home directory.
     """
     import os
-    path_from_config = conf.WEBBPSF_PATH # read from astropy configuration
+    path_from_config = conf.WEBBPSF_PATH  # read from astropy configuration
     if path_from_config == 'from_environment_variable':
         path = os.getenv('WEBBPSF_PATH')
         if path is None:
@@ -147,7 +147,29 @@ def get_webbpsf_data_path():
     if not os.path.isdir(path):
         raise IOError("WEBBPSF_PATH ({}) is not a valid directory path!".format(path))
 
+    # Check if the data in WEBBPSF_PATH meet the minimum data version
+    version_file_path = os.path.join(path, 'version.txt')
+    try:
+        with open(version_file_path) as f:
+            contents = f.read().strip()
+            # keep only first 3 elements for comparison (allows "0.3.4.dev" or similar)
+            parts = contents.split('.')[:3]
+        version_tuple = tuple(map(int, parts))
+    except (IOError, ValueError):
+        raise EnvironmentError("Couldn't read the version number from {}. (Do you need to "
+                               "update the WebbPSF data?)".format(version_file_path))
 
+    if not version_tuple >= data_version_min:
+        raise EnvironmentError(
+            "WebbPSF data package has version {cur}, but {min} is needed. "
+            "See http://pythonhosted.org/webbpsf/installation.html#data-install "
+            "for a link to the latest version.".format(
+                cur=contents,
+                min='{}.{}.{}'.format(*data_version_min)
+            )
+        )
+
+    return path
 
 
 DIAGNOSTIC_REPORT = """
