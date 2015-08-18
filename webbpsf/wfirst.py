@@ -116,10 +116,10 @@ class FieldDependentAberration(poppy.ZernikeWFE):
         interpolate aberrations"""
         if x_pixel > self.pixel_width or x_pixel < 0:
             raise ValueError("Requested pixel_x position lies outside "
-                             "the aperture width ({})".format(x_pixel))
+                             "the detector width ({})".format(x_pixel))
         if y_pixel > self.pixel_height or y_pixel < 0:
             raise ValueError("Requested pixel_y position lies outside "
-                             "the aperture height ({})".format(y_pixel))
+                             "the detector height ({})".format(y_pixel))
 
         self.x_pixel, self.y_pixel = x_pixel, y_pixel
 
@@ -242,7 +242,7 @@ class WFIRSTInstrument(webbpsf_core.SpaceTelescopeInstrument):
     @detector.setter
     def detector(self, value):
         if value.upper() not in self.detector_list:
-            raise ValueError("Invalid aperture. Valid aperture names are: {}".format(', '.join(self.detector_list)))
+            raise ValueError("Invalid detector. Valid detector names are: {}".format(', '.join(self.detector_list)))
         self._selected_detector = value.upper()
 
     @property
