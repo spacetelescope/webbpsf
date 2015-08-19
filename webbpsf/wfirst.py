@@ -163,7 +163,12 @@ def _load_wfi_detector_aberrations(filename):
         single_detector_info = zernike_table[zernike_table['Cnfg#'] == number]
         field_points = set(single_detector_info['Field'])
         interpolators = {}
-        detector = FieldDependentAberration(4096, 4096, radius=2.36, name="Field Dependent Aberration (SCA{:02})".format(number))
+        detector = FieldDependentAberration(
+            4096,
+            4096,
+            radius=WFIRSTInstrument.PUPIL_RADIUS,
+            name="Field Dependent Aberration (SCA{:02})".format(number)
+        )
         for field_id in field_points:
             field_point_rows = single_detector_info[single_detector_info['Field'] == field_id]
             local_x, local_y = field_point_rows[0]['Local_x'], field_point_rows[0]['Local_y']
@@ -197,6 +202,7 @@ def _load_wfi_detector_aberrations(filename):
     return detectors
 
 class WFIRSTInstrument(webbpsf_core.SpaceTelescopeInstrument):
+    PUPIL_RADIUS = 2.4 / 2.0
     """
     WFIRSTInstrument contains data and functionality common to WFIRST
     instruments, such as setting the pupil shape
@@ -286,9 +292,9 @@ class WFI(WFIRSTInstrument):
     # from the final draft of the SDT report, page 92, table 3-2
     UNMASKED_PUPIL_WAVELENGTH_MIN, UNMASKED_PUPIL_WAVELENGTH_MAX = 0.760e-6, 1.454e-6
     MASKED_PUPIL_WAVELENGTH_MIN, MASKED_PUPIL_WAVELENGTH_MAX = 1.380e-6, 2.000e-6
+    pixelscale = 110e-3  # arcsec/px, WFIRST-AFTA SDT report final version (p. 91)
     def __init__(self):
-        scale = 110e-3  # arcsec/px, WFIRST-AFTA SDT report final version (p. 91)
-        super(WFI, self).__init__("WFI", pixelscale=scale)
+        super(WFI, self).__init__("WFI")
 
         self._detectors = _load_wfi_detector_aberrations(os.path.join(self._datapath, 'zernikes.csv'))
         assert len(self._detectors.keys()) > 0
