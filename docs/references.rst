@@ -99,52 +99,40 @@ LRS slit size (4.7 x 0.51 arcsec):     MIRI-TR-00001-CEA. And LRS Overview prese
 LRS P750L grating aperture mask (3.8% oversized tricontagon): MIRI OBA Design Description, MIRI-DD-00001-AEU
 
 
-.. comment
-    TFI
-    TFI Etalon spectral resolution model:            From Craig Haley at ComDev, provided by Alex Fullerton
-    The transmission of TFI is modeled as a Gaussian with peak 1.0 and FWHM corresponding to the spectral resolution at the given wavelength. **Note:** In a future version of this software this should be improved to match the Airy function for an Etalon as given in "An Introduction to the TFI Etalon", JWST-STScI-002059.
-    TFI occulting spots: Assumed to be perfect circles with diameters 0.58, 0.75, 1.5, and 2.0 arcsec. Doyon et al. 2010 SPIE 7731. 
-    Lyot occulter masks were provided by David Lafreniere and Mathilde Beaulieu. **Note:** The stated pixel scale is 6.44716 mm/pixel, which is slightly discrepant from the assumed pixel 
-    scale for the IPAM OPDs (differing by ~1 part in 1000). This discrepancy should be resolved in future versions of this software.
 
 
 Instrument + Filter Throughputs
 ---------------------------------
 
 Where possible, instrumental relative spectral responses were derived from the
-Pysynphot CDBS files used for the JWST Exposure Time Calculators (ETCs),
+Pysynphot CDBS files used for the development version of the JWST Exposure Time Calculators (ETCs),
 normalized to peak transmission = 1.0 (because absolute throughput is not
 relevant for PSF calculations). Not all filters are yet supported in Pysynphot,
 however.  
 
-**Note on MIRI filters:** The MIRI instrument team requested that at this time
-we release only idealized top-hat function filter profiles rather than the
-measured transmissions.  We thus take the properties of these filters from the
-table at http://www.stsci.edu/jwst/instruments/miri/filters/filters_temp.html .
-Internal testing at STScI indicates that with this simplification compared
-against the measured filter profiles, systematic errors in computed PSF FWHMs
-are typically <1.5% assuming sources with Rayleigh-Jeans spectra at
-these wavelengths; systematics in encircled energy are generally <1%. 
 
-In summary for the following subset of filters we take information from alternate sources other than the CDBS::
+For the following filters we take information from alternate sources other than the CDBS::
 
    Instrument    Filter         Source
-   -----------  --------        ----------------------------------------------------------------------------------------------------------
+   -----------  -------------   ----------------------------------------------------------------------------------------------------------
    NIRCam       F150W2          Top-hat function based on filter properties list at http://ircamera.as.arizona.edu/nircam/features.html
    NIRCam       F322W2          Top-hat function based on filter properties list at http://ircamera.as.arizona.edu/nircam/features.html
    NIRSpec      F115W           Assumed to be identical to the NIRCam one
    NIRSpec      F140X           NIRSpec "BBA" transmission curve traced from NIRSpec GWA FWA Assembly Report, NIRS-ZEO-RO-0051, section 6.3.2
-   MIRI         all filters     MIRI filters are represented as top-hat functions only at this time, by request of the MIRI team.
+   MIRI         F*W filters     Data published in Glasse et al. 2015 PASP Vol 127 No. 953, p. 688 Fig 2
+   MIRI         F*C filters     Data published in Bouchet et al. 2015 PASP Vol 127 No. 953, p. 612 Fig 3
    FGS          none            Assumed top-hat function based on detector cut-on and cut-off wavelengths. 
 
-.. comment
-   OLD MIRI references with the real filters:
-   MIRI         F1065C          MIRI test team spreadsheet provided to Christine Chen, obtained from STScI Coron WG site
-   MIRI         F1140C          MIRI test team spreadsheet provided to Christine Chen, obtained from STScI Coron WG site
-   MIRI         F1550C          MIRI test team spreadsheet provided to Christine Chen, obtained from STScI Coron WG site
-   MIRI         F2300C          MIRI test team spreadsheet provided to Christine Chen, obtained from STScI Coron WG site
-   MIRI         FND             MIRI test team spreadsheet provided to Christine Chen, obtained from STScI Coron WG site
 
-The above filters' throughputs do not include the detector QE or OTE/SI optics throughputs versus wavelength (or the throughput of the 
-Germanium FQPM substrates for the MIRI coronagraphic filters). All other filters do include these effects to the extent that they are accurately 
+The MIRI wide filters (F*W) are total system photon conversion efficiencies
+including filter, telescope, instrument, and detector throughputs, normalized
+to unity.  The MIRI coronagraphic filters are just the filters themselves, but
+the detector and optics throughputs are relatively flat with wavelength
+compared to the narrow coronagraphic filters. These are sufficiently accurate for
+typical coronagraphic modeling but be aware of that caveat if attempting precise photometric 
+calculations.
+
+For the NIRCam and NIRSpec filters called out in the table above, the provided throughputs do not include the detector QE or OTE/SI optics throughputs versus wavelength. 
+
+All other filters do include these effects, to the extent that they are accurately 
 captured in the Calibration Database in support of the ETCs. 
