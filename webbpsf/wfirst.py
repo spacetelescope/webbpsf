@@ -292,9 +292,10 @@ class WFI(WFIRSTInstrument):
     # from the final draft of the SDT report, page 92, table 3-2
     UNMASKED_PUPIL_WAVELENGTH_MIN, UNMASKED_PUPIL_WAVELENGTH_MAX = 0.760e-6, 1.454e-6
     MASKED_PUPIL_WAVELENGTH_MIN, MASKED_PUPIL_WAVELENGTH_MAX = 1.380e-6, 2.000e-6
-    pixelscale = 110e-3  # arcsec/px, WFIRST-AFTA SDT report final version (p. 91)
+
     def __init__(self):
-        super(WFI, self).__init__("WFI")
+        pixelscale = 110e-3  # arcsec/px, WFIRST-AFTA SDT report final version (p. 91)
+        super(WFI, self).__init__("WFI", pixelscale=pixelscale)
 
         self._detectors = _load_wfi_detector_aberrations(os.path.join(self._datapath, 'zernikes.csv'))
         assert len(self._detectors.keys()) > 0
