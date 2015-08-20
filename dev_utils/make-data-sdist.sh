@@ -34,6 +34,12 @@ echo "$VER" > $TMPDIR/version.txt
 echo "Saving version number $VER to version.txt"
 
 
+# Some temporary extras to support pre- and post-
+# renaming of some WFIRST stuff
+ln -s $TMPDIR/WFI $TMPDIR/WFIRSTImager
+ln -s $TMPDIR/AFTA_WFC_C5_Pupil_Shortwave_Norm_2048px.fits $TMPDIR/AFTA_symmetrical.fits
+
+
 # create distributable tar file
 tar -cvz -C "$TMPDIR/.." \
     -f "webbpsf-data-$VER.tar.gz" webbpsf-data

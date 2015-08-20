@@ -7,6 +7,13 @@ import astropy.io.fits as fits
 import subprocess
 import glob
 
+try:
+    inputfile = sys.argv[1]
+except IndexError:
+    print("""ERROR - no input data file provided.\n\nUsage: make-minimal-datafiles.py  <path_to_full_data.tar.gz>\n""")
+    sys.exit(1)
+
+
 insts = ['FGS', 'NIRCam', 'NIRSpec','NIRISS','MIRI']
 
 WORKING_DIR =  os.path.expanduser("~/tmp/minimal-webbpsf-data")
@@ -15,7 +22,7 @@ subprocess.call("mkdir "+WORKING_DIR, shell=True)
 
 print "#### Expanding full tar file into temp directory ####"
 os.chdir(WORKING_DIR)
-subprocess.call("tar xvzf /itar/jwst/tel/share/webbpsf/webbpsf-data-0.3.4.dev2.tar.gz", shell=True)
+subprocess.call("tar xvzf "+inputfile, shell=True)
 
 print "#### Trimming to only one OPD file per instrument ####"
 for instr in insts:
