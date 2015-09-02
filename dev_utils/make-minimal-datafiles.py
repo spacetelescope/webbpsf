@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # Make minimal data files
 # This is used to make a stripped-down version of the data files for use on Travis CI
 
@@ -14,7 +15,7 @@ subprocess.call("mkdir "+WORKING_DIR, shell=True)
 
 print "#### Expanding full tar file into temp directory ####"
 os.chdir(WORKING_DIR)
-subprocess.call("tar xvzf ~/web/software/webbpsf/webbpsf-data-0.3.1.tar.gz", shell=True)
+subprocess.call("tar xvzf /itar/jwst/tel/share/webbpsf/webbpsf-data-0.3.4.dev2.tar.gz", shell=True)
 
 print "#### Trimming to only one OPD file per instrument ####"
 for instr in insts:
@@ -41,6 +42,6 @@ os.remove(os.path.join(WORKING_DIR, 'webbpsf-data','tricontagon.fits'))
 print "#### Creating tar file ####"
 os.chdir(WORKING_DIR)
 subprocess.call('tar cvzf minimal-webbpsf-data.tar.gz webbpsf-data', shell=True)
-print "===>  ~/tmp/minimal-webbpsf-data.tar.gz "
+print "===>  {0}/minimal-webbpsf-data.tar.gz ".format(WORKING_DIR)
 
 

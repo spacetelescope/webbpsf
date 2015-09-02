@@ -83,7 +83,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
     source_offset_r : float
         Radial offset of the target from the center, in arcseconds
     source_offset_theta : float
-        Position angle for that offset
+        Position angle for that offset, in degrees CCW.
     pupil_shift_x, pupil_shift_y : float
         Relative shift of the intermediate (coronagraphic) pupil in X and Y relative to the telescope entrace pupil, expressed as a decimal between 0.0-1.0
         Note that shifting an array too much will wrap around to the other side unphysically, but
@@ -1337,8 +1337,10 @@ class FGS(JWInstrument):
         JWInstrument._getFITSHeader(self, hdulist, options)
         hdulist[0].header['FOCUSPOS'] = (0,'FGS focus mechanism not yet modeled.')
 
+
 ###########################################################################
 # Generic utility functions
+
 
 def Instrument(name):
     """This is just a convenience function, allowing one to access instrument objects based on a string.
@@ -1393,9 +1395,8 @@ def calc_or_load_PSF(filename, inst, clobber=False, **kwargs):
         return inst.calcPSF(outfile = filename, **kwargs)
 
 
-
-
 #########################
+
 
 class DetectorGeometry(object):
     """ Utility class for converting between detector coordinates
@@ -1455,6 +1456,80 @@ class DetectorGeometry(object):
         tel_coords_arcmin = tel_coords / 60. # arcsec to arcmin
 
 
+#########################
 
-#########################3
 
+def segname(val):
+    """ Return WSS-compliant segment name for a variety of input formats
+
+    For instance, one particular segment can be referred to as "B3", 11, "B3-11", etc.
+    The WSS refers to this segment as "B3-11".  THis function will return the string
+    "B3-11" for any of the above inputs, and similarly for any of the other segments.
+
+    Parameters
+    ------------
+    val : string or int
+        Something that can concievably be the name or ID of a JWST PMSA.
+    """
+
+    try:
+        intval = int(val)
+        # Convert integer value to string name
+        if intval < 1 or intval > 19: raise ValueError('Integer must be between 1 and 19')
+        if intval < 7:
+            return "A{0}-{0}".format(intval)
+        elif intval ==19:
+            return "SM-19"
+        else:
+            letter = 'B' if np.mod(intval,2)==1 else 'C'
+            number = int(np.ceil( (intval-6)*0.5))
+            return "{0}{1}-{2}".format(letter, number, intval)
+    except:
+        # it had better be a letter string
+        if val.startswith('SM'): return "SM-19"
+        base = {'A':0, 'B':5,'C':6}
+        try:
+            offset = base[val[0]]
+        except:
+            raise ValueError("string must start with A, B, or C")
+        try:
+            num = int(val[1])
+        except:
+            raise ValueError("input string must have 2nd character as a number from 1-6")
+        if num<1 or num>6:
+            raise ValueError("input string must have 2nd character as a number from 1-6")
+        if val[0] == 'A':
+            return "{0}{1}-{1}".format(val[0], val[1])
+        else:
+            return "{0}{1}-{2}".format(val[0], val[1], offset+int(val[1])*2)
+
+
+def one_segment_pupil(segmentname):
+    """ Return a pupil image which corresponds to only a single
+    segment of the telescope. This can be useful when simulating
+    early stages of JWST alignment.
+
+
+    Example
+    -------
+    nc = webbpsf.NIRCam()
+    nc.pupil = webbpsf.one_segment_pupil('B1')
+
+    """
+
+    # get the master pupil file
+
+
+    segmap = os.path.join(utils.get_webbpsf_data_path(), "JWpupil_segments.fits")
+
+    newpupil = fits.open(segmap)
+    if newpupil[0].header['VERSION'] != 2:
+        raise RuntimeError("Expecting file version 2 for JWpupil_segments.fits")
+
+    segment_official_name = segname(segmentname)
+    num = int(segment_official_name.split('-')[1])
+
+    newpupil[0].data = np.asarray(newpupil[0].data == num, dtype=int)
+
+    newpupil[0].header['SEGMENT'] = segment_official_name
+    return newpupil
