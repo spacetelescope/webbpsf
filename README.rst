@@ -21,6 +21,16 @@ This is intended to be an `Astropy <http://astropy.org/>`_ affiliated package.
 Status reports for developers
 -----------------------------
 
+.. image:: https://pypip.in/v/webbpsf/badge.png
+    :target: https://pypi.python.org/pypi/webbpsf
+
+.. image:: https://pypip.in/d/webbpsf/badge.png
+    :target: https://pypi.python.org/pypi/webbpsf
+
 .. image:: https://travis-ci.org/mperrin/webbpsf.png?branch=master
     :target: https://travis-ci.org/mperrin/webbpsf
-        :alt: Test Status
+    :alt: Test Status
+
+.. image:: https://coveralls.io/repos/mperrin/webbpsf/badge.svg
+    :target: https://coveralls.io/r/mperrin/webbpsf
+    :alt: Test Coverage

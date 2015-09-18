@@ -17,12 +17,15 @@ echo "Using data from $DATAROOT"
 # HFS-specific extended attributes
 export COPYFILE_DISABLE=1
 
+# Prepare to create the data tarfile
+# Also exclude various things we don't want to distribute, like .svn, the old OPDs, and the data source directories
+
 TMPDIR="/tmp/webbpsf-data"
 
 mkdir -p "$TMPDIR"
 rsync -avz --delete --exclude '._*' --exclude '_Obsolete' \
     --exclude .svn --exclude OPD_RevT --exclude TFI --exclude .DS_Store \
-    --exclude sources --exclude "*FND*" --exclude "*py" \
+    --exclude sources --exclude "*py" \
     --exclude README_DEVEL.txt \
     "$DATAROOT" "$TMPDIR"
 
@@ -30,33 +33,11 @@ VER="$1"
 echo "$VER" > $TMPDIR/version.txt
 echo "Saving version number $VER to version.txt"
 
-# Create the data tarfile
-# make a copy of the filter file excluding FND to appease MIRI PI requirements
-# Also exclude various things we don't want to distribute, like .svn, the old OPDs, and the data source directories
 
-# set MIRI filters to the square profiles for broad distribution
-echo "Setting up for simplified MIRI filter profiles"
-# remove symlink to DATAROOT
-rm -rfv "$TMPDIR/MIRI/filters"
-# copy tophat filters into place
-cp -Rv "$TMPDIR/MIRI/tophat_filters" "$TMPDIR/MIRI/filters"
-
-# create public distributable tar file
+# create distributable tar file
 tar -cvz -C "$TMPDIR/.." \
     -f "webbpsf-data-$VER.tar.gz" webbpsf-data
 
-# Make a copy with the complete MIRI filter profiles, for internal or CoroWG use
-echo "Setting up for measured MIRI filter profiles"
-# remove tophat filters
-rm -rfv "$TMPDIR/MIRI/filters"
-# copy complete filter profiles into place
-cp -Rv "$TMPDIR/MIRI/measured_filters" "$TMPDIR/MIRI/filters"
-
-# create internal distributable tar file
-tar -cvz -C "$TMPDIR/.." \
-    -f "webbpsf-data-internal-$VER.tar.gz" webbpsf-data
-
-echo "Public file output to:    $PWD/webbpsf-data-$VER.tar.gz"
-echo "Internal file output to:  $PWD/webbpsf-data-internal-$VER.tar.gz"
+echo "File output to:    $PWD/webbpsf-data-$VER.tar.gz"
 echo
-echo "If those work, remove $TMPDIR"
+echo "If that works, remove $TMPDIR"
