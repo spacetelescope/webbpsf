@@ -86,6 +86,14 @@ class FieldDependentAberration(poppy.ZernikeWFE):
     computing the Zernike coefficients for a particular wavelength
     and position.
     """
+
+    """By default, `get_aberration_terms` will zero out Z1, Z2, and Z3
+    (piston, tip, and tilt) as they are not meaningful for telescope
+    PSF calculations (the former is irrelevant, the latter two would
+    be handled by a distortion solution). Change
+    `_omit_piston_tip_tilt` to False to include the Z1-3 terms."""
+    _omit_piston_tip_tilt = True
+
     def __init__(self, pixel_width, pixel_height,
                  name="Field-dependent Aberration", radius=1.0, oversample=1, interp_order=3):
         self.pixel_width, self.pixel_height = pixel_width, pixel_height
@@ -131,26 +139,30 @@ class FieldDependentAberration(poppy.ZernikeWFE):
     def get_aberration_terms(self, wavelength):
         """Supply the Zernike coefficients for the aberration based on
         the wavelength and pixel position on the detector"""
-        # short path: this is a known point
         if (self.x_pixel, self.y_pixel) in self._wavelength_interpolators:
+            # short path: this is a known point
             interpolator = self._wavelength_interpolators[(self.x_pixel, self.y_pixel)]
-            return interpolator.get_aberration_terms(wavelength)
-        # get aberrations at all field points
-        field_points, aberration_terms = [], []
-        for field_point_coords, point_interpolator in self._wavelength_interpolators.iteritems():
-            field_points.append(field_point_coords)
-            aberration_terms.append(point_interpolator.get_aberration_terms(wavelength))
-        aberration_array = np.asarray(aberration_terms)
-        assert len(aberration_array.shape) == 2, "computed aberration array is not 2D " \
-                                                 "(inconsistent number of Zernike terms " \
-                                                 "at each point?)"
-        computed_aberration = griddata(
-            np.asarray(field_points),
-            np.asarray(aberration_terms),
-            (self.x_pixel, self.y_pixel),
-            method='linear'
-        )
-        return computed_aberration
+            coefficients = interpolator.get_aberration_terms(wavelength)
+        else:
+            # get aberrations at all field points
+            field_points, aberration_terms = [], []
+            for field_point_coords, point_interpolator in self._wavelength_interpolators.iteritems():
+                field_points.append(field_point_coords)
+                aberration_terms.append(point_interpolator.get_aberration_terms(wavelength))
+            aberration_array = np.asarray(aberration_terms)
+            assert len(aberration_array.shape) == 2, "computed aberration array is not 2D " \
+                                                     "(inconsistent number of Zernike terms " \
+                                                     "at each point?)"
+            coefficients = griddata(
+                np.asarray(field_points),
+                np.asarray(aberration_terms),
+                (self.x_pixel, self.y_pixel),
+                method='linear'
+            )
+        if self._omit_piston_tip_tilt:
+            _log.info("Omitting piston/tip/tilt")
+            coefficients[:3] = 0.0  # omit piston, tip, and tilt Zernikes
+        return coefficients
 
 def _load_wfi_detector_aberrations(filename):
     from astropy.io import ascii
@@ -189,7 +201,7 @@ def _load_wfi_detector_aberrations(filename):
                                                         n_zernikes=22)
         for row in rows:
             z = np.zeros(22)
-            for idx in xrange(3, 22):  # omit piston, tip, tilt for WFI
+            for idx in xrange(22):
                 z[idx] = row['Z{}'.format(idx + 1)]
             interpolator.set_aberration_terms(row['Wave(um)'] * 1e-6, z)
 
