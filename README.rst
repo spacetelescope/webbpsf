@@ -6,6 +6,10 @@ flagship infrared space telescope. WebbPSF can simulate images for any of the
 four science instruments plus the fine guidance sensor, including both direct
 imaging and coronagraphic modes.
 
+WebbPSF has also been adapted to simulate images for Wide-Field Infrared Survey
+Telescope (WFIRST) instruments, including the Wide Field Imager (WFI) and the
+Coronagraph Instrument (CGI).
+
 Developed by Marshall Perrin, Joseph Long, and collaborators, 2010-2015.
 
 Documentation can be found online at https://pythonhosted.org/webbpsf/
