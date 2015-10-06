@@ -351,3 +351,16 @@ class WFI(WFIRSTInstrument):
             # correct shape it should have
             pass
         super(WFI, self)._validateConfig(**kwargs)
+
+class CharSPC(WFIRSTInstrument):
+    """
+    WFIRSTcharSPC represents the characterization (IFS) shaped pupil coronagraph
+
+    WARNING: No realistic wavefront error map was available for WFIRST at release time.
+             This assumes a perfect telescope!
+    """
+    def __init__(self):
+        scale = 0.82/76  # The IFS has a 76×76 format lenslet array that samples the image plane with a 0.82x0.82 arcsec ra- dius FoV for the entire array. 
+        super(WFIRSTcharSPC, self).__init__("WFIRSTcharSPC", pixelscale=scale)
+    def _validate_config(self):
+        return True
