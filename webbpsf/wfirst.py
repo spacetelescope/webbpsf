@@ -188,7 +188,9 @@ def _load_wfi_detector_aberrations(filename):
 
             midpoint_pixel = 4096 / 2
             # (local_x in mm / 10 um pixel size) -> * 1e2
-            pixx, pixy = midpoint_pixel + local_x * 1e2, midpoint_pixel + local_y * 1e2
+            # local_x and _y range from -20.44 to +20.44, so adding to the midpoint pixel
+            # makes sense to place (-20.44, -20.44) at (4, 4)
+            pixx, pixy = int(midpoint_pixel + local_x * 1e2), int(midpoint_pixel + local_y * 1e2)
 
             detector.add_field_point(pixx, pixy, interpolator)
         return detector
