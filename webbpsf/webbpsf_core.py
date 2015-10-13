@@ -142,6 +142,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         self._WebbPSF_basepath = utils.get_webbpsf_data_path()
 
         self._datapath = self._WebbPSF_basepath + os.sep + self.name + os.sep
+        self._apod_mask = None
         self._image_mask = None
         self._pupil_mask = None
 
