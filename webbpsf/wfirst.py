@@ -246,8 +246,6 @@ class WFIRSTInstrument(webbpsf_core.SpaceTelescopeInstrument):
 
     def __init__(self, *args, **kwargs):
         super(WFIRSTInstrument, self).__init__(*args, **kwargs)
-        self.pupil = os.path.join(self._WebbPSF_basepath, 'AFTA_WFC_C5_Pupil_Shortwave_Norm_2048px.fits')
-        self.pupilopd = os.path.join(self._WebbPSF_basepath, 'upscaled_HST_OPD.fits')
 
         # n.b. WFIRSTInstrument subclasses must set these
         self._detectors = {}
@@ -318,9 +316,14 @@ class WFI(WFIRSTInstrument):
         self.detector = 'SCA01'
 
         # Paths to the two possible pupils. The correct one is selected based on requested
-        # wavelengths in _validate_config()
+        # wavelengths in _validateConfig()
         self._unmasked_pupil_path = os.path.join(self._WebbPSF_basepath, 'AFTA_WFC_C5_Pupil_Shortwave_Norm_2048px.fits')
         self._masked_pupil_path = os.path.join(self._WebbPSF_basepath, 'AFTA_WFC_C5_Pupil_Mask_Norm_2048px.fits')
+
+        # Flag to en-/disable automatic selection of the appropriate pupil_mask
+        self.auto_pupil = True
+        self.pupil = self._unmasked_pupil_path
+        self.pupilopd = os.path.join(self._WebbPSF_basepath, 'upscaled_HST_OPD.fits')
 
     def _validateConfig(self, **kwargs):
         """Validates that the WFI is configured sensibly
@@ -328,7 +331,7 @@ class WFI(WFIRSTInstrument):
         This mainly consists of selecting the masked or unmasked pupil
         appropriately based on the wavelengths requested.
         """
-        if self.pupil in (self._unmasked_pupil_path, self._masked_pupil_path):
+        if self.auto_pupil and self.pupil in (self._unmasked_pupil_path, self._masked_pupil_path):
             # Does the wavelength range fit entirely in an unmasked filter?
             wavelengths = np.array(kwargs['wavelengths'])
             wl_min, wl_max = np.min(wavelengths), np.max(wavelengths)
@@ -338,15 +341,15 @@ class WFI(WFIRSTInstrument):
                 # use unmasked pupil optic
                 self.pupil = self._unmasked_pupil_path
                 _log.info("Using the unmasked WFI pupil shape based on wavelengths requested")
-            elif wl_min >= self.MASKED_PUPIL_WAVELENGTH_MIN and wl_max <= self.MASKED_PUPIL_WAVELENGTH_MAX:
+            elif wl_max <= self.MASKED_PUPIL_WAVELENGTH_MAX:
                 # use masked pupil optic
                 self.pupil = self._masked_pupil_path
                 _log.info("Using the masked WFI pupil shape based on wavelengths requested")
             else:
-                raise RuntimeError("Cannot figure out which WFI pupil shape to use from the "
-                                   "wavelengths requested! (If you know which one you want, "
-                                   "instantiate a poppy.FITSOpticalElement and assign it to the "
-                                   "'pupil' attribute.)")
+                raise RuntimeError("Couldn't infer pupil shape to use from wavelength range. "
+                                   "Set the `auto_pupil` attribute to False, then assign either "
+                                   "the `_unmasked_pupil_path` or `_masked_pupil_path` attribute "
+                                   "to the `pupil` attribute.")
         else:
             # If the user has set the pupil to a custom value, let them worry about the
             # correct shape it should have
@@ -363,13 +366,6 @@ def show_notebook_interface(instrument):
         def callback(trait_name, new_value):
             setattr(instrument, attribute, new_value)
         return callback
-
-    pupil_selection = widgets.ToggleButtons(
-        options={'Masked pupil': 'masked', 'Unmasked pupil': 'unmasked'},
-        description='Pupil:'
-    )
-    # TODO figure out pupil selection code
-    display(pupil_selection)
 
     filter_selection = widgets.ToggleButtons(
         options=instrument.filter_list,
