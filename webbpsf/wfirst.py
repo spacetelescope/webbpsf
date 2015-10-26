@@ -352,3 +352,120 @@ class WFI(WFIRSTInstrument):
             # correct shape it should have
             pass
         super(WFI, self)._validateConfig(**kwargs)
+
+
+def show_notebook_interface(instrument):
+    # Widget related imports. (Currently not a hard dependency.)
+    import ipywidgets as widgets
+    from IPython.display import display, clear_output
+
+    def make_binding_for_attribute(attribute):
+        def callback(trait_name, new_value):
+            setattr(instrument, attribute, new_value)
+        return callback
+
+    pupil_selection = widgets.ToggleButtons(
+        options={'Masked pupil': 'masked', 'Unmasked pupil': 'unmasked'},
+        description='Pupil:'
+    )
+    # TODO figure out pupil selection code
+    display(pupil_selection)
+
+    filter_selection = widgets.ToggleButtons(
+        options=instrument.filter_list,
+        value=instrument.filter,
+        description='Filter:'
+    )
+    filter_selection.on_trait_change(
+        make_binding_for_attribute('filter'),
+        name='selected_label'
+    )
+    display(filter_selection)
+
+    sca_selection = widgets.Dropdown(
+        options=instrument.detector_list,
+        value=instrument.detector,
+        description='Detector:'
+    )
+    sca_selection.on_trait_change(
+        make_binding_for_attribute('detector'),
+        name='selected_label'
+    )
+    display(sca_selection)
+
+    detector_field_points = [
+        ('Top left', (4.0, 4092.0)),
+        ('Bottom left', (4.0, 4.0)),
+        ('Center', (2048.0, 2048.0)),
+        ('Top right', (4092.0, 4092.0)),
+        ('Bottom right', (4092.0, 4.0)),
+    ]
+    # enforce ordering of buttons
+    detector_field_point_labels = [a[0] for a in detector_field_points]
+    detector_field_points = dict(detector_field_points)
+
+    def set_field_position(trait_name, new_value):
+        instrument.detector_position = detector_field_points[new_value]
+
+    field_position = widgets.ToggleButtons(options=detector_field_point_labels, value='Center', description='Detector field point:')
+    field_position.on_trait_change(set_field_position, name='selected_label')
+    display(field_position)
+
+    calculate_button = widgets.Button(
+        description="Calculate PSF",
+        width='10em',
+        color='white',
+        background_color='#00c403',
+        border_color='#318732'
+    )
+    display_osys_button = widgets.Button(
+        description="Display Optical System",
+        width='13em',
+        color='white',
+        background_color='#005fc4',
+        border_color='#224A75'
+    )
+    clear_button = widgets.Button(
+        description="Clear Output",
+        width='10em',
+        color='white',
+        background_color='#ed4747',
+        border_color='#911C1C'
+    )
+    progress = widgets.HTML(value='<progress>')
+
+    OUTPUT_FILENAME = 'psf.fits'
+    DOWNLOAD_BUTTON_HTML = """
+    <a class="btn btn-info" href="files/{}" target="_blank">
+        Download FITS image from last calculation
+    </a>
+    """
+    download_link = widgets.HTML(value=DOWNLOAD_BUTTON_HTML.format(OUTPUT_FILENAME))
+
+    def disp(*args):
+        progress.visible = True
+        instrument.display()
+        progress.visible = None
+    def calc(*args):
+        progress.visible = True
+        instrument.calcPSF(display=True, outfile=OUTPUT_FILENAME, clobber=True)
+        progress.visible = None
+        download_link.visible = True
+    def clear(*args):
+        clear_output()
+        progress.visible = None
+        download_link.visible = None
+
+    calculate_button.on_click(calc)
+    display_osys_button.on_click(disp)
+    clear_button.on_click(clear)
+    display(widgets.HTML(value="<br/>"))  # kludge
+    buttons = widgets.HBox(children=[calculate_button, display_osys_button, clear_button])
+    display(buttons)
+
+    # Insert the progress bar, hidden by default
+    display(progress)
+    progress.visible = None
+    # and the download link
+    display(download_link)
+    download_link.visible = None
