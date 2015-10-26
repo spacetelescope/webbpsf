@@ -93,11 +93,12 @@ class FieldDependentAberration(poppy.ZernikeWFE):
     be handled by a distortion solution). Change
     `_omit_piston_tip_tilt` to False to include the Z1-3 terms."""
     _omit_piston_tip_tilt = True
+    _field_position = None
 
     def __init__(self, pixel_width, pixel_height,
                  name="Field-dependent Aberration", radius=1.0, oversample=1, interp_order=3):
         self.pixel_width, self.pixel_height = pixel_width, pixel_height
-        self.x_pixel, self.y_pixel = pixel_width // 2, pixel_height // 2
+        self.field_position = pixel_width // 2, pixel_height // 2
         self._wavelength_interpolators = {}
         super(FieldDependentAberration, self).__init__(
             name=name,
@@ -119,9 +120,15 @@ class FieldDependentAberration(poppy.ZernikeWFE):
         self.coefficients = wavelength * self.get_aberration_terms(wavelength)
         return super(FieldDependentAberration, self).getPhasor(wave)
 
-    def set_field_position(self, x_pixel, y_pixel):
+    @property
+    def field_position(self):
+        return self._field_position
+
+    @field_position.setter
+    def field_position(self, position):
         """Set the x and y pixel position on the detector for which to
         interpolate aberrations"""
+        x_pixel, y_pixel = position
         if x_pixel > self.pixel_width or x_pixel < 0:
             raise ValueError("Requested pixel_x position lies outside "
                              "the detector width ({})".format(x_pixel))
@@ -129,7 +136,7 @@ class FieldDependentAberration(poppy.ZernikeWFE):
             raise ValueError("Requested pixel_y position lies outside "
                              "the detector height ({})".format(y_pixel))
 
-        self.x_pixel, self.y_pixel = x_pixel, y_pixel
+        self._field_position = x_pixel, y_pixel
 
     def add_field_point(self, x_pixel, y_pixel, interpolator):
         """Supply a wavelength-space interpolator for a pixel position
@@ -139,9 +146,9 @@ class FieldDependentAberration(poppy.ZernikeWFE):
     def get_aberration_terms(self, wavelength):
         """Supply the Zernike coefficients for the aberration based on
         the wavelength and pixel position on the detector"""
-        if (self.x_pixel, self.y_pixel) in self._wavelength_interpolators:
+        if self.field_position in self._wavelength_interpolators:
             # short path: this is a known point
-            interpolator = self._wavelength_interpolators[(self.x_pixel, self.y_pixel)]
+            interpolator = self._wavelength_interpolators[self.field_position]
             coefficients = interpolator.get_aberration_terms(wavelength)
         else:
             # get aberrations at all field points
@@ -156,7 +163,7 @@ class FieldDependentAberration(poppy.ZernikeWFE):
             coefficients = griddata(
                 np.asarray(field_points),
                 np.asarray(aberration_terms),
-                (self.x_pixel, self.y_pixel),
+                self.field_position,
                 method='linear'
             )
         if self._omit_piston_tip_tilt:
@@ -236,11 +243,6 @@ class WFIRSTInstrument(webbpsf_core.SpaceTelescopeInstrument):
 
     (Subclasses must populate this at `__init__`.)
     """
-    _detector_position = (2048.0, 2048.0)
-    """
-    The pixel position, accessed through the `detector_position` property
-    and validated to be in-range on the selected detector.
-    """
 
     def __init__(self, *args, **kwargs):
         super(WFIRSTInstrument, self).__init__(*args, **kwargs)
@@ -274,13 +276,12 @@ class WFIRSTInstrument(webbpsf_core.SpaceTelescopeInstrument):
     @property
     def detector_position(self):
         """The pixel position in (X, Y) on the detector"""
-        return self._detector_position
+        return self._detectors[self._selected_detector].field_position
 
     @detector_position.setter
     def detector_position(self, position):
-        x_pixel, y_pixel = position
         detector = self._detectors[self._selected_detector]
-        detector.set_field_position(x_pixel, y_pixel)
+        detector.field_position = position
 
     def _get_aberrations(self):
         """Get the OpticalElement that applies the field-dependent
@@ -315,7 +316,6 @@ class WFI(WFIRSTInstrument):
         self._detectors = _load_wfi_detector_aberrations(os.path.join(self._datapath, 'zernikes.csv'))
         assert len(self._detectors.keys()) > 0
         self.detector = 'SCA01'
-        self.detector_position = (2048.0, 2048.0)
 
         # Paths to the two possible pupils. The correct one is selected based on requested
         # wavelengths in _validate_config()
