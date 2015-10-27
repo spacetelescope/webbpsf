@@ -107,7 +107,7 @@ def setup_logging(level='INFO',  filename=None):
     restart_logging(verbose=True)
 
 MISSING_WEBBPSF_DATA_MESSAGE = """
- *********  ERROR  ******  ERROR  ******  ERROR  ******  ERROR  *************
+ ***********  ERROR  ******  ERROR  ******  ERROR  ******  ERROR  ***********
  *                                                                          *
  *  WebbPSF requires several data files to operate.                         *
  *  These files could not be located automatically at this                  *
@@ -124,8 +124,8 @@ MISSING_WEBBPSF_DATA_MESSAGE = """
  ****************************************************************************
 """
 
-def get_webbpsf_data_path():
-    """ Get webbpsf data path
+def get_webbpsf_data_path(data_version_min=None):
+    """Get the WebbPSF data path
 
     Simply checking an environment variable is not always enough, since
     for packaging this code as a Mac .app bundle, environment variables are
@@ -133,9 +133,13 @@ def get_webbpsf_data_path():
 
     Therefore, check first the environment variable WEBBPSF_PATH, and secondly
     check the configuration file in the user's home directory.
+
+    If data_version_min is supplied (as a 3-tuple of integers), it will be
+    compared with the version number from version.txt in the WebbPSF data
+    package.
     """
     import os
-    path_from_config = conf.WEBBPSF_PATH # read from astropy configuration
+    path_from_config = conf.WEBBPSF_PATH  # read from astropy configuration
     if path_from_config == 'from_environment_variable':
         path = os.getenv('WEBBPSF_PATH')
         if path is None:
@@ -147,78 +151,34 @@ def get_webbpsf_data_path():
     if not os.path.isdir(path):
         raise IOError("WEBBPSF_PATH ({}) is not a valid directory path!".format(path))
 
+    if data_version_min is not None:
+        # Check if the data in WEBBPSF_PATH meet the minimum data version
+        version_file_path = os.path.join(path, 'version.txt')
+        try:
+            with open(version_file_path) as f:
+                contents = f.read().strip()
+                # keep only first 3 elements for comparison (allows "0.3.4.dev" or similar)
+                parts = contents.split('.')[:3]
+            version_tuple = tuple(map(int, parts))
+        except (IOError, ValueError):
+            raise EnvironmentError(
+                "Couldn't read the version number from {}. (Do you need to update the WebbPSF "
+                "data? See http://pythonhosted.org/webbpsf/installation.html#data-install "
+                "for a link to the latest version.)".format(version_file_path)
+            )
+
+        if not version_tuple >= data_version_min:
+            raise EnvironmentError(
+                "WebbPSF data package has version {cur}, but {min} is needed. "
+                "See http://pythonhosted.org/webbpsf/installation.html#data-install "
+                "for a link to the latest version.".format(
+                    cur=contents,
+                    min='{}.{}.{}'.format(*data_version_min)
+                )
+            )
+
     return path
 
-
-def check_for_new_install(force=False):
-    """ Check for a new installation, and if so
-    print a hopefully helpful explanatory message.
-    """
-
-    from .version import version as __version__
-
-    if os.getenv('WEBBPSF_SKIP_CHECK') is not None: return
-
-    if conf.last_version_ran == '0.0' or force:
-
-        from . import _save_config
-        import astropy.config
-
-        conf.last_version_ran = __version__
-        _save_config()
-        #conf.last_version_ran.save()
-        #save_config('webbpsf') # save default values to text file
-
-        print("""
-  ***************************************************
-  *           WebbPSF Initialization & Setup         *
-  ****************************************************
-
-    This appears to be the first time you have used WebbPSF. 
-    
-    Just so you know, there is a mailing list for users of
-    webbpsf to keep you informed about any announcements of
-    updates or enhancements to this software. If you would like
-    to subscribe, please email 
-        majordomo@stsci.edu
-    with the message 
-        subscribe webbpsf-users
-
-    
-    WebbPSF has some options that can be set using a 
-    configuration file. An example configuration file with
-    default values has been created in 
-            {0}/webbpsf.{1}.cfg
-    (unless such a config file was already present there)
-    You can examine that file and change settings if desired.
-    See the WebbPSF documentation for more detail. """.format(astropy.config.get_config_dir(), __version__))
-
-        # check for data dir?
-        path_from_env_var = os.getenv('WEBBPSF_PATH') 
-
-        if path_from_env_var is not None:
-            print("""
-
-    WebbPSF's required data files appear to be 
-    installed at a path given by $WEBBPSF_PATH :
-    {0} """.format(path_from_env_var))
-        else:
-            # the following will automatically print(an error message if
-            # the path is unknown in the config file.
-            path_from_config = conf.WEBBPSF_PATH
-
-            if path_from_config != 'unknown':
-                print("""
-    WebbPSF's required data files appear to be 
-    installed at a path given in the config file:
-    {0} """.format(path_from_config))
-
-        print("""
-
-    This message will not be displayed again.
-    Press [Enter] to continue
-    """)
-        any_key = raw_input()
 
 DIAGNOSTIC_REPORT = """
 OS: {os}
