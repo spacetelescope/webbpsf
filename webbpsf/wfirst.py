@@ -59,26 +59,11 @@ class WavelengthDependenceInterpolator(object):
             return self._aberration_terms[aberration_row_idx]
         else:
             # we have to interpolate @ this wavelength
-            return griddata(self._wavelengths, self._aberration_terms, wavelength, method='linear')
-
-    def get_zernike_coefficient(self, wavelength, zernike_subscript):
-        """Return a single Zernike coefficient based on `wavelength`
-        and `zernike_subscript` (counting from 1 in the Noll indexing
-        convention)"""
-        zernike_subscript -= 1  # 1-indexed to 0-indexed
-        if zernike_subscript >= self._n_wavelengths:
-            raise ValueError("No information at Zernike term Z_{}".format(zernike_subscript + 1))
-        if wavelength in self._wavelengths:
-            # aberration known exactly for this wavelength
-            aberration_row_idx = self._wavelengths.index(wavelength)
-            return self._aberration_terms[aberration_row_idx][zernike_subscript]
-        else:
-            return griddata(
-                self._wavelengths,
-                self._aberration_terms[:,zernike_subscript],
-                wavelength,
-                method='linear'
-            )
+            aberration_terms = griddata(self._wavelengths, self._aberration_terms, wavelength, method='linear')
+            if np.any(np.isnan(aberration_terms)):
+                raise RuntimeError("Attempted to get aberrations at wavelength "
+                                   "outside the range of the reference data")
+            return aberration_terms
 
 class FieldDependentAberration(poppy.ZernikeWFE):
     """FieldDependentAberration incorporates aberrations that
@@ -166,6 +151,8 @@ class FieldDependentAberration(poppy.ZernikeWFE):
                 self.field_position,
                 method='linear'
             )
+            if np.any(np.isnan(coefficients)):
+                raise RuntimeError("Attempted to get aberrations for an out-of-bounds field point")
         if self._omit_piston_tip_tilt:
             _log.info("Omitting piston/tip/tilt")
             coefficients[:3] = 0.0  # omit piston, tip, and tilt Zernikes
@@ -337,19 +324,16 @@ class WFI(WFIRSTInstrument):
             wl_min, wl_max = np.min(wavelengths), np.max(wavelengths)
             # test shorter filters first; if wl range fits entirely in one of them, it's not going
             # to be the (masked) wideband filter
-            if wl_min >= self.UNMASKED_PUPIL_WAVELENGTH_MIN and wl_max <= self.UNMASKED_PUPIL_WAVELENGTH_MAX:
+            if wl_max <= self.UNMASKED_PUPIL_WAVELENGTH_MAX:
                 # use unmasked pupil optic
                 self.pupil = self._unmasked_pupil_path
                 _log.info("Using the unmasked WFI pupil shape based on wavelengths requested")
-            elif wl_max <= self.MASKED_PUPIL_WAVELENGTH_MAX:
+            else:
+                if wl_max > self.MASKED_PUPIL_WAVELENGTH_MAX:
+                    _log.warn("Requested wavelength is > 2e-6 m, defaulting to masked pupil shape")
                 # use masked pupil optic
                 self.pupil = self._masked_pupil_path
                 _log.info("Using the masked WFI pupil shape based on wavelengths requested")
-            else:
-                raise RuntimeError("Couldn't infer pupil shape to use from wavelength range. "
-                                   "Set the `auto_pupil` attribute to False, then assign either "
-                                   "the `_unmasked_pupil_path` or `_masked_pupil_path` attribute "
-                                   "to the `pupil` attribute.")
         else:
             # If the user has set the pupil to a custom value, let them worry about the
             # correct shape it should have
