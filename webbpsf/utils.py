@@ -83,8 +83,7 @@ def restart_logging(verbose=True):
         formatter = logging.Formatter(conf.logging_format_file)
         hdlr.setFormatter(formatter)
 
-        for name in lognames:
-            logging.getLogger(name).addHandler(hdlr)
+        root_logger.addHandler(hdlr)
 
         if verbose:
             print("WebbPSF log outputs will also be saved to file {}".format(filename))
@@ -99,11 +98,11 @@ def setup_logging(level='INFO', filename=None):
     messages to be written to the screen, but the user can also
     request logging to a file.
 
-    The settings applied here are stored persistently between sessions
-    using the astropy.config system. In many cases, you can just
-    configure these once when you first install WebbPSF and then
-    logging will continue to operate as desired without any additional
-    intervention.
+    Editing the WebbPSF config file to set `autoconfigure_logging = True`
+    (and any of the logging settings you wish to persist) instructs
+    WebbPSF to apply your settings on import. (This is not
+    done by default in case you have configured `logging` yourself
+    and don't wish to overwrite your configuration.)
 
     For more advanced log handling, see the Python logging module's
     own documentation.
