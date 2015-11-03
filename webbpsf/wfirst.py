@@ -154,7 +154,7 @@ class FieldDependentAberration(poppy.ZernikeWFE):
             if np.any(np.isnan(coefficients)):
                 raise RuntimeError("Attempted to get aberrations for an out-of-bounds field point")
         if self._omit_piston_tip_tilt:
-            _log.info("Omitting piston/tip/tilt")
+            _log.debug("Omitting piston/tip/tilt")
             coefficients[:3] = 0.0  # omit piston, tip, and tilt Zernikes
         return coefficients
 
