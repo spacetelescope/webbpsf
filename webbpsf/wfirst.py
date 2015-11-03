@@ -346,6 +346,12 @@ def show_notebook_interface(instrument):
     import ipywidgets as widgets
     from IPython.display import display, clear_output
 
+    # Clean up some warnings we know about so as not to scare the users
+    import warnings
+    from matplotlib.cbook import MatplotlibDeprecationWarning
+    warnings.simplefilter('ignore', MatplotlibDeprecationWarning)
+    warnings.simplefilter('ignore', fits.verify.VerifyWarning)
+
     def make_binding_for_attribute(attribute):
         def callback(trait_name, new_value):
             setattr(instrument, attribute, new_value)
