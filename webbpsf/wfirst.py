@@ -198,7 +198,7 @@ def _load_wfi_detector_aberrations(filename):
                                                         n_zernikes=22)
         for row in rows:
             z = np.zeros(22)
-            for idx in xrange(22):
+            for idx in range(22):
                 z[idx] = row['Z{}'.format(idx + 1)]
             interpolator.set_aberration_terms(row['Wave(um)'] * 1e-6, z)
 
