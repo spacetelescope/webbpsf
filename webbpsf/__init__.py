@@ -28,17 +28,8 @@ from astropy import config as _config
 
 class Conf(_config.ConfigNamespace):
     """
-    Configuration parameters for `poppy`.
+    Configuration parameters for `webbpsf`.
     """
-
-    #use_multiprocessing = _config.ConfigItem(False,
-    #        'Should PSF calculations run in parallel using multiple processers'+
-    #        'using the Python multiprocessing framework (if True; faster but '+
-    #        'does not allow display of each wavelength) or run serially in a '+
-    #        'single process(if False; slower but shows the calculation in '+
-    #        'progress. Also a bit more robust.?)')
-
-
 # Should probably be science state in astropy>=0.4 schema:
 
     default_oversampling = _config.ConfigItem(4, 'Default '+
@@ -50,11 +41,25 @@ class Conf(_config.ConfigNamespace):
 
 # Should be package settings:
     WEBBPSF_PATH = _config.ConfigItem('from_environment_variable','Directory path to data files required for WebbPSF calculations, such as OPDs and filter transmissions. This will be overridden by the environment variable $WEBBPSF_PATH, if present.')
-
-
-    # the default value is the first item in the options list:
-    logging_level =  _config.ConfigItem(['INFO','DEBUG','WARN','ERROR','NONE'],'Desired logging level for WebbPSF optical calculations.')
-    logging_filename =  _config.ConfigItem("none", "Desired filename to save log messages to.")
+    autoconfigure_logging = _config.ConfigItem(
+        False,
+        'Should WebbPSF configure logging for itself and POPPY? This adds handlers that report '
+        'calculation progress and information'
+    )
+    logging_level = _config.ConfigItem(
+        ['INFO', 'DEBUG', 'WARN', 'ERROR', 'CRITICAL', 'NONE'],
+        # (the default value is the first item in the options list)
+        'Desired logging level for WebbPSF optical calculations.'
+    )
+    logging_filename = _config.ConfigItem("none", "Desired filename to save log messages to.")
+    logging_format_screen = _config.ConfigItem(
+        '[%(name)7s] %(message)s',
+        'Format for lines logged to the screen.'
+    )
+    logging_format_file = _config.ConfigItem(
+        '%(asctime)s [%(name)s:%(levelname)s] %(filename)s:%(lineno)d: %(message)s',
+        'Format for lines logged to a file.'
+    )
     last_version_ran =  _config.ConfigItem('0.0', 'Most recently used version of WebbPSF on this computer. This is used for detecting new or upgraded installations and providing some additional information to users.')
 
 conf = Conf()
@@ -81,10 +86,11 @@ from .webbpsf_core import (Instrument, JWInstrument, NIRCam, NIRISS, NIRSpec,
     MIRI, FGS)
 
 from . import utils
-from .utils import setup_logging, system_diagnostic #, _check_for_new_install, _restart_logging
+from .utils import setup_logging, restart_logging, system_diagnostic
 
 if not _ASTROPY_SETUP_:
-    utils.restart_logging()          # restart logging based on saved settings.
+    if conf.autoconfigure_logging:
+        restart_logging(verbose=True)
 
     # this should display a warning to the user if they don't have WEBBPSF_PATH
     # defined in either the environment or in webbpsf.cfg
