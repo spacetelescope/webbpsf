@@ -93,7 +93,7 @@ class FieldDependentAberration(poppy.ZernikeWFE):
             interp_order=interp_order
         )
 
-    def getOPD(self, wave, units='meters'):
+    def get_opd(self, wave, units='meters'):
         """Set the Zernike coefficients (for ZernikeWFE.getOPD) based
         on the wavelength of the incoming wavefront and the pixel
         position
@@ -103,7 +103,7 @@ class FieldDependentAberration(poppy.ZernikeWFE):
         else:
             wavelength = wave.wavelength
         self.coefficients = wavelength * self.get_aberration_terms(wavelength)
-        return super(FieldDependentAberration, self).getOPD(wave, units=units)
+        return super(FieldDependentAberration, self).get_opd(wave, units=units)
 
     @property
     def field_position(self):
