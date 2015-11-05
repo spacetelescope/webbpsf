@@ -15,7 +15,7 @@ from . import webbpsf_core
 from scipy.interpolate import griddata
 from astropy.io import fits
 import logging
-_log = logging.getLogger('webbpsf')
+_log = logging.getLogger('webbpsf').setLevel('DEBUG')
 
 class WavelengthDependenceInterpolator(object):
     """WavelengthDependenceInterpolator can be configured with
@@ -352,15 +352,91 @@ class WFI(WFIRSTInstrument):
             pass
         super(WFI, self)._validateConfig(**kwargs)
 
-class CharSPC(WFIRSTInstrument):
+class CGI(WFIRSTInstrument):
     """
-    WFIRSTcharSPC represents the characterization (IFS) shaped pupil coronagraph
+    WFIRST Coronagraph Instrument
 
-    WARNING: No realistic wavefront error map was available for WFIRST at release time.
-             This assumes a perfect telescope!
     """
     def __init__(self):
-        scale = 0.82/76  # The IFS has a 76×76 format lenslet array that samples the image plane with a 0.82x0.82 arcsec ra- dius FoV for the entire array. 
-        super(WFIRSTcharSPC, self).__init__("WFIRSTcharSPC", pixelscale=scale)
+        pixelscale_BB = 0.01
+        pixelscale_IFS = 0.01 
+        pixelscale = 0.01 # arcsec/pix for broadband imager
+        super(CGI, self).__init__("CGI", pixelscale=pixelscale)
+
+        self.pupil = os.path.join(self._WebbPSF_basepath, 'AFTA_CGI_C5_Pupil_onax_1000px.fits')
+        self.apod_mask_list = ['CHARSPC', 'DISKSPC']
+        self.image_mask_list = ['CHARSPC_F660', 'CHARSPC_F770', 'CHARSPC_F890', 'DISKSPC_F465', 'DISKSPC_F565', 'DISKSPC_F835', 'DISKSPC_F885']
+        self.pupil_mask_list = ['SPC26D88']
+        self.aberration_optic = None
+
     def _validate_config(self):
-        return True
+        if self.apod_mask in self.apod_mask_list:
+            return True
+
+    def _addAdditionalOptics(self, optsys, oversample=4):
+        """Add coronagraphic or spectrographic optics for WFIRST CGI."""
+        
+        trySAM = False
+        char_fpmres = 8
+        disk_fpmres = 4
+
+        if ('pupil_shift_x' in self.options and self.options['pupil_shift_x'] != 0) or \
+           ('pupil_shift_y' in self.options and self.options['pupil_shift_y'] != 0):
+            shift = (self.options['pupil_shift_x'], self.options['pupil_shift_y'])
+        else: shift = None
+
+        if self.apod_mask == 'CHARSPC':
+            optsys.addPupil(transmission=self._datapath+"optics/CHARSPC_SP_1000pix.fits.gz", name=self.apod_mask, shift=None)
+        elif self.apod_mask == 'DISKSPC':
+            optsys.addPupil(transmission=self._datapath+"optics/DISKSPC_SP_1000pix.fits.gz", name=self.apod_mask, shift=None)
+
+        if self.image_mask == 'CHARSPC_F660':
+            optsys.addImage(transmission=self._datapath+"optics/CHARSPC_FPM_25WA90_2x65deg_-_FP1res%d_evensamp_D%d_F660.fits.gz"%(char_fpmres, 2*9*char_fpmres))
+        elif self.image_mask == 'CHARSPC_F770':
+            optsys.addImage(transmission=self._datapath+"optics/CHARSPC_FPM_25WA90_2x65deg_-_FP1res%d_evensamp_D%d_F770.fits.gz"%(char_fpmres, 2*9*char_fpmres))
+        elif self.image_mask == 'CHARSPC_F890':
+            optsys.addImage(transmission=self._datapath+"optics/CHARSPC_FPM_25WA90_2x65deg_-_FP1res%d_evensamp_D%d_F890.fits.gz"%(char_fpmres, 2*9*char_fpmres))
+
+        elif self.image_mask == 'DISKSPC_F465':
+            optsys.addImage(transmission=self._datapath+"optics/DISKSPC_FPM_65WA200_360deg_-_FP1res%d_evensamp_D%d_F465.fits.gz"%(disk_fpmres, 2*20*disk_fpmres))
+        elif self.image_mask == 'DISKSPC_F565':
+            optsys.addImage(transmission=self._datapath+"optics/DISKSPC_FPM_65WA200_360deg_-_FP1res%d_evensamp_D%d_F565.fits.gz"%(disk_fpmres, 2*20*disk_fpmres))
+        elif self.image_mask == 'DISKSPC_F835':
+            optsys.addImage(transmission=self._datapath+"optics/DISKSPC_FPM_65WA200_360deg_-_FP1res%d_evensamp_D%d_F835.fits.gz"%(disk_fpmres, 2*20*disk_fpmres))
+        elif self.image_mask == 'DISKSPC_F885':
+            optsys.addImage(transmission=self._datapath+"optics/DISKSPC_FPM_65WA200_360deg_-_FP1res%d_evensamp_D%d_F885.fits.gz"%(disk_fpmres, 2*20*disk_fpmres))
+            
+        if self.apod_mask == 'CHARSPC' or self.apod_mask == 'DISKSPC':
+            optsys.addPupil(transmission=self._datapath+"optics/SPC_LS_26DS88_1000pix.fits.gz", name=self.pupil_mask, shift=shift)
+
+        #if self.image_mask == 'CHARSPC_F660':
+        #    optsys.addImage(transmission=self._datapath+"optics/CHARSPC_FPM_25WA90_2x65deg_-_FP1res%d_evensamp_D%d_F660.fits.gz"%(fpmres, 2*9*fpmres))
+        #elif self.image_mask == 'CHARSPC_F770':
+        #    optsys.addImage(transmission=self._datapath+"optics/CHARSPC_FPM_25WA90_2x65deg_-_FP1res%d_evensamp_D%d_F770.fits.gz"%(fpmres, 2*9*fpmres))
+        #elif self.image_mask == 'CHARSPC_F890':
+        #    optsys.addImage(transmission=self._datapath+"optics/CHARSPC_FPM_25WA90_2x65deg_-_FP1res%d_evensamp_D%d_F890.fits.gz"%(fpmres, 2*9*fpmres))
+
+        #elif self.image_mask == 'DISKSPC_F465':
+        #    optsys.addImage(transmission=self._datapath+"optics/DISKSPC_FPM_65WA200_360deg_-_FP1res%d_evensamp_D%d_F465.fits.gz"%(fpmres, 2*20*fpmres))
+        #elif self.image_mask == 'DISKSPC_F565':
+        #    optsys.addImage(transmission=self._datapath+"optics/DISKSPC_FPM_65WA200_360deg_-_FP1res%d_evensamp_D%d_F565.fits.gz"%(fpmres, 2*20*fpmres))
+        #elif self.image_mask == 'DISKSPC_F835':
+        #    optsys.addImage(transmission=self._datapath+"optics/DISKSPC_FPM_65WA200_360deg_-_FP1res%d_evensamp_D%d_F835.fits.gz"%(fpmres, 2*20*fpmres))
+        #elif self.image_mask == 'DISKSPC_F885':
+        #    optsys.addImage(transmission=self._datapath+"optics/DISKSPC_FPM_65WA200_360deg_-_FP1res%d_evensamp_D%d_F885.fits.gz"%(fpmres, 2*20*fpmres))
+
+        #optsys.addPupil(name='RELAY')
+
+        occ_box_size = 1.
+        mft_optsys = poppy.MatrixFTCoronagraph(optsys, oversample=oversample, occulter_box=occ_box_size)
+
+        return (mft_optsys, trySAM, occ_box_size)
+
+    def _get_aberrations(self):
+        """Get the OpticalElement that applies the field-dependent
+        optical aberrations. (Called in _getOpticalSystem.)"""
+        return None
+
+    def _getFITSHeader(self, result, options):
+        """Populate FITS Header keywords"""
+        super(WFIRSTInstrument, self)._getFITSHeader(result, options)
