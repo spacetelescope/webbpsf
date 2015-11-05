@@ -14,7 +14,6 @@ def test_CGI_psf():
     any exceptions
     """
     charspc = wfirst.CGI()
-    #wi.calcPSF()
     charspc.pupilopd = None
     charspc.filter = 'F770'
     charspc.apod_mask = 'CHARSPC'
@@ -34,31 +33,28 @@ if __name__ == "__main__":
     """
 
     charspc = wfirst.CGI()
-    charspc.pupilopd = None
+    charspc.mode = 'CHARSPC'
     charspc.filter = 'F770'
-    charspc.apod_mask = 'CHARSPC'
-    charspc.image_mask = 'CHARSPC_F770'
-    charspc.pupil_mask = 'SPC26D88'
 
     print 'Reading instrument data from %s'%charspc._WebbPSF_basepath
-    print 'Filter list:',charspc.filter_list
 
-    charspc_monopsf = charspc.calcPSF(nlambda=1, fft_oversample=8, detector_oversample=2, fov_pixels=160, display=True)
+    charspc_monopsf = charspc.calcPSF(nlambda=1, fov_pixels=160, oversample=2, display=True)
     wfirst.poppy.display_PSF(charspc_monopsf)
 
     charspc_monopsf.writeto('charSPC_psf_test.fits', clobber=True)
 
     diskspc = wfirst.CGI()
-    diskspc.pupilopd = None
+    diskspc.mode = 'DISKSPC'
     diskspc.filter = 'F465'
-    diskspc.apod_mask = 'DISKSPC'
-    diskspc.image_mask = 'DISKSPC_F465'
-    diskspc.pupil_mask = 'SPC26D88'
 
     print 'Reading instrument data from %s'%diskspc._WebbPSF_basepath
-    print 'Filter list:',diskspc.filter_list
 
-    diskpsf = diskspc.calcPSF(nlambda=7, fft_oversample=8, detector_oversample=2, fov_pixels=250, display=True)
+    diskpsf = diskspc.calcPSF(nlambda=7, fov_pixels=250, oversample=2, display=True)
     wfirst.poppy.display_PSF(diskpsf)
+
+    diskspc.options['source_offset_r'] = 0.5
+    diskspc.options['source_offset_theta'] = -90.
+
+    diskpsf = diskspc.calcPSF(nlambda=7, fov_pixels=250, oversample=2, display=True)
 
     diskpsf.writeto('diskSPC_psf_test.fits', clobber=True)

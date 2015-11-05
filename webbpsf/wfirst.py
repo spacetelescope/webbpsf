@@ -364,13 +364,15 @@ class CGI(WFIRSTInstrument):
         super(CGI, self).__init__("CGI", pixelscale=pixelscale)
 
         self.pupil = os.path.join(self._WebbPSF_basepath, 'AFTA_CGI_C5_Pupil_onax_1000px.fits')
-        self.apod_mask_list = ['CHARSPC', 'DISKSPC']
+        self.mode_list = ['CHARSPC', 'DISKSPC']
         self.image_mask_list = ['CHARSPC_F660', 'CHARSPC_F770', 'CHARSPC_F890', 'DISKSPC_F465', 'DISKSPC_F565', 'DISKSPC_F835', 'DISKSPC_F885']
         self.pupil_mask_list = ['SPC26D88']
+        self.pupilopd = None
         self.aberration_optic = None
+        self.options = {'force_coron':True}
 
     def _validate_config(self):
-        if self.apod_mask in self.apod_mask_list:
+        if self.mode in self.mode_list:
             return True
 
     def _addAdditionalOptics(self, optsys, oversample=4):
@@ -385,28 +387,36 @@ class CGI(WFIRSTInstrument):
             shift = (self.options['pupil_shift_x'], self.options['pupil_shift_y'])
         else: shift = None
 
-        if self.apod_mask == 'CHARSPC':
-            optsys.addPupil(transmission=self._datapath+"optics/CHARSPC_SP_1000pix.fits.gz", name=self.apod_mask, shift=None)
-        elif self.apod_mask == 'DISKSPC':
-            optsys.addPupil(transmission=self._datapath+"optics/DISKSPC_SP_1000pix.fits.gz", name=self.apod_mask, shift=None)
+        if self.mode == 'CHARSPC':
+            optsys.addPupil(transmission=self._datapath+"optics/CHARSPC_SP_1000pix.fits.gz", name=self.mode, shift=None)
+        elif self.mode == 'DISKSPC':
+            optsys.addPupil(transmission=self._datapath+"optics/DISKSPC_SP_1000pix.fits.gz", name=self.mode, shift=None)
 
-        if self.image_mask == 'CHARSPC_F660':
+        if self.filter == 'F660':
+            self.image_mask = 'CHARSPC_F660'
             optsys.addImage(transmission=self._datapath+"optics/CHARSPC_FPM_25WA90_2x65deg_-_FP1res%d_evensamp_D%d_F660.fits.gz"%(char_fpmres, 2*9*char_fpmres))
-        elif self.image_mask == 'CHARSPC_F770':
+        elif self.filter == 'F770':
+            self.image_mask = 'CHARSPC_F770'
             optsys.addImage(transmission=self._datapath+"optics/CHARSPC_FPM_25WA90_2x65deg_-_FP1res%d_evensamp_D%d_F770.fits.gz"%(char_fpmres, 2*9*char_fpmres))
-        elif self.image_mask == 'CHARSPC_F890':
+        elif self.filter == 'F890':
+            self.image_mask = 'CHARSPC_F890'
             optsys.addImage(transmission=self._datapath+"optics/CHARSPC_FPM_25WA90_2x65deg_-_FP1res%d_evensamp_D%d_F890.fits.gz"%(char_fpmres, 2*9*char_fpmres))
 
-        elif self.image_mask == 'DISKSPC_F465':
+        elif self.filter == 'F465':
+            self.image_mask = 'DISKSPC_F465'
             optsys.addImage(transmission=self._datapath+"optics/DISKSPC_FPM_65WA200_360deg_-_FP1res%d_evensamp_D%d_F465.fits.gz"%(disk_fpmres, 2*20*disk_fpmres))
-        elif self.image_mask == 'DISKSPC_F565':
+        elif self.filter == 'F565':
+            self.image_mask = 'DISKSPC_F565'
             optsys.addImage(transmission=self._datapath+"optics/DISKSPC_FPM_65WA200_360deg_-_FP1res%d_evensamp_D%d_F565.fits.gz"%(disk_fpmres, 2*20*disk_fpmres))
-        elif self.image_mask == 'DISKSPC_F835':
+        elif self.filter == 'F835':
+            self.image_mask = 'DISKSPC_F835'
             optsys.addImage(transmission=self._datapath+"optics/DISKSPC_FPM_65WA200_360deg_-_FP1res%d_evensamp_D%d_F835.fits.gz"%(disk_fpmres, 2*20*disk_fpmres))
-        elif self.image_mask == 'DISKSPC_F885':
+        elif self.filter == 'F885':
+            self.image_mask = 'DISKSPC_F885'
             optsys.addImage(transmission=self._datapath+"optics/DISKSPC_FPM_65WA200_360deg_-_FP1res%d_evensamp_D%d_F885.fits.gz"%(disk_fpmres, 2*20*disk_fpmres))
             
-        if self.apod_mask == 'CHARSPC' or self.apod_mask == 'DISKSPC':
+        if self.mode == 'CHARSPC' or self.mode == 'DISKSPC':
+            self.pupil_mask = 'SPC26D88'
             optsys.addPupil(transmission=self._datapath+"optics/SPC_LS_26DS88_1000pix.fits.gz", name=self.pupil_mask, shift=shift)
 
         #if self.image_mask == 'CHARSPC_F660':
