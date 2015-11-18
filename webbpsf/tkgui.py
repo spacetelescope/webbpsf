@@ -4,17 +4,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
 import astropy.io.fits as fits
-import Tkinter as tk
-import tkMessageBox
-import tkFileDialog
+from six.moves import tkinter as tk
+from six.moves import tkinter_tkfiledialog as tkFileDialog
+from six.moves import tkinter_messagebox as tkMessageBox
 import logging
-#from Tkinter import N,E,S,W
 import logging
 _log = logging.getLogger('webbpsf')
 
 
 try:
-    import ttk
+    from six.moves import tkinter_ttk as ttk
 except ImportError:
     raise RuntimeError("Python 2.7.0 (or newer) with ttk widget support is required")
 
@@ -32,7 +31,7 @@ except ImportError:
 
 
 import poppy
-import webbpsf_core
+from . import webbpsf_core
 
 class WebbPSF_GUI(object):
     """ A GUI for the PSF Simulator

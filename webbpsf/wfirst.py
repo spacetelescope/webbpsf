@@ -342,9 +342,16 @@ class WFI(WFIRSTInstrument):
 
 
 def show_notebook_interface(instrument):
-    # Widget related imports. (Currently not a hard dependency.)
+    # Widget related imports.
+    # (Currently not a hard dependency for the full webbpsf package, so we import
+    # within the function.)
     import ipywidgets as widgets
     from IPython.display import display, clear_output
+
+    try:
+        import pysynphot
+    except:
+        raise ImportError("For now, PySynphot must be installed to use the notebook interface")
 
     # Clean up some warnings we know about so as not to scare the users
     import warnings
@@ -367,6 +374,42 @@ def show_notebook_interface(instrument):
         name='selected_label'
     )
     display(filter_selection)
+
+    monochromatic_wavelength = widgets.BoundedFloatText(
+        value=0.76,
+        min=0.6,
+        max=2.0,
+    )
+    monochromatic_wavelength.disabled = True
+    monochromatic_toggle = widgets.Checkbox(description='Monochromatic calculation?')
+
+    def update_monochromatic(trait_name, new_value):
+        filter_selection.disabled = new_value
+        monochromatic_wavelength.disabled = not new_value
+
+    monochromatic_toggle.on_trait_change(update_monochromatic, name='value')
+
+    display(widgets.HTML(value='''<p style="padding: 1em 0;">
+    <span style="font-style:italic; font-size:1.0em">
+    Monochromatic calculations can be performed for any wavelength in the 0.6 to 2.0 &micro;m range.
+    </span></p>'''))  # kludge
+    monochromatic_controls = widgets.HBox(children=(
+            monochromatic_toggle,
+            widgets.HTML(value='<span style="display: inline-block; width: 0.6em;"></span>'),
+            monochromatic_wavelength,
+            widgets.HTML(value='<span style="display: inline-block; width: 0.25em;"></span> &micro;m '),
+    ))
+    display(monochromatic_controls)
+
+    display(widgets.HTML(value="<hr>"))
+
+    source_selection = widgets.Select(
+        options=poppy.specFromSpectralType('', return_list=True),
+        value='G0V',
+        description="Source spectrum"
+    )
+    display(source_selection)
+    display(widgets.HTML(value="<hr>"))
 
     sca_selection = widgets.Dropdown(
         options=instrument.detector_list,
@@ -432,11 +475,28 @@ def show_notebook_interface(instrument):
         progress.visible = True
         instrument.display()
         progress.visible = None
+
     def calc(*args):
         progress.visible = True
-        instrument.calcPSF(display=True, outfile=OUTPUT_FILENAME, clobber=True)
+        if monochromatic_toggle.value is True:
+            instrument.calcPSF(
+                monochromatic=monochromatic_wavelength.value * 1e-6,
+                display=True,
+                outfile=OUTPUT_FILENAME,
+                clobber=True
+            )
+        else:
+            source = poppy.specFromSpectralType(source_selection.value)
+            _log.debug("Got source type {}: {}".format(source_selection.value, source))
+            instrument.calcPSF(
+                source=source,
+                display=True,
+                outfile=OUTPUT_FILENAME,
+                clobber=True
+            )
         progress.visible = None
         download_link.visible = True
+
     def clear(*args):
         clear_output()
         progress.visible = None
