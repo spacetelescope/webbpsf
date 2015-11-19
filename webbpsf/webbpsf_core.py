@@ -1491,17 +1491,17 @@ def segname(val):
             letter = 'B' if np.mod(intval,2)==1 else 'C'
             number = int(np.ceil( (intval-6)*0.5))
             return "{0}{1}-{2}".format(letter, number, intval)
-    except:
+    except ValueError:
         # it had better be a letter string
         if val.startswith('SM'): return "SM-19"
         base = {'A':0, 'B':5,'C':6}
         try:
             offset = base[val[0]]
-        except:
+        except (KeyError,IndexError):
             raise ValueError("string must start with A, B, or C")
         try:
             num = int(val[1])
-        except:
+        except ValueError:
             raise ValueError("input string must have 2nd character as a number from 1-6")
         if num<1 or num>6:
             raise ValueError("input string must have 2nd character as a number from 1-6")
