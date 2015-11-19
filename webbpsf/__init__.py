@@ -1,5 +1,5 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
-""" 
+"""
 WebbPSF: Simulated Point Spread Functions for the James Webb Space Telescope
 ----------------------------------------------------------------------------
 
@@ -65,9 +65,9 @@ class Conf(_config.ConfigNamespace):
 conf = Conf()
 
 def _save_config():
-    """ Save package configuration variables using the Astropy.config system 
-    
-    NOTE: The functionality for saving config was was deprecated as of astropy v0.4 
+    """ Save package configuration variables using the Astropy.config system
+
+    NOTE: The functionality for saving config was was deprecated as of astropy v0.4
     See http://astropy.readthedocs.org/en/latest/config/config_0_4_transition.html
 
     This code is an undocumented workaround as advised by mdboom for the specific
@@ -101,14 +101,14 @@ if not _ASTROPY_SETUP_:
         sys.stderr.write(utils.MISSING_WEBBPSF_DATA_MESSAGE)
         raise
 
-try: 
-    from .wxgui import wxgui  
+try:
+    from .wxgui import wxgui
     _HAVE_WX_GUI = True
 except ImportError:
     _HAVE_WX_GUI = False
 
-try: 
-    from .tkgui import tkgui  
+try:
+    from .tkgui import tkgui
     _HAVE_TK_GUI = True
 except ImportError:
     _HAVE_TK_GUI = False
