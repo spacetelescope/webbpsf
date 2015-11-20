@@ -429,7 +429,7 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
 
 
 class NIRISS_CLEARP(poppy.CompoundAnalyticOptic):
-   """NIRISS 'CLEARP' pupil, including PAR obscuration
+    """NIRISS 'CLEARP' pupil, including PAR obscuration
 
         **CAUTIONARY NOTE** TODO: This class represents this
         optic as having a circular outer edge; in reality the
@@ -486,9 +486,9 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
     """ Band Limited Coronagraph """
     allowable_kinds = ['nircamcircular', 'nircamwedge']
     """ Allowable types of BLC supported by this class"""
-    
+
     def __init__(self, name="unnamed BLC", kind='nircamcircular', sigma=1, wavelength=None, **kwargs):
-        super(self, NIRCam_BandLimitedCoron).__init__(name=name, kind=kind, sigma=sigma, wavelength=wavelength, **kwargs)
+        super(NIRCam_BandLimitedCoron, self).__init__(name=name, kind=kind, sigma=sigma, wavelength=wavelength, **kwargs)
 
     def getPhasor(self, wave):
         """ Compute the amplitude transmission appropriate for a BLC for some given pixel spacing
@@ -503,9 +503,10 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
         for pointing this out.
 
         """
-        if not isinstance(wave, Wavefront):  # pragma: no cover
+        import scipy.special
+        if not isinstance(wave, poppy.Wavefront):  # pragma: no cover
             raise ValueError("BLC getPhasor must be called with a Wavefront to define the spacing")
-        assert (wave.planetype == _IMAGE)
+        assert (wave.planetype == poppy.poppy_core._IMAGE)
 
         y, x = self.get_coordinates(wave)
         if self.kind == 'nircamcircular':
@@ -609,9 +610,3 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
             _log.warn("There are NaNs in the BLC mask - correcting to zero. (DEBUG LATER?)")
             self.transmission[np.where(np.isfinite(self.transmission) == False)] = 0
         return self.transmission
-
-
-
-
-
-
