@@ -139,7 +139,7 @@ class FieldDependentAberration(poppy.ZernikeWFE):
         else:
             # get aberrations at all field points
             field_points, aberration_terms = [], []
-            for field_point_coords, point_interpolator in self._wavelength_interpolators.iteritems():
+            for field_point_coords, point_interpolator in self._wavelength_interpolators.items():
                 field_points.append(field_point_coords)
                 aberration_terms.append(point_interpolator.get_aberration_terms(wavelength))
             aberration_array = np.asarray(aberration_terms)
