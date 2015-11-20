@@ -56,7 +56,7 @@ Released 2015 November 20
   (`#66 <https://github.com/mperrin/webbpsf/issues/66>`_, `#78 <https://github.com/mperrin/webbpsf/issues/78>`_; @mperrin)
 * Added utility to check for appropriate version of the data files and request an update if necessary  (`#76 <https://github.com/mperrin/webbpsf/pull/76>`__, @josephoenix)
 * Some documentation updates, including new documentation for the WFIRST functionality (@josephoenix, @mperrin)
-* Bug fixes for minor issues involving OPD file units (`#74 <https://github.com/mperrin/webbpsf/pull/74>`__, @josephoenix)
+* Bug fixes for minor issues involving OPD file units (`#74 <https://github.com/mperrin/webbpsf/pull/74>`__, @josephoenix), cleaner logging output, and some Python 3 compatibility issues.
 
 .. note:: 
 
