@@ -85,6 +85,7 @@ class FieldDependentAberration(poppy.ZernikeWFE):
         self.pixel_width, self.pixel_height = pixel_width, pixel_height
         self.field_position = pixel_width // 2, pixel_height // 2
         self._wavelength_interpolators = {}
+        self.pupil_diam = radius * 2.0
         super(FieldDependentAberration, self).__init__(
             name=name,
             verbose=True,
@@ -474,6 +475,7 @@ def show_notebook_interface(instrument):
 
     def disp(*args):
         progress.visible = True
+        plt.figure(figsize=(12, 8))
         instrument.display()
         progress.visible = None
 
