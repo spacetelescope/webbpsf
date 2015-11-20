@@ -89,8 +89,8 @@ Installing the Required Data Files
 
 Files containing such information as the JWST pupil shape, instrument throughputs, and aperture positions are distributed separately from WebbPSF. To run WebbPSF, you must download these files and tell WebbPSF where to find them using the ``WEBBPSF_PATH`` environment variable.
 
-1. Download the following file:  `webbpsf-data-0.3.3.tar.gz <http://www.stsci.edu/~mperrin/software/webbpsf/webbpsf-data-0.3.3.tar.gz>`_  [approx. 400 MB]
-2. Untar ``webbpsf-data-0.3.3.tar.gz`` into a directory of your choosing.
+1. Download the following file:  `webbpsf-data-0.4.0.tar.gz <http://www.stsci.edu/~mperrin/software/webbpsf/webbpsf-data-0.4.0.tar.gz>`_  [approx. 430 MB]
+2. Untar ``webbpsf-data-0.4.0.tar.gz`` into a directory of your choosing.
 3. Set the environment variable ``WEBBPSF_PATH`` to point to that directory. e.g. ::
 
     setenv WEBBPSF_PATH $HOME/data/webbpsf-data
@@ -105,7 +105,8 @@ You should now be able to successfully ``import webbpsf`` in a Python session, o
 
 
 .. warning::
-  If you have previously installed the data files for webbpsf 0.2, you will need to replace them with the updated data files for 0.3
+  If you have previously installed the data files for an earlier version of webbpsf, and then update to a newer version, the
+  software may prompt you that you must download and install a new updated version of the data files. 
 
 .. admonition:: For STScI Users Only
 
