@@ -626,10 +626,9 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         try:
             band = pysynphot.ObsBandpass(obsmode.lower())
             return band
-        except:
-            #TODO:jlong: what exceptions can this raise?
-            _log.warn("Couldn't find filter '{}' in PySynphot, falling back to "
-                      "local throughput files".format(filtername))
+        except ValueError:
+            _log.debug("Couldn't find filter '{}' in PySynphot, falling back to "
+                       "local throughput files".format(filtername))
 
         # the requested band is not yet supported in synphot/CDBS. (those files are still a
         # work in progress...). Therefore, use our local throughput files and create a synphot

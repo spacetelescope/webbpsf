@@ -347,6 +347,7 @@ def show_notebook_interface(instrument):
     # within the function.)
     import ipywidgets as widgets
     from IPython.display import display, clear_output
+    from matplotlib import pyplot as plt
 
     try:
         import pysynphot
@@ -479,7 +480,7 @@ def show_notebook_interface(instrument):
     def calc(*args):
         progress.visible = True
         if monochromatic_toggle.value is True:
-            instrument.calcPSF(
+            psf = instrument.calcPSF(
                 monochromatic=monochromatic_wavelength.value * 1e-6,
                 display=True,
                 outfile=OUTPUT_FILENAME,
@@ -488,12 +489,15 @@ def show_notebook_interface(instrument):
         else:
             source = poppy.specFromSpectralType(source_selection.value)
             _log.debug("Got source type {}: {}".format(source_selection.value, source))
-            instrument.calcPSF(
+            psf = instrument.calcPSF(
                 source=source,
                 display=True,
                 outfile=OUTPUT_FILENAME,
                 clobber=True
             )
+        fig, (ax_oversamp, ax_detsamp) = plt.subplots(1, 2)
+        poppy.display_PSF(psf, ax=ax_oversamp)
+        poppy.display_PSF(psf, ax=ax_detsamp, ext='DET_SAMP')
         progress.visible = None
         download_link.visible = True
 
