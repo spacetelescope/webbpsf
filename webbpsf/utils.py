@@ -155,16 +155,15 @@ MISSING_WEBBPSF_DATA_MESSAGE = """
  ***********  ERROR  ******  ERROR  ******  ERROR  ******  ERROR  ***********
  *                                                                          *
  *  WebbPSF requires several data files to operate.                         *
- *  These files could not be located automatically at this                  *
- *  time. Please download them to a location of your                        *
- *  choosing and either                                                     *
- *   - set the environment variable $WEBBPSF_PATH to point there, or        *
- *   - set the WEBBPSF_PATH variable in your webbpsf.cfg config file        *
- *     (probably in ~/.astropy/config/ or similar location)                 *
+ *  These files could not be located automatically at this time, or this    *
+ *  version of the software requires a newer set of reference files than    *
+ *  you have installed.  For more details see:                              *
  *                                                                          *
- *  See http://pythonhosted.org/webbpsf/installation.html, under            *
- *  "Installing the Required Data Files", for more details.                 *
- *  WebbPSF will not be able to function properly until this has been done. *
+ *           http://pythonhosted.org/webbpsf/installation.html              *
+ *                                                                          *
+ *  under "Installing the Required Data Files".                             *
+ *  WebbPSF will not be able to function properly until the appropriate     *
+ *  reference files have been downloaded to your machine and installed.     *
  *                                                                          *
  ****************************************************************************
 """
