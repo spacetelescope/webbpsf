@@ -429,7 +429,18 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
 
 
 class NIRISS_CLEARP(poppy.CompoundAnalyticOptic):
-    """NIRISS 'CLEARP' pupil, including PAR obscuration
+   """NIRISS 'CLEARP' pupil, including PAR obscuration
+
+        **CAUTIONARY NOTE** TODO: This class represents this
+        optic as having a circular outer edge; in reality the
+        hardware has a 4% oversized tricontagon mask around the
+        JWST pupil image. However as the primary mirror should
+        serve as the pupil stop, in practice this model
+        simplification should not affect output PSFs in imaging
+        modes. This simplification may be removed in a future
+        version of WebbPSF.
+        See https://github.com/mperrin/webbpsf/issues/71
+
 
         CLEARP pupil info from:
            MODIFIED CALIBRATION OPTIC HOLDER - NIRISS
