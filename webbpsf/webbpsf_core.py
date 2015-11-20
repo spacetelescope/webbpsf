@@ -628,7 +628,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
             return band
         except ValueError:
             _log.debug("Couldn't find filter '{}' in PySynphot, falling back to "
-                      "local throughput files".format(filtername))
+                       "local throughput files".format(filtername))
 
         # the requested band is not yet supported in synphot/CDBS. (those files are still a
         # work in progress...). Therefore, use our local throughput files and create a synphot
