@@ -85,7 +85,6 @@ def test_WFI_chooses_pupil_masks():
     _test_filter_pupil('H158', wfi._masked_pupil_path)
     _test_filter_pupil('F184', wfi._masked_pupil_path)
     _test_filter_pupil('W149', wfi._masked_pupil_path)
-    _test_filter_pupil('GRS', wfi._masked_pupil_path)
 
 def test_WFI_limits_interpolation_range():
     wfi = wfirst.WFI()

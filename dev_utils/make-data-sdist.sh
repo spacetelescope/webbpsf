@@ -36,8 +36,8 @@ echo "Saving version number $VER to version.txt"
 
 # Some temporary extras to support pre- and post-
 # renaming of some WFIRST stuff
-ln -s $TMPDIR/WFI $TMPDIR/WFIRSTImager
-ln -s $TMPDIR/AFTA_WFC_C5_Pupil_Shortwave_Norm_2048px.fits $TMPDIR/AFTA_symmetrical.fits
+#ln -s $TMPDIR/WFI $TMPDIR/WFIRSTImager
+#ln -s $TMPDIR/AFTA_WFC_C5_Pupil_Shortwave_Norm_2048px.fits $TMPDIR/AFTA_symmetrical.fits
 
 
 # create distributable tar file
