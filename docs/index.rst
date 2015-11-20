@@ -1,44 +1,50 @@
 Documentation for WebbPSF 
 ===============================
 
-WebbPSF is a Python package that computes simulated PSFs for the JWST instruments, taking into account detector pixel scales, rotations, filter profiles, and point source spectra. It is *not* a full optical model of JWST, but rather a tool for transforming optical path difference (OPD) maps, created with some other tool, into the resulting PSFs as observed with JWST's instruments.
+WebbPSF is a Python package that computes simulated PSFs for the JWST instruments (and now for WFIRST too!), taking into account detector pixel scales, rotations, filter profiles, and point source spectra. It is *not* a full optical model of JWST, but rather a tool for transforming optical path difference (OPD) maps, created with some other tool, into the resulting PSFs as observed with JWST's instruments. 
 
 .. figure:: ./fig_instrument_comparison.png
-   :scale: 40 %
+   :scale: 45 %
    :align: center
    :alt: Sample PSFs for JWST's instruments. 
 
    Sample PSFs for JWST's instrument suite, all on the same angular scale and display stretch.
 
+.. figure:: ./wfirst_figures/webbpsf-wfirst_page_header.png
+   :scale: 70 %
+   :align: center
+   :alt: Sample PSFs for the filters in the WFIRST WFI.
+
+   Sample PSFs for the filters in the WFIRST WFI. 
+
+
+
 **What this software does:**
 
-* Uses OPD map(s) precomputed by a detailed optical simulation of JWST
-* Computes from those a PSF image with requested properties for any of JWST's instruments
-* Supports imaging & coronagraphy modes with all of JWST's instruments. Spectroscopy is a work in progress, IFUs are yet to come.
+* Uses OPD map(s) precomputed by detailed optical simulations of these telescopes.
+* Computes from those PSF images with requested properties for any of JWST's instruments
+* Supports imaging, coronagraphy, and most spectrographic modes with all of JWST's instruments. IFUs are yet to come.
+* For WFIRST, computes PSFs with the Wide Field Imager, based on recent GSFC optical models, including field- and wavelength-dependent aberrations.
+  CGI models may be included in a future release.
 * Provides a suite of tools for quantifying PSF properties such as FWHM, Strehl ratio, etc.
 
 **What this software does NOT do:**
 
-* Contain in itself any detailed thermal or optical model of JWST. For the results of end-to-end integrated simulations of JWST, see for instance `Predicted JWST imaging performance (Knight, Lightsey, & Barto; Proc. SPIE 2012) <http://proceedings.spiedigitallibrary.org/proceeding.aspx?articleid=1362264>`_.
+* Contain in itself any detailed thermal or optical model of JWST or WFIRST. For the results of end-to-end integrated simulations of JWST, see for instance `Predicted JWST imaging performance (Knight, Lightsey, & Barto; Proc. SPIE 2012) <http://proceedings.spiedigitallibrary.org/proceeding.aspx?articleid=1362264>`_. For WFIRST modeling, see `the WFIRST Reference Info page <http://wfirst.gsfc.nasa.gov/science/Instrument_Reference_Information.html>`_
 * Model spectrally dispersed PSFs produced by any of the spectrograph gratings. It does, however, let you produce monochromatic PSFs in these modes, suitable for stitching together into spectra using some other software.
 * Model any detector effects such as pixel MTF, intrapixel sensitivity variations, interpixel capacitance, or any noise sources. Add those separately with your favorite detector model code.
 
-
-.. admonition:: How to cite WebbPSF
-
-    In addition to this documentation, WebbPSF is described in `Perrin et al. 2012, "Simulating point spread functions for the James Webb Space Telescope with WebbPSF", <http://adsabs.harvard.edu/abs/2012SPIE.8442E..3DP>`_ Proc SPIE 8842, and in Perrin 2011, `Improved PSF Simulations for JWST: Methods, Algorithms, and Validation <Improved_PSFs_for_Webb.pdf>`_ , JWST Technical report JWST-STScI-002469.
-
-    In particular, the SPIE paper gives a broad overview, while the Technical Report document describes in more detail the relevant optical physics, explains design decisions and motivation for WebbPSF's architecture, and presents extensive validation tests demonstrating consistency between WebbPSF and other PSF simulation packages used throughout the JWST project.
-
-    Users of WebbPSF are encouraged to cite one of those references.
 
 Getting Started with WebbPSF
 ----------------------------
 
 The WebbPSF software system is composed of two Python packages: a lower-level optical propagation library (:py:mod:`POPPY <poppy>`) plus an implementation of the JWST instruments using that library (:py:mod:`WebbPSF <webbpsf>`).  This documentation explains the programming interfaces and graphical user interface of WebbPSF, as well as providing a :ref:`quick overview <poppy_overiew>` of POPPY.
 
+.. admonition:: Quickstart IPython Notebook
 
-:ref:`What's new in release 0.3.3? <rel0.3.3>`
+   This documentation is complemented by an `IPython Notebook format quickstart tutorial <http://nbviewer.ipython.org/github/mperrin/webbpsf/blob/master/notebooks/WebbPSF_tutorial.ipynb>`_. Downloading and running that notebook is a great way to get started using WebbPSF.
+
+:ref:`What's new in release 0.4.0? <rel0.4.0>`
 
 
 .. toctree::
@@ -52,9 +58,18 @@ The WebbPSF software system is composed of two Python packages: a lower-level op
    more_examples.rst
    poppy.rst
 
-.. admonition:: Quickstart IPython Notebook
 
-   This documentation is complemented by an `IPython Notebook format quickstart tutorial <http://nbviewer.ipython.org/github/mperrin/webbpsf/blob/master/notebooks/WebbPSF_tutorial.ipynb>`_. Downloading and running that notebook is a great way to get started using WebbPSF.
+.. admonition:: How to cite WebbPSF
+
+    In addition to this documentation, WebbPSF is described in the following references.  Users of WebbPSF are encouraged to cite one of these.
+   
+    * Perrin et al. 2014, `"Updated point spread function simulations for JWST with WebbPSF" <http://adsabs.harvard.edu/abs/2014SPIE.9143E..3XP>`_,  Proc. SPIE. 9143, 
+    * Perrin et al. 2012, `"Simulating point spread functions for the James Webb Space Telescope with WebbPSF", <http://adsabs.harvard.edu/abs/2012SPIE.8442E..3DP>`_ Proc SPIE 8842, and 
+    * Perrin 2011, `Improved PSF Simulations for JWST: Methods, Algorithms, and Validation <Improved_PSFs_for_Webb.pdf>`_ , JWST Technical report JWST-STScI-002469.
+
+    In particular, the 2012 SPIE paper gives a broad overview, the 2014 SPIE paper presents comparisons to instrument cryotest data, and the Technical Report document describes in more detail the relevant optical physics, explains design decisions and motivation for WebbPSF's architecture, and presents extensive validation tests demonstrating consistency between WebbPSF and other PSF simulation packages used throughout the JWST project.
+
+
 
 Advanced Usage
 --------------
