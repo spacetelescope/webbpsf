@@ -85,6 +85,7 @@ class FieldDependentAberration(poppy.ZernikeWFE):
         self.pixel_width, self.pixel_height = pixel_width, pixel_height
         self.field_position = pixel_width // 2, pixel_height // 2
         self._wavelength_interpolators = {}
+        self.pupil_diam = radius * 2.0
         super(FieldDependentAberration, self).__init__(
             name=name,
             verbose=True,
@@ -138,7 +139,7 @@ class FieldDependentAberration(poppy.ZernikeWFE):
         else:
             # get aberrations at all field points
             field_points, aberration_terms = [], []
-            for field_point_coords, point_interpolator in self._wavelength_interpolators.iteritems():
+            for field_point_coords, point_interpolator in self._wavelength_interpolators.items():
                 field_points.append(field_point_coords)
                 aberration_terms.append(point_interpolator.get_aberration_terms(wavelength))
             aberration_array = np.asarray(aberration_terms)
@@ -474,6 +475,7 @@ def show_notebook_interface(instrument):
 
     def disp(*args):
         progress.visible = True
+        plt.figure(figsize=(12, 8))
         instrument.display()
         progress.visible = None
 
