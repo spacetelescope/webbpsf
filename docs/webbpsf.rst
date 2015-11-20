@@ -296,6 +296,11 @@ this example it's a lens for defocus but you could just as easily add another
 :py:class:`FITSOpticalElement <poppy.FITSOpticalElement>` instead to read in a disk file.
 
 
+Note, we do this as an example here to show how to modify an instrument class by
+subclassing it, which can let you add arbitrary new functionality. 
+There's an easier way to add defocus specifically; see below. 
+
+
     >>> class FGS_with_defocus(webbpsf.FGS):
     >>>     def __init__(self, *args, **kwargs):
     >>>         webbpsf.FGS.__init__(self, *args, **kwargs)
@@ -319,3 +324,18 @@ this example it's a lens for defocus but you could just as easily add another
     >>> fgs2.defocus_waves = 4
     >>> psf = fgs2.calcPSF()
     >>> webbpsf.display_PSF(psf)
+
+
+Defocusing an instrument
+--------------------------------
+
+The instrument options dictionary also lets you specify an optional defocus
+amount.  You can specify both the wavelength at which it should be applied, and
+the number of waves of defocus (at that wavelength, specified as waves
+peak-to-valley over the circumscribing circular pupil of JWST). 
+
+
+   >>> nircam.options['defocus_waves'] = 3.2
+   >>> nircam.options['defocus_wavelength'] = 2.0e-6
+
+
