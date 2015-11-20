@@ -47,13 +47,14 @@ The WebbPSF software system is composed of two Python packages: a lower-level op
    intro.rst
    installation.rst
    webbpsf.rst
+   wfirst.rst
    gui.rst
    more_examples.rst
    poppy.rst
 
 .. admonition:: Quickstart IPython Notebook
 
-   This documentation is complemented by an `IPython Notebook format quickstart tutorial <http://nbviewer.ipython.org/github/mperrin/webbpsf/blob/master/WebbPSF_tutorial.ipynb>`_. Downloading and running that notebook is a great way to get started using WebbPSF.
+   This documentation is complemented by an `IPython Notebook format quickstart tutorial <http://nbviewer.ipython.org/github/mperrin/webbpsf/blob/master/notebooks/WebbPSF_tutorial.ipynb>`_. Downloading and running that notebook is a great way to get started using WebbPSF.
 
 Advanced Usage
 --------------

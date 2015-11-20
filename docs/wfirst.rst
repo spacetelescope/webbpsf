@@ -2,12 +2,20 @@
 WebbPSF for WFIRST
 ******************
 
+
+
+.. figure:: ./wfirst_figures/webbpsf-wfirst_page_header.png
+   :align: center
+   :alt: Sample PSFs for the filters in the WFIRST WFI.
+
+   Sample PSFs for the filters in the WFIRST WFI. Angular scale in arcseconds, log-scaled intensity.
+
 Introduction
 ============
 
 WebbPSF provides a framework for JWST instrument PSF calculations that is easily extensible to other instruments and observatories. The :py:mod:`webbpsf.wfirst` module was developed to enable simulation of WFIRST's Wide Field Instrument (WFI) based on reference information from Goddard Space Flight Center.
 
-At this time, the only instrument simulated is the WFI, but that may change in the future. To work with the WFI model, import it an instantiate it as follows::
+At this time, the only instrument simulated is the WFI, but that may change in the future. To work with the WFI model, import and instantiate it as follows::
 
 >>> import webbpsf
 >>> from webbpsf import wfirst
@@ -15,7 +23,11 @@ At this time, the only instrument simulated is the WFI, but that may change in t
 
 Usage of the WFI model class is, for the most part, just like any other WebbPSF instrument model. For help setting things like filters, position offsets, and sampling refer back to :ref:`using_api`.
 
-What is different (and, for now, only available for the WFIRST WFI) is the support for field dependent aberrations. With as large a field of view as the WFI is supposed to cover, there will be variation in the PSF from one end of the field of view to the other. WebbPSF's WFI model faithfully reproduces the field dependent aberrations present in the Goddard WFIRST team's simulated WFI design, leaving it to the user to decide if their use case requires accurate knowledge of very small variations in the PSF.
+What is different (and, for now, only available for the WFIRST WFI) is the support for field dependent aberrations. With as large a field of view as the WFI is designed to cover, there will be variation in the PSF from one end of the field of view to the other. WebbPSF's WFI model faithfully reproduces the field dependent aberrations calculated from the Goddard WFIRST team's simulated WFI design, leaving it to the user to decide if their use case requires accurate knowledge of very small variations in the PSF.
+
+.. admonition:: Quickstart IPython Notebook
+
+   This documentation is complemented by an `IPython Notebook format quickstart tutorial <http://nbviewer.ipython.org/github/mperrin/webbpsf/blob/master/notebooks/WebbPSF-WFIRST_Tutorial.ipynb>`_. Downloading and run that notebook to use the beta notebook GUI for the WFI model, and to explore code samples for common tasks interactively.
 
 Field dependence in the WFI model
 =================================
@@ -37,7 +49,7 @@ The WFI field of view is laid out as shown in the figure. To select a different 
    ['SCA01', 'SCA02', 'SCA03', 'SCA04', 'SCA05', 'SCA06', 'SCA07', 'SCA08', 'SCA09', 'SCA10', 'SCA11', 'SCA12', 'SCA13', 'SCA14', 'SCA15', 'SCA16', 'SCA17', 'SCA18']
    >>> wfi.detector = 'SCA03'
 
-The usable region of the 4096 by 4096 pixel detectors specified for the Wide Field Instrument will range from (4, 4) to (4092, 4092), accounting for the 4 pixel wide bands of reference pixels. To change the position to calculate a PSF for, simply assign an (X, Y) tuple::
+The usable region of the 4096 by 4096 pixel detectors specified for the Wide Field Instrument will range from (4, 4) to (4092, 4092), accounting for the 4 pixel wide bands of reference pixels. To change the position at which to calculate a PSF, simply assign an (X, Y) tuple::
 
    >>> wfi.detector_position = (4, 400)
 
