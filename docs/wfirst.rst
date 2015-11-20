@@ -23,7 +23,7 @@ At this time, the only instrument simulated is the WFI, but that may change in t
 
 Usage of the WFI model class is, for the most part, just like any other WebbPSF instrument model. For help setting things like filters, position offsets, and sampling refer back to :ref:`using_api`.
 
-What is different (and, for now, only available for the WFIRST WFI) is the support for field dependent aberrations. With as large a field of view as the WFI is designed to cover, there will be variation in the PSF from one end of the field of view to the other. WebbPSF's WFI model faithfully reproduces the field dependent aberrations calculated from the Goddard WFIRST team's simulated WFI design, leaving it to the user to decide if their use case requires accurate knowledge of very small variations in the PSF.
+What is different (and, for now, only available for the WFIRST WFI) is the support for field dependent aberrations. With as large a field of view as the WFI is designed to cover, there will be variation in the PSF from one end of the field of view to the other. WebbPSF's WFI model faithfully reproduces the field dependent aberrations calculated from the Goddard WFIRST team's simulated WFI design (using the `Cycle 5 Instrument Reference Information <http://wfirst.gsfc.nasa.gov/science/Instrument_Reference_Information.html>`_), leaving it to the user to decide if their use case requires accurate knowledge of very small variations in the PSF.
 
 .. admonition:: Quickstart IPython Notebook
 
@@ -62,7 +62,7 @@ The usable region of the 4096 by 4096 pixel detectors specified for the Wide Fie
       [ ... traceback omitted ... ]
       RuntimeError: Attempted to get aberrations for an out-of-bounds field point
 
-The reference information available gives the field dependent aberrations in terms of Zernike polynomial coefficients from :math:`Z_1` to :math:`Z_{22}`. These coefficients are calculated for five field points on each of 18 detectors, each at 16 unique wavelengths providing coverage from 0.76 :math:`\mu m` to 2.0 :math:`\mu m` (that is, the entire wavelength range of the WFI).
+The reference information available gives the field dependent aberrations in terms of Zernike polynomial coefficients from :math:`Z_1` to :math:`Z_{22}`. These coefficients were calculated for five field points on each of 18 detectors, each at 16 unique wavelengths providing coverage from 0.76 :math:`\mu m` to 2.0 :math:`\mu m` (that is, the entire wavelength range of the WFI). WebbPSF interpolates the coefficients in position and wavelength space to allow the user to simulate PSFs at any valid pixel position and wavelength.
 
 Bear in mind that the pixel position you set does not automatically set the **centering** of your calculated PSF. As with other models in WebbPSF, an ``options`` dictionary key can be set to specify 'even' (center on crosshairs between four pixels) or 'odd' (center on pixel center) parity. ::
 
