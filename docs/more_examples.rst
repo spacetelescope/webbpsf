@@ -35,13 +35,13 @@ Displaying a PSF as an image and as an encircled energy plot
 >>>     psf210 = nircam.calcPSF(oversample=2)
 >>> 
 >>>     # display the PSF and plot the encircled energy
->>>     subplot(1,2,1)
+>>>     plt.subplot(1,2,1)
 >>>     webbpsf.display_PSF(psf210, colorbar_orientation='horizontal')
->>>     axis2 = subplot(1,2,2)
+>>>     axis2 = plt.subplot(1,2,2)
 >>>     webbpsf.display_EE(psf210, ax=axis2)
 >>>     
 >>>     psf210.writeto('nircam_F210M.fits')
->>>     savefig('plot_nircam_f210m.pdf')
+>>>     plt.savefig('plot_nircam_f210m.pdf')
 
 
 .. image:: ./fig_example_plot_nircam_f210m.png
