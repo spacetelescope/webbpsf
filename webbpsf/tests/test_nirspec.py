@@ -13,7 +13,7 @@ import poppy
 
 #------------------    NIRSpec Tests    ----------------------------
 
-from test_webbpsf import generic_output_test, do_test_source_offset
+from .test_webbpsf import generic_output_test, do_test_source_offset
 
 test_nirspec= lambda : generic_output_test('NIRSpec')
 

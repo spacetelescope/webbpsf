@@ -13,7 +13,7 @@ from .test_errorhandling import _exception_message_starts_with
 
 
 #------------------    NIRCam Tests    ----------------------------
-from test_webbpsf import generic_output_test, do_test_source_offset
+from .test_webbpsf import generic_output_test, do_test_source_offset
 test_nircam = lambda : generic_output_test('NIRCam')
 test_nircam_source_offset_00 = lambda : do_test_source_offset('NIRCam', theta=0.0, monochromatic=2e-6)
 test_nircam_source_offset_45 = lambda : do_test_source_offset('NIRCam', theta=45.0, monochromatic=2e-6)
