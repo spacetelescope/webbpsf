@@ -13,7 +13,7 @@ from .test_errorhandling import _exception_message_starts_with
 
 
 #------------------    NIRCam Tests    ----------------------------
-from test_webbpsf import generic_output_test, do_test_source_offset
+from .test_webbpsf import generic_output_test, do_test_source_offset
 test_nircam = lambda : generic_output_test('NIRCam')
 test_nircam_source_offset_00 = lambda : do_test_source_offset('NIRCam', theta=0.0, monochromatic=2e-6)
 test_nircam_source_offset_45 = lambda : do_test_source_offset('NIRCam', theta=45.0, monochromatic=2e-6)
@@ -45,7 +45,7 @@ def test_nircam_SAMC(oversample=4):
     nc.options['no_sam']=True
     psf_fft  = nc.calcPSF(oversample=oversample, nlambda=1)
 
-    
+
     maxdiff = np.abs(psf_fft[0].data - psf_sam[0].data).max()
     _log.info("Max difference between results: {0} cts/pixel".format( maxdiff))
     assert( maxdiff < 1e-7)
@@ -69,7 +69,7 @@ def test_nircam_SAMC(oversample=4):
 
     # What is a reasonable degree of agreement between the SAM and classical FFT based approaches?
     # Here are the results for total intensity that I get in the two cases, for varying degrees of
-    # oversampling: 
+    # oversampling:
 
     # Oversampling          sum(SAM)        sum(FFT)    Ratio
     #    2                  3.213e-4        4.383e-3    13.6
@@ -78,7 +78,7 @@ def test_nircam_SAMC(oversample=4):
     #    8                  1.494e-5        5.741e-5     3.84
     #   16                  1.655e-5        2.266e-5     1.37
     #   20                  1.596e-5        1.965e-5     1.23
-    
+
 
     assert False
 
@@ -115,13 +115,13 @@ def do_test_nircam_blc(clobber=False, kind='circular', angle=0, save=False, disp
             #expected_total_fluxes=[0.0012, 0.0606, 0.1396]  # Based on a prior calculation with WebbPSF
                                  #2e-6
         elif angle==45:
-            expected_total_fluxes=[2.09e-6, 0.0219, 0.1187]  # Based on a prior calculation 
-            #expected_total_fluxes=[0.0012, 0.0219, 0.1146]  # Based on a prior calculation 
+            expected_total_fluxes=[2.09e-6, 0.0219, 0.1187]  # Based on a prior calculation
+            #expected_total_fluxes=[0.0012, 0.0219, 0.1146]  # Based on a prior calculation
         else:
             raise ValueError("Don't know how to check fluxes for angle={0}".format(angle))
 
     # If you change either of the following, the expected flux values will need to be updated:
-    nlam = 3
+    nlam = 1
     oversample=4
 
     if outputdir is None:

@@ -13,7 +13,7 @@ import poppy
 
 #------------------    MIRI Tests    ----------------------------
 
-from test_webbpsf import generic_output_test, do_test_source_offset
+from .test_webbpsf import generic_output_test, do_test_source_offset
 
 test_miri= lambda : generic_output_test('MIRI')
 test_miri_source_offset_00 = lambda : do_test_source_offset('MIRI', theta=0.0, monochromatic=8e-6)

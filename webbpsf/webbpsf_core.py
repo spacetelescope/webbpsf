@@ -626,10 +626,9 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         try:
             band = pysynphot.ObsBandpass(obsmode.lower())
             return band
-        except:
-            #TODO:jlong: what exceptions can this raise?
-            _log.warn("Couldn't find filter '{}' in PySynphot, falling back to "
-                      "local throughput files".format(filtername))
+        except ValueError:
+            _log.debug("Couldn't find filter '{}' in PySynphot, falling back to "
+                       "local throughput files".format(filtername))
 
         # the requested band is not yet supported in synphot/CDBS. (those files are still a
         # work in progress...). Therefore, use our local throughput files and create a synphot
@@ -962,25 +961,26 @@ class NIRCam(JWInstrument):
         """
 
         #optsys.addImage(name='null for debugging NIRcam _addCoron') # for debugging
+        from .optics import NIRCam_BandLimitedCoron
 
         if self.image_mask == 'MASK210R':
-            optsys.addImage( poppy.BandLimitedCoron( kind='nircamcircular', sigma=5.253 , name=self.image_mask))
+            optsys.addImage( NIRCam_BandLimitedCoron( kind='nircamcircular', sigma=5.253 , name=self.image_mask))
             trySAM = True
             SAM_box_size = 5.0
         elif self.image_mask == 'MASK335R':
-            optsys.addImage( poppy.BandLimitedCoron(kind='nircamcircular', sigma=3.2927866 , name=self.image_mask))
+            optsys.addImage( NIRCam_BandLimitedCoron(kind='nircamcircular', sigma=3.2927866 , name=self.image_mask))
             trySAM = True
             SAM_box_size = 5.0
         elif self.image_mask == 'MASK430R':
-            optsys.addImage( poppy.BandLimitedCoron(kind='nircamcircular', sigma=2.588496*0.99993495 , name=self.image_mask))
+            optsys.addImage( NIRCam_BandLimitedCoron(kind='nircamcircular', sigma=2.588496*0.99993495 , name=self.image_mask))
             trySAM = True
             SAM_box_size = 5.0
         elif self.image_mask == 'MASKSWB':
-            optsys.addImage( poppy.BandLimitedCoron(kind='nircamwedge', wavelength=2.1e-6, name=self.image_mask))
+            optsys.addImage( NIRCam_BandLimitedCoron(kind='nircamwedge', wavelength=2.1e-6, name=self.image_mask))
             trySAM = False #True FIXME
             SAM_box_size = [5,20]
         elif self.image_mask == 'MASKLWB':
-            optsys.addImage( poppy.BandLimitedCoron(kind='nircamwedge', wavelength=4.6e-6, name=self.image_mask))
+            optsys.addImage( NIRCam_BandLimitedCoron(kind='nircamwedge', wavelength=4.6e-6, name=self.image_mask))
             trySAM = False #True FIXME
             SAM_box_size = [5,20]
         else:
@@ -1418,7 +1418,7 @@ class DetectorGeometry(object):
         self.instrname = instrname
         self.name = aperturename
         if shortname is not None: self.name=shortname
-        from jwxml import SIAF
+        from .jwxml import SIAF
 
         self.mysiaf = SIAF(instr=self.instrname, basepath=os.path.join( utils.get_webbpsf_data_path(), self.instrname) )
         self.aperture = self.mysiaf[aperturename]
@@ -1492,17 +1492,17 @@ def segname(val):
             letter = 'B' if np.mod(intval,2)==1 else 'C'
             number = int(np.ceil( (intval-6)*0.5))
             return "{0}{1}-{2}".format(letter, number, intval)
-    except:
+    except ValueError:
         # it had better be a letter string
         if val.startswith('SM'): return "SM-19"
         base = {'A':0, 'B':5,'C':6}
         try:
             offset = base[val[0]]
-        except:
+        except (KeyError,IndexError):
             raise ValueError("string must start with A, B, or C")
         try:
             num = int(val[1])
-        except:
+        except ValueError:
             raise ValueError("input string must have 2nd character as a number from 1-6")
         if num<1 or num>6:
             raise ValueError("input string must have 2nd character as a number from 1-6")

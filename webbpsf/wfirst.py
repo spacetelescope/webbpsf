@@ -59,26 +59,11 @@ class WavelengthDependenceInterpolator(object):
             return self._aberration_terms[aberration_row_idx]
         else:
             # we have to interpolate @ this wavelength
-            return griddata(self._wavelengths, self._aberration_terms, wavelength, method='linear')
-
-    def get_zernike_coefficient(self, wavelength, zernike_subscript):
-        """Return a single Zernike coefficient based on `wavelength`
-        and `zernike_subscript` (counting from 1 in the Noll indexing
-        convention)"""
-        zernike_subscript -= 1  # 1-indexed to 0-indexed
-        if zernike_subscript >= self._n_wavelengths:
-            raise ValueError("No information at Zernike term Z_{}".format(zernike_subscript + 1))
-        if wavelength in self._wavelengths:
-            # aberration known exactly for this wavelength
-            aberration_row_idx = self._wavelengths.index(wavelength)
-            return self._aberration_terms[aberration_row_idx][zernike_subscript]
-        else:
-            return griddata(
-                self._wavelengths,
-                self._aberration_terms[:,zernike_subscript],
-                wavelength,
-                method='linear'
-            )
+            aberration_terms = griddata(self._wavelengths, self._aberration_terms, wavelength, method='linear')
+            if np.any(np.isnan(aberration_terms)):
+                raise RuntimeError("Attempted to get aberrations at wavelength "
+                                   "outside the range of the reference data")
+            return aberration_terms
 
 class FieldDependentAberration(poppy.ZernikeWFE):
     """FieldDependentAberration incorporates aberrations that
@@ -93,12 +78,14 @@ class FieldDependentAberration(poppy.ZernikeWFE):
     be handled by a distortion solution). Change
     `_omit_piston_tip_tilt` to False to include the Z1-3 terms."""
     _omit_piston_tip_tilt = True
+    _field_position = None
 
     def __init__(self, pixel_width, pixel_height,
                  name="Field-dependent Aberration", radius=1.0, oversample=1, interp_order=3):
         self.pixel_width, self.pixel_height = pixel_width, pixel_height
-        self.x_pixel, self.y_pixel = pixel_width // 2, pixel_height // 2
+        self.field_position = pixel_width // 2, pixel_height // 2
         self._wavelength_interpolators = {}
+        self.pupil_diam = radius * 2.0
         super(FieldDependentAberration, self).__init__(
             name=name,
             verbose=True,
@@ -107,8 +94,8 @@ class FieldDependentAberration(poppy.ZernikeWFE):
             interp_order=interp_order
         )
 
-    def getPhasor(self, wave):
-        """Set the Zernike coefficients (for ZernikeWFE.getPhasor) based
+    def get_opd(self, wave, units='meters'):
+        """Set the Zernike coefficients (for ZernikeWFE.getOPD) based
         on the wavelength of the incoming wavefront and the pixel
         position
         """
@@ -117,11 +104,17 @@ class FieldDependentAberration(poppy.ZernikeWFE):
         else:
             wavelength = wave.wavelength
         self.coefficients = wavelength * self.get_aberration_terms(wavelength)
-        return super(FieldDependentAberration, self).getPhasor(wave)
+        return super(FieldDependentAberration, self).get_opd(wave, units=units)
 
-    def set_field_position(self, x_pixel, y_pixel):
+    @property
+    def field_position(self):
+        return self._field_position
+
+    @field_position.setter
+    def field_position(self, position):
         """Set the x and y pixel position on the detector for which to
         interpolate aberrations"""
+        x_pixel, y_pixel = position
         if x_pixel > self.pixel_width or x_pixel < 0:
             raise ValueError("Requested pixel_x position lies outside "
                              "the detector width ({})".format(x_pixel))
@@ -129,7 +122,7 @@ class FieldDependentAberration(poppy.ZernikeWFE):
             raise ValueError("Requested pixel_y position lies outside "
                              "the detector height ({})".format(y_pixel))
 
-        self.x_pixel, self.y_pixel = x_pixel, y_pixel
+        self._field_position = x_pixel, y_pixel
 
     def add_field_point(self, x_pixel, y_pixel, interpolator):
         """Supply a wavelength-space interpolator for a pixel position
@@ -139,14 +132,14 @@ class FieldDependentAberration(poppy.ZernikeWFE):
     def get_aberration_terms(self, wavelength):
         """Supply the Zernike coefficients for the aberration based on
         the wavelength and pixel position on the detector"""
-        if (self.x_pixel, self.y_pixel) in self._wavelength_interpolators:
+        if self.field_position in self._wavelength_interpolators:
             # short path: this is a known point
-            interpolator = self._wavelength_interpolators[(self.x_pixel, self.y_pixel)]
+            interpolator = self._wavelength_interpolators[self.field_position]
             coefficients = interpolator.get_aberration_terms(wavelength)
         else:
             # get aberrations at all field points
             field_points, aberration_terms = [], []
-            for field_point_coords, point_interpolator in self._wavelength_interpolators.iteritems():
+            for field_point_coords, point_interpolator in self._wavelength_interpolators.items():
                 field_points.append(field_point_coords)
                 aberration_terms.append(point_interpolator.get_aberration_terms(wavelength))
             aberration_array = np.asarray(aberration_terms)
@@ -156,11 +149,13 @@ class FieldDependentAberration(poppy.ZernikeWFE):
             coefficients = griddata(
                 np.asarray(field_points),
                 np.asarray(aberration_terms),
-                (self.x_pixel, self.y_pixel),
+                self.field_position,
                 method='linear'
             )
+            if np.any(np.isnan(coefficients)):
+                raise RuntimeError("Attempted to get aberrations for an out-of-bounds field point")
         if self._omit_piston_tip_tilt:
-            _log.info("Omitting piston/tip/tilt")
+            _log.debug("Omitting piston/tip/tilt")
             coefficients[:3] = 0.0  # omit piston, tip, and tilt Zernikes
         return coefficients
 
@@ -190,7 +185,8 @@ def _load_wfi_detector_aberrations(filename):
             # (local_x in mm / 10 um pixel size) -> * 1e2
             # local_x and _y range from -20.44 to +20.44, so adding to the midpoint pixel
             # makes sense to place (-20.44, -20.44) at (4, 4)
-            pixx, pixy = int(midpoint_pixel + local_x * 1e2), int(midpoint_pixel + local_y * 1e2)
+            pixx, pixy = (round(midpoint_pixel + local_x * 1e2),
+                          round(midpoint_pixel + local_y * 1e2))
 
             detector.add_field_point(pixx, pixy, interpolator)
         return detector
@@ -203,7 +199,7 @@ def _load_wfi_detector_aberrations(filename):
                                                         n_zernikes=22)
         for row in rows:
             z = np.zeros(22)
-            for idx in xrange(22):
+            for idx in range(22):
                 z[idx] = row['Z{}'.format(idx + 1)]
             interpolator.set_aberration_terms(row['Wave(um)'] * 1e-6, z)
 
@@ -235,16 +231,9 @@ class WFIRSTInstrument(webbpsf_core.SpaceTelescopeInstrument):
 
     (Subclasses must populate this at `__init__`.)
     """
-    _detector_position = (2048.0, 2048.0)
-    """
-    The pixel position, accessed through the `detector_position` property
-    and validated to be in-range on the selected detector.
-    """
 
     def __init__(self, *args, **kwargs):
         super(WFIRSTInstrument, self).__init__(*args, **kwargs)
-        self.pupil = os.path.join(self._WebbPSF_basepath, 'AFTA_WFC_C5_Pupil_Shortwave_Norm_2048px.fits')
-        self.pupilopd = os.path.join(self._WebbPSF_basepath, 'upscaled_HST_OPD.fits')
 
         # n.b. WFIRSTInstrument subclasses must set these
         self._detectors = {}
@@ -273,13 +262,12 @@ class WFIRSTInstrument(webbpsf_core.SpaceTelescopeInstrument):
     @property
     def detector_position(self):
         """The pixel position in (X, Y) on the detector"""
-        return self._detector_position
+        return self._detectors[self._selected_detector].field_position
 
     @detector_position.setter
     def detector_position(self, position):
-        x_pixel, y_pixel = position
         detector = self._detectors[self._selected_detector]
-        detector.set_field_position(x_pixel, y_pixel)
+        detector.field_position = position
 
     def _get_aberrations(self):
         """Get the OpticalElement that applies the field-dependent
@@ -314,12 +302,16 @@ class WFI(WFIRSTInstrument):
         self._detectors = _load_wfi_detector_aberrations(os.path.join(self._datapath, 'zernikes.csv'))
         assert len(self._detectors.keys()) > 0
         self.detector = 'SCA01'
-        self.detector_position = (2048.0, 2048.0)
 
         # Paths to the two possible pupils. The correct one is selected based on requested
-        # wavelengths in _validate_config()
+        # wavelengths in _validateConfig()
         self._unmasked_pupil_path = os.path.join(self._WebbPSF_basepath, 'AFTA_WFC_C5_Pupil_Shortwave_Norm_2048px.fits')
         self._masked_pupil_path = os.path.join(self._WebbPSF_basepath, 'AFTA_WFC_C5_Pupil_Mask_Norm_2048px.fits')
+
+        # Flag to en-/disable automatic selection of the appropriate pupil_mask
+        self.auto_pupil = True
+        self.pupil = self._unmasked_pupil_path
+        self.pupilopd = os.path.join(self._WebbPSF_basepath, 'upscaled_HST_OPD.fits')
 
     def _validateConfig(self, **kwargs):
         """Validates that the WFI is configured sensibly
@@ -327,25 +319,22 @@ class WFI(WFIRSTInstrument):
         This mainly consists of selecting the masked or unmasked pupil
         appropriately based on the wavelengths requested.
         """
-        if self.pupil in (self._unmasked_pupil_path, self._masked_pupil_path):
+        if self.auto_pupil and self.pupil in (self._unmasked_pupil_path, self._masked_pupil_path):
             # Does the wavelength range fit entirely in an unmasked filter?
             wavelengths = np.array(kwargs['wavelengths'])
             wl_min, wl_max = np.min(wavelengths), np.max(wavelengths)
             # test shorter filters first; if wl range fits entirely in one of them, it's not going
             # to be the (masked) wideband filter
-            if wl_min >= self.UNMASKED_PUPIL_WAVELENGTH_MIN and wl_max <= self.UNMASKED_PUPIL_WAVELENGTH_MAX:
+            if wl_max <= self.UNMASKED_PUPIL_WAVELENGTH_MAX:
                 # use unmasked pupil optic
                 self.pupil = self._unmasked_pupil_path
                 _log.info("Using the unmasked WFI pupil shape based on wavelengths requested")
-            elif wl_min >= self.MASKED_PUPIL_WAVELENGTH_MIN and wl_max <= self.MASKED_PUPIL_WAVELENGTH_MAX:
+            else:
+                if wl_max > self.MASKED_PUPIL_WAVELENGTH_MAX:
+                    _log.warn("Requested wavelength is > 2e-6 m, defaulting to masked pupil shape")
                 # use masked pupil optic
                 self.pupil = self._masked_pupil_path
                 _log.info("Using the masked WFI pupil shape based on wavelengths requested")
-            else:
-                raise RuntimeError("Cannot figure out which WFI pupil shape to use from the "
-                                   "wavelengths requested! (If you know which one you want, "
-                                   "instantiate a poppy.FITSOpticalElement and assign it to the "
-                                   "'pupil' attribute.)")
         else:
             # If the user has set the pupil to a custom value, let them worry about the
             # correct shape it should have
@@ -450,3 +439,184 @@ class CGI(WFIRSTInstrument):
     def _getFITSHeader(self, result, options):
         """Populate FITS Header keywords"""
         super(WFIRSTInstrument, self)._getFITSHeader(result, options)
+
+
+def show_notebook_interface(instrument):
+    # Widget related imports.
+    # (Currently not a hard dependency for the full webbpsf package, so we import
+    # within the function.)
+    import ipywidgets as widgets
+    from IPython.display import display, clear_output
+    from matplotlib import pyplot as plt
+
+    try:
+        import pysynphot
+    except:
+        raise ImportError("For now, PySynphot must be installed to use the notebook interface")
+
+    # Clean up some warnings we know about so as not to scare the users
+    import warnings
+    from matplotlib.cbook import MatplotlibDeprecationWarning
+    warnings.simplefilter('ignore', MatplotlibDeprecationWarning)
+    warnings.simplefilter('ignore', fits.verify.VerifyWarning)
+
+    def make_binding_for_attribute(attribute):
+        def callback(trait_name, new_value):
+            setattr(instrument, attribute, new_value)
+        return callback
+
+    filter_selection = widgets.ToggleButtons(
+        options=instrument.filter_list,
+        value=instrument.filter,
+        description='Filter:'
+    )
+    filter_selection.on_trait_change(
+        make_binding_for_attribute('filter'),
+        name='selected_label'
+    )
+    display(filter_selection)
+
+    monochromatic_wavelength = widgets.BoundedFloatText(
+        value=0.76,
+        min=0.6,
+        max=2.0,
+    )
+    monochromatic_wavelength.disabled = True
+    monochromatic_toggle = widgets.Checkbox(description='Monochromatic calculation?')
+
+    def update_monochromatic(trait_name, new_value):
+        filter_selection.disabled = new_value
+        monochromatic_wavelength.disabled = not new_value
+
+    monochromatic_toggle.on_trait_change(update_monochromatic, name='value')
+
+    display(widgets.HTML(value='''<p style="padding: 1em 0;">
+    <span style="font-style:italic; font-size:1.0em">
+    Monochromatic calculations can be performed for any wavelength in the 0.6 to 2.0 &micro;m range.
+    </span></p>'''))  # kludge
+    monochromatic_controls = widgets.HBox(children=(
+            monochromatic_toggle,
+            widgets.HTML(value='<span style="display: inline-block; width: 0.6em;"></span>'),
+            monochromatic_wavelength,
+            widgets.HTML(value='<span style="display: inline-block; width: 0.25em;"></span> &micro;m '),
+    ))
+    display(monochromatic_controls)
+
+    display(widgets.HTML(value="<hr>"))
+
+    source_selection = widgets.Select(
+        options=poppy.specFromSpectralType('', return_list=True),
+        value='G0V',
+        description="Source spectrum"
+    )
+    display(source_selection)
+    display(widgets.HTML(value="<hr>"))
+
+    sca_selection = widgets.Dropdown(
+        options=instrument.detector_list,
+        value=instrument.detector,
+        description='Detector:'
+    )
+    sca_selection.on_trait_change(
+        make_binding_for_attribute('detector'),
+        name='selected_label'
+    )
+    display(sca_selection)
+
+    detector_field_points = [
+        ('Top left', (4.0, 4092.0)),
+        ('Bottom left', (4.0, 4.0)),
+        ('Center', (2048.0, 2048.0)),
+        ('Top right', (4092.0, 4092.0)),
+        ('Bottom right', (4092.0, 4.0)),
+    ]
+    # enforce ordering of buttons
+    detector_field_point_labels = [a[0] for a in detector_field_points]
+    detector_field_points = dict(detector_field_points)
+
+    def set_field_position(trait_name, new_value):
+        instrument.detector_position = detector_field_points[new_value]
+
+    field_position = widgets.ToggleButtons(options=detector_field_point_labels, value='Center', description='Detector field point:')
+    field_position.on_trait_change(set_field_position, name='selected_label')
+    display(field_position)
+
+    calculate_button = widgets.Button(
+        description="Calculate PSF",
+        width='10em',
+        color='white',
+        background_color='#00c403',
+        border_color='#318732'
+    )
+    display_osys_button = widgets.Button(
+        description="Display Optical System",
+        width='13em',
+        color='white',
+        background_color='#005fc4',
+        border_color='#224A75'
+    )
+    clear_button = widgets.Button(
+        description="Clear Output",
+        width='10em',
+        color='white',
+        background_color='#ed4747',
+        border_color='#911C1C'
+    )
+    progress = widgets.HTML(value='<progress>')
+
+    OUTPUT_FILENAME = 'psf.fits'
+    DOWNLOAD_BUTTON_HTML = """
+    <a class="btn btn-info" href="files/{}" target="_blank">
+        Download FITS image from last calculation
+    </a>
+    """
+    download_link = widgets.HTML(value=DOWNLOAD_BUTTON_HTML.format(OUTPUT_FILENAME))
+
+    def disp(*args):
+        progress.visible = True
+        plt.figure(figsize=(12, 8))
+        instrument.display()
+        progress.visible = None
+
+    def calc(*args):
+        progress.visible = True
+        if monochromatic_toggle.value is True:
+            psf = instrument.calcPSF(
+                monochromatic=monochromatic_wavelength.value * 1e-6,
+                display=True,
+                outfile=OUTPUT_FILENAME,
+                clobber=True
+            )
+        else:
+            source = poppy.specFromSpectralType(source_selection.value)
+            _log.debug("Got source type {}: {}".format(source_selection.value, source))
+            psf = instrument.calcPSF(
+                source=source,
+                display=True,
+                outfile=OUTPUT_FILENAME,
+                clobber=True
+            )
+        fig, (ax_oversamp, ax_detsamp) = plt.subplots(1, 2)
+        poppy.display_PSF(psf, ax=ax_oversamp)
+        poppy.display_PSF(psf, ax=ax_detsamp, ext='DET_SAMP')
+        progress.visible = None
+        download_link.visible = True
+
+    def clear(*args):
+        clear_output()
+        progress.visible = None
+        download_link.visible = None
+
+    calculate_button.on_click(calc)
+    display_osys_button.on_click(disp)
+    clear_button.on_click(clear)
+    display(widgets.HTML(value="<br/>"))  # kludge
+    buttons = widgets.HBox(children=[calculate_button, display_osys_button, clear_button])
+    display(buttons)
+
+    # Insert the progress bar, hidden by default
+    display(progress)
+    progress.visible = None
+    # and the download link
+    display(download_link)
+    download_link.visible = None

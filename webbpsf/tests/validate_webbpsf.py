@@ -423,7 +423,7 @@ def validate_vs_krist_blc(which='spot'):
 
 
     diff = trans[npix/2, :] - mask1f[0].data[npix/2, :] 
-    print "Max diff: %.3g" % diff.max()
+    print("Max diff: %.3g" % diff.max())
 
 
 
@@ -505,13 +505,13 @@ def validate_vs_krist_sims(clobber=False, normalize=False, which='spot', no_sam=
     k1 = 'nircam_4600nm_%s.fits' % which
     k1f = fits.open(k1)
 
-    print "Total of %s is %f" % (k1, k1f[0].data.sum())
+    print("Total of %s is %f" % (k1, k1f[0].data.sum()))
     poppy.display_PSF(k1f,  title="", pixelscale='SAMPLING', vmin=cor_vmin, vmax=cor_vmax)
 
     P.subplot(335)
     my1 = 'test_'+k1
     mypsf1 = webbpsf_core.calc_or_load_psf('test_'+k1, nc, nlambda=1,monochromatic=4.6e-6, oversample=4, fov_pixels=247, clobber=clobber)
-    print "Total of %s is %f" % (my1, mypsf1[0].data.sum())
+    print("Total of %s is %f" % (my1, mypsf1[0].data.sum()))
     #nc.calcPSF(nlambda=1)
     poppy.display_PSF(mypsf1, ext=1, title="", adjust_for_oversampling=True, vmin=cor_vmin, vmax=cor_vmax)
 
@@ -524,7 +524,7 @@ def validate_vs_krist_sims(clobber=False, normalize=False, which='spot', no_sam=
     k2 = 'nircam_4600nm_%s_fieldpsf.fits' % which
     k2f = fits.open(k2)
     poppy.display_PSF(k2f,  title="", pixelscale='SAMPLING')
-    print "Total of %s is %f" % (k2, k2f[0].data.sum())
+    print("Total of %s is %f" % (k2, k2f[0].data.sum()))
 
 
     nc.image_mask = None # make a coronagraphic-off-axis type PSF but still on-axis in the array
@@ -532,15 +532,15 @@ def validate_vs_krist_sims(clobber=False, normalize=False, which='spot', no_sam=
     mypsf2 = webbpsf_core.calc_or_load_psf('test_'+k2, nc, nlambda=1, monochromatic=4.6e-6, oversample=4, fov_pixels=247, clobber=clobber)
     P.subplot(338)
     poppy.display_PSF(mypsf2,  title="", ext=1, adjust_for_oversampling=True)
-    print "Total of %s is %f" % (my2, mypsf2[0].data.sum())
+    print("Total of %s is %f" % (my2, mypsf2[0].data.sum()))
  
     P.subplot(339)
     poppy.display_PSF_difference( mypsf2, k2f,  ext2=0, ext1=1, title="", vmax=1e-5, normalize=normalize)
 
 
 
-    print "shape of %s is %s" % (k1, k1f[0].data.shape)
-    print "shape of %s is %s" % (my1, mypsf1[1].data.shape)
+    print("shape of %s is %s" % (k1, k1f[0].data.shape))
+    print("shape of %s is %s" % (my1, mypsf1[1].data.shape))
 
     P.savefig('results_nircam_coron_comparison_%s.pdf' % which)
     stop()
@@ -822,7 +822,7 @@ def compare_pupils_tv( oversample=8, vmax=1e-5, skipone=True):
         ax3.plot(rad,rp/rp.max())
         ax4.plot(rad, ee_fn(rad), label=label)
 
-        print poppy.measure_fwhm(p)
+        print(poppy.measure_fwhm(p))
     ax4.legend(loc='lower right')
     ax3.set_yscale('log')
     ax3.set_xscale('log')

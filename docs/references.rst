@@ -68,10 +68,10 @@ NIRspec field of view rotation: 41.5 degrees. Matt Lallo, draft SIAF information
 NIRISS
 -------
 
-NIRISS filter bandpasses are assumed to be precisely identical to NIRCam for the filters in common. The exceptions are F158M, which was a TFI filter, for which I retain the cryo transmission curve as measured by the manufacturer (Barr/Materion), and F380M, which is a new filter still in process of fabrication, for which I include a nominal design filter transmission curve.
-
-Occulting spots: Assumed to be perfect circles with diameters 0.58, 0.75, 1.5, and 2.0 arcsec. Doyon et al. 2010 SPIE 7731. While these
-are not likely to see extensive use with NIRISS, they are indeed still present in the hardware, so we retain the ability to simulate them. 
+Occulting spots: Assumed to be perfect circles with diameters 0.58, 0.75, 1.5,
+and 2.0 arcsec. Doyon et al. 2010 SPIE 7731. While these are not likely to see
+extensive use with NIRISS, they are indeed still present in the hardware, so we
+retain the ability to simulate them. 
 
 NRM occulter mask: Provided by Anand Sivaramakrishnan. 
 
@@ -121,6 +121,7 @@ For the following filters we take information from alternate sources other than 
    NIRSpec      F140X           NIRSpec "BBA" transmission curve traced from NIRSpec GWA FWA Assembly Report, NIRS-ZEO-RO-0051, section 6.3.2
    MIRI         F*W filters     Data published in Glasse et al. 2015 PASP Vol 127 No. 953, p. 688 Fig 2
    MIRI         F*C filters     Data published in Bouchet et al. 2015 PASP Vol 127 No. 953, p. 612 Fig 3
+   NIRISS       all filters     Measurement data provided by Loic Albert of the NIRISS team
    FGS          none            Assumed top-hat function based on detector cut-on and cut-off wavelengths. 
 
 

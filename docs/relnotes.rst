@@ -7,22 +7,17 @@ Release Notes
 Known Issues
 --------------
 
+See https://github.com/mperrin/webbpsf/issues for currently open issues and enhancement suggestions.
+
 * Calculations at large radii (> 500 lambda/D ~ 30 arcsec for 2 microns) will show numerical artifacts from Fourier aliasing and the implicit repetition of 
   the pupil entrance aperture in the discrete Fourier transform. If you need accurate PSF information at such large radii, please contact Marshall Perrin for
   higher resolution pupil data. 
-* You may see various warning messages while running computations, like thus::
-
-    ((<pysynphot.spectrum.Box object at 0x1047132d0> * nircam,im,f200w)) does not have a defined 
-    binset in the wavecat table. The waveset of the spectrum will be used instead.
-
-    Warning: invalid value encountered in absolute
-
-  These can safely be ignored. 
 
 
 **The following factors are NOT included in these simulations:**
 
-* Wavefront error (OPD) variations across the field of view of any instrument (though each one has its own distinct OPDs for the center of its FOV).
+* Wavefront error (OPD) variations across the field of view of any JWST instrument (though each one has its own distinct OPDs for the center of its FOV).
+  Field-dependent aberrations *are* included for WFIRST WFI. 
 * Optical distortions.
 * Instrumental wavefront errors are not modeled separately, though they are included in some of the supplied RevV OPDs. 
 * Coronagraphic masks are assumed to be perfect (i.e. the masks exactly match their design parameters.)
@@ -31,11 +26,10 @@ Known Issues
 
 Road Map for Future Releases
 --------------------------------
-* Field dependence of PSFs over instrument fields of view (top priority for version 0.4)
-* Web interface a la http://tinytim.stsci.edu and precompiled Mac .app bundle for improved deployment.
-* Improved spectroscopic simulations including prism/grating dispersions. (second priority for 0.4)
-* Updated wavefront error maps including as-built OTE and SI optical properties (expect a long and gradual series of updates.)
-* Integration with configurable telescope optical models for on-the-fly OPD generation. (probably 0.5)
+* Updates to JWST instrument and telecope models based on as-built cryotest data (expected mid 2016).
+* Field dependence of PSFs over JWST instrument fields of view based on ISIM CV test data. 
+* Web interface based on Jupyter Notebook servers
+* Improved spectroscopic simulations including prism/grating dispersions.
 * Support for the NIRSpec and MIRI IFUs may be added in a future release, level of detail is still TBD.
 * Improved models for pointing jitter. 
 * Possibly: separate handling of pre- and post- coronagraphic WFE in instruments, if this appears likely to be significant. 
@@ -45,10 +39,31 @@ Road Map for Future Releases
 Version History and Change Log
 -------------------------------
 
-Version 0.3.4
+Version 0.4.0
 =============
 
-*Not yet released*
+.. _rel0.4.0:
+
+Released 2015 November 20
+
+* **WFIRST WFI support added**:
+
+  * including all WFI filters and filter-dependent pupil masks. 
+  * including field dependence based on GSFC Cycle 5 modeling (`#75 <https://github.com/mperrin/webbpsf/pull/75>`__, @josephoenix)
+  * including initial/prototype GUI interface based on Jupyter/IPython notebook widgets (`#79 <https://github.com/mperrin/webbpsf/pull/79>`__, @josephoenix)
+
+* Updated filter transmission files for MIRI (based on Glasse et al. 2015 PASP) and NIRISS (based on flight filter measurement data provided by Loic Albert). 
+  (`#66 <https://github.com/mperrin/webbpsf/issues/66>`_, `#78 <https://github.com/mperrin/webbpsf/issues/78>`_; @mperrin)
+* Added utility to check for appropriate version of the data files and request an update if necessary  (`#76 <https://github.com/mperrin/webbpsf/pull/76>`__, @josephoenix)
+* Some documentation updates, including new documentation for the WFIRST functionality (@josephoenix, @mperrin)
+* Bug fixes for minor issues involving OPD file units (`#74 <https://github.com/mperrin/webbpsf/pull/74>`__, @josephoenix), cleaner logging output, and some Python 3 compatibility issues.
+
+.. note:: 
+
+    When updating to version 0.4 you will need to also update your WebbPSF data files 
+    to the latest version as well. 
+
+
 
 .. _rel0.3.3:
 
@@ -87,13 +102,6 @@ models (particularly for slit and slitless spectroscopy), and extensive software
 improvements and under-the-hood infrastructure code updates. Many 
 default settings can now be customized by a text configuration file in your home
 directory.  
-
-
-.. warning::
-
-    When updating to version 0.3 you will need to also update your WebbPSF data files 
-    to the latest version as well. 
-
 
 
 **Updates to the optical models**:

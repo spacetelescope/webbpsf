@@ -431,6 +431,17 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
 class NIRISS_CLEARP(poppy.CompoundAnalyticOptic):
     """NIRISS 'CLEARP' pupil, including PAR obscuration
 
+        **CAUTIONARY NOTE** TODO: This class represents this
+        optic as having a circular outer edge; in reality the
+        hardware has a 4% oversized tricontagon mask around the
+        JWST pupil image. However as the primary mirror should
+        serve as the pupil stop, in practice this model
+        simplification should not affect output PSFs in imaging
+        modes. This simplification may be removed in a future
+        version of WebbPSF.
+        See https://github.com/mperrin/webbpsf/issues/71
+
+
         CLEARP pupil info from:
            MODIFIED CALIBRATION OPTIC HOLDER - NIRISS
            DRAWING NO 196847  REV 0  COMDEV
@@ -471,3 +482,131 @@ class NIRISS_CLEARP(poppy.CompoundAnalyticOptic):
 
 
 
+class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
+    """ Band Limited Coronagraph """
+    allowable_kinds = ['nircamcircular', 'nircamwedge']
+    """ Allowable types of BLC supported by this class"""
+
+    def __init__(self, name="unnamed BLC", kind='nircamcircular', sigma=1, wavelength=None, **kwargs):
+        super(NIRCam_BandLimitedCoron, self).__init__(name=name, kind=kind, sigma=sigma, wavelength=wavelength, **kwargs)
+
+    def getPhasor(self, wave):
+        """ Compute the amplitude transmission appropriate for a BLC for some given pixel spacing
+        corresponding to the supplied Wavefront.
+
+        Based on the Krist et al. SPIE paper on NIRCam coronagraph design
+
+        Note that the equations in Krist et al specify the intensity transmission of the occulter,
+        but what we want to return here is the amplitude transmittance. That is the square root
+        of the intensity, of course, so the equations as implemented here all differ from those
+        written in Krist's SPIE paper by lacking an exponential factor of 2. Thanks to John Krist
+        for pointing this out.
+
+        """
+        import scipy.special
+        if not isinstance(wave, poppy.Wavefront):  # pragma: no cover
+            raise ValueError("BLC getPhasor must be called with a Wavefront to define the spacing")
+        assert (wave.planetype == poppy.poppy_core._IMAGE)
+
+        y, x = self.get_coordinates(wave)
+        if self.kind == 'nircamcircular':
+            # larger sigma implies narrower peak? TBD verify if this is correct
+            #
+            r = np.sqrt(x ** 2 + y ** 2)
+            sigmar = self.sigma * r
+            sigmar.clip(np.finfo(sigmar.dtype).tiny, out=sigmar)  # avoid divide by zero -> NaNs
+            self.transmission = (1 - (2 * scipy.special.jn(1, sigmar) / sigmar) ** 2)
+
+            # add in the ND squares. Note the positions are not exactly the same in the two wedges.
+            # See the figures  in Krist et al. of how the 6 ND squares are spaced among the 5
+            # corongraph regions
+            # Also add in the opaque border of the coronagraph mask holder.
+            if self.sigma > 4:
+                # MASK210R has one in the corner and one half in the other corner
+                wnd = np.where(
+                    (y > 5) &
+                    (
+                        ((x < -5) & (x > -10)) |
+                        ((x > 7.5) & (x < 12.5))
+                    )
+                )
+                wborder = np.where((np.abs(y) > 10) | (x < -10))  # left end of mask holder
+            else:
+                # the others have two halves on in each corner.
+                wnd = np.where(
+                    (y > 5) &
+                    (np.abs(x) > 7.5) &
+                    (np.abs(x) < 12.5)
+                )
+                wborder = np.where(np.abs(y) > 10)
+
+            self.transmission[wnd] = np.sqrt(1e-3)
+            self.transmission[wborder] = 0
+        elif self.kind == 'nircamwedge':
+            # This is hard-coded to the wedge-plus-flat-regions shape for NIRCAM
+
+            # we want a scale factor that goes from 2 to 6 with 1/5th of it as a fixed part on
+            # either end
+            #scalefact = np.linspace(1,7, x.shape[1]).clip(2,6)
+
+            # the scale fact should depent on X coord in arcsec, scaling across a 20 arcsec FOV.
+            # map flat regions to 2.5 arcsec each?
+            # map -7.5 to 2, +7.5 to 6. slope is 4/15, offset is +9.5
+            scalefact = (2 + (-x + 7.5) * 4 / 15).clip(2, 6)
+
+            #scalefact *= self.sigma / 2 #;2.2513
+            #scalefact *= 2.2513
+            #scalefact.shape = (1, x.shape[1])
+            # This does not work - shape appears to be curved not linear.
+            # This is NOT a linear relationship. See calc_blc_wedge in test_poppy.
+
+            if np.abs(self.wavelength - 2.1e-6) < 0.1e-6:
+                polyfitcoeffs = np.array([2.01210737e-04, -7.18758337e-03, 1.12381516e-01,
+                                          -1.00877701e+00, 5.72538509e+00, -2.12943497e+01,
+                                          5.18745152e+01, -7.97815606e+01, 7.02728734e+01])
+            elif np.abs(self.wavelength - 4.6e-6) < 0.1e-6:
+                polyfitcoeffs = np.array([9.16195583e-05, -3.27354831e-03, 5.11960734e-02,
+                                          -4.59674047e-01, 2.60963397e+00, -9.70881273e+00,
+                                          2.36585911e+01, -3.63978587e+01, 3.20703511e+01])
+            else:
+                raise NotImplemented("No defined NIRCam wedge BLC mask for that wavelength?  ")
+
+            sigmas = scipy.poly1d(polyfitcoeffs)(scalefact)
+
+            sigmar = sigmas * np.abs(y)
+            sigmar.clip(np.finfo(sigmar.dtype).tiny, out=sigmar)  # avoid divide by zero -> NaNs
+            self.transmission = (1 - (np.sin(sigmar) / sigmar) ** 2)
+            # the bar should truncate at +- 10 arcsec:
+            woutside = np.where(np.abs(x) > 10)
+            self.transmission[woutside] = 1.0
+            # add in the ND squares. Note the positions are not exactly the same in the two wedges.
+            # See the figures in Krist et al. of how the 6 ND squares are spaced among the 5
+            # corongraph regions. Also add in the opaque border of the coronagraph mask holder.
+            if np.abs(self.wavelength - 2.1e-6) < 0.1e-6:
+                # half ND square on each side
+                wnd = np.where(
+                    (y > 5) &
+                    (
+                        ((x < -5) & (x > -10)) |
+                        ((x > 7.5) & (x < 12.5))
+                    )
+                )
+                wborder = np.where(np.abs(y) > 10)
+            elif np.abs(self.wavelength - 4.6e-6) < 0.1e-6:
+                wnd = np.where(
+                    (y > 5) &
+                    (
+                        ((x < -7.5) & (x > -12.5)) |
+                        (x > 5)
+                    )
+                )
+                wborder = np.where((np.abs(y) > 10) | (x > 10))  # right end of mask holder
+
+            self.transmission[wnd] = np.sqrt(1e-3)
+            self.transmission[wborder] = 0
+
+        if not np.isfinite(self.transmission.sum()):
+            #stop()
+            _log.warn("There are NaNs in the BLC mask - correcting to zero. (DEBUG LATER?)")
+            self.transmission[np.where(np.isfinite(self.transmission) == False)] = 0
+        return self.transmission
