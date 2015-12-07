@@ -347,9 +347,7 @@ class CGI(WFIRSTInstrument):
 
     """
     def __init__(self):
-        pixelscale_BB = 0.01
-        pixelscale_IFS = 0.01 
-        pixelscale = 0.01 # arcsec/pix for broadband imager
+        pixelscale = 0.01 # default arcsec/pix for broadband imager
         super(CGI, self).__init__("CGI", pixelscale=pixelscale)
 
         self.pupil = os.path.join(self._WebbPSF_basepath, 'AFTA_CGI_C5_Pupil_onax_1000px.fits')
@@ -359,6 +357,7 @@ class CGI(WFIRSTInstrument):
         self.pupilopd = None
         self.aberration_optic = None
         self.options = {'force_coron':True}
+        self.fov_arcsec = None
 
     def _validate_config(self):
         if self.mode in self.mode_list:
@@ -404,6 +403,17 @@ class CGI(WFIRSTInstrument):
             self.image_mask = 'DISKSPC_F885'
             optsys.addImage(transmission=self._datapath+"optics/DISKSPC_FPM_65WA200_360deg_-_FP1res%d_evensamp_D%d_F885.fits.gz"%(disk_fpmres, 2*20*disk_fpmres))
             
+        if self.mode == 'CHARSPC':
+            self.fov_arcsec = 2*0.82 # See 2015 SDT report, Section 3.4.1.1.1: IFS has 76 lenslets across the (2 x 0.82) arcsec FoV.
+            self.pixelscale = self.fov_arcsec/76 # arcsec/pix. 
+        elif self.mode == 'DISKSPC':
+            if self.filter == 'F465' or self.filter == 'F565':
+                self.fov_arcsec = 2.0
+                self.pixelscale = 0.01
+            if self.filter == 'F835' or self.filter == 'F885':
+                self.fov_arcsec = 3.2
+                self.pixelscale = 0.02
+
         if self.mode == 'CHARSPC' or self.mode == 'DISKSPC':
             self.pupil_mask = 'SPC26D88'
             optsys.addPupil(transmission=self._datapath+"optics/SPC_LS_26DS88_1000pix.fits.gz", name=self.pupil_mask, shift=shift)
