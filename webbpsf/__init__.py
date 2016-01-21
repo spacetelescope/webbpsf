@@ -79,14 +79,14 @@ def _save_config():
 
 
 from poppy import (display_PSF, display_PSF_difference, display_EE, display_profiles, radial_profile,
-        measure_EE, measure_radial, measure_fwhm, measure_sharpness, measure_centroid, measure_strehl,
+        measure_EE, measure_radial, measure_fwhm, measure_sharpness, measure_centroid,
         specFromSpectralType, fwcentroid)
 
 from .webbpsf_core import (Instrument, JWInstrument, NIRCam, NIRISS, NIRSpec,
     MIRI, FGS)
 
 from . import utils
-from .utils import setup_logging, restart_logging, system_diagnostic
+from .utils import setup_logging, restart_logging, system_diagnostic, measure_strehl
 
 if not _ASTROPY_SETUP_:
     if conf.autoconfigure_logging:
