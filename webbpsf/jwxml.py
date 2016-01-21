@@ -21,6 +21,7 @@ import logging
 import unittest
 import os
 _log = logging.getLogger('jwxml')
+from . import conf
 
 
 #---------------------------------------------------------------------------------
@@ -196,7 +197,7 @@ class Aperture(object):
                 # if doens't have children,
                 try:
                     value = float(node.text) # do we care about ints vs floats?
-                except:
+                except (ValueError,TypeError):
                     value=node.text
                 self.__dict__[tag] = value
             else:
@@ -220,19 +221,21 @@ class Aperture(object):
         self.YIdlVert = np.asarray((self.YIdlVert1, self.YIdlVert2,self.YIdlVert3,self.YIdlVert4))
 
         # then the transformation coefficients
-        self.Sci2IdlDeg = int(self.Sci2IdlDeg)
-        self.Sci2IdlCoeffs_X = np.zeros( (self.Sci2IdlDeg+1, self.Sci2IdlDeg+1))
-        self.Sci2IdlCoeffs_Y = np.zeros( (self.Sci2IdlDeg+1, self.Sci2IdlDeg+1))
-        self.Idl2SciCoeffs_X = np.zeros( (self.Sci2IdlDeg+1, self.Sci2IdlDeg+1))
-        self.Idl2SciCoeffs_Y = np.zeros( (self.Sci2IdlDeg+1, self.Sci2IdlDeg+1))
-        for i in range(1,self.Sci2IdlDeg+1):
-            for j in range(0,i+1):
-                #if self.AperName == 'FGS2_FULL_CNTR':
-                    #print('Sci2IdlX{0:1d}{1:1d}'.format(i,j), self.__dict__['Sci2IdlX{0:1d}{1:1d}'.format(i,j)])
-                self.Sci2IdlCoeffs_X[i,j] = self.__dict__['Sci2IdlX{0:1d}{1:1d}'.format(i,j)]
-                self.Sci2IdlCoeffs_Y[i,j] = self.__dict__['Sci2IdlY{0:1d}{1:1d}'.format(i,j)]
-                self.Idl2SciCoeffs_X[i,j] = self.__dict__['Idl2SciX{0:1d}{1:1d}'.format(i,j)]
-                self.Idl2SciCoeffs_Y[i,j] = self.__dict__['Idl2SciY{0:1d}{1:1d}'.format(i,j)]
+
+        if self.Sci2IdlDeg is not None:
+            self.Sci2IdlDeg = int(self.Sci2IdlDeg)
+            self.Sci2IdlCoeffs_X = np.zeros( (self.Sci2IdlDeg+1, self.Sci2IdlDeg+1))
+            self.Sci2IdlCoeffs_Y = np.zeros( (self.Sci2IdlDeg+1, self.Sci2IdlDeg+1))
+            self.Idl2SciCoeffs_X = np.zeros( (self.Sci2IdlDeg+1, self.Sci2IdlDeg+1))
+            self.Idl2SciCoeffs_Y = np.zeros( (self.Sci2IdlDeg+1, self.Sci2IdlDeg+1))
+            for i in range(1,self.Sci2IdlDeg+1):
+                for j in range(0,i+1):
+                    #if self.AperName == 'FGS2_FULL_CNTR':
+                        #print('Sci2IdlX{0:1d}{1:1d}'.format(i,j), self.__dict__['Sci2IdlX{0:1d}{1:1d}'.format(i,j)])
+                    self.Sci2IdlCoeffs_X[i,j] = self.__dict__['Sci2IdlX{0:1d}{1:1d}'.format(i,j)]
+                    self.Sci2IdlCoeffs_Y[i,j] = self.__dict__['Sci2IdlY{0:1d}{1:1d}'.format(i,j)]
+                    self.Idl2SciCoeffs_X[i,j] = self.__dict__['Idl2SciX{0:1d}{1:1d}'.format(i,j)]
+                    self.Idl2SciCoeffs_Y[i,j] = self.__dict__['Idl2SciY{0:1d}{1:1d}'.format(i,j)]
 
     def __repr__(self):
         return "<jwxml.Aperture object AperName={0} >".format(self.AperName)
@@ -396,7 +399,7 @@ class Aperture(object):
         return self.convert(self.V2Ref, self.V3Ref, 'Tel', frame)
 
 
-    def plot(self, frame='Idl', label=True, ax=None, title=True, units='arcsec', annotate=False):
+    def plot(self, frame='Idl', label=True, ax=None, title=True, units='arcsec', annotate=False, color=None):
         """ Plot this one aperture
 
         Parameters
@@ -448,11 +451,14 @@ class Aperture(object):
 
         x2 = np.concatenate([x, [x[0]]]) # close the box
         y2 = np.concatenate([y, [y[0]]])
-        ax.plot(x2*scale,y2*scale) # convert arcsec to arcmin
+        #print((x2,y2))
+        ax.plot(x2*scale,y2*scale, color=color) # convert arcsec to arcmin
 
 
         if need_to_flip_axis:
-            ax.set_xlim(ax.get_xlim()[::-1])
+            #print("flipped x axis")
+            #ax.set_xlim(ax.get_xlim()[::-1])
+            pass
 
         if label:
             rotation = 30 if self.AperName.startswith('NRC') else 0 # partially mitigate overlapping NIRCam labels
@@ -539,7 +545,7 @@ class SIAF(object):
     fgs_siaf.plot()                   # plot all apertures in this file
 
     """
-    def __init__(self, instr='NIRISS', basepath="./", filename=None):
+    def __init__(self, instr='NIRISS', basepath=None, filename=None, **kwargs):
             #basepath="/Users/mperrin/Dropbox/JWST/Optics Documents/SIAF/"
         """ Read a SIAF from disk
 
@@ -557,6 +563,10 @@ class SIAF(object):
             raise ValueError("Invalid instrument name: {0}. Note that this is case sensitive.".format(instr))
 
         self.instrument=instr
+
+        if basepath is None:
+            from utils import get_webbpsf_data_path
+            basepath = os.path.join(get_webbpsf_data_path(), instr)
 
         if filename is None:
             self.filename=os.path.join(basepath, instr+'_SIAF.xml')
@@ -593,19 +603,25 @@ class SIAF(object):
         helper function for the various plotting routines following"""
         fullaps = []
         if self.instrument =='NIRCam':
-            for letter in ['A', 'B']:
-                for number in range(1,6):
-                    fullaps.append(self.apertures['NRC{letter}{number}_FULL_CNTR'.format(letter=letter, number=number)])
+            fullaps.append( self.apertures['NRCA5_FULL'])
+            fullaps.append( self.apertures['NRCB5_FULL'])
+            #for letter in ['A', 'B']:
+                #for number in range(1,6):
+                    #fullaps.append(self.apertures['NRC{letter}{number}_FULL_CNTR'.format(letter=letter, number=number)])
         elif self.instrument =='NIRSpec':
-            fullaps.append( self.apertures['NRS1_FULL_CNTR'])
-            fullaps.append( self.apertures['NRS2_FULL_CNTR'])
+            #fullaps.append( self.apertures['NRS1_FULL'])
+            #fullaps.append( self.apertures['NRS2_FULL'])
+            fullaps.append( self.apertures['NRS_FULL_MSA1'])
+            fullaps.append( self.apertures['NRS_FULL_MSA2'])
+            fullaps.append( self.apertures['NRS_FULL_MSA3'])
+            fullaps.append( self.apertures['NRS_FULL_MSA4'])
         elif self.instrument =='NIRISS':
-            fullaps.append( self.apertures['NIS_FULL_CNTR'])
+            fullaps.append( self.apertures['NIS-CEN'])
         elif self.instrument =='MIRI':
-            fullaps.append( self.apertures['MIRIM_FULL_CNTR_OSS'])
+            fullaps.append( self.apertures['MIRIM_FULL_CNTR'])
         elif self.instrument =='FGS':
-            fullaps.append( self.apertures['FGS1_FULL_CNTR'])
-            fullaps.append( self.apertures['FGS2_FULL_CNTR'])
+            fullaps.append( self.apertures['FGS1_FULL'])
+            fullaps.append( self.apertures['FGS2_FULL'])
         return fullaps
 
 
@@ -705,11 +721,51 @@ def plotAllSIAFs(subarrays = True, showorigin=True, showchannels=True, **kwargs)
         aps =SIAF(instr, **kwargs)
         print("{0} has {1} apertures".format(aps.instrument, len(aps)))
 
-        aps.plot(clear=False, subarrays=subarrays)
+        aps.plot(clear=False, subarrays=subarrays, **kwargs)
         if showorigin: aps.plotDetectorOrigin()
         if showchannels: aps.plotDetectorChannels()
 
 
+def plotMainSIAFs(showorigin=False, showchannels=False, label=False, **kwargs):
+    col_imaging = 'blue'
+    col_coron = 'green'
+    col_msa = 'magenta'
+
+    nircam = SIAF('NIRCam')
+    niriss= SIAF('NIRISS')
+    fgs = SIAF('FGS')
+    nirspec = SIAF('NIRSpec')
+    miri = SIAF('MIRI')
+
+    im_aps = [ nircam['NRCA5_FULL'], nircam['NRCB5_FULL'], niriss['NIS-CEN'], miri['MIRIM_FULL_ILLCNTR'],
+            fgs['FGS1_FULL'], fgs['FGS2_FULL']]
+
+    coron_aps = [nircam['NRCA2_MASK210R'], nircam['NRCA4_MASKSWB'],
+            nircam['NRCA5_MASK335R'],
+            nircam['NRCA5_MASK430R'],
+            nircam['NRCA5_MASKLWB'],
+            nircam['NRCB3_MASKSWB'],
+            nircam['NRCB1_MASK210R'],
+            nircam['NRCB5_MASK335R'],
+            nircam['NRCB5_MASK430R'],
+            nircam['NRCB5_MASKLWB'],
+            miri['MIRIM_MASK1065_CNTR'],
+            miri['MIRIM_MASK1140_CNTR'],
+            miri['MIRIM_MASK1550_CNTR'],
+            miri['MIRIM_MASKLYOT_CNTR']]
+    msa_aps = [nirspec['NRS_FULL_MSA'+str(n+1)] for n in range(4)]
+
+    for aplist, col in zip(  [im_aps, coron_aps, msa_aps], [col_imaging, col_coron, col_msa]):
+        for ap in aplist:
+            ap.plot(color=col, frame='Tel', label=label, **kwargs)
+
+
+    # ensure V2 increases to the left
+            #ax.set_xlim(
+    ax = plt.gca()
+    xlim = ax.get_xlim()
+    if xlim[0] < xlim[1]:
+        ax.set_xlim(xlim[::-1])
 class Test_SIAF(unittest.TestCase):
 
     def assertAlmostEqualTwo(self, tuple1, tuple2):
