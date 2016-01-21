@@ -44,7 +44,7 @@ The WebbPSF software system is composed of two Python packages: a lower-level op
 
    This documentation is complemented by an `IPython Notebook format quickstart tutorial <http://nbviewer.ipython.org/github/mperrin/webbpsf/blob/master/notebooks/WebbPSF_tutorial.ipynb>`_. Downloading and running that notebook is a great way to get started using WebbPSF.
 
-:ref:`What's new in release 0.4.0? <rel0.4.0>`
+:ref:`What's new in the latest release? <whatsnew>`
 
 
 .. toctree::
@@ -97,6 +97,6 @@ Appendices and Reference
 * :ref:`genindex`
 * :ref:`search`
 
-**Version Information**
+**Mailing List**
 
-The current version of WebbPSF is version 0.2.8, released Nov 7, 2011. If you would like to receive email announcements of future versions, please contact Marshall Perrin, or send an email to "webbpsf-users-request@stsci.edu" containing the message "subscribe".
+If you would like to receive email announcements of future versions, please contact Marshall Perrin, or visit `maillist.stsci.edu <https://maillist.stsci.edu/scripts/wa.exe?SUBED1=webbpsf-users&A=1>` to subscribe yourself to the "webbpsf-users@maillist.stsci.edu" list.

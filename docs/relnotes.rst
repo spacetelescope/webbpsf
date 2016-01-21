@@ -9,35 +9,50 @@ Known Issues
 
 See https://github.com/mperrin/webbpsf/issues for currently open issues and enhancement suggestions.
 
-* Calculations at large radii (> 500 lambda/D ~ 30 arcsec for 2 microns) will show numerical artifacts from Fourier aliasing and the implicit repetition of 
+* Calculations at large radii (> 500 lambda/D ~ 30 arcsec for 2 microns) will show numerical artifacts from Fourier aliasing and the implicit repetition of
   the pupil entrance aperture in the discrete Fourier transform. If you need accurate PSF information at such large radii, please contact Marshall Perrin for
-  higher resolution pupil data. 
+  higher resolution pupil data.
 
 
 **The following factors are NOT included in these simulations:**
 
 * Wavefront error (OPD) variations across the field of view of any JWST instrument (though each one has its own distinct OPDs for the center of its FOV).
-  Field-dependent aberrations *are* included for WFIRST WFI. 
+  Field-dependent aberrations *are* included for WFIRST WFI.
 * Optical distortions.
-* Instrumental wavefront errors are not modeled separately, though they are included in some of the supplied RevV OPDs. 
+* Instrumental wavefront errors are not modeled separately, though they are included in some of the supplied RevV OPDs.
 * Coronagraphic masks are assumed to be perfect (i.e. the masks exactly match their design parameters.)
 * No edge effects near the center of the FQPMs. (However, these are believed to be negligible in practice based on detailed simulations by Remi Soummer.)
-* Any and all detector effects, including intrapixel sensitivity variations. There is no plan to include these at any point in WebbPSF itself.  Generate a subsampled PSF and use a separate detector model code instead. 
+* Any and all detector effects, including intrapixel sensitivity variations. There is no plan to include these at any point in WebbPSF itself.  Generate a subsampled PSF and use a separate detector model code instead.
 
 Road Map for Future Releases
 --------------------------------
 * Updates to JWST instrument and telecope models based on as-built cryotest data (expected mid 2016).
-* Field dependence of PSFs over JWST instrument fields of view based on ISIM CV test data. 
+* Field dependence of PSFs over JWST instrument fields of view based on ISIM CV test data.
 * Web interface based on Jupyter Notebook servers
 * Improved spectroscopic simulations including prism/grating dispersions.
 * Support for the NIRSpec and MIRI IFUs may be added in a future release, level of detail is still TBD.
-* Improved models for pointing jitter. 
-* Possibly: separate handling of pre- and post- coronagraphic WFE in instruments, if this appears likely to be significant. 
+* Improved models for pointing jitter.
+* Possibly: separate handling of pre- and post- coronagraphic WFE in instruments, if this appears likely to be significant.
 
 .. _whatsnew:
 
 Version History and Change Log
 -------------------------------
+
+
+Version 0.4.1
+=============
+
+.. _rel0.4.1:
+
+Released 2016 Jan/Feb sometime. Minor bug fix release.
+
+ * Relocate ``measure_strehl`` function code into ``webbpsf`` (`#88 <https://github.com/mperrin/webbpsf/issue/88>`__; Kathryn St.Laurent, @josephoenix, @mperrin)
+ * Fix an issue with the rotation of the MIRI Lyot coronagraph occulter, introduced by changes in ``poppy`` 0.4.0; (`#90 <https://github.com/mperrin/webbpsf/issue/90>`__; @kvangorkom, @josephoenix, @mperrin)
+ * Minor tweaks in default aperture names for compatibility with recent JWST science instrument aperture files.  (`#87 <https://github.com/mperrin/webbpsf/issue/87>`__; @mperrin)
+
+
+
 
 Version 0.4.0
 =============
@@ -48,20 +63,20 @@ Released 2015 November 20
 
 * **WFIRST WFI support added**:
 
-  * including all WFI filters and filter-dependent pupil masks. 
+  * including all WFI filters and filter-dependent pupil masks.
   * including field dependence based on GSFC Cycle 5 modeling (`#75 <https://github.com/mperrin/webbpsf/pull/75>`__, @josephoenix)
   * including initial/prototype GUI interface based on Jupyter/IPython notebook widgets (`#79 <https://github.com/mperrin/webbpsf/pull/79>`__, @josephoenix)
 
-* Updated filter transmission files for MIRI (based on Glasse et al. 2015 PASP) and NIRISS (based on flight filter measurement data provided by Loic Albert). 
+* Updated filter transmission files for MIRI (based on Glasse et al. 2015 PASP) and NIRISS (based on flight filter measurement data provided by Loic Albert).
   (`#66 <https://github.com/mperrin/webbpsf/issues/66>`_, `#78 <https://github.com/mperrin/webbpsf/issues/78>`_; @mperrin)
 * Added utility to check for appropriate version of the data files and request an update if necessary  (`#76 <https://github.com/mperrin/webbpsf/pull/76>`__, @josephoenix)
 * Some documentation updates, including new documentation for the WFIRST functionality (@josephoenix, @mperrin)
 * Bug fixes for minor issues involving OPD file units (`#74 <https://github.com/mperrin/webbpsf/pull/74>`__, @josephoenix), cleaner logging output, and some Python 3 compatibility issues.
 
-.. note:: 
+.. note::
 
-    When updating to version 0.4 you will need to also update your WebbPSF data files 
-    to the latest version as well. 
+    When updating to version 0.4 you will need to also update your WebbPSF data files
+    to the latest version as well.
 
 
 
@@ -99,9 +114,9 @@ Released 2015 February
 
 This is a major release of WebbPSF, with several additions to the optical
 models (particularly for slit and slitless spectroscopy), and extensive software
-improvements and under-the-hood infrastructure code updates. Many 
+improvements and under-the-hood infrastructure code updates. Many
 default settings can now be customized by a text configuration file in your home
-directory.  
+directory.
 
 
 **Updates to the optical models**:
@@ -133,41 +148,41 @@ directory.
    MIRI you must explicitly select the 'LRS grating' pupil mask, and may select
    the 'LRS slit' image stop.  For NIRISS you must select the 'GR700XD' grating
    as the pupil mask, though of course there is no slit for this one.
-   
+
    *Please note* This is new/experimental code and these models have not been validated
    in detail against instrument hardware performance yet. Use with appropriate caution, and
    we encourage users and members of the instrument teams to provide input on how this
-   functionality can be further improved. 
+   functionality can be further improved.
    Note also that MIRI MRS and NIRSpec IFU are still unsupported.
 
    Thanks to Loic Albert (U de Montreal) and Anand Sivaramakrishnan for data
-   and many useful discussions on NIRISS SOSS.  
+   and many useful discussions on NIRISS SOSS.
    Thanks to Klaus Pontoppidan for proposing the NIRSpec and MIRI support and
    useful discussions. Thanks to Erin Elliott for researching the NIRSpec
    grating wheel pupil stop geometry, and Charles Lajoie for information on the
-   MIRI LRS pupil stop. 
+   MIRI LRS pupil stop.
 
  * Added NIRISS CLEARP pupil mask; this includes the obscuration from the pupil alignment reference.
-   Given the pupil wheel layout, this unavoidably must be in the beam for any NIRISS 
+   Given the pupil wheel layout, this unavoidably must be in the beam for any NIRISS
    long-wave PSFs, and WebbPSF will automatically configure it in the necessary cases. Thanks to Anand Sivaramakrishnan.
 
- * Minor bug fix to weak lens code for NIRCam, which previously had an incorrect scaling factor.  
+ * Minor bug fix to weak lens code for NIRCam, which previously had an incorrect scaling factor.
    Weak lens defocus values updated to the as-built rather than ideal values (which differ by 3%, but the as built values are very well calibrated).
 
  * Added defocus option to all instruments, which can be used to simulate
    either internal focus mechanism moves or telescope defocus during MIMF. For
    example, set ::
- 
+
     >> nircam.options['defocus_waves']=3
     >> nircam.options['defocus_wavelength']=2.0e-6
-    
+
    to simulate 3 waves of defocus at 2 microns, equivalently 6 microns phase delay peak-to-valley in the wavefront.
 
  * Added new option to offset intermediate pupils (e.g. coronagraphic Lyot
    stops, spectrograph prisms/grisms, etc) in rotation as well as in
    centering::
 
-    >> niriss.options['pupil_rotation'] = 2  # degrees counterclockwise  
+    >> niriss.options['pupil_rotation'] = 2  # degrees counterclockwise
 
  * Added support for rectangular subarray calculations. You can invoke these by
    setting fov_pixels or fov_arcsec with a 2-element iterable::
@@ -177,17 +192,17 @@ directory.
     >> nc.calcPSF('F187N', fov_pixels=(300,100) )
 
    Those two elements give the desired field size as (Y,X) following the usual
-   Python axis order convention. This is motivated in particular by the rectangular 
+   Python axis order convention. This is motivated in particular by the rectangular
    subarrays used in some spectroscopic modes.
 
 
 
-**Other Software Updates & Enhancements**: 
+**Other Software Updates & Enhancements**:
 
 
 * Required Python modules updated, now with dependency on `astropy <http::/www.astropy.org>`_:
 
-    * ``astropy.io.fits`` replaces ``pyfits`` for FITS I/O. 
+    * ``astropy.io.fits`` replaces ``pyfits`` for FITS I/O.
     * ``astropy.io.ascii`` replaces ``asciitable`` for ASCII table I/O.
     * ``atpy`` is no longer required.
     * New ``astropy.config`` configuration system is used for persistent
@@ -197,24 +212,24 @@ directory.
     * ``psutil`` strongly recommended for cross-platform detection of
       available free RAM to enable better parallelization.
 
-* Improved packaging infrastructure. Thanks to Christine Slocum, Erik Bray, Mark Sienkiewicz, Michael Droetboom, 
-  and the developers of the `Astropy affiliated package template <https://github.com/astropy/package-template>`_. 
+* Improved packaging infrastructure. Thanks to Christine Slocum, Erik Bray, Mark Sienkiewicz, Michael Droetboom,
+  and the developers of the `Astropy affiliated package template <https://github.com/astropy/package-template>`_.
   Thanks in particular to Christine Slocum for integration into the STScI SSB software distribution.
 
-* Improvements to parallelization code. Better :ref:`documentation for parallelization <performance_and_parallelization>`.  PyFFTW3 replaced with pyFFTW for optimized 
-  FFTs (yes, those are two entirely different packages). 
+* Improvements to parallelization code. Better :ref:`documentation for parallelization <performance_and_parallelization>`.  PyFFTW3 replaced with pyFFTW for optimized
+  FFTs (yes, those are two entirely different packages).
 
 * Alternate GUI using the wxpython widget toolkit in place of the older/less
   functional Tkinter tool kit. Thanks to Klaus Pontoppidan for useful advice in
   wxpython. This should offer better cross-platform support and improved long
   term extensibility. The existing Tkinter GUI remains in place as well.
 
-    * The calculation options dialog box now has an option to toggle between monochromatic and broadband calculations. In monochromatic mode, the "# of wavelengths" field is 
-      replaced by a "wavelength in microns" field. 
-    * There is also an option to toggle the field of view size between units of arcseconds and pixels. 
-    * Log messages giving details of calculations are now displayed in a window as part of the GUI as well. 
-    * The wx gui supports rectangular fields of view. Simply enter 2 elements separated by a comma in the 'Field of view' text box. As a convenience, these 
-      are interpreted as (X,Y) sizes. (Note that this is opposite of the convention used in the programming interface noted above; this is potentially confusing but 
+    * The calculation options dialog box now has an option to toggle between monochromatic and broadband calculations. In monochromatic mode, the "# of wavelengths" field is
+      replaced by a "wavelength in microns" field.
+    * There is also an option to toggle the field of view size between units of arcseconds and pixels.
+    * Log messages giving details of calculations are now displayed in a window as part of the GUI as well.
+    * The wx gui supports rectangular fields of view. Simply enter 2 elements separated by a comma in the 'Field of view' text box. As a convenience, these
+      are interpreted as (X,Y) sizes. (Note that this is opposite of the convention used in the programming interface noted above; this is potentially confusing but
       seems a reasonable compromise for users of the webbpsf GUI who do not care to think about Python conventions in axis ordering. Comments on this topic are welcome.)
 
 * Improved configuration settings system. Many settings such as default
@@ -229,14 +244,14 @@ directory.
 
 * New function webbpsf.setup_logging() adds some more user-friendliness to the
   underlying python logging system. This includes persistent log settings
-  between sessions. See updated documentation in the :py:mod:`webbpsf` page. 
+  between sessions. See updated documentation in the :py:mod:`webbpsf` page.
 
 * The first time it is invoked on a computer, WebbPSF will display a welcome
   message providing some information of use to new users. This includes checking
   whether the requisite data files have been installed properly, and alerting users
   to the location of the configuration file, among other things.
- 
-* Refactoring of instrument class and rebalancing where the lines between WebbPSF and POPPY had been blurry. 
+
+* Refactoring of instrument class and rebalancing where the lines between WebbPSF and POPPY had been blurry.
 
 * Some bugfixes in the example code. Thanks to Diane Karakla, Anand Sivaramakrishnan, Schuyler Wolff.
 
@@ -244,7 +259,7 @@ directory.
 
 * Improved unit test suite and test coverage. Integration with Travis CI for continuous testing: https://travis-ci.org/mperrin/webbpsf
 
-* Updated to astropy package helpers framework 0.4.4 
+* Updated to astropy package helpers framework 0.4.4
 
 
 Version 0.2.8
@@ -259,7 +274,7 @@ Released May 18, 2012
         * switched package building to use `setuptools` instead of `distutils`/`stsci_distutils_hack`
         * `poppy` now installed as a separate package to more easily allow direct use.
         * new `Instrument` class in poppy provides much of the functionality previously in JWInstrument, to make it
-          easier to model generic non-JWST instruments using this code. 
+          easier to model generic non-JWST instruments using this code.
         * Better packaging in general, with more attention to public/private API consistency
         * Built-in test suite available via `python setup.py test`
 
@@ -274,16 +289,16 @@ Version 0.2.7
 
 Released December 6, 2011
 
-* Bug fix for installation problems in previous release 0.2.6 (thanks to Anand Sivaramakrishnan and Kevin Flaherty for bringing the problem to my attention). 
+* Bug fix for installation problems in previous release 0.2.6 (thanks to Anand Sivaramakrishnan and Kevin Flaherty for bringing the problem to my attention).
 
 * Updated FITS keywords for consistency with JWST Data Management System (DMS) based on DMS Software Design Review 1.
 
-  * "PUPIL" keyword now is used for pupil mechanisms instead of OTE pupil intensity filename; the filename is available in "PUPILINT" now, for consistency with the OPD filename in "PUPILOPD" now. 
+  * "PUPIL" keyword now is used for pupil mechanisms instead of OTE pupil intensity filename; the filename is available in "PUPILINT" now, for consistency with the OPD filename in "PUPILOPD" now.
   * "CORONMSK" instead of CORON
   * Some minor instrument-specific FITS keywords added via new _instrument_fits_header() functions for each instrument object.
-  * For instance, NIRCam PSFs now have "MODULE" and "CHANNEL" keywords (eg. "MODULE = A", "CHANNEL = Short"). Note that there is no optical difference between modules A and B in this version of webbpsf. 
+  * For instance, NIRCam PSFs now have "MODULE" and "CHANNEL" keywords (eg. "MODULE = A", "CHANNEL = Short"). Note that there is no optical difference between modules A and B in this version of webbpsf.
 
-* Added support for weak lenses in NIRCam. Note that the +4 lens is in the filter wheel and is coated with a narrowband interference filter similar to but wider than F212N. 
+* Added support for weak lenses in NIRCam. Note that the +4 lens is in the filter wheel and is coated with a narrowband interference filter similar to but wider than F212N.
   WebbPSF currently does not model this, and will let you simulate weak lens observations with any filter you want. As always, it's up to the user to determine whether
   a given webbpsf configuration corresponds to an actual physically realizable instrument mode.
 
@@ -294,11 +309,11 @@ Version 0.2.6
 
 Released November 7, 2011
 
-* Updated & renamed TFI -> NIRISS. 
+* Updated & renamed TFI -> NIRISS.
 
   * Removed etalon code.
   * Added in filters transmissions copied from NIRCam
-  * Removed coronagraphic Lyot pupils. Note: the coronagraphic occulting spots are machined into the pickoff mirror so will still fly, and thus are retained in the NIRISS model. 
+  * Removed coronagraphic Lyot pupils. Note: the coronagraphic occulting spots are machined into the pickoff mirror so will still fly, and thus are retained in the NIRISS model.
   * Slitless spectroscopy not yet supported; check back in a future version.
   * Fix to FITS header comments for NIRISS NRM mask file for correct provenance information.
 
@@ -308,13 +323,13 @@ Released November 7, 2011
 * Added GUI options for flat spectra in F_nu and F_lambda. (Thanks to Christopher Willmer at Steward Observatory for this suggestion)
 * "display_psf" function renamed to "display_PSF" for consistency with all-uppercase use of PSF in all function names.
 * numpy and pylab imports changed to 'np' and 'plt' for consistency with astropy guidelines (http://astropy.wikispaces.com/Astropy+Coding+Guidelines)
-* poppy.py library updates (thanks to Anand Sivaramakrishnan for useful discussions leading to several of these improvements): 
+* poppy.py library updates (thanks to Anand Sivaramakrishnan for useful discussions leading to several of these improvements):
 
   * :py:class:`Rotation` angles can be specified in either degrees or radians. Added units parameters to Rotations.__init__
   * :py:class:`OpticalElement` objects created from FITS files use the filename as a default optic name instead of "unnamed optic".
   * :py:class:`FITSOpticalElement` class created, to separate FITS file reading functionality from the base OpticalElement class.
     This class also adds a 'pixelscale' keyword to directly specify the pixel scale for such a file, if not present in the FITS header.
-  * Removed redundant 'pupil_scale' attribute: 'pixelscale' is now used for both image and pupil plane pixel scales. 
+  * Removed redundant 'pupil_scale' attribute: 'pixelscale' is now used for both image and pupil plane pixel scales.
   * unit test code updates & improvements.
 
 * Miscellaneous minor documentation improvements.
@@ -338,7 +353,7 @@ Versions 0.2.1 - 0.2.3
 * Advanced settings dialog box added to GUI
 * NIRCam pixel scale auto-switching will no longer override custom user pixelscales.
 * slight fix to pupil file pixel scales to reflect JWST flat-to-flat diameter=6.559 m rather than just "6.5 m"
-* Corrected NIRCam 430R occulter profile to exactly match flight design; other occulters still need to be tuned. Corrected all for use of amplitude rather than intensity profiles (thanks to John Krist for comparison models). 
+* Corrected NIRCam 430R occulter profile to exactly match flight design; other occulters still need to be tuned. Corrected all for use of amplitude rather than intensity profiles (thanks to John Krist for comparison models).
 * added TFI NRM mode (thanks to Anand Sivaramakrishnan)
 
 
