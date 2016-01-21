@@ -804,7 +804,7 @@ class MIRI(JWInstrument):
             container = poppy.CompoundAnalyticOptic(name = "MIRI Lyot Occulter",
                 opticslist = [poppy.CircularOcculter(radius =4.25/2, name=self.image_mask),
                               poppy.BarOcculter(width=0.722),
-                              poppy.SquareFieldStop(size=30, angle=-self._rotation)] )
+                              poppy.SquareFieldStop(size=30, rotation=-self._rotation)] )
             optsys.addImage(container)
             trySAM = True
             SAM_box_size = [5,20]
