@@ -893,7 +893,7 @@ class NIRCam(JWInstrument):
 
         self.detector_list = ['A1','A2','A3','A4','A5', 'B1','B2','B3','B4','B5']
         self._detector2siaf = dict()
-        for name in self.detector_list: self._detector2siaf[name] = 'NRC{0}_FULL_CNTR'.format(name)
+        for name in self.detector_list: self._detector2siaf[name] = 'NRC{0}_FULL'.format(name)
         self.detector=self.detector_list[0]
 
     def _validateConfig(self, **kwargs):
@@ -1111,7 +1111,7 @@ class NIRSpec(JWInstrument):
         #self._default_aperture='NIRSpec A center' # reference into SIAF for ITM simulation V/O coords
         self.detector_list = ['1','2']
         self._detector2siaf = dict()
-        for name in self.detector_list: self._detector2siaf[name] = 'NRS{0}_FULL_CNTR'.format(name)
+        for name in self.detector_list: self._detector2siaf[name] = 'NRS{0}_FULL'.format(name)
         self.detector=self.detector_list[0]
 
 
@@ -1221,7 +1221,7 @@ class NIRISS(JWInstrument):
         self.image_mask_list = ['CORON058', 'CORON075','CORON150','CORON200'] # available but unlikely to be used...
         self.pupil_mask_list = ['CLEARP', 'MASK_NRM','GR700XD']
 
-        self._detector2siaf = {'NIRISS':'NIS_FULL_CNTR'}
+        self._detector2siaf = {'NIRISS':'NIS-CEN'}
         self.detector_list = ['NIRISS']
         self.detector=self.detector_list[0]
 
@@ -1334,7 +1334,7 @@ class FGS(JWInstrument):
 
         self.detector_list = ['1','2']
         self._detector2siaf = dict()
-        for name in self.detector_list: self._detector2siaf[name] = 'FGS{0}_FULL_CNTR'.format(name)
+        for name in self.detector_list: self._detector2siaf[name] = 'FGS{0}_FULL'.format(name)
         self.detector=self.detector_list[0]
 
     def _addAdditionalOptics(self,optsys):
