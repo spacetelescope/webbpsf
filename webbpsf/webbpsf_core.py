@@ -813,7 +813,7 @@ class MIRI(JWInstrument):
             #           4.7 x 0.51 arcsec (measured for flight model. See MIRI-TR-00001-CEA)
             #
             # Per Klaus Pontoppidan: The LRS slit is aligned with the detector x-axis, so that the dispersion direction is along the y-axis.
-            optsys.addImage(optic=poppy.RectangularFieldStop(width=5.5, height=0.6, angle=self._rotation, name= self.image_mask))
+            optsys.addImage(optic=poppy.RectangularFieldStop(width=4.7, height=0.51, angle=self._rotation, name= self.image_mask))
             trySAM = False
         else:
             optsys.addImage()
