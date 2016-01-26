@@ -964,23 +964,23 @@ class NIRCam(JWInstrument):
         from .optics import NIRCam_BandLimitedCoron
 
         if self.image_mask == 'MASK210R':
-            optsys.addImage( NIRCam_BandLimitedCoron( kind='nircamcircular', sigma=5.253 , name=self.image_mask))
+            optsys.addImage( NIRCam_BandLimitedCoron( kind='nircamcircular', sigma=5.253 , name=self.image_mask, module=self.module))
             trySAM = True
             SAM_box_size = 5.0
         elif self.image_mask == 'MASK335R':
-            optsys.addImage( NIRCam_BandLimitedCoron(kind='nircamcircular', sigma=3.2927866 , name=self.image_mask))
+            optsys.addImage( NIRCam_BandLimitedCoron(kind='nircamcircular', sigma=3.2927866 , name=self.image_mask, module=self.module))
             trySAM = True
             SAM_box_size = 5.0
         elif self.image_mask == 'MASK430R':
-            optsys.addImage( NIRCam_BandLimitedCoron(kind='nircamcircular', sigma=2.588496*0.99993495 , name=self.image_mask))
+            optsys.addImage( NIRCam_BandLimitedCoron(kind='nircamcircular', sigma=2.588496*0.99993495 , name=self.image_mask, module=self.module))
             trySAM = True
             SAM_box_size = 5.0
         elif self.image_mask == 'MASKSWB':
-            optsys.addImage( NIRCam_BandLimitedCoron(kind='nircamwedge', wavelength=2.1e-6, name=self.image_mask))
+            optsys.addImage( NIRCam_BandLimitedCoron(kind='nircamwedge', wavelength=2.1e-6, name=self.image_mask, module=self.module))
             trySAM = False #True FIXME
             SAM_box_size = [5,20]
         elif self.image_mask == 'MASKLWB':
-            optsys.addImage( NIRCam_BandLimitedCoron(kind='nircamwedge', wavelength=4.6e-6, name=self.image_mask))
+            optsys.addImage( NIRCam_BandLimitedCoron(kind='nircamwedge', wavelength=4.6e-6, name=self.image_mask, module=self.module))
             trySAM = False #True FIXME
             SAM_box_size = [5,20]
         else:
