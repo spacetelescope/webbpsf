@@ -487,13 +487,32 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
     allowable_kinds = ['nircamcircular', 'nircamwedge']
     """ Allowable types of BLC supported by this class"""
 
-    def __init__(self, name="unnamed BLC", kind='nircamcircular', sigma=1, module='A',
-            wavelength=None, **kwargs):
-        super(NIRCam_BandLimitedCoron, self).__init__(name=name, kind=kind, sigma=sigma,
-                wavelength=wavelength, **kwargs)
+    def __init__(self, name="unnamed BLC", kind='nircamcircular',  module='A',
+            **kwargs):
+        super(NIRCam_BandLimitedCoron, self).__init__(name=name, kind=kind, **kwargs)
         if module not in ['A','B']:
             raise ValueError("module parameter must be 'A' or 'B'.")
         self.module=module
+
+        if self.name=='MASK210R':
+            self.sigma = 5.253
+            self.kind = 'nircamcircular'
+        elif self.name=='MASK335R':
+            self.sigma=3.2927866
+            self.kind = 'nircamcircular'
+        elif self.name=='MASK430R':
+            self.sigma=2.58832
+            self.kind = 'nircamcircular'
+        elif self.name == 'MASKSWB':
+            self.kind = 'nircamwedge'
+            # coeffs set in lookup table inside getPhasor
+        elif self.name == 'MASKLWB':
+            self.kind = 'nircamwedge'
+            # coeffs set in lookup table inside getPhasor
+        else:
+            raise NotImplementedError("invalid name for NIRCam occulter: "+self.name)
+
+
 
     def getPhasor(self, wave):
         """ Compute the amplitude transmission appropriate for a BLC for some given pixel spacing
@@ -515,6 +534,7 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
 
         y, x = self.get_coordinates(wave)
         if self.kind == 'nircamcircular':
+
             r = np.sqrt(x ** 2 + y ** 2)
             sigmar = self.sigma * r
             # clip sigma: The minimum is to avoid divide by zero
@@ -538,13 +558,13 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
                 polyfitcoeffs = np.array([2.01210737e-04, -7.18758337e-03, 1.12381516e-01,
                                           -1.00877701e+00, 5.72538509e+00, -2.12943497e+01,
                                           5.18745152e+01, -7.97815606e+01, 7.02728734e+01])
+                scalefact = scalefact[:, ::-1] # flip orientation left/right for SWB mask
             elif self.name == 'MASKLWB': #elif np.abs(self.wavelength - 4.6e-6) < 0.1e-6:
                 polyfitcoeffs = np.array([9.16195583e-05, -3.27354831e-03, 5.11960734e-02,
                                           -4.59674047e-01, 2.60963397e+00, -9.70881273e+00,
                                           2.36585911e+01, -3.63978587e+01, 3.20703511e+01])
-                scalefact = scalefact[:, ::-1] # flip orientation left/right for LWB mask
             else:
-                raise NotImplemented("invalid name for NIRCam wedge occulter")
+                raise NotImplementedError("invalid name for NIRCam wedge occulter")
 
             sigmas = scipy.poly1d(polyfitcoeffs)(scalefact)
 
@@ -563,6 +583,9 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
         # add in the ND squares. Note the positions are not exactly the same in the two wedges.
         # See the figures  in Krist et al. of how the 6 ND squares are spaced among the 5
         # corongraph regions
+        # Note: 180 deg rotation needed relative to Krist's figures for the flight SCI orientation:
+        x = x[::-1, ::-1]
+        y = y[::-1, ::-1]
         if ((self.module=='A' and self.name=='MASKLWB') or
             (self.module=='B' and self.name=='MASK210R')):
             # left edge:
@@ -620,18 +643,28 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
         if ((self.module=='A' and self.name=='MASKLWB') or
             (self.module=='B' and self.name=='MASK210R')):
             # left edge
-            woutside = np.where(x < -10)
+            woutside = np.where((x < -10) & (y < 11.5 ))
             self.transmission[woutside] = 0.0
         elif ((self.module=='A' and self.name=='MASK210R') or
               (self.module=='B' and self.name=='MASKSWB')):
             # right edge
-            woutside = np.where(x > 10)
+            woutside = np.where((x > 10) & (y < 11.5))
             self.transmission[woutside] = 0.0
-        # bottom edge
+        # mask holder edge
         woutside = np.where(y < -10)
         self.transmission[woutside] = 0.0
-        # TODO the top edge is complex and partially opaque based on CV3 images?
+
+        # edge of mask itself
+        # TODO the mask edge is complex and partially opaque based on CV3 images?
         # edge of glass plate rather than opaque mask I believe. To do later. 
+        # The following is just a temporary placeholder with no quantitative accuracy.
+        # but this is outside the coronagraph FOV so that's fine - this only would matter in 
+        # modeling atypical/nonstandard calibration exposures.
+
+        wedge = np.where(( y > 11.5) & (y < 13))
+        self.transmission[wedge] = 0.7
+
+
 
 
 
