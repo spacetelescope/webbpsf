@@ -693,6 +693,7 @@ class JWInstrument(SpaceTelescopeInstrument):
     def detector(self, detname):
         if detname is not None:
             detname = detname.upper()  # force to uppercase
+            return # TEMPORARY - ignore SIAF detector stuff while it's not actually used, and SIAF entries are in flux.
             try:
                 siaf_aperture_name = self._detector2siaf[detname]
             except KeyError:
