@@ -693,6 +693,7 @@ class JWInstrument(SpaceTelescopeInstrument):
     def detector(self, detname):
         if detname is not None:
             detname = detname.upper()  # force to uppercase
+            return # TEMPORARY - ignore SIAF detector stuff while it's not actually used, and SIAF entries are in flux.
             try:
                 siaf_aperture_name = self._detector2siaf[detname]
             except KeyError:
@@ -804,7 +805,7 @@ class MIRI(JWInstrument):
             container = poppy.CompoundAnalyticOptic(name = "MIRI Lyot Occulter",
                 opticslist = [poppy.CircularOcculter(radius =4.25/2, name=self.image_mask),
                               poppy.BarOcculter(width=0.722),
-                              poppy.SquareFieldStop(size=30, angle=-self._rotation)] )
+                              poppy.SquareFieldStop(size=30, rotation=-self._rotation)] )
             optsys.addImage(container)
             trySAM = True
             SAM_box_size = [5,20]
@@ -813,7 +814,7 @@ class MIRI(JWInstrument):
             #           4.7 x 0.51 arcsec (measured for flight model. See MIRI-TR-00001-CEA)
             #
             # Per Klaus Pontoppidan: The LRS slit is aligned with the detector x-axis, so that the dispersion direction is along the y-axis.
-            optsys.addImage(optic=poppy.RectangularFieldStop(width=5.5, height=0.6, angle=self._rotation, name= self.image_mask))
+            optsys.addImage(optic=poppy.RectangularFieldStop(width=4.7, height=0.51, angle=self._rotation, name= self.image_mask))
             trySAM = False
         else:
             optsys.addImage()
@@ -893,7 +894,7 @@ class NIRCam(JWInstrument):
 
         self.detector_list = ['A1','A2','A3','A4','A5', 'B1','B2','B3','B4','B5']
         self._detector2siaf = dict()
-        for name in self.detector_list: self._detector2siaf[name] = 'NRC{0}_FULL_CNTR'.format(name)
+        for name in self.detector_list: self._detector2siaf[name] = 'NRC{0}_FULL'.format(name)
         self.detector=self.detector_list[0]
 
     def _validateConfig(self, **kwargs):
@@ -963,24 +964,13 @@ class NIRCam(JWInstrument):
         #optsys.addImage(name='null for debugging NIRcam _addCoron') # for debugging
         from .optics import NIRCam_BandLimitedCoron
 
-        if self.image_mask == 'MASK210R':
-            optsys.addImage( NIRCam_BandLimitedCoron( kind='nircamcircular', sigma=5.253 , name=self.image_mask))
+        if ((self.image_mask == 'MASK210R') or (self.image_mask == 'MASK335R') or
+                (self.image_mask == 'MASK430R')):
+            optsys.addImage( NIRCam_BandLimitedCoron( name=self.image_mask, module=self.module))
             trySAM = True
             SAM_box_size = 5.0
-        elif self.image_mask == 'MASK335R':
-            optsys.addImage( NIRCam_BandLimitedCoron(kind='nircamcircular', sigma=3.2927866 , name=self.image_mask))
-            trySAM = True
-            SAM_box_size = 5.0
-        elif self.image_mask == 'MASK430R':
-            optsys.addImage( NIRCam_BandLimitedCoron(kind='nircamcircular', sigma=2.588496*0.99993495 , name=self.image_mask))
-            trySAM = True
-            SAM_box_size = 5.0
-        elif self.image_mask == 'MASKSWB':
-            optsys.addImage( NIRCam_BandLimitedCoron(kind='nircamwedge', wavelength=2.1e-6, name=self.image_mask))
-            trySAM = False #True FIXME
-            SAM_box_size = [5,20]
-        elif self.image_mask == 'MASKLWB':
-            optsys.addImage( NIRCam_BandLimitedCoron(kind='nircamwedge', wavelength=4.6e-6, name=self.image_mask))
+        elif ((self.image_mask == 'MASKSWB') or (self.image_mask == 'MASKLWB')):
+            optsys.addImage( NIRCam_BandLimitedCoron(name=self.image_mask, module=self.module))
             trySAM = False #True FIXME
             SAM_box_size = [5,20]
         else:
@@ -1111,7 +1101,7 @@ class NIRSpec(JWInstrument):
         #self._default_aperture='NIRSpec A center' # reference into SIAF for ITM simulation V/O coords
         self.detector_list = ['1','2']
         self._detector2siaf = dict()
-        for name in self.detector_list: self._detector2siaf[name] = 'NRS{0}_FULL_CNTR'.format(name)
+        for name in self.detector_list: self._detector2siaf[name] = 'NRS{0}_FULL'.format(name)
         self.detector=self.detector_list[0]
 
 
@@ -1221,7 +1211,7 @@ class NIRISS(JWInstrument):
         self.image_mask_list = ['CORON058', 'CORON075','CORON150','CORON200'] # available but unlikely to be used...
         self.pupil_mask_list = ['CLEARP', 'MASK_NRM','GR700XD']
 
-        self._detector2siaf = {'NIRISS':'NIS_FULL_CNTR'}
+        self._detector2siaf = {'NIRISS':'NIS-CEN'}
         self.detector_list = ['NIRISS']
         self.detector=self.detector_list[0]
 
@@ -1334,7 +1324,7 @@ class FGS(JWInstrument):
 
         self.detector_list = ['1','2']
         self._detector2siaf = dict()
-        for name in self.detector_list: self._detector2siaf[name] = 'FGS{0}_FULL_CNTR'.format(name)
+        for name in self.detector_list: self._detector2siaf[name] = 'FGS{0}_FULL'.format(name)
         self.detector=self.detector_list[0]
 
     def _addAdditionalOptics(self,optsys):

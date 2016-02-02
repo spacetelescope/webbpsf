@@ -5,7 +5,7 @@ Requirements & Installation
 
 WebbPSF uses the `Python Package Index <https://pypi.python.org>`_ (PyPI) to distribute new versions. For ease of installation, we recommend a scientific Python distribution like `Ureka <http://ssb.stsci.edu/ureka/>`_ that includes NumPy, SciPy, and other packages that can be tricky to compile on your own.
 
-If you have Python 2.7, pip, and NumPy already installed, you can easily install or upgrade WebbPSF with::
+If you have Python 2.7 or 3.4, pip, and NumPy already installed, you can easily install or upgrade WebbPSF with::
 
     $ pip install -U webbpsf
 
@@ -27,8 +27,8 @@ Software Requirements
 **Required Python packages**:
 
 * Recent versions of `NumPy, SciPy <http://www.scipy.org/scipylib/download.html>`_ and `matplotlib <http://matplotlib.org>`_, if not installed already.
-* `Astropy <http://astropy.org>`_, 0.4 or more recent.
-* `POPPY <https://pypi.python.org/pypi/poppy>`_, 0.3.4 or more recent.
+* `Astropy <http://astropy.org>`_, 1.0 or more recent.
+* `POPPY <https://pypi.python.org/pypi/poppy>`_, 0.4.1 or more recent.
 
 **Recommended Python packages**:
 
