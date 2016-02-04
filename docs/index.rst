@@ -69,7 +69,9 @@ The WebbPSF software system is composed of two Python packages: a lower-level op
 
     In particular, the 2012 SPIE paper gives a broad overview, the 2014 SPIE paper presents comparisons to instrument cryotest data, and the Technical Report document describes in more detail the relevant optical physics, explains design decisions and motivation for WebbPSF's architecture, and presents extensive validation tests demonstrating consistency between WebbPSF and other PSF simulation packages used throughout the JWST project.
 
+.. admonition:: Getting Help
 
+   For help using or installing webbpsf, you can contact the STScI Help Desk, help@stsci.edu. Note that WebbPSF is included in the `Ureka <http://ssb.stsci.edu/ureka>`_ python distribution, as well as being installable via :ref:`standard Python packaging tools <installation>`. For detailed aspects of the JWST models, contact Marshall Perrin at STScI; for WFIRST, contact Joseph Long at STScI. 
 
 Advanced Usage
 --------------
