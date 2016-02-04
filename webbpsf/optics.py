@@ -534,7 +534,6 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
 
         y, x = self.get_coordinates(wave)
         if self.kind == 'nircamcircular':
-
             r = np.sqrt(x ** 2 + y ** 2)
             sigmar = self.sigma * r
             # clip sigma: The minimum is to avoid divide by zero
@@ -718,8 +717,8 @@ def _width_blc(desired_width, approx=None, plot=False):
         plt.plot(sigma, rhs)
         plt.axhline(lhs)
 
-        print "sigma = %f implies HWHM = %f" % (sig_ans, loc)
-        print " check: 0.5 == %f" % (check)
+        print("sigma = %f implies HWHM = %f" % (sig_ans, loc))
+        print(" check: 0.5 == %f" % (check))
     return sig_ans
 
 
@@ -742,8 +741,8 @@ def _calc_blc_wedge(deg=4, wavelength=2.1e-6):
     plt.plot(r, sigs, 'b')
     plt.plot(r, p(r), "r--")
     diffs = (sigs - p(r))
-    print "Poly fit:" +repr(pcs)
-    print "  fit rms: "+str(diffs.std())
+    print("Poly fit:" +repr(pcs))
+    print("  fit rms: "+str(diffs.std()))
 
 
 
