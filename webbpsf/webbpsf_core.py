@@ -1408,7 +1408,7 @@ class DetectorGeometry(object):
         self.instrname = instrname
         self.name = aperturename
         if shortname is not None: self.name=shortname
-        from .jwxml import SIAF
+        from .jwxml.jwxml import SIAF
 
         self.mysiaf = SIAF(instr=self.instrname, basepath=os.path.join( utils.get_webbpsf_data_path(), self.instrname) )
         self.aperture = self.mysiaf[aperturename]
