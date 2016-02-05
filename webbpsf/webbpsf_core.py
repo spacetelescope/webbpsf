@@ -33,12 +33,12 @@ import matplotlib
 import astropy.io.fits as fits
 import astropy.io.ascii as ioascii
 
-
 import poppy
 
-#from . import config
 from . import conf
 from . import utils
+from . import version
+from . import data_files_version
 
 
 try:
@@ -428,6 +428,9 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
             result[0].header['CORONMSK'] = ( self.image_mask, "Image plane mask")
         if self.pupil_mask is not None:
             result[0].header['PUPIL'] = ( self.pupil_mask, "Pupil plane mask")
+
+        result[0].header['VERSION'] =(version.version, "WebbPSF software version")
+        result[0].header['DATAVERS'] =(data_files_version, "WebbPSF reference data files version")
 
 
     def _calcPSF_format_output(self, result, options):

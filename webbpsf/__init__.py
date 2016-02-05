@@ -60,7 +60,6 @@ class Conf(_config.ConfigNamespace):
         '%(asctime)s [%(name)s:%(levelname)s] %(filename)s:%(lineno)d: %(message)s',
         'Format for lines logged to a file.'
     )
-    last_version_ran =  _config.ConfigItem('0.0', 'Most recently used version of WebbPSF on this computer. This is used for detecting new or upgraded installations and providing some additional information to users.')
 
 conf = Conf()
 
@@ -78,13 +77,6 @@ def _save_config():
     configuration._save_config("webbpsf")
 
 
-from poppy import (display_PSF, display_PSF_difference, display_EE, display_profiles, radial_profile,
-        measure_EE, measure_radial, measure_fwhm, measure_sharpness, measure_centroid,
-        specFromSpectralType, fwcentroid)
-
-from .webbpsf_core import (Instrument, JWInstrument, NIRCam, NIRISS, NIRSpec,
-    MIRI, FGS)
-
 from . import utils
 from .utils import setup_logging, restart_logging, system_diagnostic, measure_strehl
 
@@ -95,11 +87,20 @@ if not _ASTROPY_SETUP_:
     # this should display a warning to the user if they don't have WEBBPSF_PATH
     # defined in either the environment or in webbpsf.cfg
     try:
-        utils.get_webbpsf_data_path(data_version_min=DATA_VERSION_MIN)
+        tmp, data_files_version = utils.get_webbpsf_data_path(data_version_min=DATA_VERSION_MIN, return_version=True)
+        del tmp
     except (EnvironmentError, IOError):
         import sys
         sys.stderr.write(utils.MISSING_WEBBPSF_DATA_MESSAGE)
         raise
+
+from poppy import (display_PSF, display_PSF_difference, display_EE, display_profiles, radial_profile,
+        measure_EE, measure_radial, measure_fwhm, measure_sharpness, measure_centroid,
+        specFromSpectralType, fwcentroid)
+
+from .webbpsf_core import (Instrument, JWInstrument, NIRCam, NIRISS, NIRSpec,
+    MIRI, FGS)
+
 
 try:
     from .wxgui import wxgui

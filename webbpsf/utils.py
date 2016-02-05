@@ -172,7 +172,7 @@ MISSING_WEBBPSF_DATA_MESSAGE = """
 """
 
 
-def get_webbpsf_data_path(data_version_min=None):
+def get_webbpsf_data_path(data_version_min=None, return_version=False):
     """Get the WebbPSF data path
 
     Simply checking an environment variable is not always enough, since
@@ -204,9 +204,9 @@ def get_webbpsf_data_path(data_version_min=None):
         version_file_path = os.path.join(path, 'version.txt')
         try:
             with open(version_file_path) as f:
-                contents = f.read().strip()
+                version_contents = f.read().strip()
                 # keep only first 3 elements for comparison (allows "0.3.4.dev" or similar)
-                parts = contents.split('.')[:3]
+                parts = version_contents.split('.')[:3]
             version_tuple = tuple(map(int, parts))
         except (IOError, ValueError):
             raise EnvironmentError(
@@ -220,10 +220,13 @@ def get_webbpsf_data_path(data_version_min=None):
                 "WebbPSF data package has version {cur}, but {min} is needed. "
                 "See http://pythonhosted.org/webbpsf/installation.html#data-install "
                 "for a link to the latest version.".format(
-                    cur=contents,
+                    cur=version_contents,
                     min='{}.{}.{}'.format(*data_version_min)
                 )
             )
+
+        if return_version:
+            return (path, version_contents)
 
     return path
 
