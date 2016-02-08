@@ -1058,7 +1058,7 @@ class NIRCam(JWInstrument):
 
 
         elif (self.pupil_mask is None and self.image_mask is not None):
-            optsys.addPupil(name='No Lyot Mask Selected!')
+            optsys.addPupil(poppy.ScalarTransmission(name='No Lyot Mask Selected!'))
 
         return (optsys, trySAM, SAM_box_size)
 
