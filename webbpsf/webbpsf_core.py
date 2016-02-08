@@ -761,6 +761,8 @@ class MIRI(JWInstrument):
         #
         # We model this by just not rotating till after the coronagraph. Thus we need to
         # un-rotate the primary that was already created in _getOpticalSystem.
+        # This approach is required computationally so we can work in an unrotated frame
+        # aligned with the FQPM axes.
 
 
         defaultpupil = optsys.planes.pop() # throw away the rotated pupil we just previously added
@@ -784,19 +786,19 @@ class MIRI(JWInstrument):
         if self.image_mask == 'FQPM1065':
             container = poppy.CompoundAnalyticOptic(name = "MIRI FQPM 1065",
                 opticslist = [  poppy.IdealFQPM(wavelength=10.65e-6, name=self.image_mask),
-                                poppy.SquareFieldStop(size=24, angle=-self._rotation)])
+                                poppy.SquareFieldStop(size=24, angle=self._rotation)])
             optsys.addImage(container)
             trySAM = False
         elif self.image_mask == 'FQPM1140':
             container = poppy.CompoundAnalyticOptic(name = "MIRI FQPM 1140",
                 opticslist = [  poppy.IdealFQPM(wavelength=11.40e-6, name=self.image_mask),
-                                poppy.SquareFieldStop(size=24, angle=-self._rotation)])
+                                poppy.SquareFieldStop(size=24, angle=self._rotation)])
             optsys.addImage(container)
             trySAM = False
         elif self.image_mask == 'FQPM1550':
             container = poppy.CompoundAnalyticOptic(name = "MIRI FQPM 1550",
                 opticslist = [  poppy.IdealFQPM(wavelength=15.50e-6, name=self.image_mask),
-                                poppy.SquareFieldStop(size=24, angle=-self._rotation)])
+                                poppy.SquareFieldStop(size=24, angle=self._rotation)])
             optsys.addImage(container)
             trySAM = False
         elif self.image_mask =='LYOT2300':
@@ -809,7 +811,7 @@ class MIRI(JWInstrument):
             container = poppy.CompoundAnalyticOptic(name = "MIRI Lyot Occulter",
                 opticslist = [poppy.CircularOcculter(radius =4.25/2, name=self.image_mask),
                               poppy.BarOcculter(width=0.722),
-                              poppy.SquareFieldStop(size=30, rotation=-self._rotation)] )
+                              poppy.SquareFieldStop(size=30, rotation=self._rotation)] )
             optsys.addImage(container)
             trySAM = True
             SAM_box_size = [5,20]
