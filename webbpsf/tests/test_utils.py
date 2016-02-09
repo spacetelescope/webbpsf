@@ -64,7 +64,33 @@ def test_diagnostic():
     assert("poppy version" in res)
 
 
-# The following would need raw_input to be mocked in order
-# to run successfully as a unit test. Not a priority for right now...
-#def test_check_new_install():
-#    utils.check_for_new_install(force=True)
+def test_measure_strehl():
+    # default NIRCam 2 micron PSF
+    wave=2.12e-6
+
+    nc = webbpsf_core.NIRCam()
+    nc.filter='F212N'
+    defpsf = nc.calcPSF(nlambda=1)
+    meas_strehl = utils.measure_strehl(defpsf, display=False, verbose=False)
+    assert meas_strehl <= 1.0, 'measured Strehl cannot be > 1'
+    assert meas_strehl >  0.7, 'measured Strehl is implausibly low for NIRCam'
+
+
+    #compare to answer from Marechal approx on OPD rms WFE
+    opdfile = fits.open(os.path.join(utils.get_webbpsf_data_path(),'NIRCam','OPD', nc.pupilopd))
+    wfe_rms = opdfile[0].header['WFE_RMS']  # nm
+
+    marechal_strehl = np.exp( -((wfe_rms *1e-9)/wave*(2*np.pi))**2)
+    assert np.abs(meas_strehl-marechal_strehl) < 0.03, 'measured Strehl for that OPD file is too discrepant from the expected value from Marechal appoximation.'
+
+
+    # and test a perfect PSF too
+    perfnc = webbpsf_core.NIRCam()
+    perfnc.filter='F212N'
+    perfnc.pupilopd = None
+    perfpsf = perfnc.calcPSF(nlambda=1)
+    meas_perf_strehl = utils.measure_strehl(perfpsf, display=False, verbose=False)
+    assert np.abs(meas_perf_strehl-1.0) < 0.01, 'measured Strehl for perfect PSF is insufficiently close to 1.0: {}'.format(meas_perf_strehl)
+    assert meas_perf_strehl <= 1.0, 'measured Strehl cannot be > 1, even for a perfect PSF'
+
+

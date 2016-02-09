@@ -1,5 +1,9 @@
 from __future__ import print_function
 import os, sys
+import six
+import astropy.io.fits as fits
+import numpy as np
+import matplotlib.pyplot as plt
 
 import logging
 _log = logging.getLogger('webbpsf')
@@ -7,6 +11,8 @@ _log = logging.getLogger('webbpsf')
 from . import conf
 
 _DISABLE_FILE_LOGGING_VALUE = 'none'
+
+_Strehl_perfect_cache = {} # dict for caching perfect images used in Strehl calcs.
 
 
 ### Helper routines for logging: ###
@@ -345,7 +351,7 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, displa
         center to compute around.  Default is image center. If the center is on the
         crosshairs between four pixels, then the mean of those four pixels is used.
         Otherwise, if the center is in a single pixel, then that pixel is used.
-    print_, display : bool
+    verbose, display : bool
         control whether to print the results or display plots on screen.
 
     cache_perfect : bool
@@ -357,6 +363,10 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, displa
         Strehl ratio as a floating point number between 0.0 - 1.0
 
     """
+
+    from .webbpsf_core import Instrument
+    from poppy import display_PSF
+
     if isinstance(HDUlist_or_filename, six.string_types):
         HDUlist = fits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
