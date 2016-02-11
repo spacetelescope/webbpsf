@@ -28,7 +28,7 @@ Road Map for Future Releases
 --------------------------------
 * Updates to JWST instrument and telecope models based on as-built cryotest data (expected mid 2016).
 * Field dependence of PSFs over JWST instrument fields of view based on ISIM CV test data.
-* Web interface based on Jupyter Notebook servers
+* Web interface based on Jupyter Notebook servers (first version available already for WFIRST)
 * Improved spectroscopic simulations including prism/grating dispersions.
 * Support for the NIRSpec and MIRI IFUs may be added in a future release, level of detail is still TBD.
 * Improved models for pointing jitter.
@@ -45,11 +45,22 @@ Version 0.4.1
 
 .. _rel0.4.1:
 
-Released 2016 Jan/Feb sometime. Minor bug fix release.
+Released 2016 Feb sometime. Mostly minor bug fixes, plus some updates to better match orientations of output files.
 
+ * Fix an bug that ignored the rotation of the MIRI coronagraph occulters, introduced by changes in ``poppy`` 0.4.0; (`#91 <https://github.com/mperrin/webbpsf/issue/91>`__; @kvangorkom, @josephoenix, @mperrin)
+   and also flip the sign of that rotation from 4.5 degrees counterclockwise to 4.5 clockwise, to match the actual hardware (`#90 <https://github.com/mperrin/webbpsf/issue/90>`__; @kvangorkom, @josephoenix, @mperrin)
+ * Also flip orientations of some NIRCam coronagraphic masks and improve modeling of NIRCam coronagraph ND squares and occulter bar mounting hardware (`#85 <https://github.com/mperrin/webbpsf/issue/85>`__; @mperrin)
  * Relocate ``measure_strehl`` function code into ``webbpsf`` (`#88 <https://github.com/mperrin/webbpsf/issue/88>`__; Kathryn St.Laurent, @josephoenix, @mperrin)
- * Fix an issue with the rotation of the MIRI Lyot coronagraph occulter, introduced by changes in ``poppy`` 0.4.0; (`#90 <https://github.com/mperrin/webbpsf/issue/90>`__; @kvangorkom, @josephoenix, @mperrin)
- * Minor tweaks in default aperture names for compatibility with recent JWST science instrument aperture files.  (`#87 <https://github.com/mperrin/webbpsf/issue/87>`__; @mperrin)
+ * Other minor bug fixes and improved error catching 
+   (`#87 <https://github.com/mperrin/webbpsf/issue/87>`__; @mperrin)
+   (`#95 <https://github.com/mperrin/webbpsf/issue/95>`__; @mperrin)
+   (`#98 <https://github.com/mperrin/webbpsf/pull/98>`__; @josephoenix)
+   (`#99 <https://github.com/mperrin/webbpsf/issue/99>`__; @mperrin)
+ * Better document how to make monochromatic PSFs (`#92
+   <https://github.com/mperrin/webbpsf/issue/92>`__; @mperrin) and fix broken
+   link in docs (`#96 <https://github.com/mperrin/webbpsf/pull/96>`__;
+   @josephoenix).
+
 
 
 
