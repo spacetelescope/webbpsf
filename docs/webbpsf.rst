@@ -74,15 +74,20 @@ You may choose a different illuminating source spectrum by specifying a ``source
 3. A tuple or list containing the numpy arrays ``(wavelength, weights)`` instead.
 
 
-To calculate a monochromatic PSF, just use the ``monochromatic`` parameter. Wavelengths are always specified in meters. This is just a shorthand for a single-element ``source`` dict.
-
-   >>> miri.calcPSF(monochromatic=9.876e-6)
-
-
 As a convenience, webbpsf includes a function to retrieve an appropriate :py:class:`pysynphot.Spectrum` object for a given stellar spectral type from the PHOENIX or Castelli & Kurucz model libraries. 
 
    >>> src = webbpsf.specFromSpectralType('G0V', catalog='phoenix')
    >>> psf = miri.calcPSF(source=src)
+
+
+Making Monochromatic PSFs
+---------------------------------
+
+To calculate a monochromatic PSF, just use the ``monochromatic`` parameter. Wavelengths are always specified in meters.
+
+   >>> psf = miri.calcPSF(monochromatic=9.876e-6)
+
+
 
 Adjusting source position, centering, and output format
 -------------------------------------------------------

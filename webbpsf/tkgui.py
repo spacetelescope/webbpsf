@@ -540,7 +540,7 @@ class WebbPSF_GUI(object):
 
         try:
             self.nlambda= int(self.widgets['nlambda'].get())
-        except:
+        except ValueError:
             self.nlambda = None # invoke autoselect for nlambda
         self.FOV= float(self.widgets['FOV'].get())
         self.fft_oversampling= int(self.widgets['fft_oversampling'].get())
@@ -804,7 +804,7 @@ class WebbPSFOptionsDialog(Dialog):
             results['psf_cmap_str'] = self.vars['psf_cmap'].get()
             results['psf_normalize'] = self.vars['psf_normalize'].get()
             results['psf_cmap'] = self.colortables[ str(self.vars['psf_cmap'].get() ) ]
-        except:
+        except ValueError:
             return False
 
         if not test:

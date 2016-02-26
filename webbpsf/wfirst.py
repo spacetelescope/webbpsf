@@ -461,7 +461,7 @@ def show_notebook_interface(instrument):
 
     try:
         import pysynphot
-    except:
+    except ImportError:
         raise ImportError("For now, PySynphot must be installed to use the notebook interface")
 
     # Clean up some warnings we know about so as not to scare the users

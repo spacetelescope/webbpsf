@@ -1,3 +1,6 @@
 [submodule "astropy_helpers"]
 	path = astropy_helpers
 	url = https://github.com/astropy/astropy-helpers.git
+[submodule "webbpsf/jwxml"]
+	path = webbpsf/jwxml
+	url = git://github.com/mperrin/jwxml.git

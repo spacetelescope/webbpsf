@@ -44,7 +44,7 @@ The WebbPSF software system is composed of two Python packages: a lower-level op
 
    This documentation is complemented by an `IPython Notebook format quickstart tutorial <http://nbviewer.ipython.org/github/mperrin/webbpsf/blob/master/notebooks/WebbPSF_tutorial.ipynb>`_. Downloading and running that notebook is a great way to get started using WebbPSF.
 
-:ref:`What's new in release 0.4.0? <rel0.4.0>`
+:ref:`What's new in the latest release? <whatsnew>`
 
 
 .. toctree::
@@ -65,11 +65,13 @@ The WebbPSF software system is composed of two Python packages: a lower-level op
    
     * Perrin et al. 2014, `"Updated point spread function simulations for JWST with WebbPSF" <http://adsabs.harvard.edu/abs/2014SPIE.9143E..3XP>`_,  Proc. SPIE. 9143, 
     * Perrin et al. 2012, `"Simulating point spread functions for the James Webb Space Telescope with WebbPSF", <http://adsabs.harvard.edu/abs/2012SPIE.8442E..3DP>`_ Proc SPIE 8842, and 
-    * Perrin 2011, `Improved PSF Simulations for JWST: Methods, Algorithms, and Validation <Improved_PSFs_for_Webb.pdf>`_ , JWST Technical report JWST-STScI-002469.
+    * Perrin 2011, :download:`Improved PSF Simulations for JWST: Methods, Algorithms, and Validation <Improved_PSFs_for_Webb.pdf>`, JWST Technical report JWST-STScI-002469.
 
     In particular, the 2012 SPIE paper gives a broad overview, the 2014 SPIE paper presents comparisons to instrument cryotest data, and the Technical Report document describes in more detail the relevant optical physics, explains design decisions and motivation for WebbPSF's architecture, and presents extensive validation tests demonstrating consistency between WebbPSF and other PSF simulation packages used throughout the JWST project.
 
+.. admonition:: Getting Help
 
+   For help using or installing webbpsf, you can contact the STScI Help Desk, help@stsci.edu. Note that WebbPSF is included in the `Ureka <http://ssb.stsci.edu/ureka>`_ python distribution, as well as being installable via :ref:`standard Python packaging tools <installation>`. For detailed aspects of the JWST models, contact Marshall Perrin at STScI; for WFIRST, contact Joseph Long at STScI. 
 
 Advanced Usage
 --------------
@@ -97,6 +99,6 @@ Appendices and Reference
 * :ref:`genindex`
 * :ref:`search`
 
-**Version Information**
+**Mailing List**
 
-The current version of WebbPSF is version 0.2.8, released Nov 7, 2011. If you would like to receive email announcements of future versions, please contact Marshall Perrin, or send an email to "webbpsf-users-request@stsci.edu" containing the message "subscribe".
+If you would like to receive email announcements of future versions, please contact Marshall Perrin, or visit `maillist.stsci.edu <https://maillist.stsci.edu/scripts/wa.exe?SUBED1=webbpsf-users&A=1>` to subscribe yourself to the "webbpsf-users@maillist.stsci.edu" list.

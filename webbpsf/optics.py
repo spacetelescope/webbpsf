@@ -487,8 +487,32 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
     allowable_kinds = ['nircamcircular', 'nircamwedge']
     """ Allowable types of BLC supported by this class"""
 
-    def __init__(self, name="unnamed BLC", kind='nircamcircular', sigma=1, wavelength=None, **kwargs):
-        super(NIRCam_BandLimitedCoron, self).__init__(name=name, kind=kind, sigma=sigma, wavelength=wavelength, **kwargs)
+    def __init__(self, name="unnamed BLC", kind='nircamcircular',  module='A',
+            **kwargs):
+        super(NIRCam_BandLimitedCoron, self).__init__(name=name, kind=kind, **kwargs)
+        if module not in ['A','B']:
+            raise ValueError("module parameter must be 'A' or 'B'.")
+        self.module=module
+
+        if self.name=='MASK210R':
+            self.sigma = 5.253
+            self.kind = 'nircamcircular'
+        elif self.name=='MASK335R':
+            self.sigma=3.2927866
+            self.kind = 'nircamcircular'
+        elif self.name=='MASK430R':
+            self.sigma=2.58832
+            self.kind = 'nircamcircular'
+        elif self.name == 'MASKSWB':
+            self.kind = 'nircamwedge'
+            # coeffs set in lookup table inside getPhasor
+        elif self.name == 'MASKLWB':
+            self.kind = 'nircamwedge'
+            # coeffs set in lookup table inside getPhasor
+        else:
+            raise NotImplementedError("invalid name for NIRCam occulter: "+self.name)
+
+
 
     def getPhasor(self, wave):
         """ Compute the amplitude transmission appropriate for a BLC for some given pixel spacing
@@ -510,103 +534,215 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
 
         y, x = self.get_coordinates(wave)
         if self.kind == 'nircamcircular':
-            # larger sigma implies narrower peak? TBD verify if this is correct
-            #
             r = np.sqrt(x ** 2 + y ** 2)
             sigmar = self.sigma * r
-            sigmar.clip(np.finfo(sigmar.dtype).tiny, out=sigmar)  # avoid divide by zero -> NaNs
+            # clip sigma: The minimum is to avoid divide by zero
+            #             the maximum truncates after the first sidelobe to match the hardware
+            sigmar.clip(np.finfo(sigmar.dtype).tiny, 2*np.pi, out=sigmar)  # avoid divide by zero -> NaNs
             self.transmission = (1 - (2 * scipy.special.jn(1, sigmar) / sigmar) ** 2)
+            self.transmission[r==0] = 0   # special case center point (value based on L'Hopital's rule)
 
-            # add in the ND squares. Note the positions are not exactly the same in the two wedges.
-            # See the figures  in Krist et al. of how the 6 ND squares are spaced among the 5
-            # corongraph regions
-            # Also add in the opaque border of the coronagraph mask holder.
-            if self.sigma > 4:
-                # MASK210R has one in the corner and one half in the other corner
-                wnd = np.where(
-                    (y > 5) &
-                    (
-                        ((x < -5) & (x > -10)) |
-                        ((x > 7.5) & (x < 12.5))
-                    )
-                )
-                wborder = np.where((np.abs(y) > 10) | (x < -10))  # left end of mask holder
-            else:
-                # the others have two halves on in each corner.
-                wnd = np.where(
-                    (y > 5) &
-                    (np.abs(x) > 7.5) &
-                    (np.abs(x) < 12.5)
-                )
-                wborder = np.where(np.abs(y) > 10)
-
-            self.transmission[wnd] = np.sqrt(1e-3)
-            self.transmission[wborder] = 0
         elif self.kind == 'nircamwedge':
             # This is hard-coded to the wedge-plus-flat-regions shape for NIRCAM
 
-            # we want a scale factor that goes from 2 to 6 with 1/5th of it as a fixed part on
-            # either end
-            #scalefact = np.linspace(1,7, x.shape[1]).clip(2,6)
-
-            # the scale fact should depent on X coord in arcsec, scaling across a 20 arcsec FOV.
-            # map flat regions to 2.5 arcsec each?
+            # the scale fact should depend on X coord in arcsec, scaling across a 20 arcsec FOV.
+            # map flat regions to 2.5 arcsec each
             # map -7.5 to 2, +7.5 to 6. slope is 4/15, offset is +9.5
             scalefact = (2 + (-x + 7.5) * 4 / 15).clip(2, 6)
 
-            #scalefact *= self.sigma / 2 #;2.2513
-            #scalefact *= 2.2513
-            #scalefact.shape = (1, x.shape[1])
-            # This does not work - shape appears to be curved not linear.
-            # This is NOT a linear relationship. See calc_blc_wedge in test_poppy.
+            # Working out the sigma parameter vs. wavelength to get that wedge pattern is non trivial 
+            # This is NOT a linear relationship. See calc_blc_wedge helper fn below.
 
-            if np.abs(self.wavelength - 2.1e-6) < 0.1e-6:
+            if self.name == 'MASKSWB': #np.abs(self.wavelength - 2.1e-6) < 0.1e-6:
                 polyfitcoeffs = np.array([2.01210737e-04, -7.18758337e-03, 1.12381516e-01,
                                           -1.00877701e+00, 5.72538509e+00, -2.12943497e+01,
                                           5.18745152e+01, -7.97815606e+01, 7.02728734e+01])
-            elif np.abs(self.wavelength - 4.6e-6) < 0.1e-6:
+                scalefact = scalefact[:, ::-1] # flip orientation left/right for SWB mask
+            elif self.name == 'MASKLWB': #elif np.abs(self.wavelength - 4.6e-6) < 0.1e-6:
                 polyfitcoeffs = np.array([9.16195583e-05, -3.27354831e-03, 5.11960734e-02,
                                           -4.59674047e-01, 2.60963397e+00, -9.70881273e+00,
                                           2.36585911e+01, -3.63978587e+01, 3.20703511e+01])
             else:
-                raise NotImplemented("No defined NIRCam wedge BLC mask for that wavelength?  ")
+                raise NotImplementedError("invalid name for NIRCam wedge occulter")
 
             sigmas = scipy.poly1d(polyfitcoeffs)(scalefact)
 
             sigmar = sigmas * np.abs(y)
-            sigmar.clip(np.finfo(sigmar.dtype).tiny, out=sigmar)  # avoid divide by zero -> NaNs
+            # clip sigma: The minimum is to avoid divide by zero
+            #             the maximum truncates after the first sidelobe to match the hardware
+            sigmar.clip(min=np.finfo(sigmar.dtype).tiny, max=2*np.pi, out=sigmar) 
             self.transmission = (1 - (np.sin(sigmar) / sigmar) ** 2)
+            # TODO pattern should be truncated past first sidelobe
+            self.transmission[x==0] = 0   # special case center point (value based on L'Hopital's rule)
             # the bar should truncate at +- 10 arcsec:
             woutside = np.where(np.abs(x) > 10)
             self.transmission[woutside] = 1.0
-            # add in the ND squares. Note the positions are not exactly the same in the two wedges.
-            # See the figures in Krist et al. of how the 6 ND squares are spaced among the 5
-            # corongraph regions. Also add in the opaque border of the coronagraph mask holder.
-            if np.abs(self.wavelength - 2.1e-6) < 0.1e-6:
-                # half ND square on each side
-                wnd = np.where(
-                    (y > 5) &
-                    (
-                        ((x < -5) & (x > -10)) |
-                        ((x > 7.5) & (x < 12.5))
-                    )
-                )
-                wborder = np.where(np.abs(y) > 10)
-            elif np.abs(self.wavelength - 4.6e-6) < 0.1e-6:
-                wnd = np.where(
-                    (y > 5) &
-                    (
-                        ((x < -7.5) & (x > -12.5)) |
-                        (x > 5)
-                    )
-                )
-                wborder = np.where((np.abs(y) > 10) | (x > 10))  # right end of mask holder
 
-            self.transmission[wnd] = np.sqrt(1e-3)
-            self.transmission[wborder] = 0
+
+        # add in the ND squares. Note the positions are not exactly the same in the two wedges.
+        # See the figures  in Krist et al. of how the 6 ND squares are spaced among the 5
+        # corongraph regions
+        # Note: 180 deg rotation needed relative to Krist's figures for the flight SCI orientation:
+        x = x[::-1, ::-1]
+        y = y[::-1, ::-1]
+        if ((self.module=='A' and self.name=='MASKLWB') or
+            (self.module=='B' and self.name=='MASK210R')):
+            # left edge:
+            # has one fully in the corner and one half in the other corner, half outside the 10x10 box
+            wnd_5 = np.where(
+                ((y > 5)&(y<10)) &
+                (
+                    ((x < -5) & (x > -10)) |
+                    ((x > 7.5) & (x < 12.5))
+                )
+            )
+            wnd_2 = np.where(
+                ((y > -10)&(y<-8)) &
+                (
+                    ((x < -8) & (x > -10)) |
+                    ((x > 9) & (x < 11))
+                )
+            )
+        elif ((self.module=='A' and self.name=='MASK210R') or
+              (self.module=='B' and self.name=='MASKSWB')):
+            # right edge
+            wnd_5 = np.where(
+                ((y > 5)&(y<10)) &
+                (
+                    ((x > -12.5) & (x < -7.5)) |
+                    ((x > 5) & (x <10))
+                )
+            )
+            wnd_2 = np.where(
+                ((y > -10)&(y<-8)) &
+                (
+                    ((x > -11) & (x < -9)) |
+                    ((x > 8) & (x<10))
+                )
+            )
+        else:
+            # the others have two, one in each corner, both halfway out of the 10x10 box.
+            wnd_5 = np.where(
+                ((y > 5)&(y<10)) &
+                (np.abs(x) > 7.5) &
+                (np.abs(x) < 12.5)
+            )
+            wnd_2 = np.where(
+                ((y > -10)&(y<-8)) &
+                (np.abs(x) > 9) &
+                (np.abs(x) < 11)
+            )
+
+        self.transmission[wnd_5] = np.sqrt(1e-3)
+        self.transmission[wnd_2] = np.sqrt(1e-3)
+
+
+
+        # Add in the opaque border of the coronagraph mask holder.
+        if ((self.module=='A' and self.name=='MASKLWB') or
+            (self.module=='B' and self.name=='MASK210R')):
+            # left edge
+            woutside = np.where((x < -10) & (y < 11.5 ))
+            self.transmission[woutside] = 0.0
+        elif ((self.module=='A' and self.name=='MASK210R') or
+              (self.module=='B' and self.name=='MASKSWB')):
+            # right edge
+            woutside = np.where((x > 10) & (y < 11.5))
+            self.transmission[woutside] = 0.0
+        # mask holder edge
+        woutside = np.where(y < -10)
+        self.transmission[woutside] = 0.0
+
+        # edge of mask itself
+        # TODO the mask edge is complex and partially opaque based on CV3 images?
+        # edge of glass plate rather than opaque mask I believe. To do later. 
+        # The following is just a temporary placeholder with no quantitative accuracy.
+        # but this is outside the coronagraph FOV so that's fine - this only would matter in 
+        # modeling atypical/nonstandard calibration exposures.
+
+        wedge = np.where(( y > 11.5) & (y < 13))
+        self.transmission[wedge] = 0.7
+
+
+
+
+
+
 
         if not np.isfinite(self.transmission.sum()):
             #stop()
             _log.warn("There are NaNs in the BLC mask - correcting to zero. (DEBUG LATER?)")
             self.transmission[np.where(np.isfinite(self.transmission) == False)] = 0
         return self.transmission
+
+
+
+# Helper functions for NIRcam occulters.
+# The following are no longer used in practice, but were used to derive the 
+# table of polynomial coefficients that is now hard-coded inside
+# the NIRCam_BandLimitedCoron case for the nircam wedge occulters.
+
+
+def _width_blc(desired_width, approx=None, plot=False):
+    """ The calculation of sigma parameters for the wedge BLC function is not straightforward.
+
+    This function numerically solves the relevant equation to determine the sigma required to
+    acheive a given HWHM.
+
+    It uses recursion to iterate to a higher precision level.
+    """
+
+    loc = desired_width
+
+    if approx is None:
+        sigma = np.linspace(0, 20, 5000)
+    else:
+        sigma = np.linspace(approx*0.9, approx*1.1, 100000.)
+    lhs = loc* np.sqrt(1 - np.sqrt(0.5))
+    rhs = np.sin(sigma * loc) / sigma
+    diff = np.abs(lhs - rhs)
+    wmin = np.where(diff == np.nanmin(diff))
+    sig_ans = sigma[wmin][0]
+
+    if approx:
+        return sig_ans
+    else:
+        # use recursion
+        sig_ans = width_blc(loc, sig_ans)
+
+    if plot:
+        check =  (1-  (np.sin(sig_ans * loc)/sig_ans/loc)**2)**2
+        #plt.plot(sigma, lhs)
+        plt.clf()
+        plt.plot(sigma, rhs)
+        plt.axhline(lhs)
+
+        print("sigma = %f implies HWHM = %f" % (sig_ans, loc))
+        print(" check: 0.5 == %f" % (check))
+    return sig_ans
+
+
+
+def _calc_blc_wedge(deg=4, wavelength=2.1e-6):
+    """ This function determines the desired sigma coefficients required to
+    achieve a wedge from 2 to 6 lam/D.
+
+    It returns the coefficients of a polynomial fit that maps from
+    nlambda/D to sigma.
+
+    """
+    import scipy
+    r = np.linspace(2, 6, 161)
+    difflim = wavelen / 6.5 * 180.*60*60/np.pi
+    sigs = [_width_blc(difflim * ri) for ri in r]
+
+    pcs = scipy.polyfit(r, sigs, deg)
+    p = scipy.poly1d(pcs)
+    plt.plot(r, sigs, 'b')
+    plt.plot(r, p(r), "r--")
+    diffs = (sigs - p(r))
+    print("Poly fit:" +repr(pcs))
+    print("  fit rms: "+str(diffs.std()))
+
+
+
