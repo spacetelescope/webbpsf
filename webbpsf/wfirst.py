@@ -351,10 +351,11 @@ class CGI(WFIRSTInstrument):
         super(CGI, self).__init__("CGI", pixelscale=pixelscale)
 
         self.pupil = os.path.join(self._WebbPSF_basepath, 'AFTA_CGI_C5_Pupil_onax_1000px.fits')
+        #self.pupilopd = os.path.join(self._WebbPSF_basepath, 'CGI', 'OPD', 'CGI_primary_OPD.fits')
+        self.pupilopd = None
         self.mode_list = ['CHARSPC', 'DISKSPC']
         self.image_mask_list = ['CHARSPC_F660', 'CHARSPC_F770', 'CHARSPC_F890', 'DISKSPC_F465', 'DISKSPC_F565', 'DISKSPC_F835', 'DISKSPC_F885']
         self.pupil_mask_list = ['SPC26D88']
-        self.pupilopd = None
         self.aberration_optic = None
         self.options = {'force_coron':True}
         self.fov_arcsec = None
