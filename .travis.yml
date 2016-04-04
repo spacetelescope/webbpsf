@@ -54,6 +54,10 @@ matrix:
         # Try released POPPY version and older NumPy
         - python: 2.7
           env: POPPY_VERSION=stable NUMPY_VERSION=1.8 SETUP_CMD='test'
+    allow_failures:
+        - python: 3.5
+
+
 
 before_install:
 
@@ -65,6 +69,7 @@ before_install:
     - ./miniconda.sh -b
     - export PATH=/home/travis/miniconda2/bin:$PATH
     - conda update --yes conda
+    - conda update --all -y  # added to try debugging issue #159 with Travis
 
 install:
 
