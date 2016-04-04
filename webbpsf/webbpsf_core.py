@@ -625,14 +625,20 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         By subclassing this, you can define whatever custom bandpasses are appropriate for
         your instrument
         """
-        obsmode = '{instrument},im,{filter}'.format(instrument=self.name, filter=filtername)
-        try:
-            band = pysynphot.ObsBandpass(obsmode.lower())
-            return band
-        except (ValueError, TypeError) as e:
-            _log.debug("Couldn't find filter '{}' in PySynphot, falling back to "
-                       "local throughput files".format(filtername))
-            _log.debug("Underlying PySynphot exception was: {}".format(e))
+
+        # Excise never-in-practice-used code path with ObsBandpass
+        # see https://github.com/mperrin/webbpsf/issues/51
+        #  Leaving this code here for now, just commented out, in case we ever decide to
+        #  implement HST modes a la effectively porting TinyTim to Python...
+        #
+        #obsmode = '{instrument},im,{filter}'.format(instrument=self.name, filter=filtername)
+        #try:
+        #    band = pysynphot.ObsBandpass(obsmode.lower())
+        #    return band
+        #except (ValueError, TypeError) as e:
+        #    _log.debug("Couldn't find filter '{}' in PySynphot, falling back to "
+        #               "local throughput files".format(filtername))
+        #    _log.debug("Underlying PySynphot exception was: {}".format(e))
 
         # the requested band is not yet supported in synphot/CDBS. (those files are still a
         # work in progress...). Therefore, use our local throughput files and create a synphot
