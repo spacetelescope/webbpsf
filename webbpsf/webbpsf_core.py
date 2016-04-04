@@ -889,7 +889,7 @@ class NIRCam(JWInstrument):
     """
     SHORT_WAVELENGTH_MIN = 0.6 * 1e-6
     SHORT_WAVELENGTH_MAX = LONG_WAVELENGTH_MIN = 2.35 * 1e-6
-    LONG_WAVELENGTH_MAX = 5.0 * 1e-6
+    LONG_WAVELENGTH_MAX = 5.3 * 1e-6
 
     def __init__(self):
         self.module='A'          # NIRCam A or B?
@@ -1216,8 +1216,11 @@ class NIRISS(JWInstrument):
 
     """
     SHORT_WAVELENGTH_MIN = 0.6 * 1e-6
+    # n.b., the SHORT/LONG distinction in NIRISS is not about
+    # different detectors since it only has one of course, 
+    # rather it's about what's in each of the two wheels.
     SHORT_WAVELENGTH_MAX = LONG_WAVELENGTH_MIN = 2.35 * 1e-6
-    LONG_WAVELENGTH_MAX = 5.0 * 1e-6
+    LONG_WAVELENGTH_MAX = 5.3 * 1e-6
 
 
     def __init__(self, auto_pupil=True):
