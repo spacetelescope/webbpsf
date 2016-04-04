@@ -372,6 +372,9 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         local_options['fft_oversample']=fft_oversample
 
         #----- compute weights for each wavelength based on source spectrum
+        if _HAS_PYSYNPHOT:
+            if source is None:
+                source = pysynphot.BlackBody(5700)
         wavelens, weights = self._getWeights(source=source, nlambda=nlambda, monochromatic=monochromatic)
 
         # Validate that the calculation we're about to do makes sense with this instrument config
