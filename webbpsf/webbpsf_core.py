@@ -372,6 +372,9 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         local_options['fft_oversample']=fft_oversample
 
         #----- compute weights for each wavelength based on source spectrum
+        if _HAS_PYSYNPHOT:
+            if source is None:
+                source = pysynphot.BlackBody(5700)
         wavelens, weights = self._getWeights(source=source, nlambda=nlambda, monochromatic=monochromatic)
 
         # Validate that the calculation we're about to do makes sense with this instrument config
@@ -625,14 +628,20 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         By subclassing this, you can define whatever custom bandpasses are appropriate for
         your instrument
         """
-        obsmode = '{instrument},im,{filter}'.format(instrument=self.name, filter=filtername)
-        try:
-            band = pysynphot.ObsBandpass(obsmode.lower())
-            return band
-        except (ValueError, TypeError) as e:
-            _log.debug("Couldn't find filter '{}' in PySynphot, falling back to "
-                       "local throughput files".format(filtername))
-            _log.debug("Underlying PySynphot exception was: {}".format(e))
+
+        # Excise never-in-practice-used code path with ObsBandpass
+        # see https://github.com/mperrin/webbpsf/issues/51
+        #  Leaving this code here for now, just commented out, in case we ever decide to
+        #  implement HST modes a la effectively porting TinyTim to Python...
+        #
+        #obsmode = '{instrument},im,{filter}'.format(instrument=self.name, filter=filtername)
+        #try:
+        #    band = pysynphot.ObsBandpass(obsmode.lower())
+        #    return band
+        #except (ValueError, TypeError) as e:
+        #    _log.debug("Couldn't find filter '{}' in PySynphot, falling back to "
+        #               "local throughput files".format(filtername))
+        #    _log.debug("Underlying PySynphot exception was: {}".format(e))
 
         # the requested band is not yet supported in synphot/CDBS. (those files are still a
         # work in progress...). Therefore, use our local throughput files and create a synphot
@@ -880,7 +889,7 @@ class NIRCam(JWInstrument):
     """
     SHORT_WAVELENGTH_MIN = 0.6 * 1e-6
     SHORT_WAVELENGTH_MAX = LONG_WAVELENGTH_MIN = 2.35 * 1e-6
-    LONG_WAVELENGTH_MAX = 5.0 * 1e-6
+    LONG_WAVELENGTH_MAX = 5.3 * 1e-6
 
     def __init__(self):
         self.module='A'          # NIRCam A or B?
@@ -1207,8 +1216,11 @@ class NIRISS(JWInstrument):
 
     """
     SHORT_WAVELENGTH_MIN = 0.6 * 1e-6
+    # n.b., the SHORT/LONG distinction in NIRISS is not about
+    # different detectors since it only has one of course, 
+    # rather it's about what's in each of the two wheels.
     SHORT_WAVELENGTH_MAX = LONG_WAVELENGTH_MIN = 2.35 * 1e-6
-    LONG_WAVELENGTH_MAX = 5.0 * 1e-6
+    LONG_WAVELENGTH_MAX = 5.3 * 1e-6
 
 
     def __init__(self, auto_pupil=True):

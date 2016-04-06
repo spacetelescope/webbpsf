@@ -45,11 +45,12 @@ Version 0.4.1
 
 .. _rel0.4.1:
 
-Released 2016 Feb sometime. Mostly minor bug fixes, plus some updates to better match orientations of output files.
+Released 2016 April 04. Mostly minor bug fixes, plus some updates to better match orientations of output files.
 
  * Fix an bug that ignored the rotation of the MIRI coronagraph occulters, introduced by changes in ``poppy`` 0.4.0; (`#91 <https://github.com/mperrin/webbpsf/issue/91>`__; @kvangorkom, @josephoenix, @mperrin)
    and also flip the sign of that rotation from 4.5 degrees counterclockwise to 4.5 clockwise, to match the actual hardware (`#90 <https://github.com/mperrin/webbpsf/issue/90>`__; @kvangorkom, @josephoenix, @mperrin)
- * Also flip orientations of some NIRCam coronagraphic masks and improve modeling of NIRCam coronagraph ND squares and occulter bar mounting hardware (`#85 <https://github.com/mperrin/webbpsf/issue/85>`__; @mperrin)
+ * Also flip orientations of some NIRCam coronagraphic masks and improve modeling of NIRCam coronagraph ND squares and occulter bar mounting hardware (`#85 <https://github.com/mperrin/webbpsf/issue/85>`__; @mperrin);
+   and remove two obsolete filter data files that don't correspond to any actual filters in NIRCam.
  * Relocate ``measure_strehl`` function code into ``webbpsf`` (`#88 <https://github.com/mperrin/webbpsf/issue/88>`__; Kathryn St.Laurent, @josephoenix, @mperrin)
  * Other minor bug fixes and improved error catching 
    (`#87 <https://github.com/mperrin/webbpsf/issue/87>`__; @mperrin)
