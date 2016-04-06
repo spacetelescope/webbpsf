@@ -3,13 +3,15 @@
 Requirements & Installation
 ============================
 
-WebbPSF uses the `Python Package Index <https://pypi.python.org>`_ (PyPI) to distribute new versions. For ease of installation, we recommend a scientific Python distribution like `Ureka <http://ssb.stsci.edu/ureka/>`_ that includes NumPy, SciPy, and other packages that can be tricky to compile on your own.
+WebbPSF uses the `Python Package Index <https://pypi.python.org>`_ (PyPI) to distribute new versions. For ease of installation, we recommend a scientific Python distribution like `Anaconda <https://www.continuum.io/downloads>`_ or `Ureka <http://ssb.stsci.edu/ureka/>`_ that includes NumPy, SciPy, and other packages that can be tricky to compile on your own.
 
-If you have Python 2.7 or 3.4, pip, and NumPy already installed, you can easily install or upgrade WebbPSF with::
+If you have Python 2.7, 3.4, or 3.5 already installed, you can easily install or upgrade WebbPSF with::
 
     $ pip install -U webbpsf
 
-Once the WebbPSF code has been installed, you should proceed to :ref:`install the required data files <data_install>`. You may also wish to :ref:`set up Pysynphot <pysynphot_install>`, a recommended optional dependency that improves PSF fidelity.
+If you use Anaconda, see :ref:`below for Conda installation <alternate_install>`.
+
+Once the WebbPSF code has been installed, you should proceed to :ref:`install the required data files <data_install>`. You may also wish to :ref:`set up pysynphot <pysynphot_install>`, an optional dependency that improves PSF fidelity.
 
 For detailed instructions and software requirements, read on.
 
@@ -22,7 +24,7 @@ For detailed instructions and software requirements, read on.
 Software Requirements
 -----------------------
 
-**Required Python version**: WebbPSF is supported on both Python 2.7 and 3.4.
+**Required Python version**: WebbPSF is supported on both Python 2.7 and 3.4+.
 
 **Required Python packages**:
 
@@ -89,8 +91,8 @@ Installing the Required Data Files
 
 Files containing such information as the JWST pupil shape, instrument throughputs, and aperture positions are distributed separately from WebbPSF. To run WebbPSF, you must download these files and tell WebbPSF where to find them using the ``WEBBPSF_PATH`` environment variable.
 
-1. Download the following file:  `webbpsf-data-0.4.0.tar.gz <http://www.stsci.edu/~mperrin/software/webbpsf/webbpsf-data-0.4.0.tar.gz>`_  [approx. 430 MB]
-2. Untar ``webbpsf-data-0.4.0.tar.gz`` into a directory of your choosing.
+1. Download the following file:  `webbpsf-data-0.4.1.tar.gz <http://www.stsci.edu/~mperrin/software/webbpsf/webbpsf-data-0.4.1.tar.gz>`_  [approx. 430 MB]
+2. Untar ``webbpsf-data-0.4.1.tar.gz`` into a directory of your choosing.
 3. Set the environment variable ``WEBBPSF_PATH`` to point to that directory. e.g. ::
 
     setenv WEBBPSF_PATH $HOME/data/webbpsf-data
