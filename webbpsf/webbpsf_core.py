@@ -372,9 +372,6 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         local_options['fft_oversample']=fft_oversample
 
         #----- compute weights for each wavelength based on source spectrum
-        if _HAS_PYSYNPHOT:
-            if source is None:
-                source = pysynphot.BlackBody(5700)
         wavelens, weights = self._getWeights(source=source, nlambda=nlambda, monochromatic=monochromatic)
 
         # Validate that the calculation we're about to do makes sense with this instrument config
@@ -795,19 +792,19 @@ class MIRI(JWInstrument):
         if self.image_mask == 'FQPM1065':
             container = poppy.CompoundAnalyticOptic(name = "MIRI FQPM 1065",
                 opticslist = [  poppy.IdealFQPM(wavelength=10.65e-6, name=self.image_mask),
-                                poppy.SquareFieldStop(size=24, angle=self._rotation)])
+                                poppy.SquareFieldStop(size=24, rotation=self._rotation)])
             optsys.addImage(container)
             trySAM = False
         elif self.image_mask == 'FQPM1140':
             container = poppy.CompoundAnalyticOptic(name = "MIRI FQPM 1140",
                 opticslist = [  poppy.IdealFQPM(wavelength=11.40e-6, name=self.image_mask),
-                                poppy.SquareFieldStop(size=24, angle=self._rotation)])
+                                poppy.SquareFieldStop(size=24, rotation=self._rotation)])
             optsys.addImage(container)
             trySAM = False
         elif self.image_mask == 'FQPM1550':
             container = poppy.CompoundAnalyticOptic(name = "MIRI FQPM 1550",
                 opticslist = [  poppy.IdealFQPM(wavelength=15.50e-6, name=self.image_mask),
-                                poppy.SquareFieldStop(size=24, angle=self._rotation)])
+                                poppy.SquareFieldStop(size=24, rotation=self._rotation)])
             optsys.addImage(container)
             trySAM = False
         elif self.image_mask =='LYOT2300':
@@ -829,7 +826,7 @@ class MIRI(JWInstrument):
             #           4.7 x 0.51 arcsec (measured for flight model. See MIRI-TR-00001-CEA)
             #
             # Per Klaus Pontoppidan: The LRS slit is aligned with the detector x-axis, so that the dispersion direction is along the y-axis.
-            optsys.addImage(optic=poppy.RectangularFieldStop(width=4.7, height=0.51, angle=self._rotation, name= self.image_mask))
+            optsys.addImage(optic=poppy.RectangularFieldStop(width=4.7, height=0.51, rotation=self._rotation, name= self.image_mask))
             trySAM = False
         else:
             optsys.addImage()

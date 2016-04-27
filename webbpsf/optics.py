@@ -12,7 +12,7 @@ from .webbpsf_core import _log
 class NIRSpec_three_MSA_shutters(poppy.AnalyticOpticalElement):
     """ Three NIRSpec MSA shutters, adjacent vertically."""
 
-    def getPhasor(self,wave):
+    def get_transmission(self,wave):
         """ Compute the transmission inside/outside of the field stop.
 
         The area of an open shutter is 0.2 x 0.45, while the shutter pitch is 0.26x0.51
@@ -24,14 +24,10 @@ class NIRSpec_three_MSA_shutters(poppy.AnalyticOpticalElement):
         msa_wall = 0.06
 
         if not isinstance(wave, poppy.Wavefront):
-            raise ValueError("FieldStop getPhasor must be called with a Wavefront to define the spacing")
+            raise ValueError("get_transmission must be called with a Wavefront to define the spacing")
         assert (wave.planetype == poppy.poppy_core._IMAGE)
 
         y, x= wave.coordinates()
-        #xnew =  x*np.cos(np.deg2rad(self.angle)) + y*np.sin(np.deg2rad(self.angle))
-        #ynew = -x*np.sin(np.deg2rad(self.angle)) + y*np.cos(np.deg2rad(self.angle))
-        #x,y = xnew, ynew
-
 
         self.transmission = np.zeros(wave.shape)
         # get the innermost shutter than spans the Y axis
@@ -47,7 +43,7 @@ class NIRSpec_three_MSA_shutters(poppy.AnalyticOpticalElement):
 class NIRSpec_MSA_open_grid(poppy.AnalyticOpticalElement):
     """ An infinite repeating region of the NIRSpec MSA grid"""
 
-    def getPhasor(self,wave):
+    def get_transmission(self,wave):
         """ Compute the transmission inside/outside of the field stop.
 
         The area of an open shutter is 0.2 x 0.45, while the shutter pitch is 0.26x0.51
@@ -61,7 +57,7 @@ class NIRSpec_MSA_open_grid(poppy.AnalyticOpticalElement):
         msa_y_pitch = 0.51
 
         if not isinstance(wave, poppy.Wavefront):
-            raise ValueError("FieldStop getPhasor must be called with a Wavefront to define the spacing")
+            raise ValueError("get_transmission must be called with a Wavefront to define the spacing")
         assert (wave.planetype == poppy.poppy_core._IMAGE)
 
         y, x= wave.coordinates()
@@ -265,9 +261,9 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
         self.pupil_demagnification = 6.6 / 0.040 # about 165
 
         # perform an initial population of the OPD array for display etc.
-        tmp = self.getPhasor(poppy.Wavefront(2e-6))
+        tmp = self.get_phasor(poppy.Wavefront(2e-6))
 
-    def makeCylinder(self, wave):
+    def get_opd(self, wave):
         """ Make an OPD array corresponding to the cylindrical weak lens
         used for defocusing the spectrum in the perpendicular-to-dispersion direction.
         """
@@ -350,7 +346,7 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
         _log.debug(" Cylinder P-V: {0:.4g} meters optical sag at {1:.3g} microns across clear aperture".format(opd[wnz].max()-opd[wnz].min(), wavelength*1e6) )
         return opd
 
-    def makePupil(self, wave):
+    def get_transmission(self, wave):
         """ Make array for the pupil obscuration appropriate to the grism
         """
 
@@ -406,21 +402,6 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
 
         cleartran_index = np.sqrt(1.0 + n2minus1)
         return cleartran_index
-
-
-    def getPhasor(self, wave):
-        """ Scale the cylindrical lens OPD appropriately for the current wavelength
-            Then call the regular getphasor method of the parent class 
-
-        """
-        # Pupil shape part: 
-        self.amplitude = self.makePupil(wave)
-
-        # Phase part: 
-        self.opd = self.makeCylinder(wave)
-
-        # Return the OPD derived from them both
-        return   poppy.OpticalElement.getPhasor(self, wave)
 
 
     def display(self, opd_vmax=6e-6, *args, **kwargs):
@@ -514,7 +495,7 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
 
 
 
-    def getPhasor(self, wave):
+    def get_transmission(self, wave):
         """ Compute the amplitude transmission appropriate for a BLC for some given pixel spacing
         corresponding to the supplied Wavefront.
 
