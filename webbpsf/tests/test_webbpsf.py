@@ -165,9 +165,12 @@ def test_calcPSF_rectangular_FOV():
     nc = webbpsf_core.Instrument('NIRCam')
     nc.pupilopd=None
     nc.filter='F212N'
- 
 
-    psf = nc.calcPSF(fov_arcsec=(2,4))
+    side = round(2/nc.pixelscale) *nc.pixelscale
+    # pick something that can be done in integer pixels given NIRCam's sampling
+
+
+    psf = nc.calcPSF(fov_arcsec=(side, 2*side))
     assert(psf[0].data.shape[0]*2 == psf[0].data.shape[1])
 
     psf2 = nc.calcPSF(fov_pixels=(100,200), oversample=1)

@@ -728,7 +728,7 @@ class MIRI(JWInstrument):
     """
     def __init__(self):
         JWInstrument.__init__(self, "MIRI")
-        self.pixelscale = 0.11
+        self.pixelscale = 0.1110  # Source: SIAF PRDDEVSOC-D-012, 2016 April
         self._rotation = 4.561 # Source: MIRI OBA DD, page 3-16
 
         self.image_mask_list = ['FQPM1065', 'FQPM1140', 'FQPM1550', 'LYOT2300', 'LRS slit']
@@ -748,7 +748,7 @@ class MIRI(JWInstrument):
 
         #self._default_aperture='MIRIM_center' # reference into SIAF for ITM simulation V/O coords
         self.detector_list = ['MIRIM']
-        self._detector2siaf = {'MIRIM': 'MIRIM_FULL_ILLCNTR'}
+        self._detector2siaf = {'MIRIM': 'MIRIM_FULL'}
         self.detector = self.detector_list[0]
 
     def _validateConfig(self, **kwargs):
@@ -893,19 +893,18 @@ class NIRCam(JWInstrument):
 
     def __init__(self):
         self.module='A'          # NIRCam A or B?
-        self.pixelscale = 0.0317 # for short-wavelen channels
-        self._pixelscale_short = 0.0317 # for short-wavelen channels
-        self._pixelscale_long = 0.0648 # for short-wavelen channels
+        self._pixelscale_short = 0.0311 # for short-wavelen channels, SIAF PRDDEVSOC-D-012, 2016 April
+        self._pixelscale_long =  0.0630 # for long-wavelen channels,  SIAF PRDDEVSOC-D-012, 2016 April
+        self.pixelscale = self._pixelscale_short
         JWInstrument.__init__(self, "NIRCam") # do this after setting the long & short scales.
-        self.pixelscale = 0.0317 # need to redo 'cause the __init__ call will reset it to zero.
+        self.pixelscale = self._pixelscale_short # need to redo 'cause the __init__ call will reset it to zero.
 
-        #self.image_mask_list = ['BLC2100','BLC3350','BLC4300','WEDGESW','WEDGELW']
         self.image_mask_list = ['MASKLWB','MASKSWB','MASK210R','MASK335R','MASK430R']
 
         self.pupil_mask_list = ['CIRCLYOT','WEDGELYOT', 'WEAK LENS +4', 'WEAK LENS +8', 'WEAK LENS -8', 'WEAK LENS +12 (=4+8)','WEAK LENS -4 (=4-8)']
 
         self.filter = 'F200W' # default
-        self._default_aperture='NIRCam A1 center' # reference into SIAF for ITM simulation V/O coords
+        self._default_aperture='NRCA3_FULL' # reference into SIAF for ITM simulation V/O coords
 
         self.detector_list = ['A1','A2','A3','A4','A5', 'B1','B2','B3','B4','B5']
         self._detector2siaf = dict()
@@ -1099,7 +1098,8 @@ class NIRSpec(JWInstrument):
     """
     def __init__(self):
         JWInstrument.__init__(self, "NIRSpec")
-        self.pixelscale = 0.100 #  100 mas pixels. Microshutters are 0.2x0.46 but we ignore that here.
+        self.pixelscale = 0.1043 # Average over both detectors.  SIAF PRDDEVSOC-D-012, 2016 April
+                                 # Microshutters are 0.2x0.46 but we ignore that here.
         self._rotation = None
         self._rotation = 90+41.5  # based on SIAF docs by M. Lallo & WFS FOV doc by S. Knight
         self.filter_list.append("IFU")
@@ -1224,7 +1224,8 @@ class NIRISS(JWInstrument):
 
 
     def __init__(self, auto_pupil=True):
-        JWInstrument.__init__(self, "NIRISS", pixelscale=0.064)
+        JWInstrument.__init__(self, "NIRISS")
+        self.pixelscale = 0.0656     # SIAF PRDDEVSOC-D-012, 2016 April
 
         self.image_mask_list = ['CORON058', 'CORON075','CORON150','CORON200'] # available but unlikely to be used...
         self.pupil_mask_list = ['CLEARP', 'MASK_NRM','GR700XD']
@@ -1338,7 +1339,7 @@ class FGS(JWInstrument):
     """
     def __init__(self):
         JWInstrument.__init__(self, "FGS")
-        self.pixelscale = 0.069 # for FGS
+        self.pixelscale = 0.0691     # SIAF PRDDEVSOC-D-012, 2016 April
 
         self.detector_list = ['1','2']
         self._detector2siaf = dict()

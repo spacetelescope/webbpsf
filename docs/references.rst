@@ -14,6 +14,18 @@ computations, with particular attention to coronagraphic optics. It also notes
 several places where the current models or available files are limited in some
 manner that might be improved in a future release. 
 
+Instrument pixel scales are all based on *average best estimate* scales
+available in April 2016, specifically from values in the Science Instruments
+Aperture File (SIAF) data, as provided by the various instrument teams to the
+Telescope group via the SIAF Working Group. For instruments with multiple
+detectors, the values provided are averaged over the relevant detectors.
+WebbPSF calculates PSFs on an isotropic pixel grid (i.e. square pixels), but at
+high precision the SI pixel scales can differ between the X and Y axes by
+between 0.5% (for NIRCam) up to 2.5% (for FGS). WebbPSF also does not model any
+of the measured distortions within the instruments. 
+
+
+
 
 *Note: The WebbPSF software and all of its associated data files are entirely ITAR-free.*
 
@@ -36,7 +48,7 @@ attempt to include such effects here at this time. An independent study using mu
 NIRCam
 ------
 
-NIRCam focal plane scale: 0.317 arcsec/pixel (short wave) 0.0648 arcsec/pixel (long wave).  From `STScI NIRCam web page <http://www.stsci.edu/jwst/instruments/nircam/instrumentdesign/#channels>`_. 
+NIRCam focal plane scale:  0.311 +- 0.0002 (short wave), 0.630 +- 0.0002 (long wave). SOC PRD SIAF PRDDEVSOC-D-012, 2016 April
 
 The coronagraph optics models are based on the NIRCam instrument team's series of SPIE papers describing the coronagraph designs and flight hardware. 
 (Krist et al. 2007, 2009, 2010 Proc. SPIE), as clarified through cross checks with information provided by the NIRCam instrument team (Krist, private communication 2011).  Currently, the models include only the 5 arcsec square ND acquisition boxes and not the second set of 2 arcsec squares. 
@@ -64,23 +76,31 @@ NIRSpec
 --------
 NIRspec field of view rotation: 41.5 degrees. Matt Lallo, draft SIAF information; and Ball SI Fields for WFS&C document, J. Scott Knight
 
+NIRSpec pixel scale 0.1043 +- 0.001 arcsec/pixel. SOC PRD SIAF PRDDEVSOC-D-012, 2016 April
+
+
+
 
 NIRISS
 -------
 
-Occulting spots: Assumed to be perfect circles with diameters 0.58, 0.75, 1.5,
-and 2.0 arcsec. Doyon et al. 2010 SPIE 7731. While these are not likely to see
-extensive use with NIRISS, they are indeed still present in the hardware, so we
-retain the ability to simulate them. 
+NIRISS focal plane scale, 0.0656 +- 0.0005 arcsec/pix:          SOC PRD SIAF PRDDEVSOC-D-012, 2016 April
 
 NRM occulter mask: Provided by Anand Sivaramakrishnan. 
+
+
+Occulting spots: Assumed to be perfect circles with diameters 0.58, 0.75, 1.5,
+and 2.0 arcsec. Doyon et al. 2010 SPIE 7731. While these are not likely to see
+much (any?) use with NIRISS, they are indeed still present in the pickoff mirror hardware, so we
+retain the ability to simulate them. 
+
 
 
 
 MIRI
 ------
 
-MIRIM focal plane scale, 0.11 arcsec/pix:                 MIRI Optical Bench Assembly (OBA) Design Description, MIRI-DD-00001-AEU, 2.2.1
+MIRIM focal plane scale, 0.1110 +- 0.001 arcsec/pix:         SOC PRD SIAF PRDDEVSOC-D-012, 2016 April       
 
 MIRIM field of view rotation, 4.561 degrees:              MIRI Optical Bench Assembly (OBA) Design Description, MIRI-DD-00001-AEU
 
