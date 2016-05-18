@@ -21,7 +21,7 @@ from ._astropy_init import *
 # required. If changes to the code and data mean WebbPSF won't work
 # properly with an old data package, increment this version number.
 # (It's checked against $WEBBPSF_DATA/version.txt)
-DATA_VERSION_MIN = (0, 4, 1)
+DATA_VERSION_MIN = (0, 5, 0)
 
 import astropy
 from astropy import config as _config

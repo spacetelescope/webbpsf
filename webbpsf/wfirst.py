@@ -299,14 +299,14 @@ class WFI(WFIRSTInstrument):
         pixelscale = 110e-3  # arcsec/px, WFIRST-AFTA SDT report final version (p. 91)
         super(WFI, self).__init__("WFI", pixelscale=pixelscale)
 
-        self._detectors = _load_wfi_detector_aberrations(os.path.join(self._datapath, 'zernikes.csv'))
+        self._detectors = _load_wfi_detector_aberrations(os.path.join(self._datapath, 'wfc_zernikes_cycle6.csv'))
         assert len(self._detectors.keys()) > 0
         self.detector = 'SCA01'
 
         # Paths to the two possible pupils. The correct one is selected based on requested
         # wavelengths in _validateConfig()
-        self._unmasked_pupil_path = os.path.join(self._WebbPSF_basepath, 'AFTA_WFC_C5_Pupil_Shortwave_Norm_2048px.fits')
-        self._masked_pupil_path = os.path.join(self._WebbPSF_basepath, 'AFTA_WFC_C5_Pupil_Mask_Norm_2048px.fits')
+        self._unmasked_pupil_path = os.path.join(self._WebbPSF_basepath, 'WFIRSTMCRWFCPupilShortwaveNorm2048px.fits')
+        self._masked_pupil_path = os.path.join(self._WebbPSF_basepath, 'WFIRSTMCRWFCPupilMaskNorm2048px.fits')
 
         # Flag to en-/disable automatic selection of the appropriate pupil_mask
         self.auto_pupil = True
