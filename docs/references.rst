@@ -48,7 +48,7 @@ attempt to include such effects here at this time. An independent study using mu
 NIRCam
 ------
 
-NIRCam focal plane scale:  0.311 +- 0.0002 (short wave), 0.630 +- 0.0002 (long wave). SOC PRD SIAF PRDDEVSOC-D-012, 2016 April
+NIRCam focal plane scale:  0.0311 +- 0.0002 (short wave), 0.0630 +- 0.0002 (long wave). SOC PRD SIAF PRDDEVSOC-D-012, 2016 April
 
 The coronagraph optics models are based on the NIRCam instrument team's series of SPIE papers describing the coronagraph designs and flight hardware. 
 (Krist et al. 2007, 2009, 2010 Proc. SPIE), as clarified through cross checks with information provided by the NIRCam instrument team (Krist, private communication 2011).  Currently, the models include only the 5 arcsec square ND acquisition boxes and not the second set of 2 arcsec squares. 
