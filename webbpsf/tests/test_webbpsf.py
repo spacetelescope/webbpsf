@@ -192,7 +192,7 @@ def test_return_intermediates():
     nc.pupil_mask='wedgelyot'
 
     psf, intermediates = nc.calcPSF(monochromatic=2e-6, return_intermediates=True)
-    assert len(intermediates) == 4
+    assert len(intermediates) == 6
     assert isinstance(intermediates[0], poppy.Wavefront)
     assert isinstance(psf, astropy.io.fits.HDUList)
 

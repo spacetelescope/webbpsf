@@ -727,3 +727,43 @@ def _calc_blc_wedge(deg=4, wavelength=2.1e-6):
 
 
 
+# Field dependent aberration class for JWST instruments
+
+class JWST_Field_Dependent_Aberration(poppy.OpticalElement):
+    """ Field dependent aberration generated from Zernikes measured in ISIM CV testing
+
+
+    """
+    def __init__(self, instrument):
+        self.instrument = instrument
+        self.instr_name = instrument.name
+
+        #work out which name to index into the CV results with, if for NIRCam
+        if instrument.name == 'NIRCam':
+            lookup_name = ("NIRCAM"+instrument.channel[0]+"W"+instrument.module).upper()
+        elif instrument.name == 'FGS':
+            lookup_name = 'GUIDER'+instrument.detector[3] # 'GUIDER1' or 'GUIDER2'
+        else:
+            lookup_name = instrument.name.upper()
+        _log.debug("Retrieving zernike coeffs for "+lookup_name)
+
+        self.tel_coords = instrument._tel_coords()
+
+        # load the Zernikes table here
+
+        # Determine the pupil sampling of the first aperture in the instrument's optical system
+
+        #Figure out the closest field point
+
+        # Retrieve those Zernike coeffs (no interpolation for now)
+
+        # Generate an OPD on the same sampling as the input wavefront -
+        # but implicitly inverted in coordinate system
+        # to match the OTE exit pupil orientation
+
+        opd_from_zernikes = poppy.zernike.opd_from_zernikes(coeffs, npix=1024, # FIXME avoid hard-coding this
+                outside=0)
+
+        self.opd = opd_from_zernikes
+        self.amplitude = np.ones_like(self.opd)   #?   No the SI internal clear aperture is larger in general... oversized tricontagon
+

@@ -218,56 +218,33 @@ class WFIRSTInstrument(webbpsf_core.SpaceTelescopeInstrument):
     instruments, such as setting the pupil shape
     """
     telescope = "WFIRST"
-    _detectors = {}
-    """
-    Dictionary mapping detector names to FieldDependentAberration optics.
-
-    (Subclasses must populate this at `__init__`.)
-    """
-    _selected_detector = None
-    """
-    The name of the currently selected detector. Must be a key in _detectors, as validated by the
-    `detector` property setter.
-
-    (Subclasses must populate this at `__init__`.)
-    """
-
     def __init__(self, *args, **kwargs):
         super(WFIRSTInstrument, self).__init__(*args, **kwargs)
 
-        # n.b. WFIRSTInstrument subclasses must set these
-        self._detectors = {}
-        self._selected_detector = None
 
-    @property
-    def detector(self):
-        """Detector selected for simulated PSF
-
-        Used in calculation of field-dependent aberrations. Must be
-        selected from detectors in the `detector_list` attribute.
-        """
-        return self._selected_detector
-
-    @detector.setter
-    def detector(self, value):
-        if value.upper() not in self.detector_list:
-            raise ValueError("Invalid detector. Valid detector names are: {}".format(', '.join(self.detector_list)))
-        self._selected_detector = value.upper()
-
-    @property
-    def detector_list(self):
-        """Detectors on which the simulated PSF could lie"""
-        return sorted(self._detectors.keys())
-
+    # slightly different versions of the following two functions
+    # from the parent superclass
+    # in order to interface with the FieldDependentAberration class
     @property
     def detector_position(self):
         """The pixel position in (X, Y) on the detector"""
         return self._detectors[self._selected_detector].field_position
+        #return self._detector_position
 
     @detector_position.setter
     def detector_position(self, position):
-        detector = self._detectors[self._selected_detector]
-        detector.field_position = position
+        for i in range(2):
+            try:
+                pos = int(position[i])
+            except:
+                raise ValueError("Detector pixel coordinates must be pairs of nonnegative numbers, not {}".format(position))
+            if pos<0: raise ValueError("Detector pixel coordinates must be nonnegative integers, not {}".format(pos))
+            if pos>(self._detector_npixels-1): raise ValueError("The maximum allowed detector pixel coordinate value is {}, not {}".format(
+                self._detector_npixels-1, pos))
+
+        self._detectors[self._selected_detector].field_position = (int(position[0]),int(position[1]))
+
+
 
     def _get_aberrations(self):
         """Get the OpticalElement that applies the field-dependent
@@ -298,6 +275,8 @@ class WFI(WFIRSTInstrument):
     def __init__(self):
         pixelscale = 110e-3  # arcsec/px, WFIRST-AFTA SDT report final version (p. 91)
         super(WFI, self).__init__("WFI", pixelscale=pixelscale)
+
+        self._detector_npixels=4096
 
         self._detectors = _load_wfi_detector_aberrations(os.path.join(self._datapath, 'zernikes.csv'))
         assert len(self._detectors.keys()) > 0
