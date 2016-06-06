@@ -305,8 +305,8 @@ class WFI(WFIRSTInstrument):
 
         # Paths to the two possible pupils. The correct one is selected based on requested
         # wavelengths in _validateConfig()
-        self._unmasked_pupil_path = os.path.join(self._WebbPSF_basepath, 'WFIRSTMCRWFCPupilShortwaveNorm2048px.fits')
-        self._masked_pupil_path = os.path.join(self._WebbPSF_basepath, 'WFIRSTMCRWFCPupilMaskNorm2048px.fits')
+        self._unmasked_pupil_path = os.path.join(self._WebbPSF_basepath, 'wfc_pupil_rev_mcr.fits')
+        self._masked_pupil_path = os.path.join(self._WebbPSF_basepath, 'wfc_pupil_masked_rev_mcr.fits')
 
         # Flag to en-/disable automatic selection of the appropriate pupil_mask
         self.auto_pupil = True
