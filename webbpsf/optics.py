@@ -765,5 +765,5 @@ class JWST_Field_Dependent_Aberration(poppy.OpticalElement):
                 outside=0)
 
         self.opd = opd_from_zernikes
-        self.amplitude = np.ones_like(self.opd)   #?   No the SI internal clear aperture is larger in general... oversized tricontagon
+        self.amplitude = np.ones_like(self.opd, dtype=float)   #?   No the SI internal clear aperture is larger in general... oversized tricontagon
 

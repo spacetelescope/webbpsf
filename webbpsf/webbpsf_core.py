@@ -735,6 +735,17 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
 
 class JWInstrument(SpaceTelescopeInstrument):
+    """ Superclass for all JWST instruments
+
+    Notable attributes:
+
+    telescope : name of telescope
+    pupilopd : filename or FITS file object
+
+    include_si_wfe : boolean. Should SI internal WFE be included in models?
+
+
+    """
     telescope = "JWST"
     pupilopd = None
     """Filename *or* fits.HDUList for JWST pupil OPD.
@@ -754,8 +765,13 @@ class JWInstrument(SpaceTelescopeInstrument):
         # where is the source on the detector, in 'Science frame' pixels?
         self.detector_position = (1024, 1024)
 
+        self.include_si_wfe = False
+        """Should calculations include the Science Instrument internal WFE?"""
+
 
     def _getOpticalSystem(self,fft_oversample=2, detector_oversample = None, fov_arcsec=2, fov_pixels=None, options=None):
+        # invoke superclass version of this
+        # then add a few display tweaks
         optsys = SpaceTelescopeInstrument._getOpticalSystem(self,
             fft_oversample=fft_oversample, detector_oversample=detector_oversample, fov_arcsec=fov_arcsec, fov_pixels=fov_pixels,
             options=options)
@@ -768,33 +784,16 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         This is just a placeholder!
         """
+        if not self.include_si_wfe:
+            return None
 
         #tmp = poppy.zernike.opd_from_zernikes([0,0,0,5e-8, 1e-8],
                 #npix=1024, outside=0)
         tmp = poppy.zernike.opd_from_zernikes([0,0,0], npix=1024, outside=0)
         optic = poppy.OpticalElement(name="Aberration Placeholder for "+self.name)
         optic.opd = tmp
-        optic.amplitude = tmp != 0 #np.isfinite(tmp)
+        optic.amplitude = np.ones_like(tmp)
         return optic
-
-# 
-#     @property
-#     def detector(self):
-#         """Currently selected detector name (for instruments with multiple detectors)"""
-#         return self._detector.name
-# 
-#     @detector.setter
-#     def detector(self, detname):
-#         if detname is not None:
-#             detname = detname.upper()  # force to uppercase
-#             return # TEMPORARY - ignore SIAF detector stuff while it's not actually used, and SIAF entries are in flux.
-#             try:
-#                 siaf_aperture_name = self._detector2siaf[detname]
-#             except KeyError:
-#                 raise ValueError("Unknown name: {0} is not a valid known name for a detector "
-#                                  "for instrument {1}".format(detname, self.name))
-#             self._detector = DetectorGeometry(self.name, siaf_aperture_name, shortname=detname)
-
 
     def _tel_coords(self):
         """ Convert from detector pixel coordinates to SIAF aperture coordinates """
@@ -1601,7 +1600,7 @@ class DetectorGeometry(object):
         tel_coords = np.asarray( self.aperture.Sci2Tel(xpix, ypix) )
         tel_coords_arcmin = tel_coords / 60. # arcsec to arcmin
         return tel_coords_arcmin
- 
+
 
 #########################
 
