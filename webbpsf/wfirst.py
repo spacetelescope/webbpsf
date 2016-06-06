@@ -299,7 +299,7 @@ class WFI(WFIRSTInstrument):
         pixelscale = 110e-3  # arcsec/px, WFIRST-AFTA SDT report final version (p. 91)
         super(WFI, self).__init__("WFI", pixelscale=pixelscale)
 
-        self._detectors = _load_wfi_detector_aberrations(os.path.join(self._datapath, 'wfc_zernikes_cycle6.csv'))
+        self._detectors = _load_wfi_detector_aberrations(os.path.join(self._datapath, 'wim_zernikes_cycle6.csv'))
         assert len(self._detectors.keys()) > 0
         self.detector = 'SCA01'
 
