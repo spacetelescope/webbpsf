@@ -167,8 +167,8 @@ def _load_wfi_detector_aberrations(filename):
     def build_detector_from_table(number, zernike_table):
         """Build a FieldDependentAberration optic for a detector using
         Zernikes Z1-Z22 at various wavelengths and field points"""
-        single_detector_info = zernike_table[zernike_table['Cnfg#'] == number]
-        field_points = set(single_detector_info['Field'])
+        single_detector_info = zernike_table[zernike_table['sca'] == number]
+        field_points = set(single_detector_info['field_point'])
         interpolators = {}
         detector = FieldDependentAberration(
             4096,
@@ -177,8 +177,8 @@ def _load_wfi_detector_aberrations(filename):
             name="Field Dependent Aberration (SCA{:02})".format(number)
         )
         for field_id in field_points:
-            field_point_rows = single_detector_info[single_detector_info['Field'] == field_id]
-            local_x, local_y = field_point_rows[0]['Local_x'], field_point_rows[0]['Local_y']
+            field_point_rows = single_detector_info[single_detector_info['field_point'] == field_id]
+            local_x, local_y = field_point_rows[0]['local_x'], field_point_rows[0]['local_y']
             interpolator = build_wavelength_dependence(field_point_rows)
 
             midpoint_pixel = 4096 / 2
@@ -194,18 +194,18 @@ def _load_wfi_detector_aberrations(filename):
     def build_wavelength_dependence(rows):
         """Build an interpolator object that interpolates Z1-Z22 in
         wavelength space"""
-        wavelengths = set(rows['Wave(um)'])
+        wavelengths = set(rows['wavelength'])
         interpolator = WavelengthDependenceInterpolator(n_wavelengths=len(wavelengths),
                                                         n_zernikes=22)
         for row in rows:
             z = np.zeros(22)
             for idx in range(22):
                 z[idx] = row['Z{}'.format(idx + 1)]
-            interpolator.set_aberration_terms(row['Wave(um)'] * 1e-6, z)
+            interpolator.set_aberration_terms(row['wavelength'] * 1e-6, z)
 
         return interpolator
 
-    detector_ids = set(zernike_table['Cnfg#'])
+    detector_ids = set(zernike_table['sca'])
     for detid in detector_ids:
         detectors["SCA{:02}".format(detid)] = build_detector_from_table(detid, zernike_table)
 
@@ -277,15 +277,14 @@ class WFI(WFIRSTInstrument):
         super(WFI, self).__init__("WFI", pixelscale=pixelscale)
 
         self._detector_npixels=4096
-
-        self._detectors = _load_wfi_detector_aberrations(os.path.join(self._datapath, 'zernikes.csv'))
+        self._detectors = _load_wfi_detector_aberrations(os.path.join(self._datapath, 'wim_zernikes_cycle6.csv'))
         assert len(self._detectors.keys()) > 0
         self.detector = 'SCA01'
 
         # Paths to the two possible pupils. The correct one is selected based on requested
         # wavelengths in _validateConfig()
-        self._unmasked_pupil_path = os.path.join(self._WebbPSF_basepath, 'AFTA_WFC_C5_Pupil_Shortwave_Norm_2048px.fits')
-        self._masked_pupil_path = os.path.join(self._WebbPSF_basepath, 'AFTA_WFC_C5_Pupil_Mask_Norm_2048px.fits')
+        self._unmasked_pupil_path = os.path.join(self._WebbPSF_basepath, 'wfc_pupil_rev_mcr.fits')
+        self._masked_pupil_path = os.path.join(self._WebbPSF_basepath, 'wfc_pupil_masked_rev_mcr.fits')
 
         # Flag to en-/disable automatic selection of the appropriate pupil_mask
         self.auto_pupil = True
