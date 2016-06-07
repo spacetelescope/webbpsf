@@ -143,6 +143,7 @@ def test_opd_selected_by_default():
         ins = InstrumentClass()
         assert ins.pupilopd is not None, "No pupilopd set for {}".format(InstrumentClass)
 
+
 def test_calcPSF_filter_arg():
     """ Tests the filter argument to the calcPSF function
     Can be used to set filter as same time as calculating a PSF
@@ -183,6 +184,7 @@ def test_cast_to_str():
 
     assert str(nc)=='<JWST: NIRCam>'
 
+
 def test_return_intermediates():
     import poppy
     import astropy.io.fits
@@ -191,8 +193,10 @@ def test_return_intermediates():
     nc.image_mask='maskswb'
     nc.pupil_mask='wedgelyot'
 
+    osys = nc._getOpticalSystem()
+
     psf, intermediates = nc.calcPSF(monochromatic=2e-6, return_intermediates=True)
-    assert len(intermediates) == 6
+    assert len(intermediates) == len(osys.planes)
     assert isinstance(intermediates[0], poppy.Wavefront)
     assert isinstance(psf, astropy.io.fits.HDUList)
 

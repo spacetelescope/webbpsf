@@ -39,7 +39,7 @@ def test_WFI_detector_position_setter():
     wfi.detector = 'SCA01'
     valid_pos = (4000, 1000)
     wfi.detector_position = valid_pos
-    assert wfi._detectors[wfi._selected_detector].field_position == valid_pos, (
+    assert wfi._detectors[wfi._detector].field_position == valid_pos, (
         "Setting field position through Instrument.detector_position did not update field_position "
         "for the detector's aberration optic"
     )

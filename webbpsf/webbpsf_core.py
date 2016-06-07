@@ -807,14 +807,12 @@ class MIRI(JWInstrument):
 
     Relevant attributes include `filter`, `image_mask`, and `pupil_mask`.
 
-    In addition to the actual filters, you may select 'MRS-IFU Ch1' to
-    indicate use of the MIRI IFU in Channel 1, and so forth. In this case, the `monochromatic` attribute controls the simulated wavelength.
-    Note that the pixel scale varies with channel, which is why they are implemented separately.
-    **Note: IFU to be implemented later**
-
+    The pupil will auto-select appropriate values for the coronagraphic filters
+    if the auto_pupil attribute is set True (which is the default).
 
     """
     def __init__(self):
+        self.auto_pupil=True
         JWInstrument.__init__(self, "MIRI")
         self.pixelscale = 0.1110  # Source: SIAF PRDDEVSOC-D-012, 2016 April
         self._rotation = 4.561 # Source: MIRI OBA DD, page 3-16
@@ -822,8 +820,8 @@ class MIRI(JWInstrument):
         self.image_mask_list = ['FQPM1065', 'FQPM1140', 'FQPM1550', 'LYOT2300', 'LRS slit']
         self.pupil_mask_list = ['MASKFQPM', 'MASKLYOT', 'P750L LRS grating']
 
-        for i in range(4):
-            self.filter_list.append('MRS-IFU Ch%d'% (i+1) )
+        #for i in range(4):
+            #self.filter_list.append('MRS-IFU Ch%d'% (i+1) )
         self.monochromatic = 8.0
         self._IFU_pixelscale = {
             'Ch1': (0.18, 0.19),
@@ -838,6 +836,24 @@ class MIRI(JWInstrument):
         self.detector = self.detector_list[0]
         self._detector_npixels=1024
         self.detector_position=(512,512)
+
+
+    @JWInstrument.filter.setter
+    def filter(self, value):
+        super(MIRI, self.__class__).filter.__set__(self, value)
+
+        if self.auto_pupil:
+            # set the pupil shape based on filter
+            if self.filter.endswith('C'):
+                # coronagraph masks
+                if self.filter[1]=='1':
+                    self.pupil_mask = 'MASKFQPM'
+                else:
+                    self.pupil_mask = 'MASKLYOT'
+            else:
+                # no mask, i.e. full pupil
+                self.pupil_mask = None
+
 
     def _validateConfig(self, **kwargs):
         """Validate instrument config for MIRI
@@ -1111,9 +1127,11 @@ class NIRCam(JWInstrument):
                     index=2)
             trySAM = False #True FIXME
             SAM_box_size = [5,20]
+        #elif ((self.pupil_mask is not None) and (self.pupil_mask.startswith('MASK'))):
         else:
-            optsys.add_image(poppy.ScalarTransmission(name='No Image Mask Selected!'), index=1)
-            # no occulter selected but coronagraphic mode anyway.
+            # no occulter selected but coronagraphic mode anyway. E.g. off-axis PSF
+            # but don't add this image plane for weak lens calculations
+            #optsys.add_image(poppy.ScalarTransmission(name='No Image Mask Selected!'), index=1)
             trySAM = False
             SAM_box_size = 1.0 # irrelevant but variable still needs to be set.
 
@@ -1159,7 +1177,7 @@ class NIRCam(JWInstrument):
                 radius=self.pupil_radius
             ), index=3)
         elif self.pupil_mask == 'WEAK LENS +12 (=4+8)':
-            stack = poppy.CompoundAnalyticOptic(name='Weak Lens Stack +12', opticslist=[
+            stack = poppy.CompoundAnalyticOptic(name='Weak Lens Pair +12', opticslist=[
                 poppy.ThinLens(
                     name='Weak Lens +4',
                     nwaves=WLP4_diversity / WL_wavelength,
@@ -1175,7 +1193,7 @@ class NIRCam(JWInstrument):
             )
             optsys.addPupil(stack, index=3)
         elif self.pupil_mask == 'WEAK LENS -4 (=4-8)':
-            stack = poppy.CompoundAnalyticOptic(name='Weak Lens Stack -4', opticslist=[
+            stack = poppy.CompoundAnalyticOptic(name='Weak Lens Pair -4', opticslist=[
                 poppy.ThinLens(
                     name='Weak Lens +4',
                     nwaves=WLP4_diversity / WL_wavelength,
@@ -1202,7 +1220,7 @@ class NIRCam(JWInstrument):
         JWInstrument._getFITSHeader(self,hdulist, options)
 
         hdulist[0].header['MODULE'] = (self.module, 'NIRCam module: A or B')
-        hdulist[0].header['CHANNEL'] = ( 'Short' if self.pixelscale == self._pixelscale_short else 'Long', 'NIRCam channel: long or short')
+        hdulist[0].header['CHANNEL'] = ( 'Short' if self.channel  == 'short' else 'Long', 'NIRCam channel: long or short')
         # filter, pupil added by calcPSF header code
         hdulist[0].header['PILIN'] = ( 'False', 'Pupil imaging lens in optical path: T/F')
 
@@ -1350,6 +1368,7 @@ class NIRISS(JWInstrument):
 
 
     def __init__(self, auto_pupil=True):
+        self.auto_pupil = auto_pupil
         JWInstrument.__init__(self, "NIRISS")
         self.pixelscale = 0.0656     # SIAF PRDDEVSOC-D-012, 2016 April
 
@@ -1359,7 +1378,6 @@ class NIRISS(JWInstrument):
         self._detectors = {'NIRISS':'NIS-CEN'}
         self.detector=self.detector_list[0]
 
-        self.auto_pupil = auto_pupil
 
     def _addAdditionalOptics(self,optsys, oversample=2):
         """Add NRM or slitless spectroscopy optics for NIRISS.
@@ -1416,10 +1434,36 @@ class NIRISS(JWInstrument):
             hdulist[0].header['CORONPOS'] = ( self.image_mask, 'NIRISS coronagraph spot location')
         hdulist[0].header['FOCUSPOS'] = (0,'NIRISS focus mechanism not yet modeled.')
 
+    @JWInstrument.filter.setter
+    def filter(self, value):
+        super(NIRISS, self.__class__).filter.__set__(self, value)
+        # NIRISS pupils:
+        # Short wave filters can be used with a full (clear) pupil
+        # long filters have to be used with the CLEARP pupil that contains the
+        # PAR reference.
+
+        if self.auto_pupil:
+            wlnum = int(self.filter[1:4])
+            new_pupil_mask = self.pupil_mask # default no change
+            if wlnum >= 250:
+                # long wave - can't have clear pupil, it's NRM or GRISM or CLEARP
+                if self.pupil_mask is None:
+                    new_pupil_mask = 'CLEARP'
+            else:
+                # short wave filter - must have clear pupil
+                new_pupil_mask = None
+
+            if new_pupil_mask != self.pupil_mask:
+                _log.info("NIRISS pupil obscuration updated to {0} to match "
+                          "the requested filter".format(new_pupil_mask))
+                self.pupil_mask = new_pupil_mask
+
+
+
     def _validateConfig(self, **kwargs):
         """Validate instrument config for NIRISS
 
-        For NIRISS, this optionally adjusts the instrument pupil scale
+        For NIRISS, this optionally adjusts the instrument pupil
         """
         wavelengths = np.array(kwargs['wavelengths'])
         if np.min(wavelengths) < self.SHORT_WAVELENGTH_MIN:
@@ -1430,26 +1474,6 @@ class NIRISS(JWInstrument):
             self.pupil=='NRM'):
                 raise RuntimeError('NRM pupil can only be used with long '
                     'wavelength filters (F277W and longer)')
-
-
-        # NIRISS pupils:
-        # Short wave filters can be used with a full (clear) pupil
-        # long filters have to be used with the CLEARP pupil that contains the
-        # PAR reference.
-
-        if self.auto_pupil:
-            if (np.max(wavelengths) <= self.SHORT_WAVELENGTH_MAX and
-                self.pupil_mask == 'CLEARP'):
-                    new_pupil_mask=None
-            elif  (np.min(wavelengths) >= self.LONG_WAVELENGTH_MIN and
-                self.pupil_mask is None):
-                    new_pupil_mask='CLEARP'
-            else: new_pupil_mask=self.pupil_mask # default is same pupil
-
-            if new_pupil_mask != self.pupil_mask:
-                _log.info("NIRISS pupil obscuration updated to {0} to match "
-                          "the requested wavelength range".format(new_pupil_mask))
-                self.pupil_mask = new_pupil_mask
 
         return super(NIRISS, self)._validateConfig(**kwargs)
 

@@ -172,40 +172,65 @@ def test_nircam_auto_pixelscale():
     nc = webbpsf_core.NIRCam()
 
     nc.filter='F200W'
-    wavelengths, _ = nc._getWeights()
-    nc._validateConfig(wavelengths=wavelengths)
     assert nc.pixelscale == nc._pixelscale_short
+    assert nc.channel == 'short'
 
     # auto switch to long
     nc.filter='F444W'
-    wavelengths, _ = nc._getWeights()
-    nc._validateConfig(wavelengths=wavelengths)
     assert nc.pixelscale == nc._pixelscale_long
+    assert nc.channel == 'long'
 
     # and it can switch back to short:
     nc.filter='F200W'
-    wavelengths, _ = nc._getWeights()
-    nc._validateConfig(wavelengths=wavelengths)
     assert nc.pixelscale == nc._pixelscale_short
+    assert nc.channel == 'short'
 
     nc.pixelscale = 0.0123  # user is allowed to set something custom
     nc.filter='F444W'
-    wavelengths, _ = nc._getWeights()
-    nc._validateConfig(wavelengths=wavelengths)
     assert nc.pixelscale == 0.0123  # and that persists & overrides the default switching.
 
-    # restore a standard pixel scale (long since we're testing short next)
-    nc.pixelscale = nc._pixelscale_long
 
-    # wavelengths fit on shortwave channel -> short channel pixel scale
+    # back to standard scale
+    nc.pixelscale = nc._pixelscale_long
+    # switch short again
+    nc.filter='F212N'
+    assert nc.pixelscale == nc._pixelscale_short
+    assert nc.channel == 'short'
+
+    nc.auto_channel = False
+    # now we can switch filters and nothing else should change:
+    nc.filter='F480M'
+    assert nc.pixelscale == nc._pixelscale_short
+    assert nc.channel == 'short'
+
+
+
+
+def test_validate_nircam_wavelengths():
+    nc = webbpsf_core.NIRCam()
+
+    # wavelengths fit on shortwave channel -> no exception
+    nc.filter='F200W'
     nc._validateConfig(wavelengths=np.linspace(nc.SHORT_WAVELENGTH_MIN, nc.SHORT_WAVELENGTH_MAX, 3))
     assert nc.pixelscale == nc._pixelscale_short
 
-    # wavelengths fit on long channel -> long pixel scale
+    # short wave is selected but user tries a long wave calculation
+    with pytest.raises(RuntimeError) as excinfo:
+        nc._validateConfig(wavelengths=np.linspace(nc.LONG_WAVELENGTH_MIN + 1e-6, nc.LONG_WAVELENGTH_MAX, 3))
+    assert _exception_message_starts_with(excinfo,"The requested wavelengths are too long for NIRCam short wave channel")
+
+    # wavelengths fit on long channel -> no exception
+    nc.filter='F444W'
     nc._validateConfig(wavelengths=np.linspace(nc.LONG_WAVELENGTH_MIN, nc.LONG_WAVELENGTH_MAX, 3))
     assert nc.pixelscale == nc._pixelscale_long
 
-    # wavelengths don't fit on one channel -> exception
+    # long wave is selected but user tries a short  wave calculation
+    with pytest.raises(RuntimeError) as excinfo:
+        nc._validateConfig(wavelengths=np.linspace(nc.SHORT_WAVELENGTH_MIN + 1e-8, nc.SHORT_WAVELENGTH_MAX, 3))
+    assert _exception_message_starts_with(excinfo,"The requested wavelengths are too short for NIRCam long wave channel")
+
+
+    # too short or long for NIRCAM at all
     with pytest.raises(RuntimeError) as excinfo:
         nc._validateConfig(wavelengths=np.linspace(nc.SHORT_WAVELENGTH_MIN - 1e-6, nc.SHORT_WAVELENGTH_MIN, 3))
     assert _exception_message_starts_with(excinfo,"The requested wavelengths are too short to be imaged with NIRCam")
@@ -214,8 +239,4 @@ def test_nircam_auto_pixelscale():
         nc._validateConfig(wavelengths=np.linspace(nc.LONG_WAVELENGTH_MAX, nc.LONG_WAVELENGTH_MAX + 1e-6, 3))
     assert _exception_message_starts_with(excinfo,"The requested wavelengths are too long to be imaged with NIRCam")
 
-    with pytest.raises(RuntimeError) as excinfo:
-        nc._validateConfig(wavelengths=np.linspace(nc.SHORT_WAVELENGTH_MAX - 1e-6, nc.LONG_WAVELENGTH_MIN + 1e-6, 3))
-    assert _exception_message_starts_with(excinfo,"Wavelengths requested don't fit entirely on either NIRCam short"
-                                     " or long wavelength channels")
 
