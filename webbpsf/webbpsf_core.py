@@ -121,7 +121,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
     (Subclasses must populate this at `__init__`.)
     """
-    _selected_detector = None
+    _detector = None
     """
     The name of the currently selected detector. Must be a key in _detectors, as validated by the
     `detector` property setter.
@@ -200,7 +200,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
         # n.b.STInstrument subclasses must set these
         self._detectors = {}
-        self._selected_detector = None
+        self._detector = None
         self._detector_npixels=2048
 
     @property
@@ -249,13 +249,13 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         Used in calculation of field-dependent aberrations. Must be
         selected from detectors in the `detector_list` attribute.
         """
-        return self._selected_detector
+        return self._detector
 
     @detector.setter
     def detector(self, value):
         if value.upper() not in self.detector_list:
             raise ValueError("Invalid detector. Valid detector names are: {}".format(', '.join(self.detector_list)))
-        self._selected_detector = value.upper()
+        self._detector = value.upper()
 
     @property
     def detector_list(self):
@@ -265,7 +265,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
     @property
     def detector_position(self):
         """The pixel position in (X, Y) on the detector"""
-        #return self._detectors[self._selected_detector].field_position
+        #return self._detectors[self._detector].field_position
         return self._detector_position
 
     @detector_position.setter
@@ -798,7 +798,7 @@ class JWInstrument(SpaceTelescopeInstrument):
     def _tel_coords(self):
         """ Convert from detector pixel coordinates to SIAF aperture coordinates """
 
-        siaf_geom = DetectorGeometry(self.name, self._detectors[self._selected_detector])
+        siaf_geom = DetectorGeometry(self.name, self._detectors[self._detector])
         return siaf_geom.pix2angle(self.detector_position[1], self.detector_position[0])
 
 
@@ -991,7 +991,7 @@ class NIRCam(JWInstrument):
         self.auto_channel = True
         self._filter='F200W'    # need to set this temporarily before calling superclass __init__ due to a peculiarity
                                 # with overriding the filter setter below.
-        self._selected_detector='A1'
+        self._detector='A1'
 
         JWInstrument.__init__(self, "NIRCam") # do this after setting the long & short scales.
         self.pixelscale = self._pixelscale_short # need to redo 'cause the __init__ call will reset it to zero
@@ -1010,14 +1010,7 @@ class NIRCam(JWInstrument):
 
     @property
     def module(self):
-        return self._module
-
-    @module.setter
-    def module(self, value):
-        value=value.upper()
-        if not ((value=='A') or (value=='B')):
-            raise ValueError("NIRCam module must be 'A' or 'B' only.")
-        self._module = value
+        return self._detector[0]
 
     @property
     def channel(self):

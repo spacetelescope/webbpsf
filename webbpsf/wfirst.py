@@ -228,7 +228,7 @@ class WFIRSTInstrument(webbpsf_core.SpaceTelescopeInstrument):
     @property
     def detector_position(self):
         """The pixel position in (X, Y) on the detector"""
-        return self._detectors[self._selected_detector].field_position
+        return self._detectors[self._detector].field_position
         #return self._detector_position
 
     @detector_position.setter
@@ -242,14 +242,14 @@ class WFIRSTInstrument(webbpsf_core.SpaceTelescopeInstrument):
             if pos>(self._detector_npixels-1): raise ValueError("The maximum allowed detector pixel coordinate value is {}, not {}".format(
                 self._detector_npixels-1, pos))
 
-        self._detectors[self._selected_detector].field_position = (int(position[0]),int(position[1]))
+        self._detectors[self._detector].field_position = (int(position[0]),int(position[1]))
 
 
 
     def _get_aberrations(self):
         """Get the OpticalElement that applies the field-dependent
         optical aberrations. (Called in _getOpticalSystem.)"""
-        return self._detectors[self._selected_detector]
+        return self._detectors[self._detector]
 
     def _getFITSHeader(self, result, options):
         """Populate FITS Header keywords"""
