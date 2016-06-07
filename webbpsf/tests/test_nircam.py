@@ -27,7 +27,6 @@ test_nircam_blc_circ_0 =   lambda : do_test_nircam_blc(kind='circular', angle=0)
 def test_nircam_blc_wedge_0():
     return do_test_nircam_blc(kind='linear', angle=0)
 
-@pytest.mark.xfail
 def test_nircam_blc_wedge_45():
     return do_test_nircam_blc(kind='linear', angle=45)
 
@@ -149,17 +148,22 @@ def do_test_nircam_blc(clobber=False, kind='circular', angle=0, save=False, disp
         if not os.path.exists(fnout) or clobber:
             psf = nc.calcPSF(oversample=oversample, nlambda=nlam, save_intermediates=False, display=display)#, monochromatic=10.65e-6)
             if save:
+                plt.savefig(fnout+".pdf")
                 psf.writeto(fnout, clobber=clobber)
         else:
             psf = fits.open(fnout)
         totflux = psf[0].data.sum()
 
-        assert( abs(totflux - exp_flux) < 1e-4 )
+        #print("Offset: {}    Expected Flux: {}  Calc Flux: {}".format(offset,exp_flux,totflux))
+
+        # FIXME tolerance temporarily increased to 1% in final flux, to allow for using
+        # regular propagation rather than semi-analytic. See poppy issue #169
+        #assert( abs(totflux - exp_flux) < 1e-4 )
+        assert( abs(totflux - exp_flux) < 1e-2 )
         _log.info("File {0} has the expected total flux based on prior reference calculation: {1}".format(fnout, totflux))
 
     #_log.info("Lots of test files output as test_nircam_*.fits")
 
-@pytest.mark.xfail
 def test_nircam_get_detector():
     nc=webbpsf_core.NIRCam()
 
