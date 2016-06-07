@@ -9,35 +9,46 @@ JWST Instrument Model Details
 The following describes specific details for the various JWST instrument classes. See also :ref:`the references page <references>` for information on data sources. 
 
 
-One general note is that the webbpsf class interfaces do not attempt to exactly
+One general note is that the ``webbpsf`` class interfaces do not attempt to exactly
 model the implementation details of all instrument mechanisms, particularly for
-NIRCam and NIRISS that each have multiple wheels. In webbpsf, the
+NIRCam and NIRISS that each have multiple wheels. The
 ``filter`` attribute of a given class is used to select any and all filters,
 even if as a practical matter a given filter is physically installed in a
 "pupil" wheel instead of a "filter" wheel. Likewise any masks that affect the
 aperture shape are selected via the ``pupil_mask`` attribute even if physically
 an optic is in a so-called "filter" wheel.
 
+All classes share some common attributes:
 
-Each SI has a ``detector`` attribute that can be used to select among its
-multiple detectors (if more than one are present in that SI), and a
-``detector_position`` attribute which is a tuple givin the pixel coordinates on
-that detector. Note that the ``detector_position`` value should be specified
-using the Python (Y,X) axes order convention.
+ * ``filter`` which is the string name of the currently selected filter. 
+   The list of available filters is provided as the ``filter_list`` attribute.
+ * ``image_mask`` which is the name of a selected image plane element such as a
+   coronagraph mask or spectrograph slit, or ``None`` to indicate no 
+   such element is present.  
+   The list of available options is provided as the ``image_mask_list`` attribute.
+ * ``pupil_mask`` likewise allows specification of any optic that modifies the pupil plane
+   subsequent to the image mask, such as a coronagraphic Lyot stop or spectrograph grating stop.
+   The list of available options is provided as the ``pupil_mask_list`` attribute.
+ * Each SI has a ``detector`` attribute that can be used to select among its
+   multiple detectors (if more than one are present in that SI), and a
+   ``detector_position`` attribute which is a tuple givin the pixel coordinates
+   on that detector. Note that the ``detector_position`` value should be
+   specified using the Python (Y,X) axes order convention.
+
 
 .. admonition:: Instrument measured WFE coming in a future release
 
-        This version of webbpsf does not yet contain data on the measured SI
-        wavefront errors. However it does contain software infrastructure to
-        support that functionality in the near future, once the data files have
-        been fully reviewed by the project and SI teams. So for the time being,
-        some options related to detector field positions and SI wavefront error
-        are present in webbpsf, but do not have any effect on the output PSFs.
-        Stay tuned!
+    This version of WebbPSF does not yet contain data on the measured SI
+    wavefront errors. However it does contain software infrastructure to
+    support that functionality in the near future, once the data files have
+    been fully reviewed by the project and SI teams. So for the time being,
+    some options related to detector field positions and SI wavefront error
+    are present in WebbPSF, but do not have any effect on the output PSFs.
+    Stay tuned!
 
 
 .. warning::
-    webbpsf provides some sanity checking on user inputs, but does not strive to
+    WebbPSF provides some sanity checking on user inputs, but does not strive to
     strictly forbid users from trying to simulate instrument configurations that 
     may not be achievable in practice.  Users are responsible for knowing the
     available modes well enough to be aware if they are trying to
@@ -50,7 +61,7 @@ NIRCam
 Imaging
 --------
 
-NIRCam is one of the more complicated classes in webbpsf, and has several unique selectable options to model the two copies of NIRCam each with two channels..  
+NIRCam is one of the more complicated classes in ``webbpsf``, and has several unique selectable options to model the two copies of NIRCam each with two channels..  
 
 The ``detector`` attribute can be used to select between any of the ten detectors,
 A1-A5 and B1-B5.  Additional attributes are then automatically set for ``channel``
@@ -61,11 +72,11 @@ automatically.
 The choice of ``filter`` also impacts the channel selection: If you choose a
 long-wavelength filter such as F460M, then the detector will automatically
 switch to the long-wave detector for the current channel. For example, if the
-detector was previously set to A2, and the user enters ``nircam.filter="F460M"``
+detector was previously set to A2, and the user enters ``nircam.filter = "F460M"``
 then the detector will automatically change to A5.  If the user later selects
-``nircam.filter="F212N"`` then the detector will switch to A1 (and the user will
+``nircam.filter = "F212N"`` then the detector will switch to A1 (and the user will
 need to manually select if a different short wave detector is desired).  This
-behavior on filter selection can be disabled by setting ``nircam.auto_channel=False``. 
+behavior on filter selection can be disabled by setting ``nircam.auto_channel = False``. 
 
 
 Coronagraph Masks
@@ -75,7 +86,7 @@ The coronagraph image plane masks and Lyot masks are all included as options.
 These are based on the nominal design properties as provided by the NIRCam team, 
 not on any specific measurements of the as-built masks.
 
-webbpsf won't prevent users from simulating configuration using a coronagraph
+WebbPSF won't prevent users from simulating configuration using a coronagraph
 image mask without the Lyot stop, but that's not something that can be done for
 real with NIRCam. 
 
@@ -83,7 +94,8 @@ real with NIRCam.
 Weak Lenses for Wavefront Sensing
 ---------------------------------
 
-webbpsf includes models for the weak 
+WebbPSF includes models for the three weak lenses used for wavefront sensing, including the 
+pairs of lenses that can be used together simultaneously.
 
 The convention is such that the "negative" 8 waves lens is concave, the
 "positive" two lenses are convex. Thus positive weak lenses move best focus
@@ -156,7 +168,7 @@ the "CLEARP" pupil.
 
 Based on the selected filter, webbpsf will automatically toggle the
 ``pupil_mask`` between "CLEARP" and the regular clear pupil (i.e.
-``pupil_mask=None``).
+``pupil_mask = None``).
 
 
 Slitless Spectroscopy
@@ -169,7 +181,7 @@ this includes the clipping of the pupil due to the undersized grating and its
 mounting hardware, and the cylindrical lens that partially defocuses the light
 in one direction.
 
-.. warning ::
+.. warning::
 
     Prototype implementation - Not yet fully tested or verified.
 
@@ -219,14 +231,14 @@ webbpsf includes models for all three FQPM coronagraphs and the Lyot
 coronagraph. In practice, the wavelength selection filters and the Lyot stop are
 co-mounted. webbpsf models this by automatically setting the ``pupil_mask``
 element to one of the coronagraph masks or the regular pupil when the ``filter``
-is changed. If you want to disable this behavior, set ``miri.auto_pupil=False``.
+is changed. If you want to disable this behavior, set ``miri.auto_pupil = False``.
 
 
 LRS Spectroscopy
 ----------------
 
 webbpsf includes models for the LRS slit and the subsequent pupil stop on the
-grism in the wheels. Users should select ``miri.image_mask="LRS slit"`` and ``miri.pupil_mask='P750L LRS grating'``.
+grism in the wheels. Users should select ``miri.image_mask = "LRS slit"`` and ``miri.pupil_mask = 'P750L LRS grating'``.
 That said, the LRS simulations have not been extensively tested yet; 
 feedback is appreciated about any issues encountered.
 

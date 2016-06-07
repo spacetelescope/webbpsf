@@ -117,7 +117,9 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
     """
     _detectors = {}
     """
-    Dictionary mapping detector names to FieldDependentAberration optics.
+    Dictionary mapping detector names to detector or wavefront information in some manner.
+    The specific meaning of this mapping must be defined by subclasses as part of their
+    implementation.
 
     (Subclasses must populate this at `__init__`.)
     """
@@ -265,19 +267,18 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
     @property
     def detector_position(self):
         """The pixel position in (X, Y) on the detector"""
-        #return self._detectors[self._detector].field_position
         return self._detector_position
 
     @detector_position.setter
     def detector_position(self, position):
-        for i in range(2):
-            try:
-                pos = int(position[i])
-            except:
-                raise ValueError("Detector pixel coordinates must be pairs of nonnegative numbers, not {}".format(position))
-            if pos<0: raise ValueError("Detector pixel coordinates must be nonnegative integers, not {}".format(pos))
-            if pos>(self._detector_npixels-1): raise ValueError("The maximum allowed detector pixel coordinate value is {}, not {}".format(
-                self._detector_npixels-1, pos))
+        try:
+            x, y = map(int, position)
+        except ValueError:
+            raise ValueError("Detector pixel coordinates must be pairs of nonnegative numbers, not {}".format(position))
+        if x < 0 or y < 0:
+            raise ValueError("Detector pixel coordinates must be nonnegative integers")
+        if x > self._detector_npixels - 1 or y > self._detector_npixels - 1:
+            raise ValueError("The maximum allowed detector pixel coordinate value is {}".format(self._detector_npixels - 1))
 
         self._detector_position = (int(position[0]),int(position[1]))
 
@@ -601,7 +602,6 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
         # add coord transform from entrance pupil to exit pupil
         optsys.add_inversion(axis='y', name='OTE exit pupil', hide=True)
-        #optsys.add_pupil(poppy.ScalarTransmission(name='Telescope exit pupil'))
 
         # Allow instrument subclass to add field-dependent aberrations
         aberration_optic = self._get_aberrations()
@@ -820,8 +820,6 @@ class MIRI(JWInstrument):
         self.image_mask_list = ['FQPM1065', 'FQPM1140', 'FQPM1550', 'LYOT2300', 'LRS slit']
         self.pupil_mask_list = ['MASKFQPM', 'MASKLYOT', 'P750L LRS grating']
 
-        #for i in range(4):
-            #self.filter_list.append('MRS-IFU Ch%d'% (i+1) )
         self.monochromatic = 8.0
         self._IFU_pixelscale = {
             'Ch1': (0.18, 0.19),
@@ -1003,19 +1001,19 @@ class NIRCam(JWInstrument):
         self.pixelscale = self._pixelscale_short
 
         # need to set up a bunch of stuff here before calling superclass __init__
-        # so the overridden filter setter will work successfully in __init__
+        # so the overridden filter setter will work successfully inside that.
         self.auto_channel = True
-        self._filter='F200W'    # need to set this temporarily before calling superclass __init__ due to a peculiarity
-                                # with overriding the filter setter below.
+        self._filter='F200W'
         self._detector='A1'
 
         JWInstrument.__init__(self, "NIRCam") # do this after setting the long & short scales.
+
         self.pixelscale = self._pixelscale_short # need to redo 'cause the __init__ call will reset it to zero
         self._filter='F200W'                     # likewise need to redo
 
         self.image_mask_list = ['MASKLWB','MASKSWB','MASK210R','MASK335R','MASK430R']
 
-        self.pupil_mask_list = ['CIRCLYOT','WEDGELYOT', 
+        self.pupil_mask_list = ['CIRCLYOT','WEDGELYOT',
                 'WEAK LENS +4', 'WEAK LENS +8', 'WEAK LENS -8', 'WEAK LENS +12 (=4+8)','WEAK LENS -4 (=4-8)']
 
         self._detectors = dict()
@@ -1722,7 +1720,7 @@ def show_notebook_interface(instrument):
 
 
     if isinstance(instrument, string_types):
-        instrumet = Instrument(instrument)
+        instrument = Instrument(instrument)
 
     try:
         import pysynphot

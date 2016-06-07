@@ -432,6 +432,8 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, displa
 
 
 ### Helper routines for display customization: ###
+# use via poppy's display_annotate feature by assigning these to
+# the display_annotate attribute of an OpticalElement class
 
 def annotate_ote_entrance_coords(self, ax):
     """ Draw OTE V frame axes on first optical plane """
@@ -441,28 +443,34 @@ def annotate_ote_entrance_coords(self, ax):
     loc = 3
     ax.arrow(-loc,-loc, .2, 0, color=color, width=0.005)
     ax.arrow(-loc,-loc, 0, .2, color=color, width=0.005)
-    ax.text(-loc, -loc+0.4, '+V3', color=color,size='small', horizontalalignment='center',verticalalignment='bottom')
-    ax.text(-loc+0.4, -loc, '+V2', color=color,size='small', horizontalalignment='left',verticalalignment='center')
+    ax.text(-loc, -loc+0.4, '+V3', color=color, size='small',
+            horizontalalignment='center', verticalalignment='bottom')
+    ax.text(-loc+0.4, -loc, '+V2', color=color,size='small',
+            horizontalalignment='left', verticalalignment='center')
 
-def annotate_sky_pupil_coords(self, ax):
-    """ Draw OTE V frame axes projected onto the sky"""
-    #ax.set_ylabel('OTE V3 [m]')
-    #ax.set_ylabel('OTE V2 [m]')
+def annotate_sky_pupil_coords(self, ax, show_NE=False, north_angle=45.):
+    """ Draw OTE V frame axes projected onto the sky
+    Optionally also draw a compass for north and east at some given 
+    position angle
+    """
     color='yellow'
     loc = 2.9
     ax.arrow(-loc+0.5,-loc, -.2, 0, color=color, width=0.005)
     ax.arrow(-loc+0.5,-loc, 0, .2, color=color, width=0.005)
-    ax.text(-loc+0.5, -loc+0.3, '+V3 on sky', color=color,size='small', horizontalalignment='center',verticalalignment='bottom')
-    ax.text(-loc+0.5+0.3, -loc, '+V2 on sky', color=color,size='small', horizontalalignment='left',verticalalignment='center')
+    ax.text(-loc+0.5, -loc+0.3, '+V3 on sky', color=color, size='small',
+            horizontalalignment='center', verticalalignment='bottom')
+    ax.text(-loc+0.5+0.3, -loc, '+V2 on sky', color=color, size='small',
+            horizontalalignment='left', verticalalignment='center')
 
-
-    if 0:
+    if show_NE:
         color2='cyan'
-        angle = np.deg2rad(45) # arbitrary
+        angle = np.deg2rad(north_angle) # arbitrary
         dl = 0.3
         dx = np.sin(angle)*dl
         dy = np.cos(angle)*dl
         ax.arrow(-loc+0.5,-loc, -dx, dy, color=color2, width=0.005)
         ax.arrow(-loc+0.5,-loc, -dy, -dx, color=color2, width=0.005)
-        ax.text(-loc+0.5-2.3*dx, -loc+2.3*dy, 'N', color=color2,size='small', horizontalalignment='center',verticalalignment='center')
-        ax.text(-loc+0.5-1.3*dy, -loc-1.3*dx, 'E', color=color2,size='small', horizontalalignment='center',verticalalignment='center')
+        ax.text(-loc+0.5-2.3*dx, -loc+2.3*dy, 'N', color=color2, size='small',
+                horizontalalignment='center', verticalalignment='center')
+        ax.text(-loc+0.5-1.3*dy, -loc-1.3*dx, 'E', color=color2, size='small',
+                horizontalalignment='center', verticalalignment='center')

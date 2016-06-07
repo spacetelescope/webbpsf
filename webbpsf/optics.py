@@ -735,6 +735,8 @@ class JWST_Field_Dependent_Aberration(poppy.OpticalElement):
 
     """
     def __init__(self, instrument):
+
+        raise NotImplementedError("This class is not complete yet.")
         self.instrument = instrument
         self.instr_name = instrument.name
 

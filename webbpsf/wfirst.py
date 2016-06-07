@@ -229,22 +229,21 @@ class WFIRSTInstrument(webbpsf_core.SpaceTelescopeInstrument):
     def detector_position(self):
         """The pixel position in (X, Y) on the detector"""
         return self._detectors[self._detector].field_position
-        #return self._detector_position
 
     @detector_position.setter
     def detector_position(self, position):
-        for i in range(2):
-            try:
-                pos = int(position[i])
-            except:
-                raise ValueError("Detector pixel coordinates must be pairs of nonnegative numbers, not {}".format(position))
-            if pos<0: raise ValueError("Detector pixel coordinates must be nonnegative integers, not {}".format(pos))
-            if pos>(self._detector_npixels-1): raise ValueError("The maximum allowed detector pixel coordinate value is {}, not {}".format(
-                self._detector_npixels-1, pos))
+        # exact copy of superclass function except we save the
+        # into a different location.
+        try:
+            x, y = map(int, position)
+        except ValueError:
+            raise ValueError("Detector pixel coordinates must be pairs of nonnegative numbers, not {}".format(position))
+        if x < 0 or y < 0:
+            raise ValueError("Detector pixel coordinates must be nonnegative integers")
+        if x > self._detector_npixels - 1 or y > self._detector_npixels - 1:
+            raise ValueError("The maximum allowed detector pixel coordinate value is {}".format(self._detector_npixels - 1))
 
         self._detectors[self._detector].field_position = (int(position[0]),int(position[1]))
-
-
 
     def _get_aberrations(self):
         """Get the OpticalElement that applies the field-dependent
@@ -257,6 +256,7 @@ class WFIRSTInstrument(webbpsf_core.SpaceTelescopeInstrument):
         result[0].header['DETXPIXL'] = (self.detector_position[0], 'X pixel position (for field dependent aberrations)')
         result[0].header['DETYPIXL'] = (self.detector_position[1], 'Y pixel position (for field dependent aberrations)')
         result[0].header['DETECTOR'] = (self.detector, 'Detector selected')
+
 
 class WFI(WFIRSTInstrument):
     """
