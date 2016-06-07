@@ -53,6 +53,7 @@ The WebbPSF software system is composed of two Python packages: a lower-level op
    intro.rst
    installation.rst
    webbpsf.rst
+   jwst.rst
    wfirst.rst
    gui.rst
    more_examples.rst

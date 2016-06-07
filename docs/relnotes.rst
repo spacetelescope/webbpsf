@@ -39,6 +39,39 @@ Road Map for Future Releases
 Version History and Change Log
 -------------------------------
 
+Version 0.5.0
+=============
+
+.. _rel0.5.0:
+
+Released 2016 June 10. Various updates to instrument properties, improved
+documentation, and overhaul of internals in preparation for measured WFE data on
+JWST SIs. 
+
+JWST updates: 
+
+ * New documentation on :ref:`jwst_instruments`
+ * Updated all JWST SI pixel scales to latest measured values from ISIM CV3 and
+   STScI Science Instruments Aperture File. 
+ * Add coordinate inversion to get the correct (inverted) orientation of the OTE
+   exit pupil relative to the ISIM focal plane. This will show up as an extra
+   intermediate optical plane in all PSF calculations from this point, with the
+   OTE pupil obscuration flipped upside down in orientation relative to the
+   entrance pupil. 
+ * Added software infrastructure for using measured instrument WFE from ISIM
+   cryo-tests - however the data files are not yet ready and approved. This
+   functionality will be fully activated in a near-future release (later this summer).
+ * Added attributes for detector selection and pixel positions to all SIs
+ * Improved automatic toggling based on selected filter of instrument properties such as
+   NIRCam short/long channel and pixel scales, and NIRISS and MIRI pupil masks. 
+
+WFIRST updates:
+ 
+ * Updated to `GSFC Cycle 6 modeling results
+   <http://wfirst.gsfc.nasa.gov/science/Inst_Ref_Info_Cycle6.html>`_ for WFI.
+ * Some behind-the-scenes refactoring to implementation details for field dependent
+   WFE to support code sharing between the JWST and WFIRST classes.
+
 
 Version 0.4.1
 =============
