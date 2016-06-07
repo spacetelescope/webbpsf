@@ -56,7 +56,7 @@ matrix:
           env: POPPY_VERSION=stable NUMPY_VERSION=1.8 SETUP_CMD='test'
     allow_failures:
         - python: 3.5
-        - env: POPPY_VERSION=stable
+        - env: POPPY_VERSION=stable SETUP_CMD='test'
 
 
 
