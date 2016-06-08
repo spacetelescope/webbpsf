@@ -32,7 +32,7 @@ Displaying a PSF as an image and as an encircled energy plot
 >>>     #create a NIRCam instance and calculate a PSF for F210M
 >>>     nircam = webbpsf.NIRCam()
 >>>     nircam.filter = 'F210M'
->>>     psf210 = nircam.calcPSF(oversample=2)
+>>>     psf210 = nircam.calc_psf(oversample=2)
 >>> 
 >>>     # display the PSF and plot the encircled energy
 >>>     plt.subplot(1,2,1)
@@ -68,7 +68,7 @@ Perhaps you want to calculate PSFs for all filters of a given instrument, using 
     >>>             niriss.filter=filtname
     >>>             fov=18
     >>>             outname = "PSF_NIRISS_%scen_wfe%d.fits" % (filtname, i)
-    >>>             psf = webbpsf.calc_or_load_PSF(outname, niriss, nlambda=1, oversample=4, fov_arcsec=fov, rebin=True, display=True)
+    >>>             psf = niriss.calc_psf(outname, nlambda=1, oversample=4, fov_arcsec=fov, rebin=True, display=True)
     >>> 
 
 
@@ -89,7 +89,7 @@ Monochromatic PSFs with steps of 0.1 micron from 5-28.3 micron.
  >>>  
  >>>  for iw, wavelength in enumerate(waves):
  >>>      psffile = 'psf_MIRI_mono_%.1fum_revV_opd1.fits' % (wavelength*1e6)
- >>>      psf = m.calcPSF(fov_arcsec=30, oversample=4, rebin=True, monochromatic=wavelength, display=False,
+ >>>      psf = m.calc_psf(fov_arcsec=30, oversample=4, rebin=True, monochromatic=wavelength, display=False,
  >>>                 outfile=psffile)
  >>>      ax = pl.subplot(16,16,iw+1)
  >>>      webbpsf.display_PSF(psffile, ext='DET_SAMP', colorbar=False, imagecrop=8)
@@ -125,7 +125,7 @@ NIRSpec fixed slits
  >>>  
  >>>  psfs = {}
  >>>  for wave in [0.6e-6, 1e-6, 2e-6, 3e-6]:
- >>>      psfs[wave] = nspec.calcPSF(monochromatic=wave, oversamp=4)
+ >>>      psfs[wave] = nspec.calc_psf(monochromatic=wave, oversamp=4)
  >>>  
  >>>  for i, wave in enumerate([0.6e-6, 1e-6, 2e-6, 3e-6]):
  >>>      pl.subplot(1, 4, i+1)
@@ -147,7 +147,7 @@ NIRSpec MSA
  >>>  ns.image_mask='MSA all open'
  >>>  ns.display()
  >>>  pl.savefig('example_nirspec_msa_optics.png')
- >>>  msapsf = ns.calcPSF(monochromatic=2e-6, oversample=8, rebin=True)
+ >>>  msapsf = ns.calc_psf(monochromatic=2e-6, oversample=8, rebin=True)
  >>>  webbpsf.display_PSF(msapsf, ext='DET_SAMP')
 
 .. image:: ./fig_example_nirspec_msa_optics.png
@@ -170,7 +170,7 @@ MIRI LRS
  >>>  miri = webbpsf.MIRI()
  >>>  miri.image_mask = 'LRS slit'
  >>>  miri.pupil_mask = 'P750L LRS grating'
- >>>  psf = miri.calcPSF(monochromatic=6.0e-6, display=True)
+ >>>  psf = miri.calc_psf(monochromatic=6.0e-6, display=True)
 
 
 .. image:: ./fig_example_miri_lrs.png
@@ -199,7 +199,7 @@ NIRCam coronagraphy with an offset source
  >>>                                             # (note that this is MUCH larger than expected acq 
  >>>                                             # offsets. This size displacement is just for show)
  >>>  nc.options['source_offset_theta'] = 45     # at a position angle of 45 deg
- >>>  nc.calcPSF('coronagraphic.fits', oversample=4, clobber=True)   # create highly oversampled output image
+ >>>  nc.calc_psf('coronagraphic.fits', oversample=4, clobber=True)   # create highly oversampled output image
  >>>  
  >>>  
  >>>  pl.figure(figsize=(12,4))
@@ -223,8 +223,6 @@ NIRCam coronagraphy with an offset source
 
 Simulate NIRCam coronagraphic acquisition images
 --------------------------------------------------
-
-
 
     >>> def compute_psfs():
     >>>     nc = webbpsf.NIRCam()
@@ -260,7 +258,7 @@ Simulate NIRCam coronagraphic acquisition images
     >>> 
     >>> 
     >>>         filename = "PSF_NIRCam_%s_%s_%s_offset.fits" % (param[0], param[1], param[2])
-    >>>         result = nc.calcPSF(nlambda=nlambda, oversample=oversample, calc_oversample=calc_oversample, fov_arcsec=fov_arcsec, outfile=filename, display=False)
+    >>>         result = nc.calc_psf(nlambda=nlambda, oversample=oversample, calc_oversample=calc_oversample, fov_arcsec=fov_arcsec, outfile=filename, display=False)
     >>> 
     >>> 
 
@@ -291,7 +289,7 @@ Iterate a calculation over all MIRI coronagraphic modes
     >>> 
     >>> 
     >>>         outname = "PSF_MIRI_%s_x%+05.3f_y%+05.3f.fits" % (miri.image_mask, offset_x, offset_y)
-    >>>         psf = webbpsf.calc_or_load_psf(outname, miri, oversample=4, fov_arcsec=fov, display=True)
+    >>>         psf = miri.calc_psf(outname, oversample=4, fov_arcsec=fov, display=True)
     >>> 
     >>> 
 
@@ -310,7 +308,7 @@ Make plots of encircled energy in PSFs at various wavelengths
     >>>             fov=18
     >>> 
     >>>             outname = "PSF_MIRI_%.1fum_wfe%d.fits" % (wave, i)
-    >>>             psf = webbpsf.calc_or_load_psf(outname, miri, monochromatic=wave*1e-6, oversample=4, fov_arcsec=fov, rebin=True, display=True)
+    >>>             psf = miri.calc_psf(outname, monochromatic=wave*1e-6, oversample=4, fov_arcsec=fov, rebin=True, display=True)
     >>> 
     >>> 
     >>> 
@@ -389,7 +387,7 @@ There are two functions here, one that creates a simulated PSF for a given amoun
     >>>                 print ("File %s already exists. Skipping and continuing for now... set overwrite=True to recalculate" % outname)
     >>>                 return
     >>> 
-    >>>             psf, intermediates = miri.calcPSF(oversample=4, fov_arcsec=fov, rebin=True, display=display, return_intermediates=True, \*\*kwargs)
+    >>>             psf, intermediates = miri.calc_psf(oversample=4, fov_arcsec=fov, rebin=True, display=display, return_intermediates=True, \*\*kwargs)
     >>> 
     >>>             lyot_intensity = intermediates[4]
     >>> 

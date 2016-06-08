@@ -94,8 +94,10 @@ if not _ASTROPY_SETUP_:
         sys.stderr.write(utils.MISSING_WEBBPSF_DATA_MESSAGE)
         raise
 
-from poppy import (display_PSF, display_PSF_difference, display_EE, display_profiles, radial_profile,
-        measure_EE, measure_radial, measure_fwhm, measure_sharpness, measure_centroid,
+from poppy import ( display_psf, display_psf_difference, display_ee, measure_ee, # current names
+        display_PSF, display_PSF_difference, display_EE, measure_EE,  # older non-PEP8 names for back compatibility
+        display_profiles, radial_profile,
+        measure_radial, measure_fwhm, measure_sharpness, measure_centroid,
         specFromSpectralType, fwcentroid)
 
 from .webbpsf_core import (Instrument, JWInstrument, NIRCam, NIRISS, NIRSpec,
