@@ -458,7 +458,8 @@ class NIRISS_CLEARP(poppy.CompoundAnalyticOptic):
                 poppy.SecondaryObscuration( secondary_radius = 6.0*pupil_mag,
                                                       support_width = 2.0*pupil_mag,
                                                       n_supports = 3,
-                                                      support_angle_offset=90), # align first support with +V2 axis
+                                                      support_angle_offset=90+180), # align first support with +V2 axis
+                                                                                # but invert to match OTE exit pupil
                 poppy.CircularAperture( radius = 39 * pupil_mag /2) ), name = 'CLEARP')
 
 
