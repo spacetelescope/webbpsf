@@ -343,6 +343,10 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         #----- calculate field of view depending on supplied parameters
         if fov_arcsec is None and fov_pixels is None:  #pick decent defaults.
             if self.name =='MIRI': fov_arcsec=12.
+            elif self.name == 'CGI':
+                if hasattr(self, 'fov_arcsec') and self.fov_arcsec is not None: fov_arcsec = self.fov_arcsec
+                elif self.mode == 'DISKSPC': fov_arcsec = 3.2
+                elif self.mode == 'CHARSPC': fov_arcsec = 2*0.82
             else: fov_arcsec=5.
             fov_spec = 'arcsec = %f' % fov_arcsec
         elif fov_pixels is not None:
