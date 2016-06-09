@@ -61,9 +61,14 @@ JWST updates:
  * Added software infrastructure for using measured instrument WFE from ISIM
    cryo-tests - however the data files are not yet ready and approved. This
    functionality will be fully activated in a near-future release (later this summer).
- * Added attributes for detector selection and pixel positions to all SIs
+ * Added attributes for detector selection and pixel positions to all SIs, backed with 
+   latest science instrument aperture file mapping between detector pixels and angular positions
+   on the JWST focal plane.
  * Improved automatic toggling based on selected filter of instrument properties such as
    NIRCam short/long channel and pixel scales, and NIRISS and MIRI pupil masks. 
+ * *Thanks to Kyle van Gorkom, Anand Sivaramakrishnan, John Stansberry, Colin Cox, 
+   Randal Telfer, and George Hartig for assisting with information and data to
+   support these updates.*
 
 WFIRST updates:
  
@@ -71,6 +76,7 @@ WFIRST updates:
    <http://wfirst.gsfc.nasa.gov/science/Inst_Ref_Info_Cycle6.html>`_ for WFI.
  * Some behind-the-scenes refactoring to implementation details for field dependent
    WFE to support code sharing between the JWST and WFIRST classes.
+ * *Thanks to Alden Jurling for assisting with information and clarifications on the Cycle 6 models.*
 
 
 Version 0.4.1
