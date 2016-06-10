@@ -2,6 +2,9 @@ import os
 import poppy
 import numpy as np
 
+import astropy.table
+import astropy.io.fits as fits
+
 from . import utils
 from .webbpsf_core import _log
 
@@ -91,7 +94,7 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
     The grism (and cylinder) are per design rotated by 2 degrees so as to be able
     to sample an emission line across different pixel position along the spatial
     direction (kind of resampling the line and not be limited by intra pixel
-    response).  
+    response).
 
     From Loic Albert's NIRISS technical report:
 
@@ -120,7 +123,7 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
 
             The cylinder lens has a well characterized power (actually radius of curvature). The values are:
                 current Flight: 22.85 meters
-                Spare: 22.39 meters 
+                Spare: 22.39 meters
 
             Prism physical size: pupil is 26 mm on a side for the current prism, will be 28 mm for the spare
 
@@ -130,7 +133,7 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
 
         1 - The current Flight mask is attached. It is 26x26 mm. The mask and grism are
             *not* aligned along the same coordinates. That was a mistake. I'll forward you
-            a message from Michael M., our optics expert at CSA. 
+            a message from Michael M., our optics expert at CSA.
 
         2 - The Spare mask (likely the one which will fly) is not built yet. The mask
             will be aligned along the grism coordinate and both will be clocked 2.2 deg wrt
@@ -152,7 +155,7 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
     From Loic Albert's email to Marshall 2014-05-20:
 
         I should have pointed that the power assumed in my simulations for the cylindrical lens was off. It was one of the conclusions of CV1RR. The actual radius of curvature of the cylinder is 25.3 meters (rather than the smaller figure I used before).
-   
+
      ORIENTATION:
 
         See Figure 2 of JWST-STScI-003338
@@ -167,17 +170,17 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
             to the X-axis in a right-handed coordinate system (Swade 2003)
 
         We choose here to ignore that complication; WebbPSF simulates the 2D sky projected
-        image in "Sci" coordinates in the terminology for SIAF from Lallo et al. 
-        In this coordinate system, the dispersion from the cylinder lens is aligned 
-        almost along V2 and the longer wavelengths are oriented toward +V3. 
-        
+        image in "Sci" coordinates in the terminology for SIAF from Lallo et al.
+        In this coordinate system, the dispersion from the cylinder lens is aligned
+        almost along V2 and the longer wavelengths are oriented toward +V3.
 
-   
+
+
 
     Parameters
     ----------
     which : string
-        'initial' or 'spare'. Properties are hard coded. 
+        'initial' or 'spare'. Properties are hard coded.
     """
     #
     #    transmission : string filename
@@ -189,11 +192,11 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
     #        of 92.25 should be consistent with initial NIRISS girsm and spare, except for
     #        sign ambiguity.
     #    rotate_mask : bool
-    #        should the field mask be rotated along with the cylinder? False for first gen initial 
+    #        should the field mask be rotated along with the cylinder? False for first gen initial
     #        prism, true for expected spare replacement.
 
     def __init__(self, name='GR700XD', which='Bach',
-            #cylinder_radius=22.85,  cylinder_sag_mm=4.0, rotation_angle=92.25, rotate_mask=False, transmission=None, 
+            #cylinder_radius=22.85,  cylinder_sag_mm=4.0, rotation_angle=92.25, rotate_mask=False, transmission=None,
             shift=None):
         # Initialize the base optical element with the pupil transmission and zero OPD
 
@@ -216,7 +219,7 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
             #---- Phase properties ---------------
             # 3.994 microns P-V over 27.02 mm measured (Loic's email)
             # This is **surface sag**, corresponding to P-V of 6.311 waves at lambda=632.8 nm.
-            # should correspond to 3.698 microns over 26 mm clear aperture. 
+            # should correspond to 3.698 microns over 26 mm clear aperture.
             self.prism_size = 0.02702 # 27.02 millimeters for the physical prism
             self.prism_clear_aperture = 0.0260 # 26 mm clear aperture for the prism + mount
             self.cylinder_rotation_angle = 2 # was 2.25
@@ -244,7 +247,7 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
         # in order to compute the curvature in the full-pupil units that POPPY uses
         # internally
 
-        # pupil magnification computed from 22 mm clear aperture reported = 
+        # pupil magnification computed from 22 mm clear aperture reported =
         # 857-169 pixels = 699 pixels in the 2D array which has scale =.00645604
         # = 4.44175 meters projected on the primary
 
@@ -256,7 +259,7 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
         #self.pupil_demagnification =  170.8367 # meters on the primary / meters in the NIRISS pupil
         #self.pupil_demagnification =  173.56 # meters on the primary / meters in the NIRISS pupil
 
-        # Anand says: 
+        # Anand says:
         #  nominally the circumscribing circle at the PW of NIRISS is ~40mm.  I use 39mm for the nrm, but it's slightly field-dependent.  Compare that to the 6.6... PM circle?
         self.pupil_demagnification = 6.6 / 0.040 # about 165
 
@@ -267,7 +270,7 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
         """ Make an OPD array corresponding to the cylindrical weak lens
         used for defocusing the spectrum in the perpendicular-to-dispersion direction.
         """
- 
+
         if isinstance(wave, poppy.Wavefront):
             wavelength=wave.wavelength
         else:
@@ -296,12 +299,12 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
 
         # rpuppix = radius of pupil in pixels
         #rpuppix = self.amplitude_header['DIAM'] / self.amplitude_header['PUPLSCAL'] / 2
-        # Calculate the radius of curvature of the cylinder, bsaed on 
-        # the chord length and height 
+        # Calculate the radius of curvature of the cylinder, bsaed on
+        # the chord length and height
 
         # In this case we're assuming the cylinder is precisely as wide as the projected
         # telescope pupil. This doesn't seem guaranteed:
-        #  * actual chord length across cylinder: 27.02 mm. 
+        #  * actual chord length across cylinder: 27.02 mm.
         #  * projected primary scale at NIRISS = ?
 
         _log.debug(" Computing GR700XD cylinder based on RoC: {0:.3g} meters".format(self.cylinder_radius))
@@ -331,7 +334,7 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
         _log.debug(" Cylinder P-V: {0:.4g} meters physical sag across full array".format(sag.max()-sag.min()) )
 
         #fits.writeto('py_opd.fits', sag*(self.ZnSe_index(wavelength) -1), clobber=True)
-        # remove piston offset 
+        # remove piston offset
         #sag -= sag[wnz].min()   # normalize to 0 at the minimum
         #sag -= sag[wnz].mean()    # normalize around the mean
         sag[self.amplitude == 0] = 0 # no OPD in opaque regions (makes no difference in propagation but improves display)
@@ -361,7 +364,7 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
         y = np.sin(ang)*x + np.cos(ang)*y
 
         _log.debug("Rotating local pupil mask axes by {0} degrees".format(self.cylinder_rotation_angle))
- 
+
         pupil_halfsize_m = self.pupil_size_mm / 2  / 1000 * self.pupil_demagnification
         pupilmask = np.ones_like(x)
         pupilmask[np.abs(x) > pupil_halfsize_m] = 0
@@ -435,7 +438,7 @@ class NIRISS_CLEARP(poppy.CompoundAnalyticOptic):
 
         Note the circumscribing pupil of JWST is 6603.464 mm in diameter
         (Ball SER on geometric optics model: BALL-JWST-SYST-05-003)
-        and therefore the NIRISS pupil magnification is 6.603464/39.0 
+        and therefore the NIRISS pupil magnification is 6.603464/39.0
         = 0.1693 meters (JWST primary) per mm (NIRISS internal pupil)
 
         Pupil distortions are not included in this model.
@@ -458,7 +461,8 @@ class NIRISS_CLEARP(poppy.CompoundAnalyticOptic):
                 poppy.SecondaryObscuration( secondary_radius = 6.0*pupil_mag,
                                                       support_width = 2.0*pupil_mag,
                                                       n_supports = 3,
-                                                      support_angle_offset=90), # align first support with +V2 axis
+                                                      support_angle_offset=90+180), # align first support with +V2 axis
+                                                                                # but invert to match OTE exit pupil
                 poppy.CircularAperture( radius = 39 * pupil_mag /2) ), name = 'CLEARP')
 
 
@@ -531,7 +535,7 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
             # map -7.5 to 2, +7.5 to 6. slope is 4/15, offset is +9.5
             scalefact = (2 + (-x + 7.5) * 4 / 15).clip(2, 6)
 
-            # Working out the sigma parameter vs. wavelength to get that wedge pattern is non trivial 
+            # Working out the sigma parameter vs. wavelength to get that wedge pattern is non trivial
             # This is NOT a linear relationship. See calc_blc_wedge helper fn below.
 
             if self.name == 'MASKSWB': #np.abs(self.wavelength - 2.1e-6) < 0.1e-6:
@@ -551,7 +555,7 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
             sigmar = sigmas * np.abs(y)
             # clip sigma: The minimum is to avoid divide by zero
             #             the maximum truncates after the first sidelobe to match the hardware
-            sigmar.clip(min=np.finfo(sigmar.dtype).tiny, max=2*np.pi, out=sigmar) 
+            sigmar.clip(min=np.finfo(sigmar.dtype).tiny, max=2*np.pi, out=sigmar)
             self.transmission = (1 - (np.sin(sigmar) / sigmar) ** 2)
             # TODO pattern should be truncated past first sidelobe
             self.transmission[x==0] = 0   # special case center point (value based on L'Hopital's rule)
@@ -636,9 +640,9 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
 
         # edge of mask itself
         # TODO the mask edge is complex and partially opaque based on CV3 images?
-        # edge of glass plate rather than opaque mask I believe. To do later. 
+        # edge of glass plate rather than opaque mask I believe. To do later.
         # The following is just a temporary placeholder with no quantitative accuracy.
-        # but this is outside the coronagraph FOV so that's fine - this only would matter in 
+        # but this is outside the coronagraph FOV so that's fine - this only would matter in
         # modeling atypical/nonstandard calibration exposures.
 
         wedge = np.where(( y > 11.5) & (y < 13))
@@ -659,7 +663,7 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
 
 
 # Helper functions for NIRcam occulters.
-# The following are no longer used in practice, but were used to derive the 
+# The following are no longer used in practice, but were used to derive the
 # table of polynomial coefficients that is now hard-coded inside
 # the NIRCam_BandLimitedCoron case for the nircam wedge occulters.
 
@@ -724,6 +728,73 @@ def _calc_blc_wedge(deg=4, wavelength=2.1e-6):
     diffs = (sigs - p(r))
     print("Poly fit:" +repr(pcs))
     print("  fit rms: "+str(diffs.std()))
+
+
+
+# Field dependent aberration class for JWST instruments
+
+class JWST_Field_Dependent_Aberration(poppy.OpticalElement):
+    """ Field dependent aberration generated from Zernikes measured in ISIM CV testing
+
+
+    """
+    def __init__(self, instrument, **kwargs):
+        ""
+        super(JWST_Field_Dependent_Aberration, self).__init__(name="Aberrations", **kwargs)
+
+        self.instrument = instrument
+        self.instr_name = instrument.name
+
+        #work out which name to index into the CV results with, if for NIRCam
+        if instrument.name == 'NIRCam':
+            lookup_name = ("NIRCAM"+instrument.channel[0]+"W"+instrument.module).upper()
+        elif instrument.name == 'FGS':
+            lookup_name = 'GUIDER'+instrument.detector[3] # 'GUIDER1' or 'GUIDER2'
+        else:
+            lookup_name = instrument.name.upper()
+        _log.debug("Retrieving zernike coeffs for "+lookup_name)
+
+        self.tel_coords = instrument._tel_coords()
+
+        # load the Zernikes table here
+
+        self.ztable_full = astropy.table.Table.read(
+            os.path.join(utils.get_webbpsf_data_path(),'zernikes_isim_cv2.fits'))
+        # Determine the pupil sampling of the first aperture in the instrument's optical system
+        npix=1024 # hard code for now
+
+
+        self.ztable=self.ztable_full[self.ztable_full['instrument']==lookup_name]
+
+        #Figure out the closest field point
+        v2 = self.ztable['V2']
+        v3 = self.ztable['V3']
+        r = np.sqrt((self.tel_coords[0]-v2)**2+(self.tel_coords[1]-v3)**2)
+        closest = np.argmin(r)
+
+        self.row = self.ztable[closest]
+
+        #self.name = '{} near {} ({:.3f}, {:.3f})'.format(lookup_name,self.row['field_point_name'],*self.tel_coords)
+        self.name = '{} near {}'.format(lookup_name,self.row['field_point_name'])
+        # Retrieve those Zernike coeffs (no interpolation for now)
+        coeffs = [self.row['Zernike_{}'.format(i)] for i in range(1,36)]
+
+        # Generate an OPD on the same sampling as the input wavefront -
+        # but implicitly inverted in coordinate system
+        # to match the OTE exit pupil orientation
+
+        self.opd = poppy.zernike.opd_from_zernikes(coeffs, npix=npix,
+                outside=0)  #*1e6 # convert to microns
+
+        self.amplitude=fits.getdata(
+            os.path.join(utils.get_webbpsf_data_path(),'tricontagon.fits'))
+        #?   No the SI internal clear aperture is larger in general...
+        # oversized tricontagon could be better
+        #self.amplitude = np.ones_like(self.opd, dtype=float)
+
+    def display(self, opd_vmax=2.5e-7, *args, **kwargs):
+        # wrapper just to change default vmax
+        super(JWST_Field_Dependent_Aberration, self).display(opd_vmax=opd_vmax, *args, **kwargs)
 
 
 
