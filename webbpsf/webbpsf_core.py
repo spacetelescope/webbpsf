@@ -596,12 +596,18 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
                 name='{} Entrance Pupil'.format(self.telescope),
                 transmission=pupil_transmission,
                 opd=opd_map,
-                rotation=self._rotation
+                #rotation=self._rotation
             )
         self.pupil_radius = pupil_optic.pupil_diam / 2.0
 
         # add coord transform from entrance pupil to exit pupil
         optsys.add_inversion(axis='y', name='OTE exit pupil', hide=True)
+
+        # add rotation at this point, if present - needs to be after the
+        # exit pupil inversion.
+        if self._rotation is not None:
+            optsys.add_rotation(self._rotation, hide=True)
+            optsys.planes[-1].wavefront_display_hint='intensity'
 
         # Allow instrument subclass to add field-dependent aberrations
         aberration_optic = self._get_aberrations()
@@ -876,15 +882,22 @@ class MIRI(JWInstrument):
         # aligned with the FQPM axes.
 
 
-        defaultpupil = optsys.planes.pop(0) # throw away the rotated entrance pupil we just previously added
-        _log.debug('Amplitude:'+str(defaultpupil.amplitude_file))
-        _log.debug('OPD:'+str(defaultpupil.opd_file))
-        opd = defaultpupil.opd_file
-        if hasattr(defaultpupil,'opd_slice'):
-            opd = (defaultpupil.opd_file, defaultpupil.opd_slice) # rebuild tuple if needed to slice
-        optsys.add_pupil(name='JWST Entrance Pupil',
-                transmission=defaultpupil.amplitude_file, opd=opd, rotation=None,
-                index=0)
+        defaultpupil = optsys.planes.pop(2) # throw away the rotation of the entrance pupil we just added 
+
+        if self.include_si_wfe:
+            # temporarily remove the SI internal aberrations
+            # from the system - will add back in after the
+            # coronagraph planes.
+            miri_aberrations = optsys.planes.pop(2)
+
+        #_log.debug('Amplitude:'+str(defaultpupil.amplitude_file))
+        #_log.debug('OPD:'+str(defaultpupil.opd_file))
+        #opd = defaultpupil.opd_file
+        #if hasattr(defaultpupil,'opd_slice'):
+        #    opd = (defaultpupil.opd_file, defaultpupil.opd_slice) # rebuild tuple if needed to slice
+        #optsys.add_pupil(name='JWST Entrance Pupil',
+        #        transmission=defaultpupil.amplitude_file, opd=opd, rotation=None,
+        #        index=0)
 
         # Add image plane mask
         # For the MIRI FQPMs, we require the star to be centered not on the middle pixel, but
@@ -958,17 +971,27 @@ class MIRI(JWInstrument):
         if self.pupil_mask == 'MASKFQPM':
             optsys.add_pupil(transmission=self._datapath+"/optics/MIRI_FQPMLyotStop.fits.gz", name=self.pupil_mask,
                     flip_y=True, shift=shift)
+            optsys.planes[-1].wavefront_display_hint='intensity'
         elif self.pupil_mask == 'MASKLYOT':
             optsys.add_pupil(transmission=self._datapath+"/optics/MIRI_LyotLyotStop.fits.gz", name=self.pupil_mask,
                     flip_y=True, shift=shift)
+            optsys.planes[-1].wavefront_display_hint='intensity'
         elif self.pupil_mask == 'P750L LRS grating' or self.pupil_mask == 'P750L':
             optsys.add_pupil(transmission=self._datapath+"/optics/MIRI_LRS_Pupil_Stop.fits.gz", name=self.pupil_mask, 
                     flip_y=True, shift=shift)
+            optsys.planes[-1].wavefront_display_hint='intensity'
         else: # all the MIRI filters have a tricontagon outline, even the non-coron ones.
             optsys.add_pupil(transmission=self._WebbPSF_basepath+"/tricontagon.fits", name = 'filter cold stop', shift=shift)
             # FIXME this is probably slightly oversized? Needs to have updated specifications here.
 
-        optsys.add_rotation(self._rotation)
+
+        if self.include_si_wfe:
+            # now put back in the aberrations we grabbed above.
+            optsys.add_pupil(miri_aberrations)
+
+        optsys.add_rotation(self._rotation, hide=True)
+        optsys.planes[-1].wavefront_display_hint='intensity'
+
 
         return (optsys, trySAM, SAM_box_size if trySAM else None)
 
@@ -1153,9 +1176,11 @@ class NIRCam(JWInstrument):
         if self.pupil_mask == 'CIRCLYOT':
             optsys.add_pupil(transmission=self._datapath+"/optics/NIRCam_Lyot_Somb.fits", name=self.pupil_mask,
                     flip_y=True, shift=shift, index=3)
+            optsys.planes[3].wavefront_display_hint='intensity'
         elif self.pupil_mask == 'WEDGELYOT':
             optsys.add_pupil(transmission=self._datapath+"/optics/NIRCam_Lyot_Sinc.fits", name=self.pupil_mask,
                     flip_y=True, shift=shift, index=3)
+            optsys.planes[3].wavefront_display_hint='intensity'
         elif self.pupil_mask == 'WEAK LENS +4':
             optsys.add_pupil(poppy.ThinLens(
                 name='Weak Lens +4',
@@ -1305,6 +1330,7 @@ class NIRSpec(JWInstrument):
             # NIRSpec pupil stop at the grating appears to be a rectangle.
             # see notes and ray trace from Erin Elliot in the webbpsf-data/NIRSpec/sources directory
             optsys.add_pupil(optic=poppy.RectangleAperture(height=8.41, width=7.91,  name='Pupil stop at grating wheel'))
+            optsys.planes[-1].wavefront_display_hint='intensity'
 
         #if (self.pupil_mask is None and self.image_mask is not None):
             # if we don't have a specific pupil stop, just assume for now we're
@@ -1418,8 +1444,10 @@ class NIRISS(JWInstrument):
         if self.pupil_mask == 'MASK_NRM':
             optsys.add_pupil(transmission=self._datapath+"/optics/MASK_NRM.fits.gz", name=self.pupil_mask,
                     flip_y=True, shift=shift)
+            optsys.planes[-1].wavefront_display_hint='intensity'
         elif self.pupil_mask == 'CLEARP':
             optsys.add_pupil(optic = NIRISS_CLEARP())
+            optsys.planes[-1].wavefront_display_hint='intensity'
         elif self.pupil_mask == 'GR700XD':
             optsys.add_pupil(optic = NIRISS_GR700XD_Grism(shift=shift))
 
