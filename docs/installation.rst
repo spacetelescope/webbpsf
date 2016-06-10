@@ -12,7 +12,7 @@ WebbPSF uses both the `Python Package Index <https://pypi.python.org>`_ (PyPI) a
 
 (where ``name_of_astroconda_env`` is the name of the environment where you are using Astroconda packages).
 
-**If you are using ``conda``, but haven't set up Astroconda**, simply add the channel with our packages before installing::
+**If you are using** ``conda``, **but haven't set up Astroconda**, simply add the channel with our packages before installing::
 
     $ conda config --add channels http://ssb.stsci.edu/astroconda
 
