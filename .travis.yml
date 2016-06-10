@@ -55,8 +55,13 @@ matrix:
         - python: 2.7
           env: POPPY_VERSION=stable NUMPY_VERSION=1.8 SETUP_CMD='test'
     allow_failures:
+        # Released POPPY may be missing new functionality used by dev WebbPSF
         - python: 3.5
-        - env: POPPY_VERSION=stable
+          env: POPPY_VERSION=stable SETUP_CMD='test'
+
+        # Released POPPY may be missing new functionality used by dev WebbPSF
+        - python: 2.7
+          env: POPPY_VERSION=stable NUMPY_VERSION=1.8 SETUP_CMD='test'
 
 
 
