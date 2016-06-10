@@ -8,8 +8,9 @@ More Examples
 
 Any user of Webbpsf is invited to submit snippets of example code for sharing here. 
 
-This code is also available as a Jupyter notebook:
-<http://nbviewer.ipython.org/github/mperrin/webbpsf/blob/master/notebooks/more_examples.ipynb>`_.
+This code is also available as a
+`Jupyter notebook <http://nbviewer.jupyter.org/github/mperrin/webbpsf/blob/master/notebooks/more_examples.ipynb>`_. This version 
+of the page is kept for convenience but may be slightly out of date in a few places.
 
 Examples are organized by topic:
 
@@ -17,7 +18,9 @@ Examples are organized by topic:
  * :ref:`more_examples_spectroscopy`
  * :ref:`more_examples_coronagraphy`
 
-The notebook version includes a fourth section providing examples of all the
+The
+`notebook version of this page <http://nbviewer.jupyter.org/github/mperrin/webbpsf/blob/master/notebooks/more_examples.ipynb>`_
+includes a fourth section providing examples of all the
 major SI modes for each of the JWST instruments.
 
 
