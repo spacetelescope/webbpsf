@@ -1,3 +1,4 @@
+from __future__ import division, print_function, absolute_import, unicode_literals
 import sys, os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -29,30 +30,30 @@ def generic_output_test(iname):
     fov_arcsec = 5.0
 
     # fov in pixels
-    PSF = inst.calcPSF(nlambda=1, fov_pixels = 100, oversample=1)
+    PSF = inst.calc_psf(nlambda=1, fov_pixels = 100, oversample=1)
     assert(PSF[0].data.shape[0] == 100)
     # fov in arcsec
-    PSF = inst.calcPSF(nlambda=1, fov_arcsec = fov_arcsec, oversample=1)
+    PSF = inst.calc_psf(nlambda=1, fov_arcsec = fov_arcsec, oversample=1)
     fov_pix = int(np.round(fov_arcsec / pxscale))
     assert(PSF[0].data.shape[0] == fov_pix)
 
     # even and odd array sizes, no oversampling
     inst.options['parity'] = 'odd'
-    PSF = inst.calcPSF(nlambda=1, fov_arcsec = fov_arcsec, oversample=1)
+    PSF = inst.calc_psf(nlambda=1, fov_arcsec = fov_arcsec, oversample=1)
     assert( np.remainder(PSF[0].data.shape[0],2) == 1)
 
     inst.options['parity'] = 'even'
-    PSF = inst.calcPSF(nlambda=1, fov_arcsec = fov_arcsec, oversample=1)
+    PSF = inst.calc_psf(nlambda=1, fov_arcsec = fov_arcsec, oversample=1)
     assert( np.remainder(PSF[0].data.shape[0],2) == 0)
 
     # odd array, even oversampling = even
     inst.options['parity'] = 'odd'
-    PSF = inst.calcPSF(nlambda=1, fov_arcsec = fov_arcsec, oversample=2)
+    PSF = inst.calc_psf(nlambda=1, fov_arcsec = fov_arcsec, oversample=2)
     assert( np.remainder(PSF[0].data.shape[0],2) == 0)
 
     # odd array, odd oversampling = odd
     inst.options['parity'] = 'odd'
-    PSF = inst.calcPSF(nlambda=1, fov_arcsec = fov_arcsec, oversample=3)
+    PSF = inst.calc_psf(nlambda=1, fov_arcsec = fov_arcsec, oversample=3)
     assert( np.remainder(PSF[0].data.shape[0],2) == 1)
 
 def do_test_source_offset(iname, distance=0.5,  nsteps=1, theta=0.0, tolerance=0.05, monochromatic=None, display=False):
@@ -72,6 +73,9 @@ def do_test_source_offset(iname, distance=0.5,  nsteps=1, theta=0.0, tolerance=0
     si = webbpsf_core.Instrument(iname)
     si.pupilopd=None
 
+    if iname=='NIRSpec':
+        si.image_mask = None # remove default MSA since it overcomplicates this test.
+
     oversample = 2
 
     # Calculations
@@ -79,7 +83,7 @@ def do_test_source_offset(iname, distance=0.5,  nsteps=1, theta=0.0, tolerance=0
     psfs = []
 
     # unshifted PSF
-    #psfs.append(  nc.calcPSF(nlambda=1, oversample=oversample) )
+    #psfs.append(  nc.calc_psf(nlambda=1, oversample=oversample) )
     #shift_req.append(0)
 
     steps = np.linspace(0, distance, nsteps+1)
@@ -88,7 +92,7 @@ def do_test_source_offset(iname, distance=0.5,  nsteps=1, theta=0.0, tolerance=0
         si.options['source_offset_theta'] = theta
         #nc.options['source_offset_r'] = i*nc.pixelscale*5
         shift_req.append(si.options['source_offset_r'])
-        psfs.append(  si.calcPSF(nlambda=1, monochromatic=monochromatic, oversample=oversample) )
+        psfs.append(  si.calc_psf(nlambda=1, monochromatic=monochromatic, oversample=oversample) )
 
 
     # Control case: an unshifted image
@@ -144,24 +148,7 @@ def test_opd_selected_by_default():
         assert ins.pupilopd is not None, "No pupilopd set for {}".format(InstrumentClass)
 
 
-def test_calcPSF_filter_arg():
-    """ Tests the filter argument to the calcPSF function
-    Can be used to set filter as same time as calculating a PSF
-    (added for Pytest coverage completeness, even though is a minor bit of functionality)
-    """
-    nc = webbpsf_core.Instrument('NIRCam')
-    nc.pupilopd=None
-
-    nc.filter='F212N'
-    psf1 = nc.calcPSF()
-
-    nc.filter='F200W'
-    psf2=nc.calcPSF(filter='F212N') # should override the filter setting just above
-
-    assert(np.abs(psf1[0].data-psf2[0].data).max() < 1e-6)
-
-
-def test_calcPSF_rectangular_FOV():
+def test_calc_psf_rectangular_FOV():
     """ Test that we can create rectangular FOVs """
     nc = webbpsf_core.Instrument('NIRCam')
     nc.pupilopd=None
@@ -171,10 +158,10 @@ def test_calcPSF_rectangular_FOV():
     # pick something that can be done in integer pixels given NIRCam's sampling
 
 
-    psf = nc.calcPSF(fov_arcsec=(side, 2*side))
+    psf = nc.calc_psf(fov_arcsec=(side, 2*side))
     assert(psf[0].data.shape[0]*2 == psf[0].data.shape[1])
 
-    psf2 = nc.calcPSF(fov_pixels=(100,200), oversample=1)
+    psf2 = nc.calc_psf(fov_pixels=(100,200), oversample=1)
 
     assert(psf2[0].data.shape==(100,200))
 
@@ -195,7 +182,7 @@ def test_return_intermediates():
 
     osys = nc._getOpticalSystem()
 
-    psf, intermediates = nc.calcPSF(monochromatic=2e-6, return_intermediates=True)
+    psf, intermediates = nc.calc_psf(monochromatic=2e-6, return_intermediates=True)
     assert len(intermediates) == len(osys.planes)
     assert isinstance(intermediates[0], poppy.Wavefront)
     assert isinstance(psf, astropy.io.fits.HDUList)
@@ -210,9 +197,9 @@ def test_unicode_filter_names():
 
     nc = webbpsf_core.NIRCam()
     nc.filter=unicode('f212n')
-    psf_unicode = nc.calcPSF(nlambda=1)
+    psf_unicode = nc.calc_psf(nlambda=1)
     nc.filter='f212n'
-    psf_str = nc.calcPSF(nlambda=1)
+    psf_str = nc.calc_psf(nlambda=1)
 
     assert np.array_equal(psf_unicode[0].data, psf_str[0].data)
 

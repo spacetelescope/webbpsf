@@ -1,137 +1,109 @@
 language: python
 
+python:
+    - 2.7
+    - 3.5
+
 # Setting sudo to false opts in to Travis-CI container-based builds.
 sudo: false
 
-python:
-    - 2.7
-    # - 3.3
-    - 3.5
-    # This is just for "egg_info".  All other builds are explicitly given in the matrix
+# The apt packages below are needed for sphinx builds. A full list of packages
+# that can be included can be found here:
+#
+# https://github.com/travis-ci/apt-package-whitelist/blob/master/ubuntu-precise
+
+addons:
+    apt:
+        packages:
+            - graphviz
+            - texlive-latex-extra
+            - dvipng
+
 env:
     global:
         # The following versions are the 'default' for tests, unless
-        # overidden underneath. They are defined here in order to save having
+        # overridden underneath. They are defined here in order to save having
         # to repeat them for all configurations.
-        - NUMPY_VERSION=1.9
+        - NUMPY_VERSION=stable
         - ASTROPY_VERSION=stable
-        - POPPY_VERSION=development
-        - CONDA_INSTALL='conda install -c astropy-ci-extras --yes'
-        - PIP_INSTALL='pip install'
-    matrix:
-        - SETUP_CMD='egg_info'
+        - SETUP_CMD='test'
+        - PIP_DEPENDENCIES='git+https://github.com/mperrin/poppy.git#egg=poppy jwxml'
+        - CONDA_DEPENDENCIES='scipy matplotlib six'
+
+        # For headless testing of code that imports PyPlot:
+        - MPLBACKEND=Agg
 
 matrix:
     include:
-        # Check for sphinx doc build warnings - we do this first because it
-        # may run for a long time
+        # do the actual tests against dev version of POPPY
+        # - python: 2.7
+        # - python: 3.5
+
+        # Do a coverage test in Python 3.
+        - python: 3.5
+          env: SETUP_CMD='test --coverage'
+
+        # Check for Sphinx doc build errors
         - python: 2.7
-          env: SETUP_CMD='build_sphinx' # -w'
+          env: SETUP_CMD='build_sphinx'
 
         # Try Astropy development version
         - python: 3.5
-          env: ASTROPY_VERSION=development SETUP_CMD='test'
-        # - python: 3.3
-        #   env: ASTROPY_VERSION=development SETUP_CMD='test'
+          env: SETUP_CMD='test' ASTROPY_VERSION=development
 
-        # Try all python versions with the latest numpy
+        # Try older numpy versions
         - python: 2.7
-          env: SETUP_CMD='test'
-        - python: 3.4
-          env: SETUP_CMD='test'
+          env: SETUP_CMD='test' NUMPY_VERSION=1.10
+        - python: 2.7
+          env: SETUP_CMD='test' NUMPY_VERSION=1.9
+
+        # Try released POPPY
         - python: 3.5
-          env: SETUP_CMD='test'
+          env: SETUP_CMD='test' PIP_DEPENDENCIES='poppy jwxml'
 
-
-        # Try older numpy version
-        - python: 2.7
-          env: NUMPY_VERSION=1.8 SETUP_CMD='test'
-
-        # Try released POPPY version
-        - python: 3.5
-          env: POPPY_VERSION=stable SETUP_CMD='test'
-
-        # Try released POPPY version and older NumPy
-        - python: 2.7
-          env: POPPY_VERSION=stable NUMPY_VERSION=1.8 SETUP_CMD='test'
     allow_failures:
         # Released POPPY may be missing new functionality used by dev WebbPSF
-        - python: 3.5
-          env: POPPY_VERSION=stable SETUP_CMD='test'
-
-        # Released POPPY may be missing new functionality used by dev WebbPSF
-        - python: 2.7
-          env: POPPY_VERSION=stable NUMPY_VERSION=1.8 SETUP_CMD='test'
-              
-          # temporary - ignore failures on 3.5 due to py.test version issues
-        - python: 3.5
-          env: SETUP_CMD='test'
-
-
-
-before_install:
-
-    # Use utf8 encoding. Should be default, but this is insurance against
-    # future changes
-    - export PYTHONIOENCODING=UTF8
-    - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
-    - chmod +x miniconda.sh
-    - ./miniconda.sh -b
-    - export PATH=/home/travis/miniconda2/bin:$PATH
-    - conda update --yes conda
-    - conda update --all -y  # added to try debugging issue #159 with Travis
+        - env: SETUP_CMD='test' PIP_DEPENDENCIES='poppy jwxml'
 
 install:
 
-    # CONDA
-    - conda create --yes -n test -c astropy-ci-extras python=$TRAVIS_PYTHON_VERSION
-    - source activate test
+    # We now use the ci-helpers package to set up our testing environment.
+    # This is done by using Miniconda and then using conda and pip to install
+    # dependencies. Which dependencies are installed using conda and pip is
+    # determined by the CONDA_DEPENDENCIES and PIP_DEPENDENCIES variables,
+    # which should be space-delimited lists of package names. See the README
+    # in https://github.com/astropy/ci-helpers for information about the full
+    # list of environment variables that can be used to customize your
+    # environment. In some cases, ci-helpers may not offer enough flexibility
+    # in how to install a package, in which case you can have additional
+    # commands in the install: section below.
 
-    # CORE DEPENDENCIES
-    - $CONDA_INSTALL numpy=$NUMPY_VERSION pytest pip Cython jinja2
-    - $PIP_INSTALL pytest-xdist
+    - git clone git://github.com/astropy/ci-helpers.git
+    - source ci-helpers/travis/setup_conda_$TRAVIS_OS_NAME.sh
 
-    # ASTROPY
-    - if [[ $ASTROPY_VERSION == development ]]; then $PIP_INSTALL git+http://github.com/astropy/astropy.git#egg=astropy; fi
-    - if [[ $ASTROPY_VERSION == stable ]]; then $CONDA_INSTALL numpy=$NUMPY_VERSION astropy; fi
-
-    # OPTIONAL DEPENDENCIES
-    # Here you can add any dependencies your package may have. You can use
-    # conda for packages available through conda, or pip for any other
-    # packages. You should leave the `numpy=$NUMPY_VERSION` in the `conda`
-    # install since this ensures Numpy does not get automatically upgraded.
-
-    # matplotlib and SciPy
-    - $CONDA_INSTALL numpy=$NUMPY_VERSION matplotlib scipy
-    # POPPY
-    - if [[ $POPPY_VERSION == development ]]; then $PIP_INSTALL git+http://github.com/mperrin/poppy.git#egg=poppy; fi
-    - if [[ $POPPY_VERSION == stable ]]; then $PIP_INSTALL poppy; fi
-
-    # DOCUMENTATION DEPENDENCIES
-    # build_sphinx needs sphinx and matplotlib (for plot_directive). Note that
-    # this matplotlib will *not* work with py 3.x, but our sphinx build is
-    # currently 2.7, so that's fine
-    - if [[ $SETUP_CMD == build_sphinx* ]]; then $CONDA_INSTALL numpy=$NUMPY_VERSION Sphinx matplotlib; fi
-
-    # COVERAGE DEPENDENCIES
-    - if [[ $SETUP_CMD == 'test --coverage' ]]; then $PIP_INSTALL coverage coveralls; fi
+    # As described above, using ci-helpers, you should be able to set up an
+    # environment with dependencies installed using conda and pip, but in some
+    # cases this may not provide enough flexibility in how to install a
+    # specific dependency (and it will not be able to install non-Python
+    # dependencies). Therefore, you can also include commands below (as
+    # well as at the start of the install section or in the before_install
+    # section if they are needed before setting up conda) to install any
+    # other dependencies.
 
 before_script:
-    # Get WebbPSF data files (just a subset of the usual 500 MB!) and set up environment variable
-    - wget http://www.stsci.edu/~mperrin/software/webbpsf/minimal-webbpsf-data.tar.gz  -O /tmp/minimal-webbpsf-data.tar.gz
-    - tar -xzf /tmp/minimal-webbpsf-data.tar.gz
+    # Get WebbPSF data files (just a subset of the full 250 MB!) and set up environment variable
+    - wget http://www.stsci.edu/~mperrin/software/webbpsf/minimal-webbpsf-data-0.6rc.tar.gz  -O /tmp/minimal-webbpsf-data.tar.gz
+    - tar -xzvf /tmp/minimal-webbpsf-data.tar.gz
     - export WEBBPSF_PATH=$PWD/webbpsf-data 
-    - export WEBBPSF_SKIP_CHECK=1
 
 script:
-   - python setup.py $SETUP_CMD
+    - python setup.py $SETUP_CMD
 
 after_success:
-    # If coveralls.io is set up for this package, uncomment the line
-    # below and replace "packagename" with the name of your package.
-    # The coveragerc file may be customized as needed for your package.
-    # - if [[ $SETUP_CMD == 'test --coverage' ]]; then coveralls --rcfile='packagename/tests/coveragerc'; fi
+    # coveralls.io integration
+    - if [[ $SETUP_CMD == 'test --coverage' && TRAVIS_REPO_SLUG == "mperrin/webbpsf" ]]; then coveralls --rcfile='poppy/tests/coveragerc'; fi
+
 notifications:
-  email:
-    - mperrin@stsci.edu
-    - jlong@stsci.edu
+    email:
+        - mperrin@stsci.edu
+        - jlong@stsci.edu

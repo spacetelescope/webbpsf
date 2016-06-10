@@ -1,3 +1,4 @@
+from __future__ import division, print_function, absolute_import, unicode_literals
 import sys, os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -47,9 +48,9 @@ def test_nircam_SAMC(oversample=4):
     nc.options['output_mode'] = 'Detector'
 
 
-    psf_sam = nc.calcPSF(oversample=oversample, nlambda=1) # should use semi-analytic coronagraph method by default.
+    psf_sam = nc.calc_psf(oversample=oversample, nlambda=1) # should use semi-analytic coronagraph method by default.
     nc.options['no_sam']=True
-    psf_fft  = nc.calcPSF(oversample=oversample, nlambda=1)
+    psf_fft  = nc.calc_psf(oversample=oversample, nlambda=1)
 
 
     maxdiff = np.abs(psf_fft[0].data - psf_sam[0].data).max()
@@ -143,7 +144,7 @@ def do_test_nircam_blc(clobber=False, kind='circular', angle=0, save=False, disp
         # We can save the outputs; this is not recommended or useful for general testing but is
         # helpful when/if debugging this test routine itself.
         if not os.path.exists(fnout) or clobber:
-            psf = nc.calcPSF(oversample=oversample, nlambda=nlam, save_intermediates=False, display=display)#, monochromatic=10.65e-6)
+            psf = nc.calc_psf(oversample=oversample, nlambda=nlam, save_intermediates=False, display=display)#, monochromatic=10.65e-6)
             if save:
                 plt.savefig(fnout+".pdf")
                 psf.writeto(fnout, clobber=clobber)

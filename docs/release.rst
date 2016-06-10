@@ -14,6 +14,12 @@ Prerequisites
 Releasing new data packages
 ===========================
 
+ #. Run ``dev_utils/make-data-sdist.sh`` (details below) to make a gzipped tarred archive of the WebbPSF data
+ #. If the new data package is **required** (meaning you can't run WebbPSF without it, or you can run but may get incorrect results), you must bump ``DATA_VERSION_MIN`` in ``__init__.py`` to ``(0, X, Y)``
+ #. Extract the resulting data archive and check that you can run the WebbPSF tests with ``WEBBPSF_PATH`` pointing to it
+ #. Copy the data archive into public web space
+ #. Update the link in ``installation.rst`` under :ref:`data_install`
+
 Invoke ``dev_utils/make-data-sdist.sh`` one of the following ways to make a gzipped tarred archive of the WebbPSF data suitable for distribution.
 
 **If you are on the Institute network:** ::
@@ -27,10 +33,6 @@ Invoke ``dev_utils/make-data-sdist.sh`` one of the following ways to make a gzip
    $ cd webbpsf/dev_utils/
    $ DATAROOT="/Users/you/webbpsf-data-sources/" ./make-data-sdist.sh 0.X.Y
    $ cp ./webbpsf-data-0.X.Y.tar.gz /where/ever/you/want/
-
-It is prudent to extract the resulting data archive and check that you can run WebbPSF's tests with ``WEBBPSF_PATH`` pointing to it. Also, make sure to update the link in ``installation.rst`` under :ref:`data_install`.
-
-If the new data package is **required** (meaning you can't run WebbPSF without it, or you can run but may get incorrect results), you should set ``DATA_VERSION_MIN`` in ``__init__.py`` to ``(0, X, Y)``.
 
 Releasing new versions on PyPI
 ==============================

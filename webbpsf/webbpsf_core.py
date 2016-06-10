@@ -1,3 +1,4 @@
+from __future__ import division, print_function, absolute_import, unicode_literals
 """
 ============
 WebbPSF Core
@@ -283,201 +284,6 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         self._detector_position = (int(position[0]),int(position[1]))
 
 
-    #----- actual optical calculations follow here -----
-    def calcPSF(self, outfile=None, source=None, filter=None, nlambda=None, monochromatic=None,
-                fov_arcsec=None, fov_pixels=None,  oversample=None, detector_oversample=None,
-                fft_oversample=None, calc_oversample=None, rebin=True, clobber=True, display=False,
-                return_intermediates=False, **kwargs):
-        """ Compute a PSF.
-
-        The result can either be written to disk (set outfile="filename") or else will be returned as
-        an astropy.io.fits HDUList object.
-
-
-        Output sampling may be specified in one of two ways:
-
-        1) Set `oversample=<number>`. This will use that oversampling factor beyond detector pixels
-           for output images, and beyond Nyquist sampling for any FFTs to prior optical planes.
-        2) set `detector_oversample=<number>` and `fft_oversample=<other_number>`. This syntax lets
-           you specify distinct oversampling factors for intermediate and final planes. This is generally
-           only relevant in the case of coronagraphic calculations.
-
-        By default, both oversampling factors are set equal to 4. This default can be changed in your
-        webbpsf configuration file.
-
-        Notes
-        -----
-        More advanced PSF computation options (pupil shifts, source positions, jitter, ...)
-        may be set by configuring the `.options` dictionary attribute of this class.
-
-        Parameters
-        ----------
-        filter : string, optional
-            Filter name. Setting this is just a shortcut for setting the object's filter first, then
-            calling calcPSF afterwards.
-        source : pysynphot.SourceSpectrum or dict or tuple
-            specification of source input spectrum. Default is a 5700 K sunlike star.
-        nlambda : int
-            How many wavelengths to model for broadband?
-            The default depends on how wide the filter is, as set by a lookup table in the webbpsf data distribution.
-        monochromatic : float, optional
-            Setting this to a wavelength value (in meters) will compute a monochromatic PSF at that
-            wavelength, overriding filter and nlambda parameters.
-        fov_arcsec : float
-            field of view in arcsec. Default=5
-        fov_pixels : int
-            field of view in pixels. This is an alternative to fov_arcsec.
-        outfile : string
-            Filename to write. If None, then result is returned as an HDUList
-        oversample, detector_oversample, fft_oversample : int
-            How much to oversample. Default=4. By default the same factor is used for final output
-            pixels and intermediate optical planes, but you may optionally use different factors
-            if so desired.
-        rebin : bool, optional
-            If set, the output file will contain a FITS image extension containing the PSF rebinned
-            onto the actual detector pixel scale. Thus, setting oversample=<N> and rebin=True is
-            the proper way to obtain high-fidelity PSFs computed on the detector scale. Default is True.
-        clobber : bool
-            overwrite output FITS file if it already exists?
-        display : bool
-            Whether to display the PSF when done or not.
-        save_intermediates, return_intermediates : bool
-            Options for saving to disk or returning to the calling function the intermediate optical planes during the propagation.
-            This is useful if you want to e.g. examine the intensity in the Lyot plane for a coronagraphic propagation. These have no
-            effect for simple direct imaging calculations.
-
-
-        For additional arguments, see the documentation for poppy.OpticalSystem.calcPSF()
-
-
-        Returns
-        -------
-        outfits : fits.HDUList
-            The output PSF is returned as a fits.HDUlist object.
-            If `outfile` is set to a valid filename, the output is also written to that file.
-
-
-        """
-
-        if calc_oversample is not None:
-            raise DeprecationWarning("The calc_oversample parameter is deprecated and will be removed in webbpsf 0.4. User fft_oversample instead.")
-            fft_oversample = calc_oversample # back compatibility hook for deprecated arg name.
-
-        _log.info("Setting up PSF calculation for "+self.name)
-
-        # first make sure that webbpsf's configuration is used to override any of the
-        # same configuration options in poppy. This is admittedly perhaps overbuilt to have identical
-        # settings in both packages, but the intent is to shield typical users of webbpsf
-        # from having to think about the existence of the underlying library. They can
-        # just deal with one set of settings.
-        #config._apply_settings_to_poppy()
-
-        if filter is not None:
-            self.filter = filter
-
-        local_options = self.options.copy()  # all local state should be stored in a dict, for
-                                      # ease of handing off to the various subroutines of
-                                      # calcPSF. Don't just modify the global self.options
-                                      # structure since that would pollute it with temporary
-                                      # state as well as persistent state.
-        local_options['monochromatic'] = monochromatic
-
-
-
-        #----- choose # of wavelengths intelligently. Do this first before generating the source spectrum weighting.
-        if nlambda is None or nlambda==0:
-            # Automatically determine number of appropriate wavelengths.
-            # Make selection based on filter configuration file
-            try:
-                nlambda = self._filters[self.filter].default_nlambda
-                _log.debug("Automatically selecting # of wavelengths: %d" % nlambda)
-            except KeyError:
-                nlambda=10
-                _log.warn("Filter %s not found in lookup table for default number of wavelengths to use.. setting default nlambda=%d" % (self.filter, nlambda))
-        local_options['nlambda'] = nlambda
-
-
-
-        #----- calculate field of view depending on supplied parameters
-        if fov_arcsec is None and fov_pixels is None:  #pick decent defaults.
-            if self.name =='MIRI': fov_arcsec=12.
-            else: fov_arcsec=5.
-            fov_spec = 'arcsec = %f' % fov_arcsec
-        elif fov_pixels is not None:
-
-            if np.isscalar(fov_pixels):
-                fov_spec = 'pixels = %d' % fov_pixels
-            else:
-                fov_spec = 'pixels = (%d, %d)' % (fov_pixels[0], fov_pixels[1])
-        elif fov_arcsec is not None:
-            if np.isscalar(fov_arcsec):
-                fov_spec = 'arcsec = %f' % fov_arcsec
-            else:
-                fov_spec = 'arcsec = (%.3f, %.3f)' % (fov_arcsec[0], fov_arcsec[1])
-
-        _log.debug('FOV set to '+fov_spec)
-
-        #---- Implement the semi-convoluted logic for the oversampling options. See docstring above
-        if oversample is not None and detector_oversample is not None and fft_oversample is not None:
-            # all options set, contradictorily -> complain!
-            raise ValueError("You cannot specify simultaneously the oversample= option with the detector_oversample and fft_oversample options. Pick one or the other!")
-        elif oversample is None and detector_oversample is None and fft_oversample is None:
-            # nothing set -> set oversample = 4
-            oversample = conf.default_oversampling
-        if detector_oversample is None: detector_oversample = oversample
-        if fft_oversample is None: fft_oversample = oversample
-        local_options['detector_oversample']=detector_oversample
-        local_options['fft_oversample']=fft_oversample
-
-        #----- compute weights for each wavelength based on source spectrum
-        wavelens, weights = self._getWeights(source=source, nlambda=nlambda, monochromatic=monochromatic)
-
-        # Validate that the calculation we're about to do makes sense with this instrument config
-        self._validateConfig(wavelengths=wavelens)
-        _log.info("PSF calc using fov_%s, oversample = %d, number of wavelengths = %d" % (
-                  fov_spec, detector_oversample, len(wavelens)))
-
-        #---- now at last, actually do the PSF calc:
-        #  instantiate an optical system using the current parameters
-        self.optsys = self._getOpticalSystem(fov_arcsec=fov_arcsec, fov_pixels=fov_pixels,
-            fft_oversample=fft_oversample, detector_oversample=detector_oversample, options=local_options)
-        # and use it to compute the PSF (the real work happens here, in code in poppy.py)
-        #result = self.optsys.calcPSF(source, display_intermediates=display, save_intermediates=save_intermediates, display=display)
-        #if _USE_MULTIPROC and monochromatic is None :
-            #result = self.optsys.calcPSFmultiproc(source, nprocesses=_MULTIPROC_NPROCESS) # no fancy display args for multiproc.
-        #else:
-        result = self.optsys.calcPSF(wavelens, weights, display_intermediates=display, display=display, return_intermediates=return_intermediates, **kwargs)
-
-        if return_intermediates: # this implies we got handed back a tuple, so split it apart
-            result, intermediates = result
-
-        self._applyJitter(result, local_options)  # will immediately return if there is no jitter parameter in local_options
-
-        self._getFITSHeader(result, local_options)
-
-        self._calcPSF_format_output(result, local_options)
-
-
-        if display:
-            f = plt.gcf()
-            #p.text( 0.1, 0.95, "%s, filter= %s" % (self.name, self.filter), transform=f.transFigure, size='xx-large')
-
-            if monochromatic is None:
-                plt.suptitle( "%s, filter= %s" % (self.name, self.filter), size='xx-large')
-                plt.text( 0.99, 0.04, "Calculation with %d wavelengths (%g - %g um)" % (nlambda, wavelens[0]*1e6, wavelens[-1]*1e6), transform=f.transFigure, horizontalalignment='right')
-            else:
-                plt.suptitle( "{self.name},  $\lambda$ = {wavelen} um".format(self=self, wavelen = monochromatic*1e6), size='xx-large')
-
-        if outfile is not None:
-            result[0].header["FILENAME"] = (os.path.basename (outfile), "Name of this file")
-            result.writeto(outfile, clobber=clobber)
-            _log.info("Saved result to "+outfile)
-
-        if return_intermediates:
-            return result, intermediates
-        else:
-            return result
-
     def _getFITSHeader(self, result, options):
         """ populate FITS Header keywords """
         poppy.Instrument._getFITSHeader(self,result, options)
@@ -557,7 +363,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
 
         #---- set pupil OPD
-        if isinstance(self.pupilopd, str):  # simple filename
+        if isinstance(self.pupilopd, six.string_types):  # simple filename
             opd_map = self.pupilopd if os.path.exists( self.pupilopd) else os.path.join(self._datapath, "OPD",self.pupilopd)
         elif hasattr(self.pupilopd, '__getitem__') and isinstance(self.pupilopd[0], six.string_types): # tuple with filename and slice
             opd_map =  (self.pupilopd[0] if os.path.exists( self.pupilopd[0]) else os.path.join(self._datapath, "OPD",self.pupilopd[0]), self.pupilopd[1])
@@ -577,7 +383,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
             pupil_optic = optsys.add_pupil(self.pupil)
         else:
             # wrap in an optic and supply to POPPY
-            if isinstance(self.pupil, str): # simple filename
+            if isinstance(self.pupil, six.string_types): # simple filename
                 if os.path.exists(self.pupil):
                     pupil_transmission = self.pupil
                 else:
@@ -775,6 +581,10 @@ class JWInstrument(SpaceTelescopeInstrument):
         """Should calculations include the Science Instrument internal WFE?"""
 
 
+    def _getDefaultFOV(self):
+        """ Return default FOV in arcseconds """
+        return 5 # default for all NIR instruments
+
     def _getOpticalSystem(self,fft_oversample=2, detector_oversample = None, fov_arcsec=2, fov_pixels=None, options=None):
         # invoke superclass version of this
         # then add a few display tweaks
@@ -848,6 +658,9 @@ class MIRI(JWInstrument):
         self._detector_npixels=1024
         self.detector_position=(512,512)
 
+    def _getDefaultFOV(self):
+        """ Return default FOV in arcseconds """
+        return 12
 
     @JWInstrument.filter.setter
     def filter(self, value):

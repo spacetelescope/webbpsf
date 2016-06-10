@@ -34,8 +34,12 @@ from astropy_helpers.git_helpers import get_git_devstr
 from astropy_helpers.version_helpers import generate_version_py
 
 # Get some values from the setup.cfg
-from distutils import config
-conf = config.ConfigParser()
+try:
+    from ConfigParser import ConfigParser
+except ImportError:
+    from configparser import ConfigParser
+
+conf = ConfigParser()
 conf.read(['setup.cfg'])
 metadata = dict(conf.items('metadata'))
 
@@ -57,7 +61,7 @@ LONG_DESCRIPTION = ast.get_docstring(module_ast)
 builtins._ASTROPY_PACKAGE_NAME_ = PACKAGENAME
 
 # VERSION should be PEP386 compatible (http://www.python.org/dev/peps/pep-0386)
-VERSION = '0.5.0'
+VERSION = '0.5.0.dev'
 
 # Indicates if this version is a release version
 RELEASE = 'dev' not in VERSION
@@ -108,8 +112,14 @@ setup(name=PACKAGENAME,
       version=VERSION,
       description=DESCRIPTION,
       scripts=scripts,
-      install_requires=['numpy', 'matplotlib', 'scipy', 'poppy', 'astropy'],
-      setup_requires=['numpy', 'astropy'],
+      install_requires=[
+          'numpy>=1.10.0',
+          'matplotlib>=1.5.0',
+          'scipy>=0.16.0',
+          'poppy>=0.5.0',
+          'astropy>=1.2.0',
+          'jwxml>=0.1.0'
+      ],
       provides=[PACKAGENAME],
       author=AUTHOR,
       author_email=AUTHOR_EMAIL,
