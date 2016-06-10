@@ -27,9 +27,8 @@ test_nircam_blc_circ_0 =   lambda : do_test_nircam_blc(kind='circular', angle=0)
 def test_nircam_blc_wedge_0():
     return do_test_nircam_blc(kind='linear', angle=0)
 
-@pytest.mark.xfail
 def test_nircam_blc_wedge_45():
-    return do_test_nircam_blc(kind='linear', angle=45)
+    return do_test_nircam_blc(kind='linear', angle=-45)
 
 
 # The test setup for this one is not quite right yet
@@ -119,11 +118,8 @@ def do_test_nircam_blc(clobber=False, kind='circular', angle=0, save=False, disp
         fn ='mswb'
         if angle==0:
             expected_total_fluxes=[2.09e-6, .0415, 0.1442]  # Based on a prior calculation with WebbPSF
-            #expected_total_fluxes=[0.0012, 0.0606, 0.1396]  # Based on a prior calculation with WebbPSF
-                                 #2e-6
-        elif angle==45:
-            expected_total_fluxes=[2.09e-6, 0.0219, 0.1173]  # Based on a prior calculation
-            #expected_total_fluxes=[0.0012, 0.0219, 0.1146]  # Based on a prior calculation
+        elif angle==45 or angle==-45:
+            expected_total_fluxes=[2.09e-6, 0.0219, 0.1171]  # Based on a prior calculation
         else:
             raise ValueError("Don't know how to check fluxes for angle={0}".format(angle))
 
@@ -149,17 +145,22 @@ def do_test_nircam_blc(clobber=False, kind='circular', angle=0, save=False, disp
         if not os.path.exists(fnout) or clobber:
             psf = nc.calcPSF(oversample=oversample, nlambda=nlam, save_intermediates=False, display=display)#, monochromatic=10.65e-6)
             if save:
+                plt.savefig(fnout+".pdf")
                 psf.writeto(fnout, clobber=clobber)
         else:
             psf = fits.open(fnout)
         totflux = psf[0].data.sum()
 
+        #print("Offset: {}    Expected Flux: {}  Calc Flux: {}".format(offset,exp_flux,totflux))
+
+        # FIXME tolerance temporarily increased to 1% in final flux, to allow for using
+        # regular propagation rather than semi-analytic. See poppy issue #169
         assert( abs(totflux - exp_flux) < 1e-4 )
+        #assert( abs(totflux - exp_flux) < 1e-2 )
         _log.info("File {0} has the expected total flux based on prior reference calculation: {1}".format(fnout, totflux))
 
     #_log.info("Lots of test files output as test_nircam_*.fits")
 
-@pytest.mark.xfail
 def test_nircam_get_detector():
     nc=webbpsf_core.NIRCam()
 
@@ -172,40 +173,65 @@ def test_nircam_auto_pixelscale():
     nc = webbpsf_core.NIRCam()
 
     nc.filter='F200W'
-    wavelengths, _ = nc._getWeights()
-    nc._validateConfig(wavelengths=wavelengths)
     assert nc.pixelscale == nc._pixelscale_short
+    assert nc.channel == 'short'
 
     # auto switch to long
     nc.filter='F444W'
-    wavelengths, _ = nc._getWeights()
-    nc._validateConfig(wavelengths=wavelengths)
     assert nc.pixelscale == nc._pixelscale_long
+    assert nc.channel == 'long'
 
     # and it can switch back to short:
     nc.filter='F200W'
-    wavelengths, _ = nc._getWeights()
-    nc._validateConfig(wavelengths=wavelengths)
     assert nc.pixelscale == nc._pixelscale_short
+    assert nc.channel == 'short'
 
     nc.pixelscale = 0.0123  # user is allowed to set something custom
     nc.filter='F444W'
-    wavelengths, _ = nc._getWeights()
-    nc._validateConfig(wavelengths=wavelengths)
     assert nc.pixelscale == 0.0123  # and that persists & overrides the default switching.
 
-    # restore a standard pixel scale (long since we're testing short next)
-    nc.pixelscale = nc._pixelscale_long
 
-    # wavelengths fit on shortwave channel -> short channel pixel scale
+    # back to standard scale
+    nc.pixelscale = nc._pixelscale_long
+    # switch short again
+    nc.filter='F212N'
+    assert nc.pixelscale == nc._pixelscale_short
+    assert nc.channel == 'short'
+
+    nc.auto_channel = False
+    # now we can switch filters and nothing else should change:
+    nc.filter='F480M'
+    assert nc.pixelscale == nc._pixelscale_short
+    assert nc.channel == 'short'
+
+
+
+
+def test_validate_nircam_wavelengths():
+    nc = webbpsf_core.NIRCam()
+
+    # wavelengths fit on shortwave channel -> no exception
+    nc.filter='F200W'
     nc._validateConfig(wavelengths=np.linspace(nc.SHORT_WAVELENGTH_MIN, nc.SHORT_WAVELENGTH_MAX, 3))
     assert nc.pixelscale == nc._pixelscale_short
 
-    # wavelengths fit on long channel -> long pixel scale
+    # short wave is selected but user tries a long wave calculation
+    with pytest.raises(RuntimeError) as excinfo:
+        nc._validateConfig(wavelengths=np.linspace(nc.LONG_WAVELENGTH_MIN + 1e-6, nc.LONG_WAVELENGTH_MAX, 3))
+    assert _exception_message_starts_with(excinfo,"The requested wavelengths are too long for NIRCam short wave channel")
+
+    # wavelengths fit on long channel -> no exception
+    nc.filter='F444W'
     nc._validateConfig(wavelengths=np.linspace(nc.LONG_WAVELENGTH_MIN, nc.LONG_WAVELENGTH_MAX, 3))
     assert nc.pixelscale == nc._pixelscale_long
 
-    # wavelengths don't fit on one channel -> exception
+    # long wave is selected but user tries a short  wave calculation
+    with pytest.raises(RuntimeError) as excinfo:
+        nc._validateConfig(wavelengths=np.linspace(nc.SHORT_WAVELENGTH_MIN + 1e-8, nc.SHORT_WAVELENGTH_MAX, 3))
+    assert _exception_message_starts_with(excinfo,"The requested wavelengths are too short for NIRCam long wave channel")
+
+
+    # too short or long for NIRCAM at all
     with pytest.raises(RuntimeError) as excinfo:
         nc._validateConfig(wavelengths=np.linspace(nc.SHORT_WAVELENGTH_MIN - 1e-6, nc.SHORT_WAVELENGTH_MIN, 3))
     assert _exception_message_starts_with(excinfo,"The requested wavelengths are too short to be imaged with NIRCam")
@@ -214,8 +240,4 @@ def test_nircam_auto_pixelscale():
         nc._validateConfig(wavelengths=np.linspace(nc.LONG_WAVELENGTH_MAX, nc.LONG_WAVELENGTH_MAX + 1e-6, 3))
     assert _exception_message_starts_with(excinfo,"The requested wavelengths are too long to be imaged with NIRCam")
 
-    with pytest.raises(RuntimeError) as excinfo:
-        nc._validateConfig(wavelengths=np.linspace(nc.SHORT_WAVELENGTH_MAX - 1e-6, nc.LONG_WAVELENGTH_MIN + 1e-6, 3))
-    assert _exception_message_starts_with(excinfo,"Wavelengths requested don't fit entirely on either NIRCam short"
-                                     " or long wavelength channels")
 

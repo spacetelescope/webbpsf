@@ -103,6 +103,9 @@ from poppy import ( display_psf, display_psf_difference, display_ee, measure_ee,
 from .webbpsf_core import (Instrument, JWInstrument, NIRCam, NIRISS, NIRSpec,
     MIRI, FGS)
 
+from .wfirst import WFI
+
+from .jupyter_gui import show_notebook_interface
 
 try:
     from .wxgui import wxgui
