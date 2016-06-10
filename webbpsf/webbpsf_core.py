@@ -945,7 +945,7 @@ class MIRI(JWInstrument):
                               poppy.BarOcculter(width=0.722),
                               poppy.SquareFieldStop(size=30, rotation=self._rotation)] )
             optsys.add_image(container)
-            trySAM = True
+            trySAM = False # FIXME was True - see https://github.com/mperrin/poppy/issues/169
             SAM_box_size = [5,20]
         elif self.image_mask == 'LRS slit':
             # one slit, 5.5 x 0.6 arcsec in height (nominal)
@@ -976,15 +976,18 @@ class MIRI(JWInstrument):
         #optsys.add_pupil('Circle', radius=6.5/2)
 
         if self.pupil_mask == 'MASKFQPM':
-            optsys.add_pupil(transmission=self._datapath+"/optics/MIRI_FQPMLyotStop.fits.gz", name=self.pupil_mask,
+            optsys.add_pupil(transmission=self._datapath+"/optics/MIRI_FQPMLyotStop.fits.gz",
+                    name=self.pupil_mask,
                     flip_y=True, shift=shift)
             optsys.planes[-1].wavefront_display_hint='intensity'
         elif self.pupil_mask == 'MASKLYOT':
-            optsys.add_pupil(transmission=self._datapath+"/optics/MIRI_LyotLyotStop.fits.gz", name=self.pupil_mask,
+            optsys.add_pupil(transmission=self._datapath+"/optics/MIRI_LyotLyotStop.fits.gz",
+                    name=self.pupil_mask,
                     flip_y=True, shift=shift)
             optsys.planes[-1].wavefront_display_hint='intensity'
         elif self.pupil_mask == 'P750L LRS grating' or self.pupil_mask == 'P750L':
-            optsys.add_pupil(transmission=self._datapath+"/optics/MIRI_LRS_Pupil_Stop.fits.gz", name=self.pupil_mask, 
+            optsys.add_pupil(transmission=self._datapath+"/optics/MIRI_LRS_Pupil_Stop.fits.gz",
+                    name=self.pupil_mask,
                     flip_y=True, shift=shift)
             optsys.planes[-1].wavefront_display_hint='intensity'
         else: # all the MIRI filters have a tricontagon outline, even the non-coron ones.
@@ -1151,7 +1154,7 @@ class NIRCam(JWInstrument):
                 (self.image_mask == 'MASK430R')):
             optsys.add_image( NIRCam_BandLimitedCoron( name=self.image_mask, module=self.module),
                     index=2)
-            trySAM = True
+            trySAM = False # FIXME was True - see https://github.com/mperrin/poppy/issues/169
             SAM_box_size = 5.0
         elif ((self.image_mask == 'MASKSWB') or (self.image_mask == 'MASKLWB')):
             optsys.add_image( NIRCam_BandLimitedCoron(name=self.image_mask, module=self.module),
