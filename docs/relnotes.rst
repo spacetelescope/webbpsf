@@ -58,6 +58,15 @@ JWST updates:
    intermediate optical plane in all PSF calculations from this point, with the
    OTE pupil obscuration flipped upside down in orientation relative to the
    entrance pupil. 
+
+   * As a consequence of this, many optical planes displayed will now look
+     "upside down" relative to prior versions of WebbPSF. This affects all
+     coronagraphic Lyot masks for instance, the NIRISS CLEARP and NRM pupils, etc.
+     This is as intended, and reflects the actual orientation of those optics in the
+     internal pupil planes relative to a detector image that has been oriented to have
+     +V3 up and +V2 left (e.g. 'SCI' frame orientation on the sky, with north up and east left 
+     if the position angle is zero).
+
  * Added software infrastructure for using measured instrument WFE from ISIM
    cryo-tests - however the data files are not yet ready and approved. This
    functionality will be fully activated in a near-future release (later this summer).
@@ -78,6 +87,13 @@ WFIRST updates:
    WFE to support code sharing between the JWST and WFIRST classes.
  * *Thanks to Alden Jurling for assisting with information and clarifications on the Cycle 6 models.*
 
+
+General:
+ 
+ * New `Python PEP8 style guide <https://www.python.org/dev/peps/pep-0008/>`_ compliant names have been added
+   for most function calls, e.g. ``calc_psf`` instead of ``calcPSF``, ``display_psf`` instead of 
+   ``display_PSF`` and so forth. For now these are synonymous and both forms will work. The new styling is
+   preferred and at some future point (but not soon!) the older syntax may be removed.
 
 Version 0.4.1
 =============
