@@ -57,7 +57,6 @@ The WebbPSF software system is composed of two Python packages: a lower-level op
    wfirst.rst
    gui.rst
    more_examples.rst
-   more_examples_notebook.ipynb
    poppy.rst
 
 
