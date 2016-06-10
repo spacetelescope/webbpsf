@@ -102,7 +102,7 @@ The very short version, for those who have NumPy, SciPy, and matplotlib already 
 
 This command installs (or upgrades) WebbPSF to the latest version on `PyPI <https://pypi.python.org/>`_. Next, :ref:`download the WebbPSF data files <data_install>` and set the ``WEBBPSF_DATA`` environment variable to point to the place you extracted them. You may also want to :ref:`install Pysynphot <pysynphot_install>`, an optional dependency, to improve PSF fidelity.
 
-For detailed installation instructions, refer to :ref:`installation`. (This document also explains how to :ref:`install into a conda environment <alternate_install>`, :ref:`install from GitHub source <install_dev_version>`, etc.)
+For detailed installation instructions, refer to :ref:`installation`. (This document also explains how to install optional dependencies, install supporting data files, :ref:`install from GitHub source <install_dev_version>`, etc.)
 
 .. _quickstart:
 
