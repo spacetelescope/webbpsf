@@ -28,7 +28,7 @@ def test_nircam_blc_wedge_0():
     return do_test_nircam_blc(kind='linear', angle=0)
 
 def test_nircam_blc_wedge_45():
-    return do_test_nircam_blc(kind='linear', angle=45)
+    return do_test_nircam_blc(kind='linear', angle=-45)
 
 
 # The test setup for this one is not quite right yet
@@ -118,11 +118,8 @@ def do_test_nircam_blc(clobber=False, kind='circular', angle=0, save=False, disp
         fn ='mswb'
         if angle==0:
             expected_total_fluxes=[2.09e-6, .0415, 0.1442]  # Based on a prior calculation with WebbPSF
-            #expected_total_fluxes=[0.0012, 0.0606, 0.1396]  # Based on a prior calculation with WebbPSF
-                                 #2e-6
-        elif angle==45:
-            expected_total_fluxes=[2.09e-6, 0.0219, 0.1173]  # Based on a prior calculation
-            #expected_total_fluxes=[0.0012, 0.0219, 0.1146]  # Based on a prior calculation
+        elif angle==45 or angle==-45:
+            expected_total_fluxes=[2.09e-6, 0.0219, 0.1171]  # Based on a prior calculation
         else:
             raise ValueError("Don't know how to check fluxes for angle={0}".format(angle))
 
