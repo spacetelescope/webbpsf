@@ -787,18 +787,25 @@ class JWInstrument(SpaceTelescopeInstrument):
 
     def _get_aberrations(self):
         """ Compute field-dependent aberration for a given instrument
+        based on a lookup table of Zernike coefficients derived from
+        ISIM cryovac test data.
 
-        This is just a placeholder!
+        This is a very preliminary version!
         """
         if not self.include_si_wfe:
             return None
 
-        #tmp = poppy.zernike.opd_from_zernikes([0,0,0,5e-8, 1e-8],
-                #npix=1024, outside=0)
-        tmp = poppy.zernike.opd_from_zernikes([0,0,0], npix=1024, outside=0)
-        optic = poppy.OpticalElement(name="Aberration Placeholder for "+self.name)
-        optic.opd = tmp
-        optic.amplitude = np.ones_like(tmp)
+        zernike_file = os.path.join(utils.get_webbpsf_data_path(),'zernikes_isim_cv2.fits')
+
+        if not os.path.exists(zernike_file):
+            # return placeholder null optic
+            tmp = poppy.zernike.opd_from_zernikes([0,0,0], npix=1024, outside=0)
+            optic = poppy.OpticalElement(name="Aberration Placeholder for "+self.name)
+            optic.opd = tmp
+            optic.amplitude = np.ones_like(tmp)
+        else:
+            from .optics import JWST_Field_Dependent_Aberration
+            optic = JWST_Field_Dependent_Aberration(self)
         return optic
 
     def _tel_coords(self):
