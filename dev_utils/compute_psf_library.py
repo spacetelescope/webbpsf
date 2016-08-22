@@ -1,0 +1,224 @@
+import sys
+import multiprocessing
+import logging
+import logging.handlers
+import datetime
+import time
+from os.path import abspath, sep, join, exists, isdir
+from itertools import product, chain
+import matplotlib
+matplotlib.use('Agg')
+import webbpsf
+
+N_PROCESSES = 32
+
+def _worker_logging_setup(queue_instance):
+    queue_handler = logging.handlers.QueueHandler(queue_instance)
+    root = logging.getLogger()
+    root.addHandler(queue_handler)
+    root.setLevel(logging.DEBUG)
+
+INSTRUMENTS = (webbpsf.NIRCam, webbpsf.NIRSpec, webbpsf.MIRI, webbpsf.NIRISS, webbpsf.FGS)
+
+# NIRCam Coronagraph Ops v.3
+# John Stansberry, Nov 4 2015
+# Table 3. Allowed Filters for Coronagraphic Science
+NIRCAM_ALLOWED_FILTERS_FOR_MASKS = {
+    'MASKSWB':  ('F182M', 'F187N', 'F210M', 'F212N', 'F200W'),
+    'MASK210R':  ('F182M', 'F187N', 'F210M', 'F212N', 'F200W'),
+    'MASKLWB':  ('F250M', 'F300M', 'F335M', 'F360M', 'F410M', 'F430M', 'F460M', 'F480M',
+                 'F277W', 'F356W', 'F444W'),
+    'MASK335R': ('F300M', 'F335M', 'F360M', 'F410M', 'F356W'),
+    'MASK430R': ('F410M', 'F360M', 'F430M', 'F460M', 'F444W'),
+}
+
+NIRCAM_IMAGE_MASKS_FOR_PUPILS = {
+    'CIRCLYOT': ('MASK210R', 'MASK335R', 'MASK430R'),
+    'WEDGELYOT': ('MASKSWB', 'MASKLWB'),
+    'WEAK LENS +4': (None,),
+    'WEAK LENS +8': (None,),
+    'WEAK LENS -8': (None,),
+    'WEAK LENS +12 (=4+8)': (None,),
+    'WEAK LENS -4 (=4-8)': (None,),
+}
+
+MIRI_ALLOWED_FILTER_FOR_MASKS = {
+    'FQPM1065': 'F1065C',
+    'FQPM1140': 'F1140C',
+    'FQPM1550': 'F1550C',
+    'LYOT2300': 'F2300C',
+}
+
+MIRI_IMAGE_MASKS_FOR_PUPILS = {
+    'MASKFQPM': ('FQPM1065', 'FQPM1140', 'FQPM1550'),
+    'MASKLYOT': ('LYOT2300',),
+    # 'P750L LRS grating': ('LRS slit',),
+}
+
+
+# Picked roughly the 'middle' WFE realization from the Rev. V files
+# (but these can/will be updated for measured WFE maps)
+OPD_TO_USE = {
+    'NIRCam': 'OPD_RevV_nircam_136.fits',
+    'MIRI': 'OPD_RevV_miri_220.fits',
+    'NIRSpec': 'OPD_RevV_nirspec_145.fits',
+    'FGS': 'OPD_RevV_fgs_163.fits',
+    'NIRISS': 'OPD_RevV_niriss_162.fits',
+}
+
+def apply_configuration(instrument_instance, configuration):
+    for key, value in configuration.items():
+        setattr(instrument_instance, key, value)
+
+def make_file_path(instrument_instance, output_directory):
+    output_file_path = abspath(join(output_directory, instrument_instance.name))
+    parts = [instrument_instance.name]
+    if instrument_instance.pupilopd is not None:
+        parts.append(instrument_instance.pupilopd.replace('.fits', ''))
+    else:
+        parts.append('perfect_opd')
+    for attribute in ('filter', 'image_mask', 'pupil_mask'):
+        value = getattr(instrument_instance, attribute)
+        if value is not None:
+            parts.append('{}_{}'.format(attribute,value))
+    return join(output_file_path, '_'.join(parts) + '.fits')
+
+def _validate(opd, filter_name, image_mask, pupil_mask, instrument_name):
+    if image_mask is None and pupil_mask is not None:
+        return False
+    if pupil_mask is None and image_mask is not None:
+        return False
+
+    if instrument_name == 'NIRCam':
+        if image_mask is not None and pupil_mask is not None:
+            if filter_name not in NIRCAM_ALLOWED_FILTERS_FOR_MASKS[image_mask]:
+                return False
+            if image_mask not in NIRCAM_IMAGE_MASKS_FOR_PUPILS[pupil_mask]:
+                return False
+    elif instrument_name == 'MIRI':
+        # TODO Cannot simulate LRS slit in broadband mode because there's
+        # no bandpass for it, and that might not make sense anyway
+        if image_mask == 'LRS slit' or pupil_mask == 'P750L LRS grating':
+            return False
+        if image_mask is not None and pupil_mask is not None:
+            if filter_name != MIRI_ALLOWED_FILTER_FOR_MASKS[image_mask]:
+                return False
+            if image_mask not in MIRI_IMAGE_MASKS_FOR_PUPILS[pupil_mask]:
+                return False
+    elif instrument_name == 'NIRSpec':
+        return False  # TODO
+    elif instrument_name == 'FGS':
+        return True
+    elif instrument_name == 'NIRISS':
+        return False  # TODO
+    else:
+        return False
+    return True
+
+
+def generate_configuration(instrument_instance):
+    selections = (
+        # For all different OPDs:
+        # chain([None,], instrument_instance.opd_list),
+        # For only one OPD map:
+        [OPD_TO_USE[instrument_instance.name],],
+        instrument_instance.filter_list,
+        chain([None,], instrument_instance.image_mask_list),
+        chain([None,], instrument_instance.pupil_mask_list),
+    )
+    for opd, filter_name, image_mask, pupil_mask in product(*selections):
+        if not _validate(opd, filter_name, image_mask, pupil_mask, instrument_instance.name):
+            continue
+        else:
+            yield {
+                'pupilopd': opd,
+                'filter': filter_name,
+                'image_mask': image_mask,
+                'pupil_mask': pupil_mask,
+            }
+
+def _do_one_psf(InstrumentClass, configuration, output_directory):
+    log = logging.getLogger("worker." + multiprocessing.current_process().name)
+    inst = InstrumentClass()
+    apply_configuration(inst, configuration)
+    log.debug("Computing PSF for {} ({})".format(inst.name, configuration))
+    output_file_path = make_file_path(inst, output_directory)
+    log.debug("Checking for existing PSF: {}".format(output_file_path))
+    if not exists(output_file_path):
+        # TODO contemplate better way to handle special case
+        fov_arcsec = 20.0 if inst.name == 'MIRI' else 10.0
+        # psf = inst.calc_psf(fov_arcsec=fov_arcsec, ### TODO SPEC)
+        # psf.writeto(output_file_path)
+        log.debug("Computed PSF and wrote to: {}".format(output_file_path))
+    else:
+        log.debug("Got existing PSF at {}".format(output_file_path))
+    return output_file_path
+
+def compute_library(output_directory, pool, instrument_classes=INSTRUMENTS):
+    def submit_job(InstrumentClass, configuration):
+        return pool.apply_async(
+            _do_one_psf,
+            (InstrumentClass, configuration, output_directory)
+        )
+
+    results = []
+
+    for InstrumentClass in instrument_classes:
+        inst = InstrumentClass()  # the attributes used to generate configs are set at instantiation
+        for configuration in generate_configuration(inst):
+            result = submit_job(InstrumentClass, configuration)
+            results.append(result)
+
+    for result in results:
+        logging.info(result.get())
+
+    return 0
+
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="Compute a PSF library for JWST")
+    parser.add_argument("-c", "--nircam", action='store_true')
+    parser.add_argument("-r", "--niriss", action='store_true')
+    parser.add_argument("-s", "--nirspec", action='store_true')
+    parser.add_argument("-f", "--fgs", action='store_true')
+    parser.add_argument("-m", "--miri", action='store_true')
+    parser.add_argument("--all", action='store_true')
+    parser.add_argument("output_dir")
+    args = parser.parse_args()
+    instrument_classes = []
+    if args.all:
+        instrument_classes = INSTRUMENTS
+    else:
+        if args.nircam:
+            instrument_classes.append(webbpsf.NIRCam)
+        if args.niriss:
+            instrument_classes.append(webbpsf.NIRISS)
+        if args.nirspec:
+            instrument_classes.append(webbpsf.NIRSpec)
+        if args.fgs:
+            instrument_classes.append(webbpsf.FGS)
+        if args.miri:
+            instrument_classes.append(webbpsf.MIRI)
+        if len(instrument_classes) == 0:
+            print("You must specify at least one instrument to compute PSFs for!")
+            sys.exit(1)
+
+    multiprocessing.set_start_method('forkserver')
+
+    q = multiprocessing.Queue()
+    stdout_handler = logging.StreamHandler(stream=sys.stdout)
+
+    y, m, d, hh, mm, ss = datetime.datetime.now().utctimetuple()[:6]
+    logging_filename = 'compute_psf_library_{y}-{m}-{d}-{hh}-{mm}-{ss}.log'.format(y=y, m=m, d=d, hh=hh, mm=mm, ss=ss)
+    log = logging.getLogger()
+    file_handler = logging.FileHandler(logging_filename)
+    log.addHandler(file_handler)
+    listener = logging.handlers.QueueListener(q, file_handler, stdout_handler, respect_handler_level=True)
+    listener.start()
+
+    pool = multiprocessing.Pool(
+        processes=N_PROCESSES,
+        initializer=_worker_logging_setup,
+        initargs=(q,),
+    )
+    sys.exit(compute_library(args.output_dir, pool, instrument_classes))
