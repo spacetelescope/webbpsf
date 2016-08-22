@@ -75,6 +75,14 @@ OPD_TO_USE = {
     'NIRISS': 'OPD_RevV_niriss_162.fits',
 }
 
+def ensure_dir(dirpath):
+    try:
+        os.makedirs(dirpath)
+    except OSError:
+        if not isdir(dirpath):
+            raise
+    return dirpath
+
 def apply_configuration(instrument_instance, configuration):
     for key, value in configuration.items():
         setattr(instrument_instance, key, value)
@@ -154,6 +162,8 @@ def _do_one_psf(InstrumentClass, configuration, output_directory):
     output_file_path = make_file_path(inst, output_directory)
     log.debug("Checking for existing PSF: {}".format(output_file_path))
     if not exists(output_file_path):
+        dirs, name = split(output_file_path)
+        ensure_dir(dirs)
         # TODO contemplate better way to handle special case
         fov_arcsec = 20.0 if inst.name == 'MIRI' else 10.0
         spectrum = webbpsf.specFromSpectralType(STELLAR_SPECTRAL_TYPE, catalog='ck04')
