@@ -27,6 +27,8 @@ def _worker_logging_setup(queue_instance):
 
 INSTRUMENTS = (webbpsf.NIRCam, webbpsf.NIRSpec, webbpsf.MIRI, webbpsf.NIRISS, webbpsf.FGS)
 
+STELLAR_SPECTRAL_TYPE = 'G0V'
+
 # NIRCam Coronagraph Ops v.3
 # John Stansberry, Nov 4 2015
 # Table 3. Allowed Filters for Coronagraphic Science
@@ -154,8 +156,9 @@ def _do_one_psf(InstrumentClass, configuration, output_directory):
     if not exists(output_file_path):
         # TODO contemplate better way to handle special case
         fov_arcsec = 20.0 if inst.name == 'MIRI' else 10.0
-        # psf = inst.calc_psf(fov_arcsec=fov_arcsec, ### TODO SPEC)
-        # psf.writeto(output_file_path)
+        spectrum = webbpsf.specFromSpectralType(STELLAR_SPECTRAL_TYPE, catalog='ck04')
+        psf = inst.calc_psf(fov_arcsec=fov_arcsec, source=spectrum)
+        psf.writeto(output_file_path)
         log.debug("Computed PSF and wrote to: {}".format(output_file_path))
     else:
         log.debug("Got existing PSF at {}".format(output_file_path))
