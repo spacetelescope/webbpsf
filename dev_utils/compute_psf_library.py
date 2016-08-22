@@ -4,7 +4,7 @@ import logging
 import logging.handlers
 import datetime
 import time
-from os.path import abspath, sep, join, exists, isdir
+from os.path import abspath, sep, join, exists, isdir, split
 import os
 if not os.environ.get('PYSYN_CDBS'):
     os.environ['PYSYN_CDBS'] = '/grp/hst/cdbs'
