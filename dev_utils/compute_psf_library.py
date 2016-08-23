@@ -198,11 +198,11 @@ def compute_library(output_directory, pool, instrument_classes=INSTRUMENTS):
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Compute a PSF library for JWST")
-    parser.add_argument("-c", "--nircam", action='store_true')
-    parser.add_argument("-r", "--niriss", action='store_true')
-    parser.add_argument("-s", "--nirspec", action='store_true')
-    parser.add_argument("-f", "--fgs", action='store_true')
-    parser.add_argument("-m", "--miri", action='store_true')
+    parser.add_argument("--nircam", action='store_true')
+    parser.add_argument("--niriss", action='store_true')
+    parser.add_argument("--nirspec", action='store_true')
+    parser.add_argument("--fgs", action='store_true')
+    parser.add_argument("--miri", action='store_true')
     parser.add_argument("--all", action='store_true')
     parser.add_argument("output_dir")
     args = parser.parse_args()
