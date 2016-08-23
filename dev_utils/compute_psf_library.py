@@ -68,6 +68,7 @@ NIRSPEC_ABBREVIATED_MASK_NAMES = {
     'MSA all open': 'msa_all',
     'Single MSA open shutter': 'msa_single',
     'Three adjacent MSA open shutters': 'msa_three',
+    'NIRSpec grating': 'with_grating',
 }
 
 # Picked roughly the 'middle' WFE realization from the Rev. V files
@@ -103,9 +104,12 @@ def make_file_path(instrument_instance, output_directory):
     for attribute in ('filter', 'image_mask', 'pupil_mask'):
         value = getattr(instrument_instance, attribute)
 
-        # Special case for space-filled NIRSpec image mask names
-        if instrument_instance.name == 'NIRSpec' and attribute == 'image_mask':
-            attribute = NIRSPEC_ABBREVIATED_MASK_NAMES[value]
+        # Special case for space-filled NIRSpec mask names
+        if instrument_instance.name == 'NIRSpec':
+            if attribute == 'image_mask' and value is not None:
+                value = NIRSPEC_ABBREVIATED_MASK_NAMES[value]
+            elif attribute == 'pupil_mask' and value is not None:
+                value = NIRSPEC_ABBREVIATED_MASK_NAMES[value]
 
         if value is not None:
             parts.append('{}_{}'.format(attribute, value))
