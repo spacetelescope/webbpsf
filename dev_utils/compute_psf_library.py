@@ -105,10 +105,8 @@ def make_file_path(instrument_instance, output_directory):
         value = getattr(instrument_instance, attribute)
 
         # Special case for space-filled NIRSpec mask names
-        if instrument_instance.name == 'NIRSpec':
-            if attribute == 'image_mask' and value is not None:
-                value = NIRSPEC_ABBREVIATED_MASK_NAMES[value]
-            elif attribute == 'pupil_mask' and value is not None:
+        if (instrument_instance.name == 'NIRSpec' and
+            value in NIRSPEC_ABBREVIATED_MASK_NAMES):
                 value = NIRSPEC_ABBREVIATED_MASK_NAMES[value]
 
         if value is not None:
