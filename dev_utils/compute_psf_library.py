@@ -64,6 +64,11 @@ MIRI_IMAGE_MASKS_FOR_PUPILS = {
     # 'P750L LRS grating': ('LRS slit',),
 }
 
+NIRSPEC_ABBREVIATED_MASK_NAMES = {
+    'MSA all open': 'msa_all',
+    'Single MSA open shutter': 'msa_single',
+    'Three adjacent MSA open shutters': 'msa_three',
+}
 
 # Picked roughly the 'middle' WFE realization from the Rev. V files
 # (but these can/will be updated for measured WFE maps)
@@ -94,10 +99,16 @@ def make_file_path(instrument_instance, output_directory):
         parts.append(instrument_instance.pupilopd.replace('.fits', ''))
     else:
         parts.append('perfect_opd')
+
     for attribute in ('filter', 'image_mask', 'pupil_mask'):
         value = getattr(instrument_instance, attribute)
+
+        # Special case for space-filled NIRSpec image mask names
+        if instrument_instance.name == 'NIRSpec' and attribute == 'image_mask':
+            attribute = NIRSPEC_ABBREVIATED_MASK_NAMES[value]
+
         if value is not None:
-            parts.append('{}_{}'.format(attribute,value))
+            parts.append('{}_{}'.format(attribute, value))
     return join(output_file_path, '_'.join(parts) + '.fits')
 
 def _validate(opd, filter_name, image_mask, pupil_mask, instrument_name):
@@ -125,6 +136,8 @@ def _validate(opd, filter_name, image_mask, pupil_mask, instrument_name):
     elif instrument_name == 'NIRSpec':
         if pupil_mask != 'NIRSpec grating':
             return False
+        if filter_name == 'IFU':
+            return False  # not yet implemented in WebbPSF
     elif instrument_name == 'FGS':
         return True
     elif instrument_name == 'NIRISS':
@@ -242,4 +255,8 @@ if __name__ == "__main__":
         initializer=_worker_logging_setup,
         initargs=(q,),
     )
-    sys.exit(compute_library(args.output_dir, pool, instrument_classes))
+    try:
+        compute_library(args.output_dir, pool, instrument_classes)
+    finally:
+        pool.join()
+    sys.exit()
