@@ -123,7 +123,8 @@ def _validate(opd, filter_name, image_mask, pupil_mask, instrument_name):
             if image_mask not in MIRI_IMAGE_MASKS_FOR_PUPILS[pupil_mask]:
                 return False
     elif instrument_name == 'NIRSpec':
-        return False  # TODO
+        if pupil_mask != 'NIRSpec grating':
+            return False
     elif instrument_name == 'FGS':
         return True
     elif instrument_name == 'NIRISS':
