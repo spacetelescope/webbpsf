@@ -257,8 +257,6 @@ if __name__ == "__main__":
         initializer=_worker_logging_setup,
         initargs=(q,),
     )
-    try:
+    with pool:
         compute_library(args.output_dir, pool, instrument_classes)
-    finally:
-        pool.join()
     sys.exit()
