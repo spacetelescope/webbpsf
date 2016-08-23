@@ -17,7 +17,7 @@ if not os.environ.get('WEBBPSF_PATH'):
     os.environ['WEBBPSF_PATH'] = '/grp/jwst/ote/webbpsf-data'
 import webbpsf
 
-N_PROCESSES = 32
+N_PROCESSES = 16
 
 def _worker_logging_setup(queue_instance):
     queue_handler = logging.handlers.QueueHandler(queue_instance)
@@ -113,7 +113,7 @@ def _validate(opd, filter_name, image_mask, pupil_mask, instrument_name):
             if image_mask not in NIRCAM_IMAGE_MASKS_FOR_PUPILS[pupil_mask]:
                 return False
     elif instrument_name == 'MIRI':
-        # TODO Cannot simulate LRS slit in broadband mode because there's
+        # Cannot simulate LRS slit in broadband mode because there's
         # no bandpass for it, and that might not make sense anyway
         if image_mask == 'LRS slit' or pupil_mask == 'P750L LRS grating':
             return False
