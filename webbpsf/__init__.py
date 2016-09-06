@@ -21,7 +21,7 @@ from ._astropy_init import *
 # required. If changes to the code and data mean WebbPSF won't work
 # properly with an old data package, increment this version number.
 # (It's checked against $WEBBPSF_DATA/version.txt)
-DATA_VERSION_MIN = (0, 4, 0)
+DATA_VERSION_MIN = (0, 5, 0)
 
 import astropy
 from astropy import config as _config
@@ -94,13 +94,18 @@ if not _ASTROPY_SETUP_:
         sys.stderr.write(utils.MISSING_WEBBPSF_DATA_MESSAGE)
         raise
 
-from poppy import (display_PSF, display_PSF_difference, display_EE, display_profiles, radial_profile,
-        measure_EE, measure_radial, measure_fwhm, measure_sharpness, measure_centroid,
+from poppy import ( display_psf, display_psf_difference, display_ee, measure_ee, # current names
+        display_PSF, display_PSF_difference, display_EE, measure_EE,  # older non-PEP8 names for back compatibility
+        display_profiles, radial_profile,
+        measure_radial, measure_fwhm, measure_sharpness, measure_centroid,
         specFromSpectralType, fwcentroid)
 
 from .webbpsf_core import (Instrument, JWInstrument, NIRCam, NIRISS, NIRSpec,
     MIRI, FGS)
 
+from .wfirst import WFI
+
+from .jupyter_gui import show_notebook_interface
 
 try:
     from .wxgui import wxgui
@@ -116,25 +121,26 @@ except ImportError:
 
 
 
-if not (_HAVE_WX_GUI or _HAVE_TK_GUI):
-    import warnings
-    warnings.warn("Warning: Neither Tk nor wx GUIs could be imported. "
-                  "Graphical interface disabled")
-else:
-    def gui(preferred='wx'):
-        """ Start the WebbPSF GUI with the selected interface
+#if (_HAVE_WX_GUI or _HAVE_TK_GUI):
 
-        Parameters
-        -------------
-        preferred : string
-            either 'wx' or 'ttk' to indicate which GUI toolkit should be started.
+    #import warnings
+    #warnings.warn("Warning: Neither Tk nor wx GUIs could be imported. "
+    #              "Graphical interface disabled")
+#else:
+def gui(preferred='wx'):
+    """ Start the WebbPSF GUI with the selected interface
+
+    Parameters
+    -------------
+    preferred : string
+        either 'wx' or 'ttk' to indicate which GUI toolkit should be started.
 
 
-        """
-        if preferred == 'wx' and _HAVE_WX_GUI:
-            wxgui()
-            pass
-        elif preferred=='ttk' or _HAVE_TK_GUI:
-            tkgui()
-        else:
-            raise NotImplementedError("Neither TK nor WX GUI libraries are available. Cannot start GUI.")
+    """
+    if preferred == 'wx' and _HAVE_WX_GUI:
+        wxgui()
+        pass
+    elif preferred=='ttk' or _HAVE_TK_GUI:
+        tkgui()
+    else:
+        raise NotImplementedError("Neither TK nor WX GUI libraries are available. Cannot start GUI.")

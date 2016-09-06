@@ -204,6 +204,9 @@ Your average laptop with a couple GB of RAM will do perfectly well for most comp
 If you're interested in very high fidelity simulations of large fields (e.g. 1024x1024 pixels oversampled 8x) then we recommend a large multicore desktop with >16 GB RAM. 
 
 
+
+.. _normalization:
+
 PSF normalization
 -----------------
 
@@ -218,6 +221,40 @@ The above will normalize a PSF after the calculation, so the output (i.e. the PS
     >>>  psf = nc.calcPSF(normalize='exit_pupil')
 
 The above will normalize a PSF at the exit pupil (i.e. last pupil plane in the optical model). This normalization takes out the effect of any pupil obscurations such as coronagraph masks, spectrograph slits or pupil masks, the NIRISS NRM mask, and so forth. However it still leaves in the effect of any finite FOV. In other words, PSFs calculated in this mode will have integrated total intensity = 1.0 over an infinitely large FOV, even after the effects of any obscurations.
+
+
+.. note::
+
+       An aside on throughputs and normalization: Note that *by design* WebbPSF
+       does not track or model the absolute throughput of any instrument.
+       Consult the JWST Exposure Time Calculator and associated reference
+       material if you are interested in absolute throughputs. Instead WebbPSF
+       simply allows normalization of output PSFs' total intensity to 1 at
+       either the entrance pupil, exit pupil, or final focal plane. When used
+       to generate monochromatic PSFs for use in the JWST ETC, the entrance
+       pupil normalization option is selected. Therefore WebbPSF first applies
+       the normalization to unit flux at the primary mirror, propagates it
+       through the optical system ignoring any reflective or transmissive
+       losses from mirrors or filters (since the ETC throughput curves take
+       care of those), and calculates only the diffractive losses from slits
+       and stops. Any loss of light from optical stops (Lyot stops,
+       spectrograph slits or coronagraph masks, the NIRISS NRM mask, etc.) will
+       thus be included in the WebbPSF calculation.  Everything else (such as
+       reflective or transmissive losses, detector quantum efficiencies, etc.,
+       plus scaling for the specified target spectrum and brightness) is the
+       ETC's job. This division of labor has been coordinated with the ETC team
+       and ensures each factor that affects throughput is handled by one or the
+       other system but is not double counted in both.
+
+       To support realistic calculation of broadband PSFs however, WebbPSF does
+       include normalized copies of the relative spectral response functions
+       for every filter in each instrument.  These are included in the WebbPSF
+       data distribution, and are derived behind the scenes from the same
+       reference database as is used for the ETC. These relative spectral
+       response functions are used to make a proper weighted sum of the
+       individual monochromatic PSFs in a broadband calculation: weighted
+       *relative to the broadband total flux of one another*, but still with no implied
+       absolute normalization.
 
 
 Controlling output log text

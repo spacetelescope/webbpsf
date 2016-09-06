@@ -88,6 +88,7 @@ def test_measure_strehl():
     perfnc = webbpsf_core.NIRCam()
     perfnc.filter='F212N'
     perfnc.pupilopd = None
+    perfnc.include_si_wfe = False
     perfpsf = perfnc.calcPSF(nlambda=1)
     meas_perf_strehl = utils.measure_strehl(perfpsf, display=False, verbose=False)
     assert np.abs(meas_perf_strehl-1.0) < 0.01, 'measured Strehl for perfect PSF is insufficiently close to 1.0: {}'.format(meas_perf_strehl)
