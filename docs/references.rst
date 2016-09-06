@@ -26,6 +26,12 @@ of the measured distortions within the instruments.
 
 
 
+WebbPSF does not include any absolute throughput information for any SIs, only
+the relative weighting for different wavelengths in a broadband calculation.
+See :ref:`the note on PSF normalization <normalization>` for further
+discussion.
+
+
 
 *Note: The WebbPSF software and all of its associated data files are entirely ITAR-free.*
 

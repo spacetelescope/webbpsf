@@ -31,10 +31,10 @@ All classes share some common attributes:
    The list of available options is provided as the ``pupil_mask_list`` attribute.
  * Each SI has a ``detector`` attribute that can be used to select among its
    multiple detectors (if more than one are present in that SI), and a
-   ``detector_position`` attribute which is a tuple givin the pixel coordinates
-   on that detector. Note that the ``detector_position`` value should be
+   ``detector_position`` attribute which is a 2-tuple giving the pixel coordinates
+   on that detector for the center location in any calculated output PSF.
+   Note that the ``detector_position`` value should be
    specified using the Python (Y,X) axes order convention.
-
 
 .. admonition:: Instrument measured WFE coming in a future release
 
@@ -82,9 +82,10 @@ behavior on filter selection can be disabled by setting ``nircam.auto_channel = 
 Coronagraph Masks
 ------------------
 
-The coronagraph image plane masks and Lyot masks are all included as options. 
-These are based on the nominal design properties as provided by the NIRCam team, 
-not on any specific measurements of the as-built masks.
+The coronagraph image-plane masks and pupil-plane Lyot masks are all included as options.
+These are based on the nominal design properties as provided by the NIRCam team,
+not on any specific measurements of the as-built masks. The simulations of the occulting mask
+fields also include the nearby neutral density squares for target acquisitions.
 
 WebbPSF won't prevent users from simulating configuration using a coronagraph
 image mask without the Lyot stop, but that's not something that can be done for
