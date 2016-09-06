@@ -96,13 +96,15 @@ Getting WebbPSF
 
 The WebbPSF software is installable through pip, but it depends on data files distributed through STScI. Since there is more than one way to install scientific Python software, the possibilities are covered in :ref:`installation`.
 
-The very short version, for those who have NumPy, SciPy, and matplotlib already installed::
+The `AstroConda <http://astroconda.readthedocs.io/en/latest/>`_ distribution includes WebbPSF and its associated data files. If you installed the packages into an environment named ``astroconda``, the command to upgrade all STScI software (including WebbPSF) to the latest version would be ``conda update --name astroconda stsci``.
+
+For those who prefer to use pip (and have NumPy, SciPy, and matplotlib already installed) the command is::
 
    $ pip install -U webbpsf
 
-This command installs (or upgrades) WebbPSF to the latest version on `PyPI <https://pypi.python.org/>`_. Next, :ref:`download the WebbPSF data files <data_install>` and set the ``WEBBPSF_DATA`` environment variable to point to the place you extracted them. You may also want to :ref:`install Pysynphot <pysynphot_install>`, an optional dependency, to improve PSF fidelity.
+This command installs (or upgrades) WebbPSF to the latest version on `PyPI <https://pypi.python.org/>`_. Before WebbPSF will run, you must :ref:`download the WebbPSF data files <data_install>` and set the ``WEBBPSF_DATA`` environment variable to point to the place you extracted them. You may also want to :ref:`install Pysynphot <pysynphot_install>`, an optional dependency, to improve PSF fidelity.
 
-For detailed installation instructions, refer to :ref:`installation`. (This document also explains how to :ref:`install into a conda environment <alternate_install>`, :ref:`install from GitHub source <install_dev_version>`, etc.)
+For detailed installation instructions, refer to :ref:`installation`. (This document also explains how to install optional dependencies, install supporting data files, :ref:`install from GitHub source <install_dev_version>`, etc.)
 
 .. _quickstart:
 
