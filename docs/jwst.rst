@@ -79,6 +79,7 @@ need to manually select if a different short wave detector is desired).  This
 behavior on filter selection can be disabled by setting ``nircam.auto_channel = False``. 
 
 
+
 Coronagraph Masks
 ------------------
 
@@ -118,6 +119,12 @@ SI WFE
 The SI internal WFE measurements are distinct for each of the modules and
 channels. When enabled, these are added to the final pupil of the optical
 train, i.e. after the coronagraphic image planes. 
+
+
+Wavelength-Dependent Focus Variations
+---------------------------------------
+
+**TODO**  Add documentation here for the focus variations vs wavelength and how webbpsf models those.
 
 
 NIRSpec
@@ -251,6 +258,17 @@ SI WFE
 
 The SI internal WFE measurements, when enabled, are added to the final pupil of the optical
 train, i.e. after the coronagraphic image planes. 
+
+
+Minor Field-Dependent Pupil Vignetting
+----------------------------------------
+
+**TODO** Add documentation here of this effect and how WebbPSF models it. 
+
+A fold mirror at the MIRI Imager's internal cold pupil is used to redirect light from the MIRI calibration sources towards the detector, 
+to enable flat field calibrations. For a subset of field positions, this fold mirror slightly obscures a small portion of the pupil.  
+This is a small effect with little practical consequence for MIRI PSFs, but WebbPSF does model it. 
+
 
 
 FGS
