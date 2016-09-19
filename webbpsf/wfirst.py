@@ -16,6 +16,7 @@ from scipy.interpolate import griddata
 from astropy.io import fits
 import logging
 _log = logging.getLogger('webbpsf').setLevel('DEBUG')
+import pdb
 
 class WavelengthDependenceInterpolator(object):
     """WavelengthDependenceInterpolator can be configured with
@@ -327,15 +328,18 @@ class CGI(WFIRSTInstrument):
     def __init__(self, mode='CHARSPC', filter=None, pixelscale=None, fov_arcsec=None, apply_static_opd=False):
         super(CGI, self).__init__("CGI", pixelscale=pixelscale)
 
-        self.pupil = os.path.join(self._WebbPSF_basepath, 'AFTA_CGI_C5_Pupil_onax_1000px.fits')
+        if mode == 'CHARSPC20140902':
+            self.pupil = os.path.join(self._WebbPSF_basepath, "AFTA_CGI_20140902_Pupil_1000px_flip.fits")
+        else:
+            self.pupil = os.path.join(self._WebbPSF_basepath, 'AFTA_CGI_C5_Pupil_onax_1000px_flip.fits')
         if apply_static_opd:
             #self.pupilopd = os.path.join(self._WebbPSF_basepath, 'CGI', 'OPD', 'CGI_primary_OPD.fits')
             self.pupilopd = os.path.join(self._WebbPSF_basepath, 'CGI', 'OPD', 'CGI_static_OPD.fits')
         else:
             self.pupilopd = None
-        self.mode_list = ['CHARSPC', 'DISKSPC']
-        self.image_mask_list = ['CHARSPC_F660', 'CHARSPC_F770', 'CHARSPC_F890', 'DISKSPC_F465', 'DISKSPC_F565', 'DISKSPC_F835', 'DISKSPC_F885']
-        self.pupil_mask_list = ['SPC26D88']
+        self.mode_list = ['CHARSPC', 'CHARSPC20140902', 'DISKSPC']
+        self.image_mask_list = ['CHARSPC_F660', 'CHARSPC_F770', 'CHARSPC_F800', 'CHARSPC_F890', 'DISKSPC_F465', 'DISKSPC_F565', 'DISKSPC_F835', 'DISKSPC_F885']
+        self.pupil_mask_list = ['SPC26D88', 'SPC30D90']
         self.aberration_optic = None
         self.options = {'force_coron':True}
         # Allow the user to pre-emptively override the default instrument FoV and pixel scale
@@ -363,7 +367,7 @@ class CGI(WFIRSTInstrument):
 
     def _addAdditionalOptics(self, optsys, oversample=4):
         """Add coronagraphic or spectrographic optics for WFIRST CGI."""
-        
+    
         trySAM = False
         char_fpmres = 8
         disk_fpmres = 4
@@ -378,17 +382,30 @@ class CGI(WFIRSTInstrument):
         elif self.mode == 'DISKSPC':
             optsys.addPupil(transmission=self._datapath+"optics/DISKSPC_SP_1000pix.fits.gz", name=self.mode, shift=None)
         elif self.mode == 'CHARSPC20140902':
-            self.pupil = os.path.join(self._WebbPSF_basepath, 'AFTA_CGI_C5_Pupil_onax_1000px.fits')
-
-        if self.filter == 'F660':
-            self.image_mask = 'CHARSPC_F660'
-            optsys.addImage(transmission=self._datapath+"optics/CHARSPC_FPM_25WA90_2x65deg_-_FP1res%d_evensamp_D%d_F660.fits.gz"%(char_fpmres, 2*9*char_fpmres))
-        elif self.filter == 'F770':
-            self.image_mask = 'CHARSPC_F770'
-            optsys.addImage(transmission=self._datapath+"optics/CHARSPC_FPM_25WA90_2x65deg_-_FP1res%d_evensamp_D%d_F770.fits.gz"%(char_fpmres, 2*9*char_fpmres))
-        elif self.filter == 'F890':
-            self.image_mask = 'CHARSPC_F890'
-            optsys.addImage(transmission=self._datapath+"optics/CHARSPC_FPM_25WA90_2x65deg_-_FP1res%d_evensamp_D%d_F890.fits.gz"%(char_fpmres, 2*9*char_fpmres))
+            optsys.addPupil(transmission=self._datapath+"optics/CHARSPC_20140902_SP_1000pix.fits.gz", name=self.mode, shift=None) 
+        if self.mode == 'CHARSPC':
+            if self.filter == 'F660':
+                self.image_mask = 'CHARSPC_F660'
+                optsys.addImage(transmission=self._datapath+"optics/CHARSPC_FPM_25WA90_2x65deg_-_FP1res%d_evensamp_D%d_F660.fits.gz"%(char_fpmres, 2*9*char_fpmres))
+            elif self.filter == 'F770':
+                self.image_mask = 'CHARSPC_F770'
+                optsys.addImage(transmission=self._datapath+"optics/CHARSPC_FPM_25WA90_2x65deg_-_FP1res%d_evensamp_D%d_F770.fits.gz"%(char_fpmres, 2*9*char_fpmres))
+            elif self.filter == 'F890':
+                self.image_mask = 'CHARSPC_F890'
+                optsys.addImage(transmission=self._datapath+"optics/CHARSPC_FPM_25WA90_2x65deg_-_FP1res%d_evensamp_D%d_F890.fits.gz"%(char_fpmres, 2*9*char_fpmres))
+        elif self.mode == 'CHARSPC20140902':
+            if self.filter == 'F660':
+                self.image_mask = 'CHARSPC_F660'
+                optsys.addImage(transmission=self._datapath+"optics/CHARSPC_20140902_FPM_25WA90_2x65deg_-_FP1res%d_evensamp_D%d_F660.fits.gz"%(char_fpmres, 2*9*char_fpmres))
+            elif self.filter == 'F770':
+                self.image_mask = 'CHARSPC_F770'
+                optsys.addImage(transmission=self._datapath+"optics/CHARSPC_20140902_FPM_25WA90_2x65deg_-_FP1res%d_evensamp_D%d_F770.fits.gz"%(char_fpmres, 2*9*char_fpmres))
+            elif self.filter == 'F800':
+                self.image_mask = 'CHARSPC_F800'
+                optsys.addImage(transmission=self._datapath+"optics/CHARSPC_20140902_FPM_25WA90_2x65deg_-_FP1res%d_evensamp_D%d_F800.fits.gz"%(char_fpmres, 2*9*char_fpmres))
+            elif self.filter == 'F890':
+                self.image_mask = 'CHARSPC_F890'
+                optsys.addImage(transmission=self._datapath+"optics/CHARSPC_20140902_FPM_25WA90_2x65deg_-_FP1res%d_evensamp_D%d_F890.fits.gz"%(char_fpmres, 2*9*char_fpmres))
 
         elif self.filter == 'F465':
             self.image_mask = 'DISKSPC_F465'
@@ -405,7 +422,7 @@ class CGI(WFIRSTInstrument):
             self.image_mask = 'DISKSPC_F885'
             optsys.addImage(transmission=self._datapath+"optics/DISKSPC_FPM_65WA200_360deg_-_FP1res%d_evensamp_D%d_F885.fits.gz"%(disk_fpmres, 2*20*disk_fpmres))
 
-        if self.mode == 'CHARSPC':
+        if self.mode == 'CHARSPC' or self.mode == 'CHARSPC20140902':
             if not hasattr(self, 'fov_arcsec') or not self._override_fov:
                 self.fov_arcsec = 2*0.82 # See 2015 SDT report, Section 3.4.1.1.1: IFS has 76 lenslets across the (2 x 0.82) arcsec FoV.
             if not hasattr(self, 'pixelscale') or not self._override_pixelscale:
@@ -425,6 +442,9 @@ class CGI(WFIRSTInstrument):
         if self.mode == 'CHARSPC' or self.mode == 'DISKSPC':
             self.pupil_mask = 'SPC26D88'
             optsys.addPupil(transmission=self._datapath+"optics/SPC_LS_26DS88_1000pix.fits.gz", name=self.pupil_mask, shift=shift)
+        elif self.mode == 'CHARSPC20140902':
+            self.pupil_mask = 'SPC30D90'
+            optsys.addPupil(transmission=self._datapath+"optics/SPC_20140902_LS_30DS90_1000pix.fits.gz", name=self.pupil_mask, shift=shift)
 
         #if self.image_mask == 'CHARSPC_F660':
         #    optsys.addImage(transmission=self._datapath+"optics/CHARSPC_FPM_25WA90_2x65deg_-_FP1res%d_evensamp_D%d_F660.fits.gz"%(fpmres, 2*9*fpmres))
@@ -446,6 +466,8 @@ class CGI(WFIRSTInstrument):
 
         occ_box_size = 1.
         mft_optsys = poppy.MatrixFTCoronagraph(optsys, oversample=oversample, occulter_box=occ_box_size)
+
+        return (mft_optsys, trySAM, occ_box_size)
 
     def _get_aberrations(self):
         """Get the OpticalElement that applies the field-dependent
