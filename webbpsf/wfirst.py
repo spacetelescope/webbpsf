@@ -377,6 +377,8 @@ class CGI(WFIRSTInstrument):
             optsys.addPupil(transmission=self._datapath+"optics/CHARSPC_SP_1000pix.fits.gz", name=self.mode, shift=None)
         elif self.mode == 'DISKSPC':
             optsys.addPupil(transmission=self._datapath+"optics/DISKSPC_SP_1000pix.fits.gz", name=self.mode, shift=None)
+        elif self.mode == 'CHARSPC20140902':
+            self.pupil = os.path.join(self._WebbPSF_basepath, 'AFTA_CGI_C5_Pupil_onax_1000px.fits')
 
         if self.filter == 'F660':
             self.image_mask = 'CHARSPC_F660'
@@ -388,6 +390,8 @@ class CGI(WFIRSTInstrument):
             self.image_mask = 'CHARSPC_F890'
             optsys.addImage(transmission=self._datapath+"optics/CHARSPC_FPM_25WA90_2x65deg_-_FP1res%d_evensamp_D%d_F890.fits.gz"%(char_fpmres, 2*9*char_fpmres))
 
+        elif self.filter == 'F465':
+            self.image_mask = 'DISKSPC_F465'
         elif self.filter == 'F465':
             self.image_mask = 'DISKSPC_F465'
             optsys.addImage(transmission=self._datapath+"optics/DISKSPC_FPM_65WA200_360deg_-_FP1res%d_evensamp_D%d_F465.fits.gz"%(disk_fpmres, 2*20*disk_fpmres))
@@ -442,8 +446,6 @@ class CGI(WFIRSTInstrument):
 
         occ_box_size = 1.
         mft_optsys = poppy.MatrixFTCoronagraph(optsys, oversample=oversample, occulter_box=occ_box_size)
-
-        return (mft_optsys, trySAM, occ_box_size)
 
     def _get_aberrations(self):
         """Get the OpticalElement that applies the field-dependent
