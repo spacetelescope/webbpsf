@@ -1,12 +1,17 @@
 import os
 import poppy
 import numpy as np
+import scipy
 
-import astropy.table
+import astropy.table as table
 import astropy.io.fits as fits
+import astropy.units as units
 
 from . import utils
-from .webbpsf_core import _log
+
+import logging
+_log = logging.getLogger('webbpsf')
+
 
 
 #######  Custom Optics used in JWInstrument classes  #####
@@ -736,9 +741,13 @@ def _calc_blc_wedge(deg=4, wavelength=2.1e-6):
 class JWST_Field_Dependent_Aberration(poppy.OpticalElement):
     """ Field dependent aberration generated from Zernikes measured in ISIM CV testing
 
+    Parameters
+    -----------
+    include_oversize : bool
+        Explicitly model the 4% oversize for pupil tolerance
 
     """
-    def __init__(self, instrument, **kwargs):
+    def __init__(self, instrument, include_oversize=False, **kwargs):
         ""
         super(JWST_Field_Dependent_Aberration, self).__init__(name="Aberrations", **kwargs)
 
@@ -758,7 +767,7 @@ class JWST_Field_Dependent_Aberration(poppy.OpticalElement):
 
         # load the Zernikes table here
 
-        self.ztable_full = astropy.table.Table.read(
+        self.ztable_full = table.Table.read(
             os.path.join(utils.get_webbpsf_data_path(),'zernikes_isim_cv2.fits'))
         # Determine the pupil sampling of the first aperture in the instrument's optical system
         npix=1024 # hard code for now
@@ -767,30 +776,62 @@ class JWST_Field_Dependent_Aberration(poppy.OpticalElement):
         self.ztable=self.ztable_full[self.ztable_full['instrument']==lookup_name]
 
         #Figure out the closest field point
+
+        telcoords_am = self.tel_coords.to(units.arcmin).value
         v2 = self.ztable['V2']
         v3 = self.ztable['V3']
-        r = np.sqrt((self.tel_coords[0]-v2)**2+(self.tel_coords[1]-v3)**2)
+        r = np.sqrt((telcoords_am[0]-v2)**2+(telcoords_am[1]-v3)**2)
         closest = np.argmin(r)
 
         self.row = self.ztable[closest]
 
         #self.name = '{} near {} ({:.3f}, {:.3f})'.format(lookup_name,self.row['field_point_name'],*self.tel_coords)
-        self.name = '{} near {}'.format(lookup_name,self.row['field_point_name'])
+        self.name = '{} internal WFE, near {}'.format(lookup_name,self.row['field_point_name'])
         # Retrieve those Zernike coeffs (no interpolation for now)
         coeffs = [self.row['Zernike_{}'.format(i)] for i in range(1,36)]
+
+        self.zernike_coeffs = coeffs
 
         # Generate an OPD on the same sampling as the input wavefront -
         # but implicitly inverted in coordinate system
         # to match the OTE exit pupil orientation
 
-        self.opd = poppy.zernike.opd_from_zernikes(coeffs, npix=npix,
-                outside=0)  #*1e6 # convert to microns
 
-        self.amplitude=fits.getdata(
-            os.path.join(utils.get_webbpsf_data_path(),'tricontagon.fits'))
-        #?   No the SI internal clear aperture is larger in general...
-        # oversized tricontagon could be better
-        #self.amplitude = np.ones_like(self.opd, dtype=float)
+        if include_oversize:
+            # Try to model the oversized gaps around the internal pupils.
+            # This is only relevant if you are trying to model pupil shear or rotations,
+            # and in general we don't have good WFE data outside the nominal pupil anyway
+            # so let's leave this detail off by default.
+
+            # internal pupils for NIRISS and MIRI instruments are 4 percent oversized tricontagons
+            if self.instr_name == "NIRISS":
+                self.amplitude = fits.getdata(
+                        os.path.join(utils.get_webbpsf_data_path(),'tricontagon_oversized_4pct.fits.gz'))
+                # cut out central region to match the OPD, which is hard coded to 1024
+                self.amplitude = self.amplitude[256:256+1024, 256:256+1024]
+            elif self.instr_name == "MIRI" :
+                self.amplitude = fits.getdata(
+                        os.path.join(utils.get_webbpsf_data_path(),'MIRI','optics',
+                            'MIRI_tricontagon_oversized_rotated.fits.gz'))
+
+            else:
+                # internal pupil is a 4 percent oversized circumscribing circle?
+                # For NIRCam:
+                # John stansberry 2016-09-07 reports "It is definitely oversized, but isn't really
+                # circular... Kinda vaguely 6-sided I guess. [...] I can dig up
+                # a drawing and/or some images that show the pupil stop."
+                y, x = np.indices((npix,npix), dtype=float)
+                y-= (npix-1)/2.0
+                x-= (npix-1)/2.0
+                r = np.sqrt(y**2+x**2)
+                self.amplitude = (r < (npix-1)/2.0*1.04).astype(int)
+
+            self.opd = poppy.zernike.opd_from_zernikes(coeffs, npix=npix,
+                    aperture=self.amplitude, outside=0)  #*1e6 # convert to microns
+        else:
+            self.opd = poppy.zernike.opd_from_zernikes(coeffs, npix=npix,
+                    outside=0)
+            self.amplitude = (self.opd !=0).astype(int)
 
     def display(self, opd_vmax=2.5e-7, *args, **kwargs):
         # wrapper just to change default vmax
@@ -798,3 +839,122 @@ class JWST_Field_Dependent_Aberration(poppy.OpticalElement):
 
 
 
+
+class NIRCam_Field_and_Wavelength_Dependent_Aberration(JWST_Field_Dependent_Aberration):
+    """ Subclass that adds to the above the wavelength dependent variation in defocus for
+    NIRCam.
+
+    The model for this is based on NIRCam models and ISIM CV2 test data, as
+    provided by Randal Telfer to Marshall Perrin. It uses a combination of
+    model design predictions continuously at all wavelengths based on the
+    properties of the glasses in the refractive optical design, plus some small
+    tweaks to achieve better agreement with the CV test measurements of defocus
+    at a small subset of wavelengths.
+
+    """
+    def __init__(self, instrument, **kwargs):
+        super(NIRCam_Field_and_Wavelength_Dependent_Aberration, self).__init__(instrument,**kwargs)
+
+        # TODO load here the wavelength dependence info.
+        self.focusmodel_file= os.path.join(utils.get_webbpsf_data_path(),'NIRCam','optics',
+                            'nircam_defocus_vs_wavelength.fits')
+        focusmodel = table.Table.read(self.focusmodel_file)
+        self.focus_model_data = focusmodel
+
+        # Read in model data and set up interpolators.
+
+        wshort = focusmodel['wavelength'] < 2.45
+        fm_short = scipy.interpolate.interp1d(focusmodel['wavelength'][wshort],
+                                              focusmodel['defocus_in_rms_wfe'][wshort],
+                                              kind='cubic')
+
+        wlong = focusmodel['wavelength'] > 2.45
+        fm_long = scipy.interpolate.interp1d(focusmodel['wavelength'][wlong],
+                                             focusmodel['defocus_in_rms_wfe'][wlong],
+                                             kind='cubic')
+        self.fm_short = fm_short
+        self.fm_long = fm_long
+
+    def get_opd(self,wave):
+        # Which wavelength was used to generate the OPD map we have already created from zernikes?
+        if self.instrument.module.upper() == 'SW':
+            opd_ref_wave = 2.12
+            focusmodel = self.fm_short
+        else:
+            opd_ref_wave = 3.23
+            focusmodel = self.fm_long
+
+        deltafocus = focusmodel(wave.wavelength) - focusmodel(opd_ref_wave)
+
+        _log.info("Delta focus between {} and {}: {} nm rms".format(wave.wavelengh, opd_ref_wave, deltafocus))
+        raise NotImplementedError("Not yet")
+
+class MIRI_Field_Dependent_Aberration_and_Obscuration(JWST_Field_Dependent_Aberration):
+    """ Subclass that adds to the above the field dependent obscuration
+    from the MIRI internal calibration source pickoff mirror.
+
+    The model for this was derived by Randal Telfer based on the optical model file
+    OTE_MIRI_20150223.seq, provided by Scott Rohrbach.
+
+    In this case we do turn on by default the tricontagon outline since we have to worry about
+    pupil shape anyway.
+
+    """
+    def __init__(self, instrument, include_oversize=True, **kwargs):
+        super(MIRI_Field_Dependent_Aberration_and_Obscuration, self).__init__(instrument,
+                include_oversize=include_oversize, **kwargs)
+
+
+        # figure out the XAN, YAN coordinates in degrees, 
+        # since that is what Randal's linear model expects
+
+
+        xanyan = instrument._xan_yan_coords().to(units.degree)
+
+        xan = xanyan[0].value
+        yan = xanyan[1].value
+
+        #    Telfer:
+        #    Here is the matrix that reproduces the projection of the 
+        #    obscuration on the primary mirror, V2-V3 coordinates and 
+        #    radius in mm, as a function of XAN,YAN in degrees.
+        #    So, V2 is:
+        #
+        #           V2 = -20882.636 * XAN -680.661 * YAN  - 1451.682.
+        #
+        #                     XAN            YAN         Const
+        #           V2     -20882.636     -680.661    -1451.682
+        #           V3        815.955    26395.552    -2414.406
+        #           Rad       176.864     -392.545      626.920
+
+        # we implement the above here, and convert the outputs to meters:
+        self.obsc_v2 = (-20882.636 * xan     -680.661 * yan  - 1451.682)*0.001
+        self.obsc_v3 = (   815.955 * xan +  26395.552 * yan  - 2414.406)*0.001
+        self.obsc_r =  (   176.864 * xan     -392.545 * yan  + 626.920 )*0.001
+
+
+
+        # generate coordinates. N.B. this assumed hard-coded pixel scale and array size.
+        y, x = poppy.Wavefront.pupil_coordinates((1024,1024), 6.603/1024)
+
+        # Now, the v2 and v3 coordinates calculated above are as projected back to 
+        # the OTE entrance pupil
+        # But the OTE exit pupil as seen at the MIRI internal pupil is rotated by 
+        # 5 degrees with respect to that, and flipped in handedness as well 
+        # (but only in V3, given webbpsf axes conventions relative to the definition of the V frame)
+        # Therefore we must transform the v2 and v3 to match the wavefront coords at the
+        # intermediate plane. 
+
+        angle = np.deg2rad(instrument._rotation)
+        proj_v2 =  np.cos(angle) * self.obsc_v2 - np.sin(angle)*self.obsc_v3
+        proj_v3 = -np.sin(angle) * self.obsc_v2 + np.cos(angle)*self.obsc_v3
+        proj_v3 *= -1 #handle V3 flip from OTE entrance to exit pupils
+                      # no flip needed for V2 since that's already implicitly done between
+                      # the V frame looking "in" to the OTE vs WebbPSF simulations looking
+                      # "out" from the detector toward the sky.
+
+        mask = np.sqrt((y - proj_v3)**2 + (x-proj_v2)**2)  < self.obsc_r
+        self.amplitude[mask]=0
+
+    # No need to subclass any of the methods; it's sufficient to set the custom
+    # amplitude mask attribute value.

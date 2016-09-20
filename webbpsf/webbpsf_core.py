@@ -32,6 +32,7 @@ import matplotlib
 
 import astropy.io.fits as fits
 import astropy.io.ascii as ioascii
+import astropy.units as units
 
 import poppy
 
@@ -39,7 +40,7 @@ from . import conf
 from . import utils
 from . import version
 from . import data_files_version
-
+from . import optics
 
 try:
     import pysynphot
@@ -771,8 +772,11 @@ class JWInstrument(SpaceTelescopeInstrument):
         # where is the source on the detector, in 'Science frame' pixels?
         self.detector_position = (1024, 1024)
 
-        self.include_si_wfe = False
+        self.include_si_wfe = True
         """Should calculations include the Science Instrument internal WFE?"""
+
+        # class name to use for SI internal WFE, which can be overridden in subclasses
+        self._si_wfe_class = optics.JWST_Field_Dependent_Aberration
 
 
     def _getOpticalSystem(self,fft_oversample=2, detector_oversample = None, fov_arcsec=2, fov_pixels=None, options=None):
@@ -795,24 +799,35 @@ class JWInstrument(SpaceTelescopeInstrument):
         if not self.include_si_wfe:
             return None
 
-        zernike_file = os.path.join(utils.get_webbpsf_data_path(),'zernikes_isim_cv2.fits')
+        zernike_file = os.path.join(utils.get_webbpsf_data_path(),'si_zernikes_isim_cv3.fits')
 
         if not os.path.exists(zernike_file):
-            # return placeholder null optic
-            tmp = poppy.zernike.opd_from_zernikes([0,0,0], npix=1024, outside=0)
-            optic = poppy.OpticalElement(name="Aberration Placeholder for "+self.name)
-            optic.opd = tmp
-            optic.amplitude = np.ones_like(tmp)
+            raise RuntimeError("Could not find Zernike coefficients file in WebbPSF data directory")
         else:
-            from .optics import JWST_Field_Dependent_Aberration
-            optic = JWST_Field_Dependent_Aberration(self)
+            optic = self._si_wfe_class(self)
         return optic
 
     def _tel_coords(self):
-        """ Convert from detector pixel coordinates to SIAF aperture coordinates """
+        """ Convert from detector pixel coordinates to SIAF aperture coordinates,
+
+        Returns (V2, V3) tuple, in arcminutes.
+        Note that the astropy.units framework is used to return the result as a
+        dimensional Quantity. """
 
         siaf_geom = DetectorGeometry(self.name, self._detectors[self._detector])
-        return siaf_geom.pix2angle(self.detector_position[1], self.detector_position[0])
+        return siaf_geom.pix2angle(self.detector_position[0], self.detector_position[1])
+
+    def _xan_yan_coords(self):
+        """ Convert from detector pixel coordinates to the XAN, YAN coordinate syste
+        which was used for much of ISIM optical testing. The origin of XAN, YAN is
+        centered at the master chief ray, which passes through the ISIM focal plane
+        between the NIRCam A3 and B4 detectors. The sign of YAN is flipped relative to V3.
+        """
+        coords = self._tel_coords()
+        # XAN is the same as V2, therefore no change to first element
+        # YAN is opposite direction as V3, and offset by 468 arcseconds
+        coords[1] = -coords[1] - 468*units.arcsec
+        return coords
 
 
 class MIRI(JWInstrument):
@@ -828,7 +843,7 @@ class MIRI(JWInstrument):
         self.auto_pupil=True
         JWInstrument.__init__(self, "MIRI")
         self.pixelscale = 0.1110  # Source: SIAF PRDDEVSOC-D-012, 2016 April
-        self._rotation = 4.561 # Source: MIRI OBA DD, page 3-16
+        self._rotation = 5.0152 # Source: SIAF PRDDEVSOC-D-012, 2016 April
 
         self.image_mask_list = ['FQPM1065', 'FQPM1140', 'FQPM1550', 'LYOT2300', 'LRS slit']
         self.pupil_mask_list = ['MASKFQPM', 'MASKLYOT', 'P750L LRS grating']
@@ -843,10 +858,12 @@ class MIRI(JWInstrument):
         # The above tuples give the pixel resolution (perpendicular to the slice, along the slice).
         # The pixels are not square.
 
-        self._detectors = {'MIRIM': 'MIRIM_FULL'}
+        self._detectors = {'MIRIM': 'MIRIM_FULL'} # Mapping from user-facing detector names to SIAF entries.
         self.detector = self.detector_list[0]
         self._detector_npixels=1024
         self.detector_position=(512,512)
+
+        self._si_wfe_class = optics.MIRI_Field_Dependent_Aberration_and_Obscuration
 
 
     @JWInstrument.filter.setter
@@ -1057,6 +1074,7 @@ class NIRCam(JWInstrument):
         for name in det_list: self._detectors[name] = 'NRC{0}_FULL'.format(name)
         self.detector=self.detector_list[0]
 
+        self._si_wfe_class = optics.NIRCam_Field_and_Wavelength_Dependent_Aberration
 
     @property
     def module(self):
@@ -1282,7 +1300,7 @@ class NIRSpec(JWInstrument):
         self.pixelscale = 0.1043 # Average over both detectors.  SIAF PRDDEVSOC-D-012, 2016 April
                                  # Microshutters are 0.2x0.46 but we ignore that here.
         self._rotation = None
-        self._rotation = 90+41.5  # based on SIAF docs by M. Lallo & WFS FOV doc by S. Knight
+        self._rotation = 138.4  # Average for both detectors in SIAF PRDDEVSOC-D-012, 2016 April
         self.filter_list.append("IFU")
         self._IFU_pixelscale = 0.1 # same.
         self.monochromatic= 3.0
@@ -1652,10 +1670,14 @@ class DetectorGeometry(object):
         --------
         V2, V3 : floats
             V2 and V3 coordinates, in arcMINUTES
+            Note that the astropy.units framework is used to return the result as a
+            dimensional Quantity.
 
         """
+
+
         tel_coords = np.asarray( self.aperture.Sci2Tel(xpix, ypix) )
-        tel_coords_arcmin = tel_coords / 60. # arcsec to arcmin
+        tel_coords_arcmin = tel_coords / 60. * units.arcmin # arcsec to arcmin
         return tel_coords_arcmin
 
 
