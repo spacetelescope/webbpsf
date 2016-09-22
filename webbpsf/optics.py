@@ -756,11 +756,11 @@ class JWST_Field_Dependent_Aberration(poppy.OpticalElement):
 
         #work out which name to index into the CV results with, if for NIRCam
         if instrument.name == 'NIRCam':
-            lookup_name = ("NIRCAM"+instrument.channel[0]+"W"+instrument.module).upper()
+            lookup_name = ("NIRCam"+instrument.channel[0].upper()+"W"+instrument.module)
         elif instrument.name == 'FGS':
-            lookup_name = 'GUIDER'+instrument.detector[3] # 'GUIDER1' or 'GUIDER2'
+            lookup_name = 'Guider'+instrument.detector[3] # 'GUIDER1' or 'GUIDER2'
         else:
-            lookup_name = instrument.name.upper()
+            lookup_name = instrument.name
         _log.debug("Retrieving zernike coeffs for "+lookup_name)
 
         self.tel_coords = instrument._tel_coords()
@@ -768,9 +768,13 @@ class JWST_Field_Dependent_Aberration(poppy.OpticalElement):
         # load the Zernikes table here
 
         self.ztable_full = table.Table.read(
-            os.path.join(utils.get_webbpsf_data_path(),'zernikes_isim_cv2.fits'))
+            os.path.join(utils.get_webbpsf_data_path(),'si_zernikes_isim_cv3.fits'))
         # Determine the pupil sampling of the first aperture in the instrument's optical system
-        npix=1024 # hard code for now
+        pupilfile = os.path.join(instrument._datapath, "OPD",instrument.pupil)
+        pupilheader = fits.getheader(pupilfile)
+
+        npix=pupilheader['NAXIS1']
+        self.pixelscale =pupilheader['PUPLSCAL'] *units.meter/units.pixel
 
 
         self.ztable=self.ztable_full[self.ztable_full['instrument']==lookup_name]
@@ -833,10 +837,44 @@ class JWST_Field_Dependent_Aberration(poppy.OpticalElement):
                     outside=0)
             self.amplitude = (self.opd !=0).astype(int)
 
+
+
     def display(self, opd_vmax=2.5e-7, *args, **kwargs):
         # wrapper just to change default vmax
         super(JWST_Field_Dependent_Aberration, self).display(opd_vmax=opd_vmax, *args, **kwargs)
 
+
+
+
+class NIRSpec_Field_Dependent_Aberration(JWST_Field_Dependent_Aberration):
+    """ Subclass that adds to the above the division into fore-optics
+    and spectrograph optics for NIRSpec.
+
+    The available end-to-end optical test data for NIRSpec from ISIM CV3
+    do not allow distinguishing which optical planes have which amounts of
+    aberration. However, the NIRSpec team performed extensive metrology
+    during the assembly of NIRSpec FM2, both of individual components and
+    of the assembled system using a shack hartmann WFS temporarily placed within
+    the optical system.   [should add document number here to the report with those data!]
+
+    Based on those data, Maurice Te Plate recommended to Marshall Perrin that the
+    CV3 WFE should be apportioned 1/3 to the fore-optics and 2/3 to the
+    spectrograph optics (collimator & camera). Given the uncertainties and
+    available data that seems sufficiently precise for current purposes.
+
+    """
+    def __init__(self, instrument, where='fore', **kwargs):
+        super(NIRSpec_Field_Dependent_Aberration, self).__init__(instrument,**kwargs)
+
+        if where=='fore':
+            self.name = 'NIRSpec fore-optics WFE, near {}'.format(self.row['field_point_name'])
+            self.scalefactor = 1./3
+        else:
+            self.name = 'NIRSpec spectrograph WFE, near {}'.format(self.row['field_point_name'])
+            self.scalefactor = 2./3
+
+        # apply scale factor to split up the OPD, and that's all we need to do.
+        self.opd *= self.scalefactor
 
 
 
@@ -875,6 +913,13 @@ class NIRCam_Field_and_Wavelength_Dependent_Aberration(JWST_Field_Dependent_Aber
         self.fm_short = fm_short
         self.fm_long = fm_long
 
+        # Get the representation of focus in the same Zernike basis as used for
+        # making the OPD. While it looks like this does more work here than needed
+        # by making a whole basis set, in fact because of caching behind the scenes
+        # this is actually quick
+        basis = poppy.zernike.zernike_basis_faster(nterms=len(self.zernike_coeffs), npix=self.opd.shape[0],outside=0)
+        self.defocus_zern =  basis[3]
+
     def get_opd(self,wave):
         # Which wavelength was used to generate the OPD map we have already created from zernikes?
         if self.instrument.module.upper() == 'SW':
@@ -884,10 +929,17 @@ class NIRCam_Field_and_Wavelength_Dependent_Aberration(JWST_Field_Dependent_Aber
             opd_ref_wave = 3.23
             focusmodel = self.fm_long
 
-        deltafocus = focusmodel(wave.wavelength) - focusmodel(opd_ref_wave)
+        deltafocus = focusmodel(wave.wavelength.to(units.micron).value) - focusmodel(opd_ref_wave)
+        _log.info("  Applying OPD focus adjustment based on NIRCam focus vs wavelength model")
+        _log.info("  Delta focus from {} to {}: {:.3f} nm rms".format(opd_ref_wave, wave.wavelength.to(units.micron), deltafocus*1e9))
 
-        _log.info("Delta focus between {} and {}: {} nm rms".format(wave.wavelengh, opd_ref_wave, deltafocus))
-        raise NotImplementedError("Not yet")
+
+        mod_opd = self.opd -deltafocus * self.defocus_zern
+
+        rms = np.sqrt((mod_opd[mod_opd!=0]**2).mean())
+        _log.info("  Resulting OPD has {:.3f} nm rms".format(rms*1e9))
+
+        return mod_opd
 
 class MIRI_Field_Dependent_Aberration_and_Obscuration(JWST_Field_Dependent_Aberration):
     """ Subclass that adds to the above the field dependent obscuration
@@ -905,7 +957,7 @@ class MIRI_Field_Dependent_Aberration_and_Obscuration(JWST_Field_Dependent_Aberr
                 include_oversize=include_oversize, **kwargs)
 
 
-        # figure out the XAN, YAN coordinates in degrees, 
+        # figure out the XAN, YAN coordinates in degrees,
         # since that is what Randal's linear model expects
 
 
@@ -915,8 +967,8 @@ class MIRI_Field_Dependent_Aberration_and_Obscuration(JWST_Field_Dependent_Aberr
         yan = xanyan[1].value
 
         #    Telfer:
-        #    Here is the matrix that reproduces the projection of the 
-        #    obscuration on the primary mirror, V2-V3 coordinates and 
+        #    Here is the matrix that reproduces the projection of the
+        #    obscuration on the primary mirror, V2-V3 coordinates and
         #    radius in mm, as a function of XAN,YAN in degrees.
         #    So, V2 is:
         #
@@ -937,13 +989,13 @@ class MIRI_Field_Dependent_Aberration_and_Obscuration(JWST_Field_Dependent_Aberr
         # generate coordinates. N.B. this assumed hard-coded pixel scale and array size.
         y, x = poppy.Wavefront.pupil_coordinates((1024,1024), 6.603/1024)
 
-        # Now, the v2 and v3 coordinates calculated above are as projected back to 
+        # Now, the v2 and v3 coordinates calculated above are as projected back to
         # the OTE entrance pupil
-        # But the OTE exit pupil as seen at the MIRI internal pupil is rotated by 
-        # 5 degrees with respect to that, and flipped in handedness as well 
+        # But the OTE exit pupil as seen at the MIRI internal pupil is rotated by
+        # 5 degrees with respect to that, and flipped in handedness as well
         # (but only in V3, given webbpsf axes conventions relative to the definition of the V frame)
         # Therefore we must transform the v2 and v3 to match the wavefront coords at the
-        # intermediate plane. 
+        # intermediate plane.
 
         angle = np.deg2rad(instrument._rotation)
         proj_v2 =  np.cos(angle) * self.obsc_v2 - np.sin(angle)*self.obsc_v3

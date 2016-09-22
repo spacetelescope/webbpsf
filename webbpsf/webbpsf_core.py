@@ -786,7 +786,6 @@ class JWInstrument(SpaceTelescopeInstrument):
             fft_oversample=fft_oversample, detector_oversample=detector_oversample, fov_arcsec=fov_arcsec, fov_pixels=fov_pixels,
             options=options)
         optsys.planes[0].display_annotate = utils.annotate_ote_entrance_coords
-        #optsys.planes[-2].display_annotate = utils.annotate_sky_pupil_coords
         return optsys
 
     def _get_aberrations(self):
@@ -906,7 +905,7 @@ class MIRI(JWInstrument):
         # aligned with the FQPM axes.
 
 
-        defaultpupil = optsys.planes.pop(2) # throw away the rotation of the entrance pupil we just added 
+        defaultpupil = optsys.planes.pop(2) # throw away the rotation of the entrance pupil we just added
 
         if self.include_si_wfe:
             # temporarily remove the SI internal aberrations
@@ -1100,7 +1099,7 @@ class NIRCam(JWInstrument):
                     _log.info("NIRCam pixel scale switched to %f arcsec/pixel for the "
                               "long wave channel." % self.pixelscale)
             else:
-                # only change if the detector was already LW; 
+                # only change if the detector was already LW;
                 # don't override selection of a particular SW SCA otherwise
                 if self.detector[1] == '5':
                     self.detector = self.detector[0]+'1'
@@ -1307,15 +1306,16 @@ class NIRSpec(JWInstrument):
         self.filter = 'F110W' # or is this called F115W to match NIRCam??
 
         # fixed slits
-        self.image_mask = None
         self.image_mask_list = ['S200A1','S200A2','S400A1','S1600A1','S200B1', 'MSA all open', 'Single MSA open shutter', 'Three adjacent MSA open shutters']
         self.pupil_mask_list = ['NIRSpec grating']
+        self.image_mask = 'MSA all open'
         self.pupil_mask = self.pupil_mask_list[-1]
 
         det_list = ['NRS1','NRS2']
         self._detectors = dict()
         for name in det_list: self._detectors[name] = '{0}_FULL'.format(name)
         self.detector=self.detector_list[0]
+        self._si_wfe_class = optics.NIRSpec_Field_Dependent_Aberration  # note we end up adding 2 instances of this.
 
 
     def _validateConfig(self, **kwargs):
@@ -1360,12 +1360,10 @@ class NIRSpec(JWInstrument):
             optsys.add_pupil(optic=poppy.RectangleAperture(height=8.41, width=7.91,  name='Pupil stop at grating wheel'))
             optsys.planes[-1].wavefront_display_hint='intensity'
 
-        #if (self.pupil_mask is None and self.image_mask is not None):
-            # if we don't have a specific pupil stop, just assume for now we're
-            # stopped down to a JWST like geometry
-            # FIXME this is not really right - should be updated for the NIRSpec grating wheels
-            #optsys.add_pupil(optic=optsys[0], name='No Pupil stop provided')
-            #optsys.add_pupil(optic=poppy.SquareAperture(size=3.5,  name='Pupil stop at grating wheel'))
+        # Add here a second instance of the instrument WFE, representing the WFE in the
+        # collimator and camera.
+        if self.include_si_wfe:
+            optsys.add_pupil(optic=self._si_wfe_class(self, where='spectrograph'))
 
 
 
