@@ -437,8 +437,6 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, displa
 
 def annotate_ote_entrance_coords(self, ax):
     """ Draw OTE V frame axes on first optical plane """
-    ax.set_ylabel('OTE V3 [m]')
-    ax.set_xlabel('OTE V2 [m]')
     color='yellow'
     loc = 3
     ax.arrow(-loc,-loc, .2, 0, color=color, width=0.005)
