@@ -392,6 +392,7 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, displa
     inst = Instrument(header['INSTRUME'])
     inst.filter = header['FILTER']
     inst.pupilopd = None # perfect image
+    inst.include_si_wfe = False # perfect image
     inst.pixelscale = header['PIXELSCL'] * header['OVERSAMP'] # same pixel scale pre-oversampling
     cache_key = (header['INSTRUME'], header['FILTER'], header['PIXELSCL'], header['OVERSAMP'],  header['FOV'],header['NWAVES'])
     try:
