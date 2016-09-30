@@ -184,7 +184,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
         self._rotation = None
 
-        self.opd_list = [os.path.basename(os.path.abspath(f)) for f in glob.glob(self._datapath+os.sep+'OPD/OPD*.fits')]
+        self.opd_list = [os.path.basename(os.path.abspath(f)) for f in glob.glob(self._datapath+os.sep+'OPD/OPD*.fits.gz')]
         self.opd_list.sort()
         if len(self.opd_list) > 0:
             self.pupilopd = self.opd_list[-1]
@@ -1016,11 +1016,11 @@ class NIRCam(JWInstrument):
 
         #optsys.add_pupil( name='null for debugging NIRcam _addCoron') # debugging
         if self.pupil_mask == 'CIRCLYOT':
-            optsys.add_pupil(transmission=self._datapath+"/optics/NIRCam_Lyot_Somb.fits", name=self.pupil_mask,
+            optsys.add_pupil(transmission=self._datapath+"/optics/NIRCam_Lyot_Somb.fits.gz", name=self.pupil_mask,
                     flip_y=True, shift=shift, index=3)
             optsys.planes[3].wavefront_display_hint='intensity'
         elif self.pupil_mask == 'WEDGELYOT':
-            optsys.add_pupil(transmission=self._datapath+"/optics/NIRCam_Lyot_Sinc.fits", name=self.pupil_mask,
+            optsys.add_pupil(transmission=self._datapath+"/optics/NIRCam_Lyot_Sinc.fits.gz", name=self.pupil_mask,
                     flip_y=True, shift=shift, index=3)
             optsys.planes[3].wavefront_display_hint='intensity'
         elif self.pupil_mask == 'WEAK LENS +4':

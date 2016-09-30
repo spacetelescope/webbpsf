@@ -112,7 +112,7 @@ def do_test_nircam_blc(clobber=False, kind='circular', angle=0, save=False, disp
         nc.image_mask = 'MASK210R'
         nc.pupil_mask = 'CIRCLYOT'
         fn = 'm210r'
-        expected_total_fluxes=[1.35e-5, 0.0240, 0.1375]  # Based on a prior calculation with WebbPSF
+        expected_total_fluxes=[1.35e-5, 0.0240, 0.1376]  # Based on a prior calculation with WebbPSF
         # values updated slightly for Rev W aperture results
     else:
         nc.image_mask = 'MASKSWB'
