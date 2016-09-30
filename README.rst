@@ -1,7 +1,7 @@
 WebbPSF: Simulated Point Spread Functions for JWST and WFIRST
 =============================================================
 
-.. image:: docs/figures/readme_fig.png
+.. image:: docs/readme_fig.png
 
 .. image:: https://img.shields.io/pypi/v/webbpsf.svg
    :target: https://pypi.python.org/pypi/webbpsf
