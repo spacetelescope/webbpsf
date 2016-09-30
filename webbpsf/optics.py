@@ -15,12 +15,56 @@ _log = logging.getLogger('webbpsf')
 
 
 
-#######  Custom Optics used in JWInstrument classes  #####
+#######  Classes for modeling aspects of JWST's segmented active primary #####
+
+def segment_zernike_basis(segnum=1, nterms=15, npix=512, outside = np.nan):
+    """ Basis set in the style of poppy.zernike.zernike_basis for segment-level
+    Zernike polynomials for one segment at a time in JWST's aperture.
+
+    Parameters
+    ------------
+    segnum : integer
+        1 to 18, number of JWST segment. Uses same numbering convention as the WSS.
+    nterms : integer
+        Number of Zernike polynomial terms to return
+    npix : integer
+        Number of pixels per side of the array
+    outside : float
+        Value to fill the array with outside of the valid segment.
+
+    """
+    from .webbpsf_core import segname
+
+    aper = JWST_primary_aperture(label_segments=True)
+    w = poppy.Wavefront(npix=npix,diam=JWST_primary_aperture.circumscribed_diameter)
+    segmask = aper.get_transmission(w)
+
+    segname = segname(segnum)
+    cenx, ceny = aper.seg_centers[segname]
+
+    seg_radius = 1.517/2 # nominal point to point diam for A and B segments;
+                         # ignoring slight departures from ideal hexes for now.
+
+    y,x = w.coordinates()
+
+    r = np.sqrt( (y-ceny)**2 + (x-cenx)**2)/seg_radius
+    theta =  np.arctan2((y-ceny) / seg_radius, (x-cenx) / seg_radius)
+    r[segmask != segnum] = np.nan
+    theta[segmask != segnum] = np.nan
+
+    wg = np.where(segmask==segnum)
+    outzerns = np.full((nterms, npix,npix), outside, dtype=float)
+    outzerns_tmp = poppy.zernike.zernike_basis(nterms=nterms,rho=r[wg], theta=theta[wg], outside=outside)
+    for iz in range(nterms):
+        outzerns[iz][wg] = outzerns_tmp[iz]
+
+    return outzerns
 
 
 class JWST_primary_aperture(poppy.AnalyticOpticalElement):
     """ The JWST telescope primary mirror geometry, in all its
-    hexagonal obscured complexity
+    hexagonal obscured complexity. Note this has **just the aperture shape**
+    and not any wavefront error terms.
 
     JWST design pupil geometry and segment coordinates taken
     from Paul Lightsey's spreadsheet: "2010.03.16 Transmission X Area Budget.xls".
@@ -37,62 +81,70 @@ class JWST_primary_aperture(poppy.AnalyticOpticalElement):
 
     *** CAUTIONARY NOTE ***: At high sampling factors, PSF calculations become a LOT slower.
 
+    By default, this produces an aperture with values 0 and 1 for the transmission.
+    By setting the parameter label_segments=True, you can instead have it generate a map of
+    which segment number is in which location.
+
+
     """
+    circumscribed_diameter=  6.603464 # meters 
+    def __init__(self, name="JWST_primary", label_segments=False,
+            **kwargs):
+        super(JWST_primary_aperture, self).__init__(name=name, **kwargs)
+        self.label_segments=label_segments
+        # code and coordinates adapted from jwst_ote3d.py by Perrin
+        self.segdata = [
 
-    def get_transmission(self,wave):
-        # code and coordinated adapted from jwst_ote3d.py by Perrin
-        segdata = [
-
-            ('A1', np.array([[-0.38101 ,  0.667604], [-0.758826,  1.321999], [-0.38101 ,  1.976407],
+            ('A1-1', np.array([[-0.38101 ,  0.667604], [-0.758826,  1.321999], [-0.38101 ,  1.976407],
                  [ 0.38101 ,  1.976407], [ 0.758826,  1.321999], [ 0.38101 ,  0.667604]])),
-            ('A2', np.array([[ 0.38765702,  0.66376634], [ 0.76547172,  1.31816209], [ 1.52111367,
+            ('A2-2', np.array([[ 0.38765702,  0.66376634], [ 0.76547172,  1.31816209], [ 1.52111367,
                 1.31816784], [ 1.90212367,  0.65823916], [ 1.52429772,  0.00383691], [ 0.76866702,
                 0.00383766]])),
-            ('A3', np.array([[ 0.76866702, -0.00383766], [ 1.52429772, -0.00383691], [ 1.90212367,
+            ('A3-3', np.array([[ 0.76866702, -0.00383766], [ 1.52429772, -0.00383691], [ 1.90212367,
                 -0.65823916], [ 1.52111367, -1.31816784], [ 0.76547172, -1.31816209], [ 0.38765702,
                 -0.66376634]])),
-            ('A4', np.array([[ 0.38101 , -0.667604], [ 0.758826, -1.321999], [ 0.38101 ,
+            ('A4-4', np.array([[ 0.38101 , -0.667604], [ 0.758826, -1.321999], [ 0.38101 ,
                 -1.976407], [-0.38101 , -1.976407], [-0.758826, -1.321999], [-0.38101 , -0.667604]])),
-            ('A5', np.array([[-0.38765702, -0.66376634], [-0.76547172, -1.31816209], [-1.52111367,
+            ('A5-5', np.array([[-0.38765702, -0.66376634], [-0.76547172, -1.31816209], [-1.52111367,
                 -1.31816784], [-1.90212367, -0.65823916], [-1.52429772, -0.00383691], [-0.76866702,
                 -0.00383766]])),
-            ('A6', np.array([[-0.76866702,  0.00383766], [-1.52429772,  0.00383691], [-1.90212367,
+            ('A6-6', np.array([[-0.76866702,  0.00383766], [-1.52429772,  0.00383691], [-1.90212367,
                 0.65823916], [-1.52111367,  1.31816784], [-0.76547172,  1.31816209], [-0.38765702,
                 0.66376634]])),
-            ('B1', np.array([[ 0.38101 ,  3.279674], [ 0.758826,  2.631791], [ 0.38101 ,  1.98402],
+            ('B1-7', np.array([[ 0.38101 ,  3.279674], [ 0.758826,  2.631791], [ 0.38101 ,  1.98402],
                 [-0.38101 ,  1.98402 ], [-0.758826,  2.631791], [-0.38101 ,  3.279674]])),
-            ('B2', np.array([[ 3.030786  ,  1.30987266], [ 2.65861086,  0.65873291], [ 1.90871672,
+            ('B2-9', np.array([[ 3.030786  ,  1.30987266], [ 2.65861086,  0.65873291], [ 1.90871672,
                 0.66204566], [ 1.52770672,  1.32197434], [ 1.89978486,  1.97305809], [ 2.649776  ,
                 1.96980134]])),
-            ('B3', np.array([[ 2.649776  , -1.96980134], [ 1.89978486, -1.97305809], [ 1.52770672,
+            ('B3-11', np.array([[ 2.649776  , -1.96980134], [ 1.89978486, -1.97305809], [ 1.52770672,
                 -1.32197434], [ 1.90871672, -0.66204566], [ 2.65861086, -0.65873291], [ 3.030786  ,
                 -1.30987266]])),
-            ('B4', np.array([[-0.38101 , -3.279674], [-0.758826, -2.631791], [-0.38101 , -1.98402 ],
+            ('B4-13', np.array([[-0.38101 , -3.279674], [-0.758826, -2.631791], [-0.38101 , -1.98402 ],
                 [ 0.38101 , -1.98402 ], [ 0.758826, -2.631791], [ 0.38101 , -3.279674]])),
-            ('B5', np.array([[-3.030786  , -1.30987266], [-2.65861086, -0.65873291], [-1.90871672,
+            ('B5-15', np.array([[-3.030786  , -1.30987266], [-2.65861086, -0.65873291], [-1.90871672,
                 -0.66204566], [-1.52770672, -1.32197434], [-1.89978486, -1.97305809], [-2.649776  ,
                 -1.96980134]])),
-            ('B6', np.array([[-2.649776  ,  1.96980134], [-1.89978486,  1.97305809], [-1.52770672,
+            ('B6-17', np.array([[-2.649776  ,  1.96980134], [-1.89978486,  1.97305809], [-1.52770672,
                 1.32197434], [-1.90871672,  0.66204566], [-2.65861086,  0.65873291], [-3.030786  ,
                 1.30987266]])),
-            ('C1', np.array([[ 0.765201,  2.627516], [ 1.517956,  2.629178], [ 1.892896, 1.976441],
+            ('C1-8', np.array([[ 0.765201,  2.627516], [ 1.517956,  2.629178], [ 1.892896, 1.976441],
                 [ 1.521076,  1.325812], [ 0.765454,  1.325807], [ 0.387649,  1.980196]])),
-            ('C2', np.array([[  2.6580961,   .651074495], [  3.03591294,   5.42172989e-07], [
+            ('C2-10', np.array([[  2.6580961,   .651074495], [  3.03591294,   5.42172989e-07], [
                 2.65809612,  -.651075523], [  1.90872487,  -.654384457], [  1.53090954, 
                 8.90571587e-07], [  1.90872454,   .654384118]])),
-            ('C3', np.array([[ 1.8928951 , -1.97644151], [ 1.51795694, -2.62917746], [ 0.76520012,
+            ('C3-12', np.array([[ 1.8928951 , -1.97644151], [ 1.51795694, -2.62917746], [ 0.76520012,
                 -2.62751652], [ 0.38764887, -1.98019646], [ 0.76545554, -1.32580611], [ 1.52107554,
                 -1.32581188]])),
-            ('C4', np.array([[-0.765201, -2.627516], [-1.517956, -2.629178], [-1.892896, -1.976441],
+            ('C4-14', np.array([[-0.765201, -2.627516], [-1.517956, -2.629178], [-1.892896, -1.976441],
                 [-1.521076, -1.325812], [-0.765454, -1.325807], [-0.387649, -1.980196]])),
-            ('C5', np.array([[ -2.6580961,  -.651074495], [ -3.03591294,  -5.42172990e-07],
+            ('C5-16', np.array([[ -2.6580961,  -.651074495], [ -3.03591294,  -5.42172990e-07],
                 [ -2.65809612,   .651075523], [ -1.90872487,   .654384457], [ -1.53090954,
                 -8.90571587e-07], [ -1.90872454,  -.654384118]])),
-            ('C6', np.array([[-1.8928951 ,  1.97644151], [-1.51795694,  2.62917746], [-0.76520012,
+            ('C6-18', np.array([[-1.8928951 ,  1.97644151], [-1.51795694,  2.62917746], [-0.76520012,
                 2.62751652], [-0.38764887,  1.98019646], [-0.76545554,  1.32580611], [-1.52107554,
                 1.32581188]]))]
 
-        strutdata = [
+        self.strutdata = [
             ("strut1", np.array([[-0.05301375, -0.0306075 ], [ 1.59698625, -2.88849133],
                 [ 1.70301375, -2.82727633], [ 0.05301375,  0.0306075 ], [-0.05301375,
                 -0.0306075 ]])),
@@ -104,16 +156,41 @@ class JWST_primary_aperture(poppy.AnalyticOpticalElement):
                 1.45573765e-17], [  5.94350000e-02,  -1.45573765e-17]])),
             ("strut3_bumps", np.array([[ 0.059435,  0.666   ], [ 0.059435,  2.14627 ], [ 0.082595,
                 2.14627 ], [ 0.082595,  2.3645  ], [ 0.059435,  2.3645  ], [ 0.059435,  2.48335 ],
-                [ 0.082595,  2.48335 ], [ 0.082595,  2.54445 ], [ 0.059435,  2.54445 ], [ 0.059435,
-                3.279674], [-0.059435,  3.279674], [-0.059435,  2.54445 ], [-0.082595,  2.54445 ],
-                [-0.082595,  2.48335 ], [-0.059435,  2.48335 ], [-0.059435,  2.3645  ], [-0.082595,
+                [ 0.069795,  2.48335 ], [ 0.069795,  2.54445 ], [ 0.059435,  2.54445 ], [ 0.059435,
+                3.279674], [-0.059435,  3.279674], [-0.059435,  2.54445 ], [-0.069795,  2.54445 ],
+                [-0.069795,  2.48335 ], [-0.059435,  2.48335 ], [-0.059435,  2.3645  ], [-0.082595,
                 2.3645  ], [-0.082595,  2.14627 ], [-0.059435,  2.14627 ], [-0.059435,  0.666   ]]))
         ]
-        segpaths = []
+        self.seg_centers = {  # center coordinates for each center. 
+            # likewise coordinates adapted from jwst_ote3d.py by Perrin
+            'A1-1': (0.000000, 1.323500),
+            'A2-2': (1.146185, 0.661750),
+            'A3-3': (1.146185, -0.661750),
+            'A4-4': (0.000000, -1.323500),
+            'A5-5': (-1.146185, -0.661750),
+            'A6-6': (-1.146185, 0.661750),
+            'B1-7': (0.000000, 2.634719),
+            'B2-9': (2.281734, 1.317360),
+            'B3-11': (2.281734, -1.317359),
+            'B4-13': (0.000000, -2.634719),
+            'B5-15': (-2.281734, -1.317360),
+            'B6-17': (-2.281734, 1.317360),
+            'C1-8': (1.142963, 1.979670),
+            'C2-10': (2.285926, 0.000000),
+            'C3-12': (1.142963, -1.979670),
+            'C4-14': (-1.142963, -1.979670),
+            'C5-16': (-2.285926, -0.000000),
+            'C6-18': (-1.142963, 1.979670)}
+
+
+
+    def get_transmission(self,wave):
+
+        segpaths = {}
         strutpaths=[]
-        for segname, vertices in segdata:
-            segpaths.append(matplotlib.path.Path(vertices))
-        for strutname, vertices in strutdata:
+        for segname, vertices in self.segdata:
+            segpaths[segname] = matplotlib.path.Path(vertices)
+        for strutname, vertices in self.strutdata:
             strutpaths.append(matplotlib.path.Path(vertices))
 
         y,x = wave.coordinates()
@@ -122,15 +199,87 @@ class JWST_primary_aperture(poppy.AnalyticOpticalElement):
         out = np.zeros((npix,npix))
 
         # paint the segments 1 but leave out the SMSS struts
-        for p in segpaths:
+        for segname, p in segpaths.items():
             res = p.contains_points(pts)
             res.shape=(npix,npix)
-            out[res]=1
+            out[res]=1 if not self.label_segments else int(segname.split('-')[1])
         for p in strutpaths:
             res = p.contains_points(pts)
             res.shape=(npix,npix)
             out[res]=0
         return out
+
+
+# Note - the following is **NOT USED YET **
+# This will be finished up and used in a subsequent release to 
+# apply the OTE field dependence. For now just the fixed per SI stuff
+# is there.
+class JWST_OTE_Pupil(poppy.FITSOpticalElement):
+    """The complex OTE pupil, including:
+        1) the aperture geometry, based on the cryo ICD detailed coordinates
+        2) high spatial frequency WFE from the as-built mirrors in Rev G optical model
+        3) mid frequencies from Rev W optical budget
+        4) low frequency field-dependent WFE from the Rev G optical model.
+
+        Parameters
+        -----------
+        level : '
+    """
+    def __init__(self, instrument=None, level='requirements', opd_index=0, **kwargs):
+
+        if instrument is not None:
+            self.instrument = instrument
+            self.instr_name = instrument.name
+            self.tel_coords = instrument._tel_coords()
+        else:
+            self.instrument = None
+            self.instr_name = "NIRCam"
+            # figure out default V2V3 coords here
+            self.tel_coords = (0,0) #?
+
+        # determine filename for pupil amplitude array
+        aperture_file = '../jwst_pupil_revW_npix1024.fits.gz'
+        aperture_file =  os.path.abspath(os.path.join(self._datapath,aperture_file))
+
+        # determine filename for the OPD array
+        #   This should contain a precomputed combination of
+        #   Rev G high spatial frequencies and 
+        #   Rev W mid spatial frequencies
+        # Depends on what the 'level' parameter is.
+
+        if level=='perfect':
+            opd_file = '../OPD_jwst_ote_perfectly_aligned.fits'
+        elif level=='predicted':
+            opd_file = 'OPD/OPD_RevW_ote_for_{}_predicted.fits'.format(self.instr_name)
+        elif level=='requirements':
+            opd_file = 'OPD/OPD_RevW_ote_for_{}_requirements.fits'.format(self.instr_name)
+        else:
+            raise ValueError("Invalid/unknown wavefront error level")
+
+        print "PUPIL OPD:" +opd_file
+        print "PUPIL APERTURE:" +aperture_file
+
+        super(JWST_OTE_Pupil, self).__init__(name='JWST Primary',
+                transmission = aperture_file,
+                opd = opd_file,
+                **kwargs)
+
+        if self.instrument is not None:
+            # we need a field point to be able to use this so
+            # just skip it if we don't have one.
+
+            # determine Zernike coeffs for field dependent error
+            # based on Rev G field dependence model.
+
+
+            coeffs = np.zeros((22))
+            self.zernike_coeffs = coeffs
+
+            # apply that to as a modification to the OPD array.
+        return self
+
+#######  Custom Optics used in JWInstrument classes  #####
+
 
 
 class NIRSpec_three_MSA_shutters(poppy.AnalyticOpticalElement):
