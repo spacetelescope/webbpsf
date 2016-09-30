@@ -98,7 +98,7 @@ script:
 
 after_success:
     # coveralls.io integration
-    - if [[ $SETUP_CMD == 'test --coverage' ]]; then coveralls --rcfile='poppy/tests/coveragerc'; fi
+    - if [[ $SETUP_CMD == 'test --coverage' && TRAVIS_REPO_SLUG == "mperrin/webbpsf" ]]; then coveralls --rcfile='poppy/tests/coveragerc'; fi
 
 notifications:
     email:
