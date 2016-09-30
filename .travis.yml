@@ -46,7 +46,7 @@ matrix:
 
         # Try Astropy development version
         - python: 3.5
-          env: SETUP_CMD='test' ASTROPY_VERSION=development SETUP_CMD='test'
+          env: SETUP_CMD='test' ASTROPY_VERSION=development
 
         # Try older numpy versions
         - python: 2.7
@@ -60,8 +60,7 @@ matrix:
 
     allow_failures:
         # Released POPPY may be missing new functionality used by dev WebbPSF
-        - python: 3.5
-          env: SETUP_CMD='test' PIP_DEPENDENCIES='poppy'
+        - env: SETUP_CMD='test' PIP_DEPENDENCIES='poppy'
 
 install:
 
