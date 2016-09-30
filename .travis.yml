@@ -29,17 +29,14 @@ env:
         - SETUP_CMD='test'
         - PIP_DEPENDENCIES='git+https://github.com/mperrin/poppy.git#egg=poppy'
         - CONDA_DEPENDENCIES='scipy matplotlib six'
-    matrix:
-        # Make sure that egg_info works without dependencies
-        - SETUP_CMD='egg_info'
 
 matrix:
     include:
         # do the actual tests against dev version of POPPY
         - python: 2.7
-          # env: SETUP_CMD='test'
+          env: SETUP_CMD='test'
         - python: 3.5
-          # env: SETUP_CMD='test'
+          env: SETUP_CMD='test'
 
         # Do a coverage test in Python 3.
         - python: 3.5
