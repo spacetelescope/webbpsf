@@ -257,9 +257,6 @@ class JWST_OTE_Pupil(poppy.FITSOpticalElement):
         else:
             raise ValueError("Invalid/unknown wavefront error level")
 
-        print "PUPIL OPD:" +opd_file
-        print "PUPIL APERTURE:" +aperture_file
-
         super(JWST_OTE_Pupil, self).__init__(name='JWST Primary',
                 transmission = aperture_file,
                 opd = opd_file,
