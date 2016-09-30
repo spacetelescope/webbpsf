@@ -26,7 +26,7 @@ subprocess.call("tar xvzf "+inputfile, shell=True)
 
 print("#### Trimming to only one OPD file per instrument ####")
 for instr in insts:
-    files = glob.glob(os.path.join(WORKING_DIR, 'webbpsf-data', instr, "OPD", "*.fits"))
+    files = glob.glob(os.path.join(WORKING_DIR, 'webbpsf-data', instr, "OPD", "*.fits.gz"))
     files.sort()
     print(instr, files)
     
@@ -43,8 +43,9 @@ for instr in insts:
     f0.close()
 
 print("#### Removing extra optional pupil files ####")
-os.remove(os.path.join(WORKING_DIR, 'webbpsf-data','pupil_RevT.fits'))
-os.remove(os.path.join(WORKING_DIR, 'webbpsf-data','tricontagon.fits'))
+os.remove(os.path.join(WORKING_DIR, 'webbpsf-data','jwst_pupil_revW_npix2048.fits.gz'))
+os.remove(os.path.join(WORKING_DIR, 'webbpsf-data','jwst_pupil_revW_npix16384.fits.gz'))
+os.remove(os.path.join(WORKING_DIR, 'webbpsf-data','tricontagon.fits.gz'))
 
 print("#### Creating tar file ####")
 os.chdir(WORKING_DIR)
