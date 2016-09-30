@@ -34,9 +34,7 @@ matrix:
     include:
         # do the actual tests against dev version of POPPY
         - python: 2.7
-          env: SETUP_CMD='test'
         - python: 3.5
-          env: SETUP_CMD='test'
 
         # Do a coverage test in Python 3.
         - python: 3.5
