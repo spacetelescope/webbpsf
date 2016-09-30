@@ -579,6 +579,8 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         self.include_si_wfe = True
         """Should calculations include the Science Instrument internal WFE?"""
+        self.options['jitter']='gaussian'
+        self.options['jitter_sigma']=0.007
 
         # class name to use for SI internal WFE, which can be overridden in subclasses
         self._si_wfe_class = optics.JWST_Field_Dependent_Aberration
