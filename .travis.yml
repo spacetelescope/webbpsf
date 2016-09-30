@@ -5,55 +5,55 @@ sudo: false
 
 python:
     - 2.7
-    # - 3.3
     - 3.5
-    # This is just for "egg_info".  All other builds are explicitly given in the matrix
+
+addons:
+    apt:
+        packages:
+            # Used for Spginx 
+            - graphviz
+            - texlive-latex-extra
+            - dvipng
+
 env:
     global:
         # The following versions are the 'default' for tests, unless
         # overidden underneath. They are defined here in order to save having
         # to repeat them for all configurations.
-        - NUMPY_VERSION=1.9
+        - NUMPY_VERSION=1.11
+        - OLDER_NUMPY_VERSION=1.10
         - ASTROPY_VERSION=stable
         - POPPY_VERSION=development
-        - CONDA_INSTALL='conda install -c astropy-ci-extras --yes'
+        - CONDA_INSTALL='conda install --yes'
         - PIP_INSTALL='pip install'
     matrix:
         - SETUP_CMD='egg_info'
 
 matrix:
     include:
-        # Check for sphinx doc build warnings - we do this first because it
-        # may run for a long time
+        # Do a coverage test in Python 3.
+        - python: 3.5
+          env: SETUP_CMD='test --coverage'
+
+        # Check for sphinx doc build errors
         - python: 2.7
-          env: SETUP_CMD='build_sphinx' # -w'
+          env: SETUP_CMD='build_sphinx'
+
+        # Try all supported Python versions with the latest NumPy
+        # and other dependencies
+        - python: 2.7
+          env: SETUP_CMD='test'
+        - python: 3.5
+          env: SETUP_CMD='test'
 
         # Try Astropy development version
         - python: 3.5
           env: ASTROPY_VERSION=development SETUP_CMD='test'
-        # - python: 3.3
-        #   env: ASTROPY_VERSION=development SETUP_CMD='test'
 
-        # Try all python versions with the latest numpy
+        # Test one previous version of NumPy
         - python: 2.7
-          env: SETUP_CMD='test'
-        - python: 3.4
-          env: SETUP_CMD='test'
-        - python: 3.5
-          env: SETUP_CMD='test'
+          env: NUMPY_VERSION=$OLDER_NUMPY_VERSION ASTROPY_VERSION=stable SETUP_CMD='test'
 
-
-        # Try older numpy version
-        - python: 2.7
-          env: NUMPY_VERSION=1.8 SETUP_CMD='test'
-
-        # Try released POPPY version
-        - python: 3.5
-          env: POPPY_VERSION=stable SETUP_CMD='test'
-
-        # Try released POPPY version and older NumPy
-        - python: 2.7
-          env: POPPY_VERSION=stable NUMPY_VERSION=1.8 SETUP_CMD='test'
     allow_failures:
         # Released POPPY may be missing new functionality used by dev WebbPSF
         - python: 3.5
@@ -61,30 +61,26 @@ matrix:
 
         # Released POPPY may be missing new functionality used by dev WebbPSF
         - python: 2.7
-          env: POPPY_VERSION=stable NUMPY_VERSION=1.8 SETUP_CMD='test'
+          env: POPPY_VERSION=stable NUMPY_VERSION=$OLDER_NUMPY_VERSION SETUP_CMD='test'
               
-          # temporary - ignore failures on 3.5 due to py.test version issues
-        - python: 3.5
-          env: SETUP_CMD='test'
-
-
-
 before_install:
 
     # Use utf8 encoding. Should be default, but this is insurance against
     # future changes
     - export PYTHONIOENCODING=UTF8
+    # Prefer Agg backend in case PyPlot is imported
+    # (see http://matplotlib.org/faq/environment_variables_faq.html)
+    - export MPLBACKEND=Agg
     - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
     - chmod +x miniconda.sh
     - ./miniconda.sh -b
     - export PATH=/home/travis/miniconda2/bin:$PATH
     - conda update --yes conda
-    - conda update --all -y  # added to try debugging issue #159 with Travis
 
 install:
 
     # CONDA
-    - conda create --yes -n test -c astropy-ci-extras python=$TRAVIS_PYTHON_VERSION
+    - conda create --yes -n test python=$TRAVIS_PYTHON_VERSION
     - source activate test
 
     # CORE DEPENDENCIES
@@ -100,9 +96,9 @@ install:
     # conda for packages available through conda, or pip for any other
     # packages. You should leave the `numpy=$NUMPY_VERSION` in the `conda`
     # install since this ensures Numpy does not get automatically upgraded.
+    - if [[ $SETUP_CMD != egg_info ]]; then $CONDA_INSTALL numpy=$NUMPY_VERSION matplotlib scipy; fi
+    - if [[ $SETUP_CMD != egg_info ]]; then $PIP_INSTALL six enum34; fi
 
-    # matplotlib and SciPy
-    - $CONDA_INSTALL numpy=$NUMPY_VERSION matplotlib scipy
     # POPPY
     - if [[ $POPPY_VERSION == development ]]; then $PIP_INSTALL git+http://github.com/mperrin/poppy.git#egg=poppy; fi
     - if [[ $POPPY_VERSION == stable ]]; then $PIP_INSTALL poppy; fi
@@ -124,14 +120,15 @@ before_script:
     - export WEBBPSF_SKIP_CHECK=1
 
 script:
-   - python setup.py $SETUP_CMD
+    - python setup.py $SETUP_CMD
 
 after_success:
     # If coveralls.io is set up for this package, uncomment the line
     # below and replace "packagename" with the name of your package.
     # The coveragerc file may be customized as needed for your package.
-    # - if [[ $SETUP_CMD == 'test --coverage' ]]; then coveralls --rcfile='packagename/tests/coveragerc'; fi
+    - if [[ $SETUP_CMD == 'test --coverage' ]]; then coveralls --rcfile='webbpsf/tests/coveragerc'; fi
+
 notifications:
-  email:
-    - mperrin@stsci.edu
-    - jlong@stsci.edu
+    email:
+        - mperrin@stsci.edu
+        - jlong@stsci.edu

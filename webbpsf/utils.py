@@ -1,4 +1,4 @@
-from __future__ import print_function
+from __future__ import division, print_function, absolute_import, unicode_literals
 import os, sys
 import six
 import astropy.io.fits as fits
