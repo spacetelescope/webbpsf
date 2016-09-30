@@ -7,12 +7,12 @@ WebbPSF: Simulated Point Spread Functions for JWST and WFIRST
    :target: https://pypi.python.org/pypi/webbpsf
    :alt: Badge showing current released PyPI version
 
+.. image:: https://travis-ci.org/mperrin/poppy.svg?branch=master
+   :target: https://travis-ci.org/mperrin/poppy
+   :alt: Badge showing continuous integration test status
+
 .. image:: https://coveralls.io/repos/github/mperrin/webbpsf/badge.svg?branch=master
    :target: https://coveralls.io/github/mperrin/webbpsf?branch=master
-
-.. image:: https://coveralls.io/repos/mperrin/webbpsf/badge.svg
-   :target: https://coveralls.io/r/mperrin/webbpsf
-   :alt: Badge showing testing code coverage percentage
 
 WebbPSF produces simulated PSFs for the James Webb Space Telescope, NASA's next
 flagship infrared space telescope. WebbPSF can simulate images for any of the
