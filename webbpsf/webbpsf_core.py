@@ -575,7 +575,10 @@ class JWInstrument(SpaceTelescopeInstrument):
     def __init__(self, *args, **kwargs):
         super(JWInstrument, self).__init__(*args, **kwargs)
 
-        self.pupil = os.path.abspath(self._datapath+"../jwst_pupil_RevW_npix1024.fits.gz")
+        self.pupil = os.path.abspath(os.path.join(
+            self._WebbPSF_basepath,
+            "jwst_pupil_RevW_npix1024.fits.gz"
+        ))
         "Filename *or* fits.HDUList for JWST pupil mask. Usually there is no need to change this."
 
         self._detector = None
