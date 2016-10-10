@@ -157,7 +157,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
         self._WebbPSF_basepath = utils.get_webbpsf_data_path()
 
-        self._datapath = self._WebbPSF_basepath + os.sep + self.name + os.sep
+        self._datapath = os.path.join(self._WebbPSF_basepath, self.name)
         self._image_mask = None
         self._pupil_mask = None
 
@@ -183,11 +183,16 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         self.filter = self.filter_list[0]
 
         self._rotation = None
+        opd_path = os.path.join(self._datapath, 'OPD')
+        self.opd_list = []
+        for filename in glob.glob(os.path.join(opd_path, 'OPD*.fits.gz')):
+            self.opd_list.append(os.path.basename(os.path.abspath(filename)))
 
-        self.opd_list = [os.path.basename(os.path.abspath(f)) for f in glob.glob(self._datapath+os.sep+'OPD/OPD*.fits')]
+        if not len(self.opd_list) > 0:
+            raise RuntimeError("No pupil OPD files found for {name} in {path}".format(name=self.name, path=opd_path))
+
         self.opd_list.sort()
-        if len(self.opd_list) > 0:
-            self.pupilopd = self.opd_list[-1]
+        self.pupilopd = self.opd_list[-1]
 
         self._image_mask=None
         self.image_mask_list=[]
