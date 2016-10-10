@@ -1,3 +1,4 @@
+from __future__ import division, print_function, absolute_import, unicode_literals
 import sys, os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -47,9 +48,9 @@ def test_nircam_SAMC(oversample=4):
     nc.options['output_mode'] = 'Detector'
 
 
-    psf_sam = nc.calcPSF(oversample=oversample, nlambda=1) # should use semi-analytic coronagraph method by default.
+    psf_sam = nc.calc_psf(oversample=oversample, nlambda=1) # should use semi-analytic coronagraph method by default.
     nc.options['no_sam']=True
-    psf_fft  = nc.calcPSF(oversample=oversample, nlambda=1)
+    psf_fft  = nc.calc_psf(oversample=oversample, nlambda=1)
 
 
     maxdiff = np.abs(psf_fft[0].data - psf_sam[0].data).max()
@@ -101,6 +102,7 @@ def do_test_nircam_blc(clobber=False, kind='circular', angle=0, save=False, disp
     this routine is just to check for basic functionaltiy of the code and consistency with
     prior results. See the validate_* tests instead for validation against independent
     models of JWST coronagraphy performance - that is NOT what we're trying to do here.
+
     """
 
     nc = webbpsf_core.NIRCam()
@@ -111,7 +113,8 @@ def do_test_nircam_blc(clobber=False, kind='circular', angle=0, save=False, disp
         nc.image_mask = 'MASK210R'
         nc.pupil_mask = 'CIRCLYOT'
         fn = 'm210r'
-        expected_total_fluxes=[1.35e-5, 0.0237, 0.1367]  # Based on a prior calculation with WebbPSF
+        expected_total_fluxes=[1.35e-5, 0.0240, 0.1376]  # Based on a prior calculation with WebbPSF
+        # values updated slightly for Rev W aperture results
     else:
         nc.image_mask = 'MASKSWB'
         nc.pupil_mask = 'WEDGELYOT'
@@ -119,7 +122,8 @@ def do_test_nircam_blc(clobber=False, kind='circular', angle=0, save=False, disp
         if angle==0:
             expected_total_fluxes=[2.09e-6, .0415, 0.1442]  # Based on a prior calculation with WebbPSF
         elif angle==45 or angle==-45:
-            expected_total_fluxes=[2.09e-6, 0.0219, 0.1171]  # Based on a prior calculation
+            expected_total_fluxes=[2.09e-6, 0.0219, 0.1176]  # Based on a prior calculation
+            # Updated 2016-09-29 for Rev W results - slight change from 0.1171 to 0.1176
         else:
             raise ValueError("Don't know how to check fluxes for angle={0}".format(angle))
 
@@ -143,7 +147,7 @@ def do_test_nircam_blc(clobber=False, kind='circular', angle=0, save=False, disp
         # We can save the outputs; this is not recommended or useful for general testing but is
         # helpful when/if debugging this test routine itself.
         if not os.path.exists(fnout) or clobber:
-            psf = nc.calcPSF(oversample=oversample, nlambda=nlam, save_intermediates=False, display=display)#, monochromatic=10.65e-6)
+            psf = nc.calc_psf(oversample=oversample, nlambda=nlam, save_intermediates=False, display=display)#, monochromatic=10.65e-6)
             if save:
                 plt.savefig(fnout+".pdf")
                 psf.writeto(fnout, clobber=clobber)

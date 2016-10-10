@@ -1,4 +1,4 @@
-from __future__ import print_function
+from __future__ import division, print_function, absolute_import, unicode_literals
 import os, sys
 import six
 import astropy.io.fits as fits
@@ -392,6 +392,7 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, displa
     inst = Instrument(header['INSTRUME'])
     inst.filter = header['FILTER']
     inst.pupilopd = None # perfect image
+    inst.include_si_wfe = False # perfect image
     inst.pixelscale = header['PIXELSCL'] * header['OVERSAMP'] # same pixel scale pre-oversampling
     cache_key = (header['INSTRUME'], header['FILTER'], header['PIXELSCL'], header['OVERSAMP'],  header['FOV'],header['NWAVES'])
     try:
@@ -437,8 +438,6 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, displa
 
 def annotate_ote_entrance_coords(self, ax):
     """ Draw OTE V frame axes on first optical plane """
-    ax.set_ylabel('OTE V3 [m]')
-    ax.set_xlabel('OTE V2 [m]')
     color='yellow'
     loc = 3
     ax.arrow(-loc,-loc, .2, 0, color=color, width=0.005)

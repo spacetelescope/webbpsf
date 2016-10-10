@@ -1,3 +1,4 @@
+from __future__ import division, print_function, absolute_import, unicode_literals
 import sys, os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -33,7 +34,7 @@ def do_test_miri_fqpm(nlambda=1, clobber=True, angle=0.0, offset=0.0, oversample
 
     #for angle in [0,45]:
     miri.options['source_offset_theta'] = angle 
-    psf = miri.calcPSF(oversample=oversample, nlambda=nlambda, save_intermediates=False, display=display)
+    psf = miri.calc_psf(oversample=oversample, nlambda=nlambda, save_intermediates=False, display=display)
 
     if save:
         if outputdir is None:

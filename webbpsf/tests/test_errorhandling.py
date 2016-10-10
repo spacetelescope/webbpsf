@@ -1,3 +1,4 @@
+from __future__ import division, print_function, absolute_import, unicode_literals
 # This file contains code for testing various error handlers and user interface edge cases,
 # as opposed to testing the main body of functionality of the code.
 
@@ -31,14 +32,14 @@ except:
     _HAVE_PYTEST = False
 
 if _HAVE_PYTEST: 
-    def test_calcPSF_catch_incompatible_oversampling():
+    def test_calc_psf_catch_incompatible_oversampling():
         """ Test that we can create rectangular FOVs """
         nc = webbpsf_core.Instrument('NIRCam')
         nc.pupilopd=None
         nc.filter='F212N'
 
         with pytest.raises(ValueError) as excinfo:
-            psf = nc.calcPSF(oversample=2, detector_oversample=10, fft_oversample=4)
+            psf = nc.calc_psf(oversample=2, detector_oversample=10, fft_oversample=4)
         assert _exception_message_starts_with(excinfo,"You cannot specify simultaneously the oversample= option with the detector_oversample and fft_oversample options. Pick one or the other!")
 
 # Not clear we need to test this; astropy logging framework will protect against invalid levels I think.
