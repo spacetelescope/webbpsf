@@ -218,7 +218,7 @@ class WebbOTEPupil(poppy.FITSOpticalElement):
 class NIRSpec_three_MSA_shutters(poppy.AnalyticOpticalElement):
     """ Three NIRSpec MSA shutters, adjacent vertically."""
 
-    def get_transmission(self,wave):
+    def get_transmission(self, wave):
         """ Compute the transmission inside/outside of the field stop.
 
         The area of an open shutter is 0.2 x 0.45, while the shutter pitch is 0.26x0.51
@@ -249,7 +249,7 @@ class NIRSpec_three_MSA_shutters(poppy.AnalyticOpticalElement):
 class NIRSpec_MSA_open_grid(poppy.AnalyticOpticalElement):
     """ An infinite repeating region of the NIRSpec MSA grid"""
 
-    def get_transmission(self,wave):
+    def get_transmission(self, wave):
         """ Compute the transmission inside/outside of the field stop.
 
         The area of an open shutter is 0.2 x 0.45, while the shutter pitch is 0.26x0.51
@@ -357,7 +357,9 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
 
     From Loic Albert's email to Marshall 2014-05-20:
 
-        I should have pointed that the power assumed in my simulations for the cylindrical lens was off. It was one of the conclusions of CV1RR. The actual radius of curvature of the cylinder is 25.3 meters (rather than the smaller figure I used before).
+        I should have pointed that the power assumed in my simulations for the cylindrical lens
+        was off. It was one of the conclusions of CV1RR. The actual radius of curvature of the
+        cylinder is 25.3 meters (rather than the smaller figure I used before).
 
      ORIENTATION:
 
@@ -385,6 +387,7 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
     which : string
         'initial' or 'spare'. Properties are hard coded.
     """
+
     #
     #    transmission : string filename
     #        file for the pupil transmission function
@@ -647,6 +650,7 @@ class NIRISS_CLEARP(poppy.CompoundAnalyticOptic):
         Pupil distortions are not included in this model.
 
     """
+
     def __init__(self):
         # CLEARP pupil info from:
         #   MODIFIED CALIBRATION OPTIC HOLDER - NIRISS
@@ -885,8 +889,8 @@ def _width_blc(desired_width, approx=None, plot=False):
     if approx is None:
         sigma = np.linspace(0, 20, 5000)
     else:
-        sigma = np.linspace(approx*0.9, approx*1.1, 100000.)
-    lhs = loc* np.sqrt(1 - np.sqrt(0.5))
+        sigma = np.linspace(approx * 0.9, approx * 1.1, 100000.)
+    lhs = loc * np.sqrt(1 - np.sqrt(0.5))
     rhs = np.sin(sigma * loc) / sigma
     diff = np.abs(lhs - rhs)
     wmin = np.where(diff == np.nanmin(diff))
@@ -899,8 +903,8 @@ def _width_blc(desired_width, approx=None, plot=False):
         sig_ans = width_blc(loc, sig_ans)
 
     if plot:
-        check =  (1-  (np.sin(sig_ans * loc)/sig_ans/loc)**2)**2
-        #plt.plot(sigma, lhs)
+        check = (1 - (np.sin(sig_ans * loc) / sig_ans / loc) ** 2) ** 2
+        # plt.plot(sigma, lhs)
         plt.clf()
         plt.plot(sigma, rhs)
         plt.axhline(lhs)
@@ -908,7 +912,6 @@ def _width_blc(desired_width, approx=None, plot=False):
         print("sigma = %f implies HWHM = %f" % (sig_ans, loc))
         print(" check: 0.5 == %f" % (check))
     return sig_ans
-
 
 
 def _calc_blc_wedge(deg=4, wavelength=2.1e-6):
@@ -929,9 +932,8 @@ def _calc_blc_wedge(deg=4, wavelength=2.1e-6):
     plt.plot(r, sigs, 'b')
     plt.plot(r, p(r), "r--")
     diffs = (sigs - p(r))
-    print("Poly fit:" +repr(pcs))
-    print("  fit rms: "+str(diffs.std()))
-
+    print("Poly fit:" + repr(pcs))
+    print("  fit rms: " + str(diffs.std()))
 
 
 # Field dependent aberration class for JWST instruments
