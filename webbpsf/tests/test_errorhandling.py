@@ -4,20 +4,20 @@ from __future__ import division, print_function, absolute_import, unicode_litera
 
 import sys, os
 import os.path
-import numpy as np
-import matplotlib.pyplot as plt
-import astropy.io.fits as fits
-
-
 import logging
 _log = logging.getLogger('test_webbpsf')
 _log.addHandler(logging.NullHandler())
 
+import numpy as np
+import matplotlib.pyplot as plt
+import astropy.io.fits as fits
+import pytest
+
+import poppy
 from .. import webbpsf_core
 from .. import utils
 from .. import conf
-import poppy
-import pytest
+
 
 def _exception_message_starts_with(excinfo, message_body):
     if sys.version_info.major < 3:
