@@ -184,16 +184,6 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         self.filter = self.filter_list[0]
 
         self._rotation = None
-        opd_path = os.path.join(self._datapath, 'OPD')
-        self.opd_list = []
-        for filename in glob.glob(os.path.join(opd_path, 'OPD*.fits.gz')):
-            self.opd_list.append(os.path.basename(os.path.abspath(filename)))
-
-        if not len(self.opd_list) > 0:
-            raise RuntimeError("No pupil OPD files found for {name} in {path}".format(name=self.name, path=opd_path))
-
-        self.opd_list.sort()
-        self.pupilopd = self.opd_list[-1]
 
         self._image_mask=None
         self.image_mask_list=[]
@@ -574,6 +564,17 @@ class JWInstrument(SpaceTelescopeInstrument):
     the first slice will be used."""
     def __init__(self, *args, **kwargs):
         super(JWInstrument, self).__init__(*args, **kwargs)
+
+        opd_path = os.path.join(self._datapath, 'OPD')
+        self.opd_list = []
+        for filename in glob.glob(os.path.join(opd_path, 'OPD*.fits.gz')):
+            self.opd_list.append(os.path.basename(os.path.abspath(filename)))
+
+        if not len(self.opd_list) > 0:
+            raise RuntimeError("No pupil OPD files found for {name} in {path}".format(name=self.name, path=opd_path))
+
+        self.opd_list.sort()
+        self.pupilopd = self.opd_list[-1]
 
         self.pupil = os.path.abspath(os.path.join(
             self._WebbPSF_basepath,
