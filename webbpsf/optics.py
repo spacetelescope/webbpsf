@@ -132,10 +132,10 @@ class JWSTPrimaryAperture(poppy.AnalyticOpticalElement):
 
 
 # Note - the following is **NOT USED YET **
-# This will be finished up and used in a subsequent release to 
+# This will be finished up and used in a subsequent release to
 # apply the OTE field dependence. For now just the fixed per SI stuff
 # is there.
-class JWST_OTE_Pupil(poppy.FITSOpticalElement):
+class WebbOTEPupil(poppy.FITSOpticalElement):
     """The complex OTE pupil, including:
         1) the aperture geometry, based on the cryo ICD detailed coordinates
         2) high spatial frequency WFE from the as-built mirrors in Rev G optical model
@@ -146,6 +146,7 @@ class JWST_OTE_Pupil(poppy.FITSOpticalElement):
         -----------
         level : '
     """
+
     def __init__(self, instrument=None, level='requirements', opd_index=0, **kwargs):
 
         if instrument is not None:
@@ -155,32 +156,47 @@ class JWST_OTE_Pupil(poppy.FITSOpticalElement):
         else:
             self.instrument = None
             self.instr_name = "NIRCam"
-            # figure out default V2V3 coords here
-            self.tel_coords = (0,0) #?
+            # TODO figure out default V2V3 coords here
+            self.tel_coords = (0, 0)  # ? TODO
 
         # determine filename for pupil amplitude array
-        aperture_file = '../jwst_pupil_revW_npix1024.fits.gz'
-        aperture_file =  os.path.abspath(os.path.join(self._datapath,aperture_file))
+        aperture_file = 'jwst_pupil_revW_npix1024.fits.gz'
+        aperture_file = os.path.abspath(os.path.join(
+            utils.get_webbpsf_data_path(), aperture_file
+        ))
 
         # determine filename for the OPD array
         #   This should contain a precomputed combination of
-        #   Rev G high spatial frequencies and 
+        #   Rev G high spatial frequencies and
         #   Rev W mid spatial frequencies
         # Depends on what the 'level' parameter is.
 
-        if level=='perfect':
-            opd_file = '../OPD_jwst_ote_perfectly_aligned.fits'
-        elif level=='predicted':
-            opd_file = 'OPD/OPD_RevW_ote_for_{}_predicted.fits'.format(self.instr_name)
-        elif level=='requirements':
-            opd_file = 'OPD/OPD_RevW_ote_for_{}_requirements.fits'.format(self.instr_name)
+        if level == 'perfect':
+            opd_file = os.path.join(
+                utils.get_webbpsf_data_path(),
+                'OPD_jwst_ote_perfectly_aligned.fits'
+            )
+        elif level == 'predicted':
+            opd_file = os.path.join(
+                utils.get_webbpsf_data_path(),
+                self.instr_name,
+                'OPD',
+                'OPD_RevW_ote_for_{}_predicted.fits'.format(self.instr_name)
+            )
+        elif level == 'requirements':
+            opd_file = os.path.join(
+                utils.get_webbpsf_data_path(),
+                self.instr_name,
+                'OPD',
+                'OPD_RevW_ote_for_{}_requirements.fits'.format(self.instr_name)
+            )
         else:
             raise ValueError("Invalid/unknown wavefront error level")
 
-        super(JWST_OTE_Pupil, self).__init__(name='JWST Primary',
-                transmission = aperture_file,
-                opd = opd_file,
-                **kwargs)
+        super(WebbOTEPupil, self).__init__(name='JWST Primary',
+                                           transmission=aperture_file,
+                                           opd=opd_file,
+                                           **kwargs)
 
         if self.instrument is not None:
             # we need a field point to be able to use this so
@@ -189,11 +205,10 @@ class JWST_OTE_Pupil(poppy.FITSOpticalElement):
             # determine Zernike coeffs for field dependent error
             # based on Rev G field dependence model.
 
-
-            coeffs = np.zeros((22))
+            coeffs = np.zeros(22)
             self.zernike_coeffs = coeffs
 
-            # apply that to as a modification to the OPD array.
+            # TODO apply that to as a modification to the OPD array.
         return self
 
 #######  Custom Optics used in JWInstrument classes  #####
