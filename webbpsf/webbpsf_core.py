@@ -593,7 +593,7 @@ class JWInstrument(SpaceTelescopeInstrument):
         self.options['jitter_sigma']=0.007
 
         # class name to use for SI internal WFE, which can be overridden in subclasses
-        self._si_wfe_class = optics.JWST_Field_Dependent_Aberration
+        self._si_wfe_class = optics.WebbFieldDependentAberration
 
 
     def _getDefaultFOV(self):
@@ -683,7 +683,7 @@ class MIRI(JWInstrument):
         self._detector_npixels=1024
         self.detector_position=(512,512)
 
-        self._si_wfe_class = optics.MIRI_Field_Dependent_Aberration_and_Obscuration
+        self._si_wfe_class = optics.MIRIFieldDependentAberrationAndObscuration
 
     def _getDefaultFOV(self):
         """ Return default FOV in arcseconds """
@@ -898,7 +898,7 @@ class NIRCam(JWInstrument):
         for name in det_list: self._detectors[name] = 'NRC{0}_FULL'.format(name)
         self.detector=self.detector_list[0]
 
-        self._si_wfe_class = optics.NIRCam_Field_and_Wavelength_Dependent_Aberration
+        self._si_wfe_class = optics.NIRCamFieldAndWavelengthDependentAberration
 
     @property
     def module(self):
@@ -1140,7 +1140,7 @@ class NIRSpec(JWInstrument):
         self._detectors = dict()
         for name in det_list: self._detectors[name] = '{0}_FULL'.format(name)
         self.detector=self.detector_list[0]
-        self._si_wfe_class = optics.NIRSpec_Field_Dependent_Aberration  # note we end up adding 2 instances of this.
+        self._si_wfe_class = optics.NIRSpecFieldDependentAberration  # note we end up adding 2 instances of this.
 
 
     def _validateConfig(self, **kwargs):
