@@ -21,8 +21,12 @@ __all__ = (
 #
 # JWST Primary segment and obscuration shapes and centers
 #
-# Provenance: jwst_ote3d.py script by Perrin for personal use
+# Provenance:
 #
+# Segment coordinates from "2010.03.16 Transmission X Area Budget.xls"
+# spreadsheet by Paul Lightsey, which was based in turn on
+# Ball Aerospace drawing # 2220169 Rev B and the OTE Cryogenic Optics
+# Interface Control Document, Ball Aerospace doc # C327693
 
 JWST_PRIMARY_SEGMENTS = (
     ('A1-1', np.array([
