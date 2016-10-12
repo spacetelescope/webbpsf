@@ -13,7 +13,9 @@ import numpy as np
 __all__ = (
     'JWST_PRIMARY_SEGMENTS',
     'JWST_PRIMARY_STRUTS',
-    'JWST_PRIMARY_SEGMENT_CENTERS'
+    'JWST_PRIMARY_SEGMENT_CENTERS',
+    'JWST_SEGMENT_RADIUS',
+    'JWST_CIRCUMSCRIBED_DIAMETER',
 )
 
 #
@@ -154,7 +156,7 @@ JWST_PRIMARY_SEGMENTS = (
 for name, arr in JWST_PRIMARY_SEGMENTS:
     arr.flags.writeable = False
 
-JWST_PRIMARY_STRUTS = [
+JWST_PRIMARY_STRUTS = (
     ("strut1", np.array([
         [-0.05301375, -0.0306075],
         [1.59698625, -2.88849133],
@@ -194,7 +196,10 @@ JWST_PRIMARY_STRUTS = [
         [-0.082595, 2.14627],
         [-0.059435, 2.14627],
         [-0.059435, 0.666]]))
-]
+)
+
+for name, arr in JWST_PRIMARY_STRUTS:
+    arr.flags.writeable = False
 
 JWST_PRIMARY_SEGMENT_CENTERS = (
     ('A1-1', (0.000000, 1.323500)),
