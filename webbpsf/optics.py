@@ -957,7 +957,10 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
         # work out which name to index into the CV results with, if for NIRCam
         if instrument.name == 'NIRCam':
             channel = instrument.channel[0].upper()
-            lookup_name = "NIRCam{channel}W{module}".format(channel, instrument.module)
+            lookup_name = "NIRCam{channel}W{module}".format(
+                channel=channel,
+                module=instrument.module
+            )
         elif instrument.name == 'FGS':
             # 'GUIDER1' or 'GUIDER2'
             assert instrument.detector in ('FGS1', 'FGS2')
