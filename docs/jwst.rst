@@ -36,10 +36,10 @@ All classes share some common attributes:
    Note that the ``detector_position`` value should be
    specified using the Python (Y,X) axes order convention.
 
-.. admonition:: Instrument measured WFE coming in a future release
+.. admonition:: Instrument measured wavefront error coming in a future release
 
     This version of WebbPSF does not yet contain data on the measured SI
-    wavefront errors. However it does contain software infrastructure to
+    wavefront errors (SI WFE). However it does contain software infrastructure to
     support that functionality in the near future, once the data files have
     been fully reviewed by the project and SI teams. So for the time being,
     some options related to detector field positions and SI wavefront error
@@ -54,6 +54,23 @@ All classes share some common attributes:
     available modes well enough to be aware if they are trying to
     simulate an inconsistent or physically impossible configuration. 
 
+Optical Telescope Element (OTE)
+===============================
+
+The JWST Optical Telescope Element consists of the telescope optics that serve all the science instruments and the fine guidance sensor. Most notably, this means the primary, secondary, and tertiary mirrors. The OTE contributes to the overall wavefront error (and therefore the aberrations in instrument PSFs) in a few ways:
+
+  * The limits of precisely manufacturing the mirrors introduce tiny high spatial frequency bumps and ripples of optical path difference
+  * During commissioning, the telescope mirror segments will be aligned and phased as precisely as possible, but small errors in the final aligned configuration will still contribute to WFE
+  * The WFE will vary with field position, which is inherent in the OTE optical design even if perfectly aligned
+  * Aberrations can be introduced by pupil shear or other misalignments between the OTE and each science instrument
+
+Let none of this make you think the JWST optics are deficient in some way! JWST is an extremely precisely engineered optical system. We nevertheless must model these small effects in order to provide users with the most realistic PSF we can.
+
+These effects are simulated at high fidelity in models maintained by Ball Aerospace, which in turn were used to create the OPD map files for the JWST instruments included in WebbPSF.
+
+For each science instrument, if you print ``inst.opd_list`` (where ``inst`` is an instance of an instrument model), you will see a "predicted" OPD map and a "requirements" OPD map. These maps include the OTE contributions to wavefront error listed above. The "requirements" file is more conservative, and includes a realization of the OPD map based on the minimum required performance for JWST. The "predicted" OPD map is informed by ground testing of the true performance of the SIs and OTE, and is a better approximation of what we think the true performance will be.
+
+Of course, these OPD maps only simulate the OTE contribution to the overall wavefront error. Additional details on the SI-specific wavefront error models are given under each instrument model section.
 
 NIRCam
 ======
@@ -61,7 +78,7 @@ NIRCam
 Imaging
 --------
 
-NIRCam is one of the more complicated classes in ``webbpsf``, and has several unique selectable options to model the two copies of NIRCam each with two channels..  
+NIRCam is one of the more complicated classes in ``webbpsf``, and has several unique selectable options to model the two copies of NIRCam each with two channels.
 
 The ``detector`` attribute can be used to select between any of the ten detectors,
 A1-A5 and B1-B5.  Additional attributes are then automatically set for ``channel``
