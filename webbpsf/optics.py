@@ -175,19 +175,12 @@ class WebbOTEPupil(poppy.FITSOpticalElement):
                 utils.get_webbpsf_data_path(),
                 'OPD_jwst_ote_perfectly_aligned.fits'
             )
-        elif level == 'predicted':
+        elif level in ('predicted', 'requirements'):
             opd_file = os.path.join(
                 utils.get_webbpsf_data_path(),
                 self.instr_name,
                 'OPD',
-                'OPD_RevW_ote_for_{}_predicted.fits'.format(self.instr_name)
-            )
-        elif level == 'requirements':
-            opd_file = os.path.join(
-                utils.get_webbpsf_data_path(),
-                self.instr_name,
-                'OPD',
-                'OPD_RevW_ote_for_{}_requirements.fits'.format(self.instr_name)
+                'OPD_RevW_ote_for_{}_{}.fits'.format(self.instr_name, level)
             )
         else:
             raise ValueError("Invalid/unknown wavefront error level")
