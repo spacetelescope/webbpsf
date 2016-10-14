@@ -74,11 +74,11 @@ NIRSPEC_ABBREVIATED_MASK_NAMES = {
 # Picked roughly the 'middle' WFE realization from the Rev. V files
 # (but these can/will be updated for measured WFE maps)
 OPD_TO_USE = {
-    'NIRCam': 'OPD_RevV_nircam_136.fits',
-    'MIRI': 'OPD_RevV_miri_220.fits',
-    'NIRSpec': 'OPD_RevV_nirspec_145.fits',
-    'FGS': 'OPD_RevV_fgs_163.fits',
-    'NIRISS': 'OPD_RevV_niriss_162.fits',
+    'NIRCam': 'OPD_RevW_ote_for_NIRCam_requirements.fits.gz',
+    'MIRI': 'OPD_RevW_ote_for_MIRI_requirements.fits.gz',
+    'NIRSpec': 'OPD_RevW_ote_for_NIRSpec_requirements.fits.gz',
+    'FGS': 'OPD_RevW_ote_for_FGS_requirements.fits.gz',
+    'NIRISS': 'OPD_RevW_ote_for_NIRISS_requirements.fits.gz',
 }
 
 def ensure_dir(dirpath):
