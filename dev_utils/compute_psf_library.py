@@ -114,10 +114,11 @@ def make_file_path(instrument_instance, output_directory):
     return join(output_file_path, '_'.join(parts) + '.fits')
 
 def _validate(opd, filter_name, image_mask, pupil_mask, instrument_name):
-    if image_mask is None and pupil_mask is not None:
-        return False
-    if pupil_mask is None and image_mask is not None:
-        return False
+    def both_or_neither(a, b):
+        if (a is None and b is None) or (a is not None and b is not None):
+            return True
+        else:
+            return False
 
     if instrument_name == 'NIRCam':
         if image_mask is not None and pupil_mask is not None:
@@ -125,6 +126,8 @@ def _validate(opd, filter_name, image_mask, pupil_mask, instrument_name):
                 return False
             if image_mask not in NIRCAM_IMAGE_MASKS_FOR_PUPILS[pupil_mask]:
                 return False
+        if not both_or_neither(pupil_mask, image_mask):
+            return False
     elif instrument_name == 'MIRI':
         # Cannot simulate LRS slit in broadband mode because there's
         # no bandpass for it, and that might not make sense anyway
@@ -135,15 +138,35 @@ def _validate(opd, filter_name, image_mask, pupil_mask, instrument_name):
                 return False
             if image_mask not in MIRI_IMAGE_MASKS_FOR_PUPILS[pupil_mask]:
                 return False
+        if not both_or_neither(pupil_mask, image_mask):
+            return False
     elif instrument_name == 'NIRSpec':
-        if pupil_mask != 'NIRSpec grating':
+        if image_mask is not None and pupil_mask != 'NIRSpec grating':
+            # fixed slits get dispersed through the same gratings, so must
+            # include the rectangular pupil stop from the grating
+            return False
+        if image_mask is None and pupil_mask is not None:
+            # Even a target acq PSF should use the MSA pupil mask
             return False
         if filter_name == 'IFU':
             return False  # not yet implemented in WebbPSF
     elif instrument_name == 'FGS':
         return True
     elif instrument_name == 'NIRISS':
-        return False  # TODO
+        if image_mask is not None:
+            # Coronagraph spots are basically vestigial
+            return False
+        if pupil_mask in ('MASK_NRM', 'GR700XD'):
+            # These should be available as cubes, but not broadband
+            # PSFs. We'll wait and see if anyone requests them.
+            return False
+        if filter_name == 'CLEAR' and :
+            # CLEAR + CLEARP would be a wide-open bandpass
+            return False
+        if filter_name in ('F277W', 'F356W', 'F380M', 'F430M', 'F444W', 'F480M') and pupil_mask != 'CLEARP':
+            # long wavelength filters cannot be configured without the modified
+            # CLEARP pupil in the pupil wheel
+            return False
     else:
         return False
     return True
