@@ -30,6 +30,9 @@ env:
         - PIP_DEPENDENCIES='git+https://github.com/mperrin/poppy.git#egg=poppy jwxml'
         - CONDA_DEPENDENCIES='scipy matplotlib six'
 
+        # For headless testing of code that imports PyPlot:
+        - MPLBACKEND=Agg
+
 matrix:
     include:
         # do the actual tests against dev version of POPPY
