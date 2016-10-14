@@ -160,8 +160,9 @@ def _validate(opd, filter_name, image_mask, pupil_mask, instrument_name):
             # These should be available as cubes, but not broadband
             # PSFs. We'll wait and see if anyone requests them.
             return False
-        if filter_name == 'CLEAR' and :
-            # CLEAR + CLEARP would be a wide-open bandpass
+        if filter_name == 'CLEAR':
+            # CLEAR would be a wide-open bandpass, which doesn't make sense
+            # except for PSF cubes
             return False
         if filter_name in ('F277W', 'F356W', 'F380M', 'F430M', 'F444W', 'F480M') and pupil_mask != 'CLEARP':
             # long wavelength filters cannot be configured without the modified
