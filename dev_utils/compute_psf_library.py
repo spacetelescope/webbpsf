@@ -71,6 +71,8 @@ NIRSPEC_ABBREVIATED_MASK_NAMES = {
     'NIRSpec grating': 'with_grating',
 }
 
+NIRISS_LONG_FILTERS = ('F277W', 'F356W', 'F380M', 'F430M', 'F444W', 'F480M')
+
 # Picked roughly the 'middle' WFE realization from the Rev. V files
 # (but these can/will be updated for measured WFE maps)
 OPD_TO_USE = {
@@ -166,9 +168,13 @@ def _validate(opd, filter_name, image_mask, pupil_mask, instrument_name):
             # CLEAR would be a wide-open bandpass, which doesn't make sense
             # except for PSF cubes
             return False
-        if filter_name in ('F277W', 'F356W', 'F380M', 'F430M', 'F444W', 'F480M') and pupil_mask != 'CLEARP':
+        if filter_name in NIRISS_LONG_FILTERS and pupil_mask != 'CLEARP':
             # long wavelength filters cannot be configured without the modified
             # CLEARP pupil in the pupil wheel
+            return False
+        if filter_name not in NIRISS_LONG_FILTERS and pupil_mask == 'CLEARP':
+            # likewise, short wavelength filters can only be configured with
+            # the true 'CLEAR' position in the filter wheel
             return False
     else:
         return False
