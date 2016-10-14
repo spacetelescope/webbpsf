@@ -95,9 +95,11 @@ def apply_configuration(instrument_instance, configuration):
 
 def make_file_path(instrument_instance, output_directory):
     output_file_path = abspath(join(output_directory, instrument_instance.name))
-    parts = [instrument_instance.name]
-    if instrument_instance.pupilopd is not None:
-        parts.append(instrument_instance.pupilopd.replace('.fits', ''))
+    parts = ['PSF', instrument_instance.name]
+    if 'requirements' in instrument_instance.pupilopd:
+        parts.append('requirements_opd')
+    elif 'predicted' in instrument_instance.pupilopd:
+        parts.append('predicted_opd')
     else:
         parts.append('perfect_opd')
 
@@ -209,7 +211,7 @@ def _do_one_psf(InstrumentClass, configuration, output_directory):
         spectrum = webbpsf.specFromSpectralType(STELLAR_SPECTRAL_TYPE, catalog='ck04')
         psf = inst.calc_psf(fov_arcsec=fov_arcsec, source=spectrum)
         psf.writeto(output_file_path)
-        log.debug("Computed PSF and wrote to: {}".format(output_file_path))
+        log.debug("Computed PSF\n\t{}\nand wrote to: {}".format(configuration, output_file_path))
     else:
         log.debug("Got existing PSF at {}".format(output_file_path))
     return output_file_path
