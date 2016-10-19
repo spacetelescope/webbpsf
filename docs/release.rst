@@ -64,3 +64,4 @@ Finishing the release
  #. Edit ``setup.py`` to increment the version number in the ``VERSION`` variable and re-add the ``.dev`` suffix
  #. Edit ``relnotes.rst`` to add a new heading for the upcoming version
  #. Commit your edits with a message like "Back to development: version 0.X.Y+1"
+ #. Email an announcement to ``webbpsf-users@stsci.edu``
