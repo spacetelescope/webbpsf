@@ -64,3 +64,19 @@ Finishing the release
  #. Edit ``setup.py`` to increment the version number in the ``VERSION`` variable and re-add the ``.dev`` suffix
  #. Edit ``relnotes.rst`` to add a new heading for the upcoming version
  #. Commit your edits with a message like "Back to development: version 0.X.Y+1"
+ #. Email an announcement to ``webbpsf-users@stsci.edu``
+
+Releasing a new version through AstroConda
+==========================================
+
+*Note: this uses the git tag created in the PyPI release.*
+
+#. Fork (if needed) and clone https://github.com/astroconda/astroconda-contrib
+#. If there is a new version of POPPY available to package, edit `poppy/meta.yaml <https://github.com/astroconda/astroconda-contrib/blob/master/poppy/meta.yaml>`_ to reflect the new ``version`` and ``git_tag``.
+#. If the minimum needed version of the webbpsf-data package has changed in ``webbpsf/__init__.py``, edit `webbpsf-data/meta.yaml <https://github.com/astroconda/astroconda-contrib/blob/master/webbpsf-data/meta.yaml>`_ to reflect the new ``version`` and ``url``.
+#. Edit `webbpsf/meta.yaml <https://github.com/astroconda/astroconda-contrib/blob/master/webbpsf/meta.yaml>`_ to reflect the new versions of POPPY and webbpsf-data, if necessary.
+#. Edit in the ``git_tag`` name from ``git tag`` in the PyPI release instructions (``v0.X.Y``).
+#. Commit your changes to a new branch and push to GitHub.
+#. Create a pull request against ``astroconda/astroconda-contrib``.
+#. Wait for SSB to build the conda packages.
+#. (optional) Create a new conda environment to test the package installation following :ref:`these instructions <install-with-conda>`.
