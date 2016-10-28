@@ -7,8 +7,8 @@ WebbPSF: Simulated Point Spread Functions for JWST and WFIRST
    :target: https://pypi.python.org/pypi/webbpsf
    :alt: Badge showing current released PyPI version
 
-.. image:: https://travis-ci.org/mperrin/poppy.svg?branch=master
-   :target: https://travis-ci.org/mperrin/poppy
+.. image:: https://travis-ci.org/mperrin/webbpsf.svg?branch=master
+   :target: https://travis-ci.org/mperrin/webbpsf
    :alt: Badge showing continuous integration test status
 
 .. image:: https://coveralls.io/repos/github/mperrin/webbpsf/badge.svg?branch=master
