@@ -21,6 +21,8 @@ Next, install WebbPSF (along with its dependencies and required reference data) 
 
    To subscribe, visit  the `maillist.stsci.edu server <https://maillist.stsci.edu/scripts/wa.exe?SUBED1=Webbpsf-users&A=1>`_
 
+.. _install-with-conda:
+
 Installing with conda (but no AstroConda)
 -----------------------------------------
 
