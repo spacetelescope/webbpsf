@@ -27,7 +27,7 @@ env:
         - NUMPY_VERSION=stable
         - ASTROPY_VERSION=stable
         - SETUP_CMD='test'
-        - PIP_DEPENDENCIES='git+https://github.com/mperrin/poppy.git#egg=poppy'
+        - PIP_DEPENDENCIES='git+https://github.com/mperrin/poppy.git#egg=poppy jwxml'
         - CONDA_DEPENDENCIES='scipy matplotlib six'
 
         # For headless testing of code that imports PyPlot:
@@ -59,11 +59,11 @@ matrix:
 
         # Try released POPPY
         - python: 3.5
-          env: SETUP_CMD='test' PIP_DEPENDENCIES='poppy'
+          env: SETUP_CMD='test' PIP_DEPENDENCIES='poppy jwxml'
 
     allow_failures:
         # Released POPPY may be missing new functionality used by dev WebbPSF
-        - env: SETUP_CMD='test' PIP_DEPENDENCIES='poppy'
+        - env: SETUP_CMD='test' PIP_DEPENDENCIES='poppy jwxml'
 
 install:
 
@@ -91,9 +91,9 @@ install:
     # other dependencies.
 
 before_script:
-    # Get WebbPSF data files (just a subset of the usual 500 MB!) and set up environment variable
-    - wget http://www.stsci.edu/~mperrin/software/webbpsf/minimal-webbpsf-data.tar.gz  -O /tmp/minimal-webbpsf-data.tar.gz
-    - tar -xzf /tmp/minimal-webbpsf-data.tar.gz
+    # Get WebbPSF data files (just a subset of the full 250 MB!) and set up environment variable
+    - wget http://www.stsci.edu/~mperrin/software/webbpsf/minimal-webbpsf-data-0.6rc.tar.gz  -O /tmp/minimal-webbpsf-data.tar.gz
+    - tar -xzvf /tmp/minimal-webbpsf-data.tar.gz
     - export WEBBPSF_PATH=$PWD/webbpsf-data 
 
 script:

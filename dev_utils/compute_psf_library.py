@@ -71,14 +71,16 @@ NIRSPEC_ABBREVIATED_MASK_NAMES = {
     'NIRSpec grating': 'with_grating',
 }
 
+NIRISS_LONG_FILTERS = ('F277W', 'F356W', 'F380M', 'F430M', 'F444W', 'F480M')
+
 # Picked roughly the 'middle' WFE realization from the Rev. V files
 # (but these can/will be updated for measured WFE maps)
 OPD_TO_USE = {
-    'NIRCam': 'OPD_RevV_nircam_136.fits',
-    'MIRI': 'OPD_RevV_miri_220.fits',
-    'NIRSpec': 'OPD_RevV_nirspec_145.fits',
-    'FGS': 'OPD_RevV_fgs_163.fits',
-    'NIRISS': 'OPD_RevV_niriss_162.fits',
+    'NIRCam': 'OPD_RevW_ote_for_NIRCam_requirements.fits.gz',
+    'MIRI': 'OPD_RevW_ote_for_MIRI_requirements.fits.gz',
+    'NIRSpec': 'OPD_RevW_ote_for_NIRSpec_requirements.fits.gz',
+    'FGS': 'OPD_RevW_ote_for_FGS_requirements.fits.gz',
+    'NIRISS': 'OPD_RevW_ote_for_NIRISS_requirements.fits.gz',
 }
 
 def ensure_dir(dirpath):
@@ -95,9 +97,11 @@ def apply_configuration(instrument_instance, configuration):
 
 def make_file_path(instrument_instance, output_directory):
     output_file_path = abspath(join(output_directory, instrument_instance.name))
-    parts = [instrument_instance.name]
-    if instrument_instance.pupilopd is not None:
-        parts.append(instrument_instance.pupilopd.replace('.fits', ''))
+    parts = ['PSF', instrument_instance.name]
+    if 'requirements' in instrument_instance.pupilopd:
+        parts.append('requirements_opd')
+    elif 'predicted' in instrument_instance.pupilopd:
+        parts.append('predicted_opd')
     else:
         parts.append('perfect_opd')
 
@@ -114,10 +118,11 @@ def make_file_path(instrument_instance, output_directory):
     return join(output_file_path, '_'.join(parts) + '.fits')
 
 def _validate(opd, filter_name, image_mask, pupil_mask, instrument_name):
-    if image_mask is None and pupil_mask is not None:
-        return False
-    if pupil_mask is None and image_mask is not None:
-        return False
+    def both_or_neither(a, b):
+        if (a is None and b is None) or (a is not None and b is not None):
+            return True
+        else:
+            return False
 
     if instrument_name == 'NIRCam':
         if image_mask is not None and pupil_mask is not None:
@@ -125,6 +130,8 @@ def _validate(opd, filter_name, image_mask, pupil_mask, instrument_name):
                 return False
             if image_mask not in NIRCAM_IMAGE_MASKS_FOR_PUPILS[pupil_mask]:
                 return False
+        if not both_or_neither(pupil_mask, image_mask):
+            return False
     elif instrument_name == 'MIRI':
         # Cannot simulate LRS slit in broadband mode because there's
         # no bandpass for it, and that might not make sense anyway
@@ -135,15 +142,40 @@ def _validate(opd, filter_name, image_mask, pupil_mask, instrument_name):
                 return False
             if image_mask not in MIRI_IMAGE_MASKS_FOR_PUPILS[pupil_mask]:
                 return False
+        if not both_or_neither(pupil_mask, image_mask):
+            return False
     elif instrument_name == 'NIRSpec':
-        if pupil_mask != 'NIRSpec grating':
+        if image_mask is not None and pupil_mask != 'NIRSpec grating':
+            # fixed slits get dispersed through the same gratings, so must
+            # include the rectangular pupil stop from the grating
+            return False
+        if image_mask is None and pupil_mask is not None:
+            # Even a target acq PSF should use the MSA pupil mask
             return False
         if filter_name == 'IFU':
             return False  # not yet implemented in WebbPSF
     elif instrument_name == 'FGS':
         return True
     elif instrument_name == 'NIRISS':
-        return False  # TODO
+        if image_mask is not None:
+            # Coronagraph spots are basically vestigial
+            return False
+        if pupil_mask in ('MASK_NRM', 'GR700XD'):
+            # These should be available as cubes, but not broadband
+            # PSFs. We'll wait and see if anyone requests them.
+            return False
+        if filter_name == 'CLEAR':
+            # CLEAR would be a wide-open bandpass, which doesn't make sense
+            # except for PSF cubes
+            return False
+        if filter_name in NIRISS_LONG_FILTERS and pupil_mask != 'CLEARP':
+            # long wavelength filters cannot be configured without the modified
+            # CLEARP pupil in the pupil wheel
+            return False
+        if filter_name not in NIRISS_LONG_FILTERS and pupil_mask == 'CLEARP':
+            # likewise, short wavelength filters can only be configured with
+            # the true 'CLEAR' position in the filter wheel
+            return False
     else:
         return False
     return True
@@ -185,7 +217,7 @@ def _do_one_psf(InstrumentClass, configuration, output_directory):
         spectrum = webbpsf.specFromSpectralType(STELLAR_SPECTRAL_TYPE, catalog='ck04')
         psf = inst.calc_psf(fov_arcsec=fov_arcsec, source=spectrum)
         psf.writeto(output_file_path)
-        log.debug("Computed PSF and wrote to: {}".format(output_file_path))
+        log.debug("Computed PSF\n\t{}\nand wrote to: {}".format(configuration, output_file_path))
     else:
         log.debug("Got existing PSF at {}".format(output_file_path))
     return output_file_path

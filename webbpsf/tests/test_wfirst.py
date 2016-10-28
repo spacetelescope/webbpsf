@@ -8,7 +8,7 @@ def test_WFI_psf():
     any exceptions
     """
     wi = wfirst.WFI()
-    wi.calcPSF(fov_pixels=4)
+    wi.calc_psf(fov_pixels=4)
 
 def test_detector_position_setter():
     detector = wfirst.FieldDependentAberration(4096, 4096)

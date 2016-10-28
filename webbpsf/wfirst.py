@@ -290,7 +290,10 @@ class WFI(WFIRSTInstrument):
         # Flag to en-/disable automatic selection of the appropriate pupil_mask
         self.auto_pupil = True
         self.pupil = self._unmasked_pupil_path
-        self.pupilopd = os.path.join(self._WebbPSF_basepath, 'upscaled_HST_OPD.fits')
+        self.opd_list = [
+            os.path.join(self._WebbPSF_basepath, 'upscaled_HST_OPD.fits'),
+        ]
+        self.pupilopd = self.opd_list[-1]
 
     def _validateConfig(self, **kwargs):
         """Validates that the WFI is configured sensibly

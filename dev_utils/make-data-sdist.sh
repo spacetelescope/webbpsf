@@ -25,7 +25,7 @@ TMPDIR="/tmp/webbpsf-data"
 mkdir -p "$TMPDIR"
 rsync -avz --delete --exclude '._*' --exclude '_Obsolete' \
     --exclude .svn --exclude OPD_RevT --exclude TFI --exclude .DS_Store \
-    --exclude sources --exclude "*py" \
+    --exclude sources --exclude "*py" --exclude "OTE_source" \
     --exclude README_DEVEL.txt \
     "$DATAROOT" "$TMPDIR"
 

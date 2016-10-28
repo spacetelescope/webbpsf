@@ -28,19 +28,19 @@ def test_niriss_auto_pupil():
     assert niriss.pupil_mask is None
 
     niriss.filter='F277W'
-    niriss.calcPSF(nlambda=1)
+    niriss.calc_psf(nlambda=1)
     assert niriss.pupil_mask == 'CLEARP'
 
     niriss.filter='F090W'
-    niriss.calcPSF(nlambda=1)
+    niriss.calc_psf(nlambda=1)
     assert niriss.pupil_mask is None
 
     niriss.filter='F480M'
-    niriss.calcPSF(nlambda=1)
+    niriss.calc_psf(nlambda=1)
     assert niriss.pupil_mask == 'CLEARP'
 
     niriss.filter='F200W'
-    niriss.calcPSF(nlambda=1)
+    niriss.calc_psf(nlambda=1)
     assert niriss.pupil_mask is None
 
 

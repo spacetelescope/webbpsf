@@ -33,6 +33,7 @@ import matplotlib
 
 import astropy.io.fits as fits
 import astropy.io.ascii as ioascii
+import astropy.units as units
 
 import poppy
 
@@ -40,7 +41,7 @@ from . import conf
 from . import utils
 from . import version
 from . import data_files_version
-
+from . import optics
 
 try:
     import pysynphot
@@ -157,7 +158,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
         self._WebbPSF_basepath = utils.get_webbpsf_data_path()
 
-        self._datapath = self._WebbPSF_basepath + os.sep + self.name + os.sep
+        self._datapath = os.path.join(self._WebbPSF_basepath, self.name)
         self._image_mask = None
         self._pupil_mask = None
 
@@ -183,11 +184,6 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         self.filter = self.filter_list[0]
 
         self._rotation = None
-
-        self.opd_list = [os.path.basename(os.path.abspath(f)) for f in glob.glob(self._datapath+os.sep+'OPD/OPD*.fits')]
-        self.opd_list.sort()
-        if len(self.opd_list) > 0:
-            self.pupilopd = self.opd_list[-1]
 
         self._image_mask=None
         self.image_mask_list=[]
@@ -283,201 +279,6 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
         self._detector_position = (int(position[0]),int(position[1]))
 
-
-    #----- actual optical calculations follow here -----
-    def calcPSF(self, outfile=None, source=None, filter=None, nlambda=None, monochromatic=None,
-                fov_arcsec=None, fov_pixels=None,  oversample=None, detector_oversample=None,
-                fft_oversample=None, calc_oversample=None, rebin=True, clobber=True, display=False,
-                return_intermediates=False, **kwargs):
-        """ Compute a PSF.
-
-        The result can either be written to disk (set outfile="filename") or else will be returned as
-        an astropy.io.fits HDUList object.
-
-
-        Output sampling may be specified in one of two ways:
-
-        1) Set `oversample=<number>`. This will use that oversampling factor beyond detector pixels
-           for output images, and beyond Nyquist sampling for any FFTs to prior optical planes.
-        2) set `detector_oversample=<number>` and `fft_oversample=<other_number>`. This syntax lets
-           you specify distinct oversampling factors for intermediate and final planes. This is generally
-           only relevant in the case of coronagraphic calculations.
-
-        By default, both oversampling factors are set equal to 4. This default can be changed in your
-        webbpsf configuration file.
-
-        Notes
-        -----
-        More advanced PSF computation options (pupil shifts, source positions, jitter, ...)
-        may be set by configuring the `.options` dictionary attribute of this class.
-
-        Parameters
-        ----------
-        filter : string, optional
-            Filter name. Setting this is just a shortcut for setting the object's filter first, then
-            calling calcPSF afterwards.
-        source : pysynphot.SourceSpectrum or dict or tuple
-            specification of source input spectrum. Default is a 5700 K sunlike star.
-        nlambda : int
-            How many wavelengths to model for broadband?
-            The default depends on how wide the filter is, as set by a lookup table in the webbpsf data distribution.
-        monochromatic : float, optional
-            Setting this to a wavelength value (in meters) will compute a monochromatic PSF at that
-            wavelength, overriding filter and nlambda parameters.
-        fov_arcsec : float
-            field of view in arcsec. Default=5
-        fov_pixels : int
-            field of view in pixels. This is an alternative to fov_arcsec.
-        outfile : string
-            Filename to write. If None, then result is returned as an HDUList
-        oversample, detector_oversample, fft_oversample : int
-            How much to oversample. Default=4. By default the same factor is used for final output
-            pixels and intermediate optical planes, but you may optionally use different factors
-            if so desired.
-        rebin : bool, optional
-            If set, the output file will contain a FITS image extension containing the PSF rebinned
-            onto the actual detector pixel scale. Thus, setting oversample=<N> and rebin=True is
-            the proper way to obtain high-fidelity PSFs computed on the detector scale. Default is True.
-        clobber : bool
-            overwrite output FITS file if it already exists?
-        display : bool
-            Whether to display the PSF when done or not.
-        save_intermediates, return_intermediates : bool
-            Options for saving to disk or returning to the calling function the intermediate optical planes during the propagation.
-            This is useful if you want to e.g. examine the intensity in the Lyot plane for a coronagraphic propagation. These have no
-            effect for simple direct imaging calculations.
-
-
-        For additional arguments, see the documentation for poppy.OpticalSystem.calcPSF()
-
-
-        Returns
-        -------
-        outfits : fits.HDUList
-            The output PSF is returned as a fits.HDUlist object.
-            If `outfile` is set to a valid filename, the output is also written to that file.
-
-
-        """
-
-        if calc_oversample is not None:
-            raise DeprecationWarning("The calc_oversample parameter is deprecated and will be removed in webbpsf 0.4. User fft_oversample instead.")
-            fft_oversample = calc_oversample # back compatibility hook for deprecated arg name.
-
-        _log.info("Setting up PSF calculation for "+self.name)
-
-        # first make sure that webbpsf's configuration is used to override any of the
-        # same configuration options in poppy. This is admittedly perhaps overbuilt to have identical
-        # settings in both packages, but the intent is to shield typical users of webbpsf
-        # from having to think about the existence of the underlying library. They can
-        # just deal with one set of settings.
-        #config._apply_settings_to_poppy()
-
-        if filter is not None:
-            self.filter = filter
-
-        local_options = self.options.copy()  # all local state should be stored in a dict, for
-                                      # ease of handing off to the various subroutines of
-                                      # calcPSF. Don't just modify the global self.options
-                                      # structure since that would pollute it with temporary
-                                      # state as well as persistent state.
-        local_options['monochromatic'] = monochromatic
-
-
-
-        #----- choose # of wavelengths intelligently. Do this first before generating the source spectrum weighting.
-        if nlambda is None or nlambda==0:
-            # Automatically determine number of appropriate wavelengths.
-            # Make selection based on filter configuration file
-            try:
-                nlambda = self._filters[self.filter].default_nlambda
-                _log.debug("Automatically selecting # of wavelengths: %d" % nlambda)
-            except KeyError:
-                nlambda=10
-                _log.warn("Filter %s not found in lookup table for default number of wavelengths to use.. setting default nlambda=%d" % (self.filter, nlambda))
-        local_options['nlambda'] = nlambda
-
-
-
-        #----- calculate field of view depending on supplied parameters
-        if fov_arcsec is None and fov_pixels is None:  #pick decent defaults.
-            if self.name =='MIRI': fov_arcsec=12.
-            else: fov_arcsec=5.
-            fov_spec = 'arcsec = %f' % fov_arcsec
-        elif fov_pixels is not None:
-
-            if np.isscalar(fov_pixels):
-                fov_spec = 'pixels = %d' % fov_pixels
-            else:
-                fov_spec = 'pixels = (%d, %d)' % (fov_pixels[0], fov_pixels[1])
-        elif fov_arcsec is not None:
-            if np.isscalar(fov_arcsec):
-                fov_spec = 'arcsec = %f' % fov_arcsec
-            else:
-                fov_spec = 'arcsec = (%.3f, %.3f)' % (fov_arcsec[0], fov_arcsec[1])
-
-        _log.debug('FOV set to '+fov_spec)
-
-        #---- Implement the semi-convoluted logic for the oversampling options. See docstring above
-        if oversample is not None and detector_oversample is not None and fft_oversample is not None:
-            # all options set, contradictorily -> complain!
-            raise ValueError("You cannot specify simultaneously the oversample= option with the detector_oversample and fft_oversample options. Pick one or the other!")
-        elif oversample is None and detector_oversample is None and fft_oversample is None:
-            # nothing set -> set oversample = 4
-            oversample = conf.default_oversampling
-        if detector_oversample is None: detector_oversample = oversample
-        if fft_oversample is None: fft_oversample = oversample
-        local_options['detector_oversample']=detector_oversample
-        local_options['fft_oversample']=fft_oversample
-
-        #----- compute weights for each wavelength based on source spectrum
-        wavelens, weights = self._getWeights(source=source, nlambda=nlambda, monochromatic=monochromatic)
-
-        # Validate that the calculation we're about to do makes sense with this instrument config
-        self._validateConfig(wavelengths=wavelens)
-        _log.info("PSF calc using fov_%s, oversample = %d, number of wavelengths = %d" % (
-                  fov_spec, detector_oversample, len(wavelens)))
-
-        #---- now at last, actually do the PSF calc:
-        #  instantiate an optical system using the current parameters
-        self.optsys = self._getOpticalSystem(fov_arcsec=fov_arcsec, fov_pixels=fov_pixels,
-            fft_oversample=fft_oversample, detector_oversample=detector_oversample, options=local_options)
-        # and use it to compute the PSF (the real work happens here, in code in poppy.py)
-        #result = self.optsys.calcPSF(source, display_intermediates=display, save_intermediates=save_intermediates, display=display)
-        #if _USE_MULTIPROC and monochromatic is None :
-            #result = self.optsys.calcPSFmultiproc(source, nprocesses=_MULTIPROC_NPROCESS) # no fancy display args for multiproc.
-        #else:
-        result = self.optsys.calcPSF(wavelens, weights, display_intermediates=display, display=display, return_intermediates=return_intermediates, **kwargs)
-
-        if return_intermediates: # this implies we got handed back a tuple, so split it apart
-            result, intermediates = result
-
-        self._applyJitter(result, local_options)  # will immediately return if there is no jitter parameter in local_options
-
-        self._getFITSHeader(result, local_options)
-
-        self._calcPSF_format_output(result, local_options)
-
-
-        if display:
-            f = plt.gcf()
-            #p.text( 0.1, 0.95, "%s, filter= %s" % (self.name, self.filter), transform=f.transFigure, size='xx-large')
-
-            if monochromatic is None:
-                plt.suptitle( "%s, filter= %s" % (self.name, self.filter), size='xx-large')
-                plt.text( 0.99, 0.04, "Calculation with %d wavelengths (%g - %g um)" % (nlambda, wavelens[0]*1e6, wavelens[-1]*1e6), transform=f.transFigure, horizontalalignment='right')
-            else:
-                plt.suptitle( "{self.name},  $\lambda$ = {wavelen} um".format(self=self, wavelen = monochromatic*1e6), size='xx-large')
-
-        if outfile is not None:
-            result[0].header["FILENAME"] = (os.path.basename (outfile), "Name of this file")
-            result.writeto(outfile, clobber=clobber)
-            _log.info("Saved result to "+outfile)
-
-        if return_intermediates:
-            return result, intermediates
-        else:
-            return result
 
     def _getFITSHeader(self, result, options):
         """ populate FITS Header keywords """
@@ -764,7 +565,21 @@ class JWInstrument(SpaceTelescopeInstrument):
     def __init__(self, *args, **kwargs):
         super(JWInstrument, self).__init__(*args, **kwargs)
 
-        self.pupil = os.path.abspath(self._datapath+"../pupil_RevV.fits")
+        opd_path = os.path.join(self._datapath, 'OPD')
+        self.opd_list = []
+        for filename in glob.glob(os.path.join(opd_path, 'OPD*.fits.gz')):
+            self.opd_list.append(os.path.basename(os.path.abspath(filename)))
+
+        if not len(self.opd_list) > 0:
+            raise RuntimeError("No pupil OPD files found for {name} in {path}".format(name=self.name, path=opd_path))
+
+        self.opd_list.sort()
+        self.pupilopd = self.opd_list[-1]
+
+        self.pupil = os.path.abspath(os.path.join(
+            self._WebbPSF_basepath,
+            "jwst_pupil_RevW_npix1024.fits.gz"
+        ))
         "Filename *or* fits.HDUList for JWST pupil mask. Usually there is no need to change this."
 
         self._detector = None
@@ -772,9 +587,18 @@ class JWInstrument(SpaceTelescopeInstrument):
         # where is the source on the detector, in 'Science frame' pixels?
         self.detector_position = (1024, 1024)
 
-        self.include_si_wfe = False
+        self.include_si_wfe = True
         """Should calculations include the Science Instrument internal WFE?"""
+        self.options['jitter']='gaussian'
+        self.options['jitter_sigma']=0.007
 
+        # class name to use for SI internal WFE, which can be overridden in subclasses
+        self._si_wfe_class = optics.WebbFieldDependentAberration
+
+
+    def _getDefaultFOV(self):
+        """ Return default FOV in arcseconds """
+        return 5 # default for all NIR instruments
 
     def _getOpticalSystem(self,fft_oversample=2, detector_oversample = None, fov_arcsec=2, fov_pixels=None, options=None):
         # invoke superclass version of this
@@ -783,7 +607,6 @@ class JWInstrument(SpaceTelescopeInstrument):
             fft_oversample=fft_oversample, detector_oversample=detector_oversample, fov_arcsec=fov_arcsec, fov_pixels=fov_pixels,
             options=options)
         optsys.planes[0].display_annotate = utils.annotate_ote_entrance_coords
-        #optsys.planes[-2].display_annotate = utils.annotate_sky_pupil_coords
         return optsys
 
     def _get_aberrations(self):
@@ -796,24 +619,35 @@ class JWInstrument(SpaceTelescopeInstrument):
         if not self.include_si_wfe:
             return None
 
-        zernike_file = os.path.join(utils.get_webbpsf_data_path(),'zernikes_isim_cv2.fits')
+        zernike_file = os.path.join(utils.get_webbpsf_data_path(),'si_zernikes_isim_cv3.fits')
 
         if not os.path.exists(zernike_file):
-            # return placeholder null optic
-            tmp = poppy.zernike.opd_from_zernikes([0,0,0], npix=1024, outside=0)
-            optic = poppy.OpticalElement(name="Aberration Placeholder for "+self.name)
-            optic.opd = tmp
-            optic.amplitude = np.ones_like(tmp)
+            raise RuntimeError("Could not find Zernike coefficients file in WebbPSF data directory")
         else:
-            from .optics import JWST_Field_Dependent_Aberration
-            optic = JWST_Field_Dependent_Aberration(self)
+            optic = self._si_wfe_class(self)
         return optic
 
     def _tel_coords(self):
-        """ Convert from detector pixel coordinates to SIAF aperture coordinates """
+        """ Convert from detector pixel coordinates to SIAF aperture coordinates,
+
+        Returns (V2, V3) tuple, in arcminutes.
+        Note that the astropy.units framework is used to return the result as a
+        dimensional Quantity. """
 
         siaf_geom = DetectorGeometry(self.name, self._detectors[self._detector])
-        return siaf_geom.pix2angle(self.detector_position[1], self.detector_position[0])
+        return siaf_geom.pix2angle(self.detector_position[0], self.detector_position[1])
+
+    def _xan_yan_coords(self):
+        """ Convert from detector pixel coordinates to the XAN, YAN coordinate syste
+        which was used for much of ISIM optical testing. The origin of XAN, YAN is
+        centered at the master chief ray, which passes through the ISIM focal plane
+        between the NIRCam A3 and B4 detectors. The sign of YAN is flipped relative to V3.
+        """
+        coords = self._tel_coords()
+        # XAN is the same as V2, therefore no change to first element
+        # YAN is opposite direction as V3, and offset by 468 arcseconds
+        coords[1] = -coords[1] - 468*units.arcsec
+        return coords
 
 
 class MIRI(JWInstrument):
@@ -829,7 +663,7 @@ class MIRI(JWInstrument):
         self.auto_pupil=True
         JWInstrument.__init__(self, "MIRI")
         self.pixelscale = 0.1110  # Source: SIAF PRDDEVSOC-D-012, 2016 April
-        self._rotation = 4.561 # Source: MIRI OBA DD, page 3-16
+        self._rotation = 5.0152 # Source: SIAF PRDDEVSOC-D-012, 2016 April
 
         self.image_mask_list = ['FQPM1065', 'FQPM1140', 'FQPM1550', 'LYOT2300', 'LRS slit']
         self.pupil_mask_list = ['MASKFQPM', 'MASKLYOT', 'P750L LRS grating']
@@ -844,10 +678,16 @@ class MIRI(JWInstrument):
         # The above tuples give the pixel resolution (perpendicular to the slice, along the slice).
         # The pixels are not square.
 
-        self._detectors = {'MIRIM': 'MIRIM_FULL'}
+        self._detectors = {'MIRIM': 'MIRIM_FULL'} # Mapping from user-facing detector names to SIAF entries.
         self.detector = self.detector_list[0]
         self._detector_npixels=1024
         self.detector_position=(512,512)
+
+        self._si_wfe_class = optics.MIRIFieldDependentAberrationAndObscuration
+
+    def _getDefaultFOV(self):
+        """ Return default FOV in arcseconds """
+        return 12
 
 
     @JWInstrument.filter.setter
@@ -890,7 +730,7 @@ class MIRI(JWInstrument):
         # aligned with the FQPM axes.
 
 
-        defaultpupil = optsys.planes.pop(2) # throw away the rotation of the entrance pupil we just added 
+        defaultpupil = optsys.planes.pop(2) # throw away the rotation of the entrance pupil we just added
 
         if self.include_si_wfe:
             # temporarily remove the SI internal aberrations
@@ -1058,6 +898,7 @@ class NIRCam(JWInstrument):
         for name in det_list: self._detectors[name] = 'NRC{0}_FULL'.format(name)
         self.detector=self.detector_list[0]
 
+        self._si_wfe_class = optics.NIRCamFieldAndWavelengthDependentAberration
 
     @property
     def module(self):
@@ -1083,7 +924,7 @@ class NIRCam(JWInstrument):
                     _log.info("NIRCam pixel scale switched to %f arcsec/pixel for the "
                               "long wave channel." % self.pixelscale)
             else:
-                # only change if the detector was already LW; 
+                # only change if the detector was already LW;
                 # don't override selection of a particular SW SCA otherwise
                 if self.detector[1] == '5':
                     self.detector = self.detector[0]+'1'
@@ -1185,11 +1026,11 @@ class NIRCam(JWInstrument):
 
         #optsys.add_pupil( name='null for debugging NIRcam _addCoron') # debugging
         if self.pupil_mask == 'CIRCLYOT':
-            optsys.add_pupil(transmission=self._datapath+"/optics/NIRCam_Lyot_Somb.fits", name=self.pupil_mask,
+            optsys.add_pupil(transmission=self._datapath+"/optics/NIRCam_Lyot_Somb.fits.gz", name=self.pupil_mask,
                     flip_y=True, shift=shift, index=3)
             optsys.planes[3].wavefront_display_hint='intensity'
         elif self.pupil_mask == 'WEDGELYOT':
-            optsys.add_pupil(transmission=self._datapath+"/optics/NIRCam_Lyot_Sinc.fits", name=self.pupil_mask,
+            optsys.add_pupil(transmission=self._datapath+"/optics/NIRCam_Lyot_Sinc.fits.gz", name=self.pupil_mask,
                     flip_y=True, shift=shift, index=3)
             optsys.planes[3].wavefront_display_hint='intensity'
         elif self.pupil_mask == 'WEAK LENS +4':
@@ -1283,22 +1124,23 @@ class NIRSpec(JWInstrument):
         self.pixelscale = 0.1043 # Average over both detectors.  SIAF PRDDEVSOC-D-012, 2016 April
                                  # Microshutters are 0.2x0.46 but we ignore that here.
         self._rotation = None
-        self._rotation = 90+41.5  # based on SIAF docs by M. Lallo & WFS FOV doc by S. Knight
+        self._rotation = 138.4  # Average for both detectors in SIAF PRDDEVSOC-D-012, 2016 April
         self.filter_list.append("IFU")
         self._IFU_pixelscale = 0.1 # same.
         self.monochromatic= 3.0
         self.filter = 'F110W' # or is this called F115W to match NIRCam??
 
         # fixed slits
-        self.image_mask = None
         self.image_mask_list = ['S200A1','S200A2','S400A1','S1600A1','S200B1', 'MSA all open', 'Single MSA open shutter', 'Three adjacent MSA open shutters']
         self.pupil_mask_list = ['NIRSpec grating']
+        self.image_mask = 'MSA all open'
         self.pupil_mask = self.pupil_mask_list[-1]
 
         det_list = ['NRS1','NRS2']
         self._detectors = dict()
         for name in det_list: self._detectors[name] = '{0}_FULL'.format(name)
         self.detector=self.detector_list[0]
+        self._si_wfe_class = optics.NIRSpecFieldDependentAberration  # note we end up adding 2 instances of this.
 
 
     def _validateConfig(self, **kwargs):
@@ -1343,12 +1185,10 @@ class NIRSpec(JWInstrument):
             optsys.add_pupil(optic=poppy.RectangleAperture(height=8.41, width=7.91,  name='Pupil stop at grating wheel'))
             optsys.planes[-1].wavefront_display_hint='intensity'
 
-        #if (self.pupil_mask is None and self.image_mask is not None):
-            # if we don't have a specific pupil stop, just assume for now we're
-            # stopped down to a JWST like geometry
-            # FIXME this is not really right - should be updated for the NIRSpec grating wheels
-            #optsys.add_pupil(optic=optsys[0], name='No Pupil stop provided')
-            #optsys.add_pupil(optic=poppy.SquareAperture(size=3.5,  name='Pupil stop at grating wheel'))
+        # Add here a second instance of the instrument WFE, representing the WFE in the
+        # collimator and camera.
+        if self.include_si_wfe:
+            optsys.add_pupil(optic=self._si_wfe_class(self, where='spectrograph'))
 
 
 
@@ -1613,7 +1453,7 @@ class DetectorGeometry(object):
         self.instrname = instrname
         self.name = aperturename
         if shortname is not None: self.name=shortname
-        from .jwxml.jwxml import SIAF
+        from jwxml import SIAF
 
         self.mysiaf = SIAF(instr=self.instrname, basepath=os.path.join( utils.get_webbpsf_data_path(), self.instrname) )
         self.aperture = self.mysiaf[aperturename]
@@ -1653,10 +1493,14 @@ class DetectorGeometry(object):
         --------
         V2, V3 : floats
             V2 and V3 coordinates, in arcMINUTES
+            Note that the astropy.units framework is used to return the result as a
+            dimensional Quantity.
 
         """
+
+
         tel_coords = np.asarray( self.aperture.Sci2Tel(xpix, ypix) )
-        tel_coords_arcmin = tel_coords / 60. # arcsec to arcmin
+        tel_coords_arcmin = tel_coords / 60. * units.arcmin # arcsec to arcmin
         return tel_coords_arcmin
 
 

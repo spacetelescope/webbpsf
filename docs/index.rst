@@ -81,9 +81,9 @@ Appendices and Reference
 .. toctree::
    :maxdepth: 1
 
+   relnotes.rst
    available_opds.rst
    references.rst
-   relnotes.rst
    release.rst
 
 
