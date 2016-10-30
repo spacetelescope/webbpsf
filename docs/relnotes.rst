@@ -44,7 +44,7 @@ Version 0.5.1
 
 .. _rel0.5.1:
 
-*Unreleased*
+*Released 2016 October 30*
 
 Bug fix release to solve some issues that manifested for AstroConda users.
 
