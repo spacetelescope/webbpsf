@@ -46,6 +46,22 @@ Version 0.5.1
 
 *Unreleased*
 
+Bug fix release to solve some issues that manifested for AstroConda users.
+
+ - Fixed a few missed version number->0.5.0 edits in install docs
+ - Updated install instructions for Ureka->Astroconda change
+ - Clarified release instructions for data packages
+ - Fixed ConfigParser import in setup.py
+ - Documented PSF normalization options better. (#112)
+ - Updated Travis-CI config, consistent with poppy#187
+ - Made a display tweak for the primary V2V3 annotation
+ - Removed redundant ``calcPSF`` in favor of just using the superclass ``calc_psf`` (#132)
+ - Updated ``measure_strehl`` to turn off SI WFE for perfect PSF calcs
+ - Enforced Python 3.0+ compliance on code with ``__future__`` imports
+ - Used ``six.string_types`` for Python 3.x compliance
+ - Add version specs to dependencies in ``setup.py``
+ - Made ``jwxml`` a dependency in ``setup.py``
+
 Version 0.5.0
 =============
 
