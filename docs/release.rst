@@ -69,13 +69,16 @@ Finishing the release
 Releasing a new version through AstroConda
 ==========================================
 
-*Note: this uses the git tag created in the PyPI release.*
+To test that an Astroconda package builds, you will need ``conda-build``::
+
+   $ conda install conda-build
 
 #. Fork (if needed) and clone https://github.com/astroconda/astroconda-contrib
 #. If there is a new version of POPPY available to package, edit `poppy/meta.yaml <https://github.com/astroconda/astroconda-contrib/blob/master/poppy/meta.yaml>`_ to reflect the new ``version`` and ``git_tag``.
 #. If the minimum needed version of the webbpsf-data package has changed in ``webbpsf/__init__.py``, edit `webbpsf-data/meta.yaml <https://github.com/astroconda/astroconda-contrib/blob/master/webbpsf-data/meta.yaml>`_ to reflect the new ``version`` and ``url``.
 #. Edit `webbpsf/meta.yaml <https://github.com/astroconda/astroconda-contrib/blob/master/webbpsf/meta.yaml>`_ to reflect the new versions of POPPY and webbpsf-data, if necessary.
 #. Edit in the ``git_tag`` name from ``git tag`` in the PyPI release instructions (``v0.X.Y``).
+#. Verify that you can build the package from the astroconda-contrib directory: ``conda build -c http://ssb.stsci.edu/astroconda webbpsf``
 #. Commit your changes to a new branch and push to GitHub.
 #. Create a pull request against ``astroconda/astroconda-contrib``.
 #. Wait for SSB to build the conda packages.

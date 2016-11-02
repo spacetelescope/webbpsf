@@ -9,9 +9,11 @@ Known Issues
 
 See https://github.com/mperrin/webbpsf/issues for currently open issues and enhancement suggestions.
 
-* Calculations at large radii (> 500 lambda/D ~ 30 arcsec for 2 microns) will show numerical artifacts from Fourier aliasing and the implicit repetition of
-  the pupil entrance aperture in the discrete Fourier transform. If you need accurate PSF information at such large radii, please contact Marshall Perrin for
-  higher resolution pupil data.
+* Calculations at large radii (> 500 lambda/D ~ 30 arcsec for 2 microns) will
+  show numerical artifacts from Fourier aliasing and the implicit repetition of
+  the pupil entrance aperture in the discrete Fourier transform. If you need
+  accurate PSF information at such large radii, please contact Marshall Perrin
+  for higher resolution pupil data.
 
 
 **The following factors are NOT included in these simulations:**
@@ -39,14 +41,18 @@ Road Map for Future Releases
 Version History and Change Log
 -------------------------------
 
-Version 0.5.1
+Version 0.6.0
 =============
-
-.. _rel0.5.1:
 
 *Unreleased*
 
-Bug fix release to solve some issues that manifested for AstroConda users.
+.. _rel0.5.1:
+
+Version 0.5.1
+=============
+
+Released 2016 November 2. Bug fix release to solve some issues that manifested
+for AstroConda users.
 
  - Fixed a few missed version number->0.5.0 edits in install docs
  - Updated install instructions for Ureka->Astroconda change
@@ -62,10 +68,10 @@ Bug fix release to solve some issues that manifested for AstroConda users.
  - Add version specs to dependencies in ``setup.py``
  - Made ``jwxml`` a dependency in ``setup.py``
 
+.. _rel0.5.0:
+
 Version 0.5.0
 =============
-
-.. _rel0.5.0:
 
 Released 2016 June 10. Various updates to instrument properties, improved
 documentation, and overhaul of internals in preparation for measured WFE data on
@@ -118,10 +124,10 @@ General:
    ``display_PSF`` and so forth. For now these are synonymous and both forms will work. The new styling is
    preferred and at some future point (but not soon!) the older syntax may be removed.
 
+.. _rel0.4.1:
+
 Version 0.4.1
 =============
-
-.. _rel0.4.1:
 
 Released 2016 April 04. Mostly minor bug fixes, plus some updates to better match orientations of output files.
 
@@ -140,14 +146,10 @@ Released 2016 April 04. Mostly minor bug fixes, plus some updates to better matc
    link in docs (`#96 <https://github.com/mperrin/webbpsf/pull/96>`__;
    @josephoenix).
 
-
-
-
+.. _rel0.4.0:
 
 Version 0.4.0
 =============
-
-.. _rel0.4.0:
 
 Released 2015 November 20
 
