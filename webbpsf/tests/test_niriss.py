@@ -43,8 +43,12 @@ def test_niriss_auto_pupil():
     niriss.calc_psf(nlambda=1)
     assert niriss.pupil_mask is None
 
-
-
-
-
-
+def test_niriss_gr700xd():
+    '''
+    Smoke-test calculations with the GR700XD custom optic
+    present in the system. This is a regression test for
+    https://github.com/mperrin/webbpsf/issues/148
+    '''
+    niriss = webbpsf_core.NIRISS()
+    niriss.pupil_mask = 'GR700XD'
+    niriss.calc_psf(monochromatic=1e-6, fov_pixels=2)
