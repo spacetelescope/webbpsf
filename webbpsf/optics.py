@@ -1,10 +1,12 @@
 from __future__ import division, print_function, absolute_import, unicode_literals
 import os
 import poppy
+import poppy.utils
 import numpy as np
 
 import astropy.table
 import astropy.io.fits as fits
+import astropy.units as u
 
 from . import utils
 from .webbpsf_core import _log
@@ -373,7 +375,7 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
 
         return pupilmask
 
-
+    @poppy.utils.quantity_input(wavelength=u.meter)
     def ZnS_index(self, wavelength, temperature=40):
         """ Return cryogenic index of refraction of ZnS (Cleartran)
 
@@ -383,7 +385,7 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
         doi:10.1117/12.2024817
 
         """
-        lambda_micron = wavelength*1e6
+        lambda_micron = wavelength.to(u.micron).value
 
         # Sellmeier dispersion model
         #From Leviton & Frey measurements (SPIE preprint) (assumes lambda in microns)
