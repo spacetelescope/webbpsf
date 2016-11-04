@@ -50,5 +50,6 @@ def test_niriss_gr700xd():
     https://github.com/mperrin/webbpsf/issues/148
     '''
     niriss = webbpsf_core.NIRISS()
+    niriss.filter = 'CLEAR'
     niriss.pupil_mask = 'GR700XD'
     niriss.calc_psf(monochromatic=1e-6, fov_pixels=2)

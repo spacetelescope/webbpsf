@@ -1324,21 +1324,26 @@ class NIRISS(JWInstrument):
         # PAR reference.
 
         if self.auto_pupil:
-            wlnum = int(self.filter[1:4])
             new_pupil_mask = self.pupil_mask # default no change
-            if wlnum >= 250:
-                # long wave - can't have clear pupil, it's NRM or GRISM or CLEARP
-                if self.pupil_mask is None:
-                    new_pupil_mask = 'CLEARP'
+            if self.filter == 'CLEAR':
+                # The only science use case for the CLEAR filter position
+                # is for GR700XD slitless spectroscopy, so we should set
+                # the pupil mask appropriately
+                new_pupil_mask = 'GR700XD'
             else:
-                # short wave filter - must have clear pupil
-                new_pupil_mask = None
+                wlnum = int(self.filter[1:4])
+                if wlnum >= 250:
+                    # long wave - can't have clear pupil, it's NRM or GRISM or CLEARP
+                    if self.pupil_mask is None:
+                        new_pupil_mask = 'CLEARP'
+                else:
+                    # short wave filter - must have clear pupil
+                    new_pupil_mask = None
 
             if new_pupil_mask != self.pupil_mask:
                 _log.info("NIRISS pupil obscuration updated to {0} to match "
                           "the requested filter".format(new_pupil_mask))
                 self.pupil_mask = new_pupil_mask
-
 
 
     def _validateConfig(self, **kwargs):
