@@ -1323,7 +1323,10 @@ class NIRISS(JWInstrument):
         # long filters have to be used with the CLEARP pupil that contains the
         # PAR reference.
 
-        if self.auto_pupil:
+        if self.auto_pupil and self.filter != 'CLEAR':
+            # note: if the filter is set to 'CLEAR' we have no way of knowing
+            # what the user really wants the pupil mask to be. Could be
+            # NRM, GR700XD, or CLEARP.
             wlnum = int(self.filter[1:4])
             new_pupil_mask = self.pupil_mask # default no change
             if wlnum >= 250:
@@ -1338,7 +1341,6 @@ class NIRISS(JWInstrument):
                 _log.info("NIRISS pupil obscuration updated to {0} to match "
                           "the requested filter".format(new_pupil_mask))
                 self.pupil_mask = new_pupil_mask
-
 
 
     def _validateConfig(self, **kwargs):
