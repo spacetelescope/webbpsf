@@ -74,3 +74,6 @@ distribute-*.tar.gz
 # Example IPython notebook files
 .ipynb_checkpoints/
 my_log.txt
+
+# Logs, assorted
+*.log

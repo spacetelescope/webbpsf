@@ -19,7 +19,7 @@ from .test_errorhandling import _exception_message_starts_with
 # The following functions are used in each of the test_<SI> files to
 # test the individual SIs
 def generic_output_test(iname):
-    """ Basic test: Can we get PSFs of desired size and shape and sampling? 
+    """ Basic test: Can we get PSFs of desired size and shape and sampling?
 
     This is repeated for each SI (probably overkill but let's be thorough.)
     """
@@ -60,13 +60,13 @@ def do_test_source_offset(iname, distance=0.5,  nsteps=1, theta=0.0, tolerance=0
     """ Test source offsets
     Does the star PSF center end up in the desired location?
 
-    The tolerance threshold for success is by default 1/20th of a pixel 
+    The tolerance threshold for success is by default 1/20th of a pixel
     in the SI pixel units. But this can be adjusted by the calling function if needed.
 
     This is chosen somewhat arbitrarily as pretty good subpixel performance
     for most applications. Trying for greater accuracy would be limited by
-    subpixel sampling in the simulations, as well as by the accuracy of the 
-    centroid measuring function itself. 
+    subpixel sampling in the simulations, as well as by the accuracy of the
+    centroid measuring function itself.
     """
     _log.info("Calculating shifted image PSFs for "+iname)
 
@@ -151,19 +151,18 @@ def test_opd_selected_by_default():
 def test_calc_psf_rectangular_FOV():
     """ Test that we can create rectangular FOVs """
     nc = webbpsf_core.Instrument('NIRCam')
-    nc.pupilopd=None
-    nc.filter='F212N'
+    nc.pupilopd = None
+    nc.filter = 'F212N'
 
-    side = round(2/nc.pixelscale) *nc.pixelscale
+    side = round(2 / nc.pixelscale) * nc.pixelscale
     # pick something that can be done in integer pixels given NIRCam's sampling
 
+    psf = nc.calc_psf(fov_arcsec=(side, 2 * side))
+    assert psf[0].data.shape[0]*2 == psf[0].data.shape[1]
 
-    psf = nc.calc_psf(fov_arcsec=(side, 2*side))
-    assert(psf[0].data.shape[0]*2 == psf[0].data.shape[1])
+    psf2 = nc.calc_psf(fov_pixels=(100, 200), oversample=1)
 
-    psf2 = nc.calc_psf(fov_pixels=(100,200), oversample=1)
-
-    assert(psf2[0].data.shape==(100,200))
+    assert psf2[0].data.shape==(100,200)
 
 
 def test_cast_to_str():

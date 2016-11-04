@@ -102,6 +102,7 @@ def do_test_nircam_blc(clobber=False, kind='circular', angle=0, save=False, disp
     this routine is just to check for basic functionaltiy of the code and consistency with
     prior results. See the validate_* tests instead for validation against independent
     models of JWST coronagraphy performance - that is NOT what we're trying to do here.
+
     """
 
     nc = webbpsf_core.NIRCam()
@@ -112,7 +113,8 @@ def do_test_nircam_blc(clobber=False, kind='circular', angle=0, save=False, disp
         nc.image_mask = 'MASK210R'
         nc.pupil_mask = 'CIRCLYOT'
         fn = 'm210r'
-        expected_total_fluxes=[1.35e-5, 0.0237, 0.1367]  # Based on a prior calculation with WebbPSF
+        expected_total_fluxes=[1.35e-5, 0.0240, 0.1376]  # Based on a prior calculation with WebbPSF
+        # values updated slightly for Rev W aperture results
     else:
         nc.image_mask = 'MASKSWB'
         nc.pupil_mask = 'WEDGELYOT'
@@ -120,7 +122,8 @@ def do_test_nircam_blc(clobber=False, kind='circular', angle=0, save=False, disp
         if angle==0:
             expected_total_fluxes=[2.09e-6, .0415, 0.1442]  # Based on a prior calculation with WebbPSF
         elif angle==45 or angle==-45:
-            expected_total_fluxes=[2.09e-6, 0.0219, 0.1171]  # Based on a prior calculation
+            expected_total_fluxes=[2.09e-6, 0.0219, 0.1176]  # Based on a prior calculation
+            # Updated 2016-09-29 for Rev W results - slight change from 0.1171 to 0.1176
         else:
             raise ValueError("Don't know how to check fluxes for angle={0}".format(angle))
 

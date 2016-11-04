@@ -80,11 +80,11 @@ Weak lenses: The lenses are nominally +- 8 and +4 waves at 2.14 microns. The as 
 
 NIRSpec
 --------
-NIRspec field of view rotation: 41.5 degrees. Matt Lallo, draft SIAF information; and Ball SI Fields for WFS&C document, J. Scott Knight
+NIRspec field of view rotation: 138.4 degrees (average over both detectors). SOC PRD SIAF PRDDEVSOC-D-012, 2016 April
 
 NIRSpec pixel scale 0.1043 +- 0.001 arcsec/pixel. SOC PRD SIAF PRDDEVSOC-D-012, 2016 April
 
-
+NIRSpec internal pupil at the grating wheel: based on size of grating stop in Zemax file as analyzed and back projected onto the primary mirror by Erin Elliott, private communication 2013.
 
 
 NIRISS
@@ -92,7 +92,6 @@ NIRISS
 
 NIRISS focal plane scale, 0.0656 +- 0.0005 arcsec/pix:          SOC PRD SIAF PRDDEVSOC-D-012, 2016 April
 
-NRM occulter mask: Provided by Anand Sivaramakrishnan. 
 
 
 Occulting spots: Assumed to be perfect circles with diameters 0.58, 0.75, 1.5,
@@ -100,7 +99,9 @@ and 2.0 arcsec. Doyon et al. 2010 SPIE 7731. While these are not likely to see
 much (any?) use with NIRISS, they are indeed still present in the pickoff mirror hardware, so we
 retain the ability to simulate them. 
 
-
+NIRISS internal pupils: The regular imaging mode internal pupil stop is a 4% oversized tricontagon (with sharp corners). See Doyon et al. Proc SPIE 2012 Figure 2. 
+The CLEARP pupil has an oversized central obscuration plus 3 support vanes. Details based on NIRISS design drawing 196847Rev0.pdf "Modified Calibration Optic Holder" provided by Loic Albert.
+NRM occulter mask: digital file provided by Anand Sivaramakrishnan. GR700XD mask design details provided by Loic Albert. 
 
 
 MIRI
@@ -108,7 +109,7 @@ MIRI
 
 MIRIM focal plane scale, 0.1110 +- 0.001 arcsec/pix:         SOC PRD SIAF PRDDEVSOC-D-012, 2016 April       
 
-MIRIM field of view rotation, 4.561 degrees:              MIRI Optical Bench Assembly (OBA) Design Description, MIRI-DD-00001-AEU
+MIRIM field of view rotation, 5.0152 degrees:               SOC PRD SIAF PRDDEVSOC-D-012, 2016 April
 
 Coronagraph pupils rotated to match,  4.56 degrees:  MIRI-DD-00001-AEU  5.7.8.2.1
 
@@ -124,6 +125,7 @@ LRS slit size (4.7 x 0.51 arcsec):     MIRI-TR-00001-CEA. And LRS Overview prese
 
 LRS P750L grating aperture mask (3.8% oversized tricontagon): MIRI OBA Design Description, MIRI-DD-00001-AEU
 
+MIRI imager internal pupil stop in regular imaging mode: 4% oversized tricontagon, mounted on each of the imaging filters (with smoothed corners).
 
 
 
