@@ -46,7 +46,7 @@ Version 0.6.0
 
 *Unreleased*
 
- - No longer attempt to guess NIRISS pupil mask shape when using the ``CLEAR`` filter position [#151]
+ - NIRISS ``CLEAR`` filter now sets the ``GR700XD`` pupil mask when ``auto_pupil`` is True (the default) [#151]
  - Correctly convert wavelengths to microns when computing NIRISS ZnS index of refraction [#149]
 
 .. _rel0.5.1:
