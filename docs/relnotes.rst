@@ -46,6 +46,9 @@ Version 0.6.0
 
 *Unreleased*
 
+ - No longer attempt to guess NIRISS pupil mask shape when using the ``CLEAR`` filter position [#151]
+ - Correctly convert wavelengths to microns when computing NIRISS ZnS index of refraction [#149]
+
 .. _rel0.5.1:
 
 Version 0.5.1
