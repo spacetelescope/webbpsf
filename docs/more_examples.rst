@@ -43,7 +43,7 @@ Displaying a PSF as an image and as an encircled energy plot
     plt.subplot(1,2,1)
     webbpsf.display_psf(psf210, colorbar_orientation='horizontal')
     axis2 = plt.subplot(1,2,2)
-    webbpsf.display_EE(psf210, ax=axis2)
+    webbpsf.display_ee(psf210, ax=axis2)
     
     psf210.writeto('nircam_F210M.fits')
     plt.savefig('plot_nircam_f210m.pdf')
@@ -345,9 +345,9 @@ Make plots of encircled energy in PSFs at various wavelengths
             ax = plt.subplot(2,2,iw+1)
             for i in range(10):
                 name = "PSF_MIRI_%.1fum_wfe%d.fits" % (wave, i)
-                webbpsf.display_EE(name, ax=ax, mark_levels=False)
+                webbpsf.display_ee(name, ax=ax, mark_levels=False)
     
-                eefn = webbpsf.measure_EE(name)
+                eefn = webbpsf.measure_ee(name)
                 ees60.append(eefn(0.60))
                 ees51.append(eefn(0.51))
     
