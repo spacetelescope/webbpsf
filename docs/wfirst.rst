@@ -58,7 +58,7 @@ The usable region of the 4096 by 4096 pixel detectors specified for the Wide Fie
    WebbPSF will not prevent you from setting an out of range detector position, but an error will be raised if you try to calculate a PSF with one. ::
 
       >>> wfi.detector_position = (1, 1)
-      >>> wfi.calcPSF()
+      >>> wfi.calc_psf()
       [ ... traceback omitted ... ]
       RuntimeError: Attempted to get aberrations for an out-of-bounds field point
 
@@ -81,10 +81,10 @@ This example shows the power of WebbPSF to simulate and analyze field dependent 
    >>> wfi.filter = 'J129'
    >>> wfi.detector = 'SCA09'
    >>> wfi.detector_position = (4, 4)
-   >>> psf_sca09 = wfi.calcPSF()
+   >>> psf_sca09 = wfi.calc_psf()
    >>> wfi.detector = 'SCA17'
    >>> wfi.detector_position = (4092, 4092)
-   >>> psf_sca17 = wfi.calcPSF()
+   >>> psf_sca17 = wfi.calc_psf()
    >>> fig, (ax_sca09, ax_sca17, ax_diff) = plt.subplots(1, 3, figsize=(16, 4))
    >>> webbpsf.display_PSF(psf_sca09, ax=ax_sca09, imagecrop=2.0, title='WFI SCA09, bottom left - J129')
    >>> webbpsf.display_PSF(psf_sca17, ax=ax_sca17, imagecrop=2.0, title='WFI SCA17, top right - J129')
