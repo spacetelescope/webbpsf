@@ -23,12 +23,12 @@ Simple PSFs are easily obtained:
     >>> nc = webbpsf.NIRCam()
     >>> nc.filter =  'F200W'
     >>> psf = nc.calc_psf(oversample=4)     # returns an astropy.io.fits.HDUlist containing PSF and header
-    >>> pylab.imshow(psf[0].data]           # display it on screen yourself, or
-    >>> display_psf(psf)                    # use this convenient function to make a nice log plot with labeled axes
+    >>> plt.imshow(psf[0].data)             # display it on screen yourself, or
+    >>> webbpsf.display_psf(psf)            # use this convenient function to make a nice log plot with labeled axes
     >>>
     >>> psf = nc.calc_psf(filter='F470N', oversample=4)    # this is just a shortcut for setting the filter, then computing a PSF
     >>>
-    >>> nc.calc_psf("myPSF.fits", filter='F480M' )         # you can also write the output directly to disk if you prefer.
+    >>> nc.calc_psf("myPSF.fits", filter='F480M')         # you can also write the output directly to disk if you prefer.
 
 
 For interactive use, you can have the PSF displayed as it is computed:
@@ -39,7 +39,6 @@ For interactive use, you can have the PSF displayed as it is computed:
    :scale: 75%
    :align: center
    :alt: Sample PSF image
-
 
 More complicated instrumental configurations are available by setting the instrument's attributes. For instance,
 one can create an instance of MIRI and configure it for coronagraphic observations, thus:
