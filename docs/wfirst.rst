@@ -13,7 +13,7 @@ WebbPSF for WFIRST
 Introduction
 ============
 
-WebbPSF provides a framework for JWST instrument PSF calculations that is easily extensible to other instruments and observatories. The :py:mod:`webbpsf.wfirst` module was developed to enable simulation of WFIRST's Wide Field Instrument (WFI) based on the `Cycle 5 instrument reference information <http://wfirst.gsfc.nasa.gov/science/Instrument_Reference_Information.html>`_ from the WFIRST team at Goddard Space Flight Center.
+WebbPSF provides a framework for JWST instrument PSF calculations that is easily extensible to other instruments and observatories. The :py:mod:`webbpsf.wfirst` module was developed to enable simulation of WFIRST's Wide Field Instrument (WFI) based on the `Cycle 6 instrument reference information <https://wfirst.gsfc.nasa.gov/science/Inst_Ref_Info_Cycle6.html>`_ from the WFIRST team at Goddard Space Flight Center.
 
 At this time, the only instrument simulated is the WFI, but that may change in the future. To work with the WFI model, import and instantiate it as follows::
 
@@ -23,7 +23,7 @@ At this time, the only instrument simulated is the WFI, but that may change in t
 
 Usage of the WFI model class is, for the most part, just like any other WebbPSF instrument model. For help setting things like filters, position offsets, and sampling refer back to :ref:`using_api`.
 
-What is different (and, for now, only available for the WFIRST WFI) is the support for field dependent aberrations. With as large a field of view as the WFI is designed to cover, there will be variation in the PSF from one end of the field of view to the other. WebbPSF's WFI model faithfully reproduces the field dependent aberrations calculated from the Goddard WFIRST team's Cycle 5 WFI design. This provides a toolkit for users to assess the impact of inter-SCA and intra-SCA PSF variations on science cases of interest.
+The WFI model includes a model for field dependent PSF aberrations. With as large a field of view as the WFI is designed to cover, there will be variation in the PSF from one end of the field of view to the other. WebbPSF's WFI model faithfully reproduces the field dependent aberrations calculated from the Goddard WFIRST team's Cycle 6 WFI design. This provides a toolkit for users to assess the impact of inter-SCA and intra-SCA PSF variations on science cases of interest.
 
 .. admonition:: Quickstart IPython Notebook
 
