@@ -86,9 +86,9 @@ This example shows the power of WebbPSF to simulate and analyze field dependent 
    >>> wfi.detector_position = (4092, 4092)
    >>> psf_sca17 = wfi.calc_psf()
    >>> fig, (ax_sca09, ax_sca17, ax_diff) = plt.subplots(1, 3, figsize=(16, 4))
-   >>> webbpsf.display_PSF(psf_sca09, ax=ax_sca09, imagecrop=2.0, title='WFI SCA09, bottom left - J129')
-   >>> webbpsf.display_PSF(psf_sca17, ax=ax_sca17, imagecrop=2.0, title='WFI SCA17, top right - J129')
-   >>> webbpsf.display_PSF_difference(psf_sca09, psf_sca17, vmax=5e-3, title='(SCA09) - (SCA17)', imagecrop=2.0, ax=ax_diff)
+   >>> webbpsf.display_psf(psf_sca09, ax=ax_sca09, imagecrop=2.0, title='WFI SCA09, bottom left - J129')
+   >>> webbpsf.display_psf(psf_sca17, ax=ax_sca17, imagecrop=2.0, title='WFI SCA17, top right - J129')
+   >>> webbpsf.display_psf_difference(psf_sca09, psf_sca17, vmax=5e-3, title='(SCA09) - (SCA17)', imagecrop=2.0, ax=ax_diff)
 
 .. figure:: ./wfirst_figures/compare_wfi_sca09_sca17.png
    :alt: This figure shows oversampled PSFs in the J129 filter at two different field points, and the intensity difference image between the two.

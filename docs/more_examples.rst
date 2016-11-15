@@ -41,7 +41,7 @@ Displaying a PSF as an image and as an encircled energy plot
 
     # display the PSF and plot the encircled energy
     plt.subplot(1,2,1)
-    webbpsf.display_PSF(psf210, colorbar_orientation='horizontal')
+    webbpsf.display_psf(psf210, colorbar_orientation='horizontal')
     axis2 = plt.subplot(1,2,2)
     webbpsf.display_EE(psf210, ax=axis2)
     
@@ -100,7 +100,7 @@ Monochromatic PSFs with steps of 0.1 micron from 5-28.3 micron.
         psf = m.calc_psf(fov_arcsec=30, oversample=4, rebin=True, monochromatic=wavelength, display=False,
                    outfile=psffile)
         ax = plt.subplot(16,16,iw+1)
-        webbpsf.display_PSF(psffile, ext='DET_SAMP', colorbar=False, imagecrop=8)
+        webbpsf.display_psf(psffile, ext='DET_SAMP', colorbar=False, imagecrop=8)
         ax.set_title('')
         ax.xaxis.set_visible(False)
         ax.yaxis.set_visible(False)
@@ -139,7 +139,7 @@ NIRSpec fixed slits
     
     for i, wave in enumerate([0.6e-6, 1e-6, 2e-6, 3e-6]):
         plt.subplot(1, 4, i+1)
-        webbpsf.display_PSF(psfs[wave], colorbar=False, imagecrop=2, title='NIRSpec S200A1 at {0:.1f} $\mu m$'.format(wave*1e6))   
+        webbpsf.display_psf(psfs[wave], colorbar=False, imagecrop=2, title='NIRSpec S200A1 at {0:.1f} $\mu m$'.format(wave*1e6))
     plt.savefig('example_nirspec_slitpsf.png')
 
 .. image:: ./fig_example_nirspec_slitpsf.png
@@ -160,7 +160,7 @@ NIRSpec MSA
     ns.display()
     plt.savefig('example_nirspec_msa_optics.png')
     msapsf = ns.calc_psf(monochromatic=2e-6, oversample=8, rebin=True)
-    webbpsf.display_PSF(msapsf, ext='DET_SAMP')
+    webbpsf.display_psf(msapsf, ext='DET_SAMP')
 
 .. image:: ./fig_example_nirspec_msa_optics.png
    :scale: 75%
@@ -212,7 +212,7 @@ NIRCam coronagraphy with an offset source
     nc.image_mask='MASK430R'
     nc.pupil_mask='CIRCLYOT'
     nc.options['source_offset_r'] = 0.20       # source is 200 mas from center of coronagraph
-                                               # (note that this is MUCH larger than expected acq 
+                                               # (note that this is MUCH larger than expected acq
                                                # offsets. This size displacement is just for show)
     nc.options['source_offset_theta'] = 45     # at a position angle of 45 deg
     nc.calc_psf('coronagraphic.fits', oversample=4, clobber=True)   # create highly oversampled output image
@@ -220,10 +220,10 @@ NIRCam coronagraphy with an offset source
     
     plt.figure(figsize=(12,4))
     plt.subplot(1,2,1)
-    webbpsf.display_PSF('coronagraphic.fits', vmin=1e-10, vmax=1e-5, 
+    webbpsf.display_psf('coronagraphic.fits', vmin=1e-10, vmax=1e-5,
         ext='OVERSAMP', title='NIRCam F430M+MASK430R, 4x oversampled', crosshairs=True)
     plt.subplot(1,2,2)
-    webbpsf.display_PSF('coronagraphic.fits', vmin=1e-10, vmax=1e-5, 
+    webbpsf.display_psf('coronagraphic.fits', vmin=1e-10, vmax=1e-5,
         ext='DET_SAMP', title='NIRCam F430M+MASK430R, detector oversampled', crosshairs=True)
     
     plt.savefig('example_nircam_coron_resampling.png')
@@ -507,17 +507,17 @@ There are two functions here, one that creates a simulated PSF for a given amoun
     
             # plot comparison perfect case PSF - detector sampled
             plt.subplot(232)
-            webbpsf.display_PSF(perfectname, ext=1, vmax=psfmax)
+            webbpsf.display_psf(perfectname, ext=1, vmax=psfmax)
             plt.title("PSF, no shear")
     
             # plot shifted pupil PSF - detector sampled
             plt.subplot(235)
-            webbpsf.display_PSF(outname, ext=1, vmax=psfmax)
+            webbpsf.display_psf(outname, ext=1, vmax=psfmax)
             plt.title("PSF, shear (%.1f, %1.f)" % (shearx, sheary))
             plt.xlabel("Separation [arcsec]")
             # difference PSf
             plt.subplot(236)
-            webbpsf.display_PSF_difference(outname, perfectname, ext1=1, 
+            webbpsf.display_psf_difference(outname, perfectname, ext1=1,
                 ext2=1, vmax=diffmax, vmin=-0.1, normalize_to_second=True)
             plt.title('Relative PSF increase')
             plt.xlabel("Separation [arcsec]")

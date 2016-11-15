@@ -24,7 +24,7 @@ Simple PSFs are easily obtained:
     >>> nc.filter =  'F200W'
     >>> psf = nc.calc_psf(oversample=4)     # returns an astropy.io.fits.HDUlist containing PSF and header
     >>> pylab.imshow(psf[0].data]           # display it on screen yourself, or
-    >>> display_PSF(psf)                    # use this convenient function to make a nice log plot with labeled axes
+    >>> display_psf(psf)                    # use this convenient function to make a nice log plot with labeled axes
     >>>
     >>> psf = nc.calc_psf(filter='F470N', oversample=4)    # this is just a shortcut for setting the filter, then computing a PSF
     >>>
@@ -365,7 +365,7 @@ There's an easier way to add defocus specifically; see below.
     >>> # defined by FGS_with_defocus.defocus_lambda
     >>> fgs2.defocus_waves = 4
     >>> psf = fgs2.calc_psf()
-    >>> webbpsf.display_PSF(psf)
+    >>> webbpsf.display_psf(psf)
 
 
 Defocusing an instrument
