@@ -40,7 +40,7 @@ Compute PSF
 -----------
 
 This invokes a PSF calculation with the given options. Each wavelength will be displayed in turn as it is computed, and finally the summed broadband PSF.
-This resulting PSF is stored in memory for use by the next three buttons. 
+This resulting PSF is stored in memory for use by the next three buttons.
 
 
 Display PSF

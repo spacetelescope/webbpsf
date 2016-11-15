@@ -7,8 +7,8 @@ Using WebbPSF via the Python API
 ********************************
 
 
-This module provides the primary interface for programmers and for interactive non-GUI use. It provides 
-five classes corresponding to the JWST instruments, with consistent interfaces.  
+This module provides the primary interface for programmers and for interactive non-GUI use. It provides
+five classes corresponding to the JWST instruments, with consistent interfaces.
 See :ref:`this page <detailed_api>` for the detailed API; for now let's dive into some example code.
 
 :ref:`Additional code examples <more_examples>` are available later in this documentation.
@@ -17,7 +17,7 @@ See :ref:`this page <detailed_api>` for the detailed API; for now let's dive int
 Usage and Examples
 ==================
 
-Simple PSFs are easily obtained: 
+Simple PSFs are easily obtained:
 
     >>> import webbpsf
     >>> nc = webbpsf.NIRCam()
@@ -58,14 +58,14 @@ one can create an instance of MIRI and configure it for coronagraphic observatio
 Input Source Spectra
 --------------------
 
-WebbPSF attempts to calculate realistic weighted broadband PSFs taking into account both the source spectrum and the instrumental spectral response. 
+WebbPSF attempts to calculate realistic weighted broadband PSFs taking into account both the source spectrum and the instrumental spectral response.
 
 The default source spectrum is, if :py:mod:`pysynphot` is installed, a G2V star spectrum from Castelli & Kurucz 2004. Without :py:mod:`pysynphot`, the default is a simple flat spectrum such that the same number of photons are detected at each wavelength.
 
 You may choose a different illuminating source spectrum by specifying a ``source`` parameter in the call to ``calc_psf()``. The following are valid sources:
 
-1. A :py:class:`pysynphot.Spectrum` object. This is the best option, providing maximum ease and accuracy, but requires the user to have :py:mod:`pysynphot` installed.  In this case, the :py:class:`Spectrum` object is combined with a :py:class:`pysynphot.ObsBandpass` for the selected instrument and filter to derive the effective stimulus in detected photoelectrons versus wavelength. This is binned to the number of wavelengths set by the ``nlambda`` parameter. 
-2. A dictionary with elements ``source["wavelengths"]`` and ``source["weights"]`` giving the wavelengths in meters and the relative weights for each. These should be numpy arrays or lists. In this case, the wavelengths and weights are used exactly as provided, without applying the instrumental filter profile. 
+1. A :py:class:`pysynphot.Spectrum` object. This is the best option, providing maximum ease and accuracy, but requires the user to have :py:mod:`pysynphot` installed.  In this case, the :py:class:`Spectrum` object is combined with a :py:class:`pysynphot.ObsBandpass` for the selected instrument and filter to derive the effective stimulus in detected photoelectrons versus wavelength. This is binned to the number of wavelengths set by the ``nlambda`` parameter.
+2. A dictionary with elements ``source["wavelengths"]`` and ``source["weights"]`` giving the wavelengths in meters and the relative weights for each. These should be numpy arrays or lists. In this case, the wavelengths and weights are used exactly as provided, without applying the instrumental filter profile.
 
    >>> src = {'wavelengths': [2.0e-6, 2.1e-6, 2.2e-6], 'weights': [0.3, 0.5, 0.2]}
    >>> nc.calc_psf(source=src, outfile='psf_for_src.fits')
@@ -73,7 +73,7 @@ You may choose a different illuminating source spectrum by specifying a ``source
 3. A tuple or list containing the numpy arrays ``(wavelength, weights)`` instead.
 
 
-As a convenience, webbpsf includes a function to retrieve an appropriate :py:class:`pysynphot.Spectrum` object for a given stellar spectral type from the PHOENIX or Castelli & Kurucz model libraries. 
+As a convenience, webbpsf includes a function to retrieve an appropriate :py:class:`pysynphot.Spectrum` object for a given stellar spectral type from the PHOENIX or Castelli & Kurucz model libraries.
 
    >>> src = webbpsf.specFromSpectralType('G0V', catalog='phoenix')
    >>> psf = miri.calc_psf(source=src)
@@ -116,7 +116,7 @@ Space-based observatories don't have to contend with the seeing limit, but impre
 Array sizes, star positions, and centering
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Output array sizes may be specified either in units of arcseconds or pixels.  For instance, 
+Output array sizes may be specified either in units of arcseconds or pixels.  For instance,
 
 >>> mynircam = webbpsf.NIRCam()
 >>> result = mynircam.calc_psf(fov_arcsec=7, oversample=2, filter='F250M')
@@ -131,7 +131,7 @@ If one of these is particularly desirable to you, set the parity option appropri
 >>>  instrument.options['parity'] = 'even'
 >>>  instrument.options['parity'] = 'odd'
 
-Setting one of these options will ensure that a field of view specified in arcseconds is properly rounded to either odd or even when converted from arcsec to pixels. Alternatively, 
+Setting one of these options will ensure that a field of view specified in arcseconds is properly rounded to either odd or even when converted from arcsec to pixels. Alternatively,
 you may also just set the desired number of pixels explicitly in the call to calc_psf():
 
 >>>  instrument.calc_psf(fov_npixels=512)
@@ -169,7 +169,7 @@ As just explained, WebbPSF can easily calculate PSFs on a finer grid than the de
 Pixel scales, sampling, and oversampling
 ----------------------------------------
 
-The derived instrument classes all know their own instrumental pixel scales. You can change the output 
+The derived instrument classes all know their own instrumental pixel scales. You can change the output
 pixel scale in a variety of ways, as follows. See the :py:class:`JWInstrument.calc_psf` documentation for more details.
 
 1. Set the ``oversample`` parameter to calc_psf(). This will produce a PSF with a pixel grid this many times more finely sampled.
@@ -178,29 +178,29 @@ pixel scale in a variety of ways, as follows. See the :py:class:`JWInstrument.ca
    in the call to calc_psf:
 
    >>> hdulist = instrument.calc_psf(oversample=2, rebin=True)    # hdulist will contain a primary HDU with the
-   >>>                                                            # oversampled data, plus an image extension 
+   >>>                                                            # oversampled data, plus an image extension
    >>>                                                            # with the PSF rebinned down to regular sampling.
 
-   
+
 
 2. For coronagraphic calculations, it is possible to set different oversampling factors at different parts of the calculation. See the ``calc_oversample`` and ``detector_oversample`` parameters. This
-   is of no use for regular imaging calculations (in which case ``oversample`` is a synonym for ``detector_oversample``). Specifically, the ``calc_oversample`` keyword is used for Fourier transformation to and from the intermediate optical plane where the occulter (coronagraph spot) is located, while ``detector_oversample`` is used for propagation to the final detector. Note that the behavior of these keywords changes for coronagraphic modeling using the Semi-Analytic Coronagraphic propagation algorithm (not fully documented yet - contact Marshall Perrin if curious). 
+   is of no use for regular imaging calculations (in which case ``oversample`` is a synonym for ``detector_oversample``). Specifically, the ``calc_oversample`` keyword is used for Fourier transformation to and from the intermediate optical plane where the occulter (coronagraph spot) is located, while ``detector_oversample`` is used for propagation to the final detector. Note that the behavior of these keywords changes for coronagraphic modeling using the Semi-Analytic Coronagraphic propagation algorithm (not fully documented yet - contact Marshall Perrin if curious).
 
    >>> miri.calc_psf(calc_oversample=8, detector_oversample=2)  # model the occulter with very fine pixels, then save the
    >>>                                                          # data on a coarser (but still oversampled) scale
 
-3. Or, if you need even more flexibility, just change the ``instrument.pixelscale`` attribute to be whatever arbitrary scale you require. 
+3. Or, if you need even more flexibility, just change the ``instrument.pixelscale`` attribute to be whatever arbitrary scale you require.
 
    >>> instrument.pixelscale = 0.0314159
 
 
- 
-Note that the calculations performed by WebbPSF are somewhat memory intensive, particularly for coronagraphic observations. All arrays used internally are 
+
+Note that the calculations performed by WebbPSF are somewhat memory intensive, particularly for coronagraphic observations. All arrays used internally are
 double-precision complex floats (16 bytes per value), and many arrays of size `(npixels * oversampling)^2` are needed (particularly if display options are turned on, since the
 matplotlib graphics library makes its own copy of all arrays displayed).
 
 Your average laptop with a couple GB of RAM will do perfectly well for most computations so long as you're not too ambitious with setting array size and oversampling.
-If you're interested in very high fidelity simulations of large fields (e.g. 1024x1024 pixels oversampled 8x) then we recommend a large multicore desktop with >16 GB RAM. 
+If you're interested in very high fidelity simulations of large fields (e.g. 1024x1024 pixels oversampled 8x) then we recommend a large multicore desktop with >16 GB RAM.
 
 
 
@@ -317,7 +317,7 @@ If you have a pupil that is an array in memory but not saved on disk, you can pa
         >>> myOPD = some_function_that_returns_properly_formatted_HDUList(various, function, args...)
         >>> niriss.pupilopd = myOPD
 
-Likewise, you can set the pupil transmission file in a similar manner by setting the ``pupil`` attribute: 
+Likewise, you can set the pupil transmission file in a similar manner by setting the ``pupil`` attribute:
 
         >>> niriss.pupil = "/path/to/your/OPD_file.fits"
 
@@ -338,8 +338,8 @@ this example it's a lens for defocus but you could just as easily add another
 
 
 Note, we do this as an example here to show how to modify an instrument class by
-subclassing it, which can let you add arbitrary new functionality. 
-There's an easier way to add defocus specifically; see below. 
+subclassing it, which can let you add arbitrary new functionality.
+There's an easier way to add defocus specifically; see below.
 
 
     >>> class FGS_with_defocus(webbpsf.FGS):
@@ -373,7 +373,7 @@ Defocusing an instrument
 The instrument options dictionary also lets you specify an optional defocus
 amount.  You can specify both the wavelength at which it should be applied, and
 the number of waves of defocus (at that wavelength, specified as waves
-peak-to-valley over the circumscribing circular pupil of JWST). 
+peak-to-valley over the circumscribing circular pupil of JWST).
 
 
    >>> nircam.options['defocus_waves'] = 3.2

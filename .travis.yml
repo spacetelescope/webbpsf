@@ -94,7 +94,7 @@ before_script:
     # Get WebbPSF data files (just a subset of the full 250 MB!) and set up environment variable
     - wget http://www.stsci.edu/~mperrin/software/webbpsf/minimal-webbpsf-data-0.6rc.tar.gz  -O /tmp/minimal-webbpsf-data.tar.gz
     - tar -xzvf /tmp/minimal-webbpsf-data.tar.gz
-    - export WEBBPSF_PATH=$PWD/webbpsf-data 
+    - export WEBBPSF_PATH=$PWD/webbpsf-data
 
 script:
     - python setup.py $SETUP_CMD

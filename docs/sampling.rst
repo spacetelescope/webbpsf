@@ -2,23 +2,23 @@ Sampling Requirements for Numerical Accuracy
 ============================================================
 
 The purpose of this appendix is to help you decide how many wavelengths and how much oversampling is required for your
-particular science application. 
+particular science application.
 
 Key Concepts
 -----------------------------------------
 
 
-Obtaining high accuracy and precision in PSF calculations requires treating both the multiwavelength 
-nature of the selected bandpass and also the details of subpixel sampling and integration onto the detector pixels. 
+Obtaining high accuracy and precision in PSF calculations requires treating both the multiwavelength
+nature of the selected bandpass and also the details of subpixel sampling and integration onto the detector pixels.
 
 *Note:* The current version of this code makes no attempt to incorporate detector effects such as pixel MTF and interpixel capacitance.
-If you care about such effects, you should add them with another code. 
+If you care about such effects, you should add them with another code.
 
 Multiwavelength effects scale the PSF linearly with respect to wavelength. Thus the absolute scale of this effect increases
-linearly with distance from the PSF center. The larger a field of view you care about, the more wavelengths you will need to include. 
+linearly with distance from the PSF center. The larger a field of view you care about, the more wavelengths you will need to include.
 
-Pixel sampling matters most near the core of the PSF, where the flux is changing very rapidly on small spatial scales. The closer 
-to the core of the PSF you care about fine structure, the more finely sampled your PSF will need to be. 
+Pixel sampling matters most near the core of the PSF, where the flux is changing very rapidly on small spatial scales. The closer
+to the core of the PSF you care about fine structure, the more finely sampled your PSF will need to be.
 
 
 Some Useful Guidance
@@ -26,7 +26,7 @@ Some Useful Guidance
 
 
 
-We consider two types of measurement one might wish to make on the PSF: 
+We consider two types of measurement one might wish to make on the PSF:
 
 1. measuring the encircled energy curve to a given precision
 2. measuring individual pixel flux levels to a given precision
@@ -39,15 +39,15 @@ a function of radius).  This calculation is motivated by modeling coronagraphic
 PSF subtraction, where we might hope to achieve 1-2 orders of magnitude
 reduction in the PSF wings through PSF subtraction. Accurately simulating that
 process demands a comparable level of fidelity in our PSF models. We also present tables giving the
-requirements for SNR=20 in a given pixel for less demanding modeling tasks. 
+requirements for SNR=20 in a given pixel for less demanding modeling tasks.
 
 
 Note that we do not consider here the case of trying to model the PSF core at SNR=100/pixel. If you are
-interested in doing so, I believe very fine subsampling would be needed. This might be most efficiently computed using a highly oversampled PSF for just the core, glued in to a larger image computed at lower angular resolution for the rest of the field of view. Investigating this is left as an exercise for another day. 
+interested in doing so, I believe very fine subsampling would be needed. This might be most efficiently computed using a highly oversampled PSF for just the core, glued in to a larger image computed at lower angular resolution for the rest of the field of view. Investigating this is left as an exercise for another day.
 
 
 
-Because NIRSpec, NIRISS, and FGS sample the PSF relatively coarsely, they will require a higher degree of oversampling in simulations than NIRCam to reach a given SNR level. 
+Because NIRSpec, NIRISS, and FGS sample the PSF relatively coarsely, they will require a higher degree of oversampling in simulations than NIRCam to reach a given SNR level.
 MIRI is fairly well-sampled.
 
 
@@ -55,14 +55,14 @@ MIRI is fairly well-sampled.
 Per-Instrument Sampling Requirements
 -----------------------------------------
 
-To evaluate what levels of sampling are needed in practice, for each NIRCam and MIRI filter we first computed a very highly oversampled image (nlambda=200, oversampling=16; field of view 5 arcsec for NIRCam and 12 arcsec for MIRI), which we used as a "truth" image. 
+To evaluate what levels of sampling are needed in practice, for each NIRCam and MIRI filter we first computed a very highly oversampled image (nlambda=200, oversampling=16; field of view 5 arcsec for NIRCam and 12 arcsec for MIRI), which we used as a "truth" image.
 (For practical purposes, we consider this level of sampling likely to be sufficiently fine that it's a good stand-in for an infinitely sampled PSF, but this is an assumption we have not quantitatively validated. However, since there are >200 subsamples in both pixel and wavelength space, the residuals ought to be <1/200 and thus these are sufficient for our purposes of testing SNR=100.)
 
 
 These tables list the (oversampling, wavelengths) required to achive the
 specified SNR, in comparison with a 'truth' image based on simulations using
 ``oversampling = 16`` (i.e. 256 subpixels per detector pixel) and
-``nlambda=200``. 
+``nlambda=200``.
 
 Required sampling for NIRCam::
 
@@ -134,12 +134,12 @@ Required sampling for NIRCam::
              F470N     (4, 1)     (2, 3)     (2, 1)     (2, 1)
              F480M     (4, 1)     (2, 5)     (2, 3)     (2, 3)
 
- 
-We have not yet performed simulations for the case of NIRISS. The number of wavelengths used for each filter is set equal to 
+
+We have not yet performed simulations for the case of NIRISS. The number of wavelengths used for each filter is set equal to
 that used for NIRCam. This should certainly be adequate for the long-wavelength filters (given the NIRISS detector and NIRCam LW are
 identical) but users may wish to investigate using finer sampling for the shorter wavelength filters that are very undersampled on NIRISS.
 
- 
+
 And for MIRI::
 
 

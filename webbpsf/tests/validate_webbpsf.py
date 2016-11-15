@@ -13,7 +13,7 @@ from .. import webbpsf_core
 
 __doc__="""
 
-Validation Tests for Webb PSF. These functions perform simulations using WebbPSF and compare 
+Validation Tests for Webb PSF. These functions perform simulations using WebbPSF and compare
 their results with the output of other simulations - e.g. earlier simulations by JWPSF, or ones
 from the SI teams, etc.
 
@@ -22,18 +22,18 @@ from the SI teams, etc.
 
 
 def validate_vs_russ_plot7(base_opd = 'OPD_RevV_nircam_155.fits'):
-    """ Validate against plots from Makidon et al. 2007 JWST-STScI-001157 
+    """ Validate against plots from Makidon et al. 2007 JWST-STScI-001157
 
     """
 
     waves_flux = N.array([ 0.6672437,  1.0602914,  1.458226 ,  1.9633503,  3.5440383, 4.7919989])
     flux_in_150_mas = N.array([ 0.7121211,  0.7727273,  0.7878786,  0.8484846,  0.6931819, 0.6893938])
 
-    waves_fwhm = N.array([ 0.6672437,  1.0602914,  1.458226 ,  1.9550256,  3.5440383, 4.7919989]) 
+    waves_fwhm = N.array([ 0.6672437,  1.0602914,  1.458226 ,  1.9550256,  3.5440383, 4.7919989])
     fwhm_arcsec = N.array([ 0.0225   ,  0.0347727,  0.0477273,  0.0627273,  0.1125   , 0.1520454])
 
 
-    #fig, axarr = P.subplots(fignum=1, 
+    #fig, axarr = P.subplots(fignum=1,
     P.clf()
     P.subplots_adjust(hspace=0.04)
     ax1 = P.subplot(211)
@@ -105,14 +105,14 @@ def validate_vs_russ_plot7(base_opd = 'OPD_RevV_nircam_155.fits'):
 
     ax2.legend([l1, l2], ['Makidon et al. 2007', 'This work'], loc='lower right', frameon=False)
     P.draw()
- 
+
     P.savefig('results_makidon_2007_fig7.pdf')
     stop()
 
-    
+
 def validate_vs_russ_plot6(nlambda=5, ax=None):
-    """ Compare against the radial profiles in Plot 6. 
-    
+    """ Compare against the radial profiles in Plot 6.
+
     """
     P.clf()
     P.subplots_adjust(wspace=0.01, hspace=0.04)
@@ -167,7 +167,7 @@ def validate_vs_russ_plot6(nlambda=5, ax=None):
                  1.35800000e-04,   1.35800000e-04,   1.26600000e-04, 1.26600000e-04,   1.26600000e-04])
             # fix the erroneous tracing of these points, which had the top Y axis marked at the 1.58 point instead of 1.0 due to how the plot axes are drawn.
             # in linear coordinates, the erroneous top of the axes was 1.04 higher than the real top.
-            # So un-log scale and then re-log scale. 
+            # So un-log scale and then re-log scale.
             prof = 10**((N.log10(prof/1e-5))/5*1.04*5)*1e-5
 
 
@@ -195,7 +195,7 @@ def validate_vs_russ_plot6(nlambda=5, ax=None):
                  3.14866660e-05,   3.28949020e-05,   3.43661240e-05, 3.49728750e-05,   3.65370320e-05,   3.62187030e-05, 3.55903360e-05,   3.49728750e-05,   3.12123370e-05,
                  3.09403990e-05,   3.09403990e-05,   3.06708290e-05, 2.96158310e-05,   2.85971280e-05,   2.62010380e-05, 2.52997920e-05,   2.44295450e-05,   2.14244460e-05,
                  2.21876410e-05,   2.25793740e-05,   1.98018660e-05, 1.84630300e-05,   1.56349180e-05,   1.59109580e-05, 1.67686740e-05,   1.86253040e-05,   1.86253040e-05,
-                 1.75186500e-05,   1.54986980e-05,   1.52298080e-05, 1.56349180e-05,   1.63341880e-05]) 
+                 1.75186500e-05,   1.54986980e-05,   1.52298080e-05, 1.56349180e-05,   1.63341880e-05])
             prof_perf = 10**((N.log10(prof_perf/1e-5))/5*1.04*5)*1e-5
 
 
@@ -245,10 +245,10 @@ def validate_vs_russ_plot6(nlambda=5, ax=None):
                  9.72500000e-04,   8.75500000e-04,   8.09200000e-04, 7.54500000e-04,   7.03500000e-04,   6.79300000e-04, 6.55900000e-04,   6.38900000e-04,   5.90600000e-04,
                  5.13400000e-04,   4.46300000e-04,   3.88000000e-04, 3.58600000e-04,   3.43300000e-04,   3.46300000e-04, 3.68200000e-04,   3.88000000e-04,   3.98300000e-04,
                  3.98300000e-04,   3.91400000e-04,   3.74700000e-04, 3.68200000e-04,   3.55500000e-04,   3.46300000e-04, 3.40300000e-04,   3.37300000e-04,   3.28600000e-04,
-                 3.22900000e-04,   3.14500000e-04,   3.06400000e-04, 2.98400000e-04,   2.90700000e-04,   2.88200000e-04]) 
+                 3.22900000e-04,   3.14500000e-04,   3.06400000e-04, 2.98400000e-04,   2.90700000e-04,   2.88200000e-04])
             # fix the erroneous tracing of these points, which had the top Y axis marked at the 1.58 point instead of 1.0 due to how the plot axes are drawn.
             # in linear coordinates, the erroneous top of the axes was 1.04 higher than the real top.
-            # So un-log scale and then re-log scale. 
+            # So un-log scale and then re-log scale.
             prof = 10**((N.log10(prof/1e-5))/5*1.04*5)*1e-5
 
 
@@ -263,7 +263,7 @@ def validate_vs_russ_plot6(nlambda=5, ax=None):
                     0.5866495,  0.6056415,  0.6269125,  0.6383077,  0.6436254, 0.6497028,  0.658819 ,  0.6793303,  0.7317483,  0.7568177,
                     0.7887242,  0.800879 ,  0.8099952,  0.8191115,  0.8229098, 0.829747 ,  0.8358244,  0.8502583,  0.8548164,  0.8654519,
                     0.872289 ,  0.874568 ,  0.8844439,  0.8859633,  0.8897616, 0.8950794,  0.9019165,  0.9034359,  0.9057149,  0.9110327,
-                    0.914831 ,  0.9163504,  0.7499806]) 
+                    0.914831 ,  0.9163504,  0.7499806])
 
             rad_ee_perf = N.array([ 0.0030056,  0.0180328,  0.0293033,  0.0338115,  0.0360656, 0.0383197,  0.0428279,  0.0484631,  0.0518443,  0.0586066,
                     0.0732582,  0.0822746,  0.0856557,  0.091291 ,  0.0957992, 0.1025615,  0.1093238,  0.114959 ,  0.1228484,  0.1318648,
@@ -278,8 +278,8 @@ def validate_vs_russ_plot6(nlambda=5, ax=None):
 
             #wave_perf = wave
             #prof_perf = prof*0 # didn't bother tracing this one...
-             
-        ax = P.gca() 
+
+        ax = P.gca()
         P.semilogy(rad_prof, prof, 'b-', label='Makidon et al. 2007')
         if prof_perf is not None:
             P.semilogy(rad_perf, prof_perf, 'b--',  label='Perfect PSF')
@@ -291,7 +291,7 @@ def validate_vs_russ_plot6(nlambda=5, ax=None):
 
         oversample=10 # by testing, this needs to be really high. This is because it's normalized to the very peak central pixel...
         fov = 4.0    # make it relatively large to get the denominator right for the EE.
-     
+
         nc = webbpsf_core.NIRCam()
         nc.pupilopd='OPD_RevV_nircam_123.fits'
         nc.filter = filter_
@@ -340,8 +340,8 @@ def validate_vs_russ_plot6(nlambda=5, ax=None):
         ax2.set_xlabel("Radial separation (arcsec)")
         if i == 1: ax2.set_yticklabels([])
         ax2.set_xbound(0, 0.55)
-        
-        
+
+
         #stop()
 
 
@@ -371,7 +371,7 @@ def validate_vs_krist_blc(which='spot'):
     else:
         image_mask =  'MASKLWB'
         pupil_mask = 'WEDGELYOT'
- 
+
     nc = webbpsf_core.NIRCam()
     nc.pupilopd=None
     nc.filter = 'F460M'
@@ -423,13 +423,13 @@ def validate_vs_krist_blc(which='spot'):
     P.savefig('results_nircam_blc430r_profile_comparison.pdf')
 
 
-    diff = trans[npix/2, :] - mask1f[0].data[npix/2, :] 
+    diff = trans[npix/2, :] - mask1f[0].data[npix/2, :]
     print("Max diff: %.3g" % diff.max())
 
 
 
 def validate_vs_krist_sims(clobber=False, normalize=False, which='spot', no_sam=False):
-    """ Compare with PSFs provided by John Krist 
+    """ Compare with PSFs provided by John Krist
     """
 
 
@@ -439,13 +439,13 @@ def validate_vs_krist_sims(clobber=False, normalize=False, which='spot', no_sam=
     else:
         image_mask =  'MASKLWB'
         pupil_mask = 'WEDGELYOT'
- 
+
     P.subplots_adjust(left=0.07, right=0.95, top=0.9, bottom=0.05)
-    
+
     nc = webbpsf_core.NIRCam()
     nc.pupilopd=None
     nc.filter = 'F460M'
-    nc.image_mask = image_mask 
+    nc.image_mask = image_mask
     nc.pupil_mask = pupil_mask
     nc.options['no_sam'] = no_sam
     nc.pixelscale = 0.065 # match the Krist sims exacly. vs 0.648 official
@@ -483,13 +483,13 @@ def validate_vs_krist_sims(clobber=False, normalize=False, which='spot', no_sam=
 
     P.subplot(333)
 
-    if normalize: 
+    if normalize:
         to_plot = (trans-mask1f[0].data) / (trans+mask1f[0].data)/2
         vmin, vmax = -1, 1
-    else: 
-        to_plot = (trans-mask1f[0].data) 
+    else:
+        to_plot = (trans-mask1f[0].data)
         vmin, vmax = -1e-3, 1e-3
- 
+
     poppy.imshow_with_mouseover(to_plot, cmap=matplotlib.cm.gray, vmin=vmin, vmax=vmax, extent=[-8, 8, -8, 8])
     P.colorbar(P.gca().images[0], orientation='vertical')
     try:
@@ -534,7 +534,7 @@ def validate_vs_krist_sims(clobber=False, normalize=False, which='spot', no_sam=
     P.subplot(338)
     poppy.display_PSF(mypsf2,  title="", ext=1, adjust_for_oversampling=True)
     print("Total of %s is %f" % (my2, mypsf2[0].data.sum()))
- 
+
     P.subplot(339)
     poppy.display_PSF_difference( mypsf2, k2f,  ext2=0, ext1=1, title="", vmax=1e-5, normalize=normalize)
 
@@ -545,7 +545,7 @@ def validate_vs_krist_sims(clobber=False, normalize=False, which='spot', no_sam=
 
     P.savefig('results_nircam_coron_comparison_%s.pdf' % which)
     stop()
-     
+
 
 #---- MIRI ---------------------
 
@@ -565,7 +565,7 @@ def validate_vs_cavarroc_2008():
 
 
 
-    #--- Acq image 
+    #--- Acq image
 
 
 def validate_miri_coron():
@@ -599,34 +599,34 @@ def validate_miri_coron():
 #---- TFI
 
 def validate_tfi_coron():
-    """ Verify that simulated performance of the TFI coronagraph is consistent with that shown in 
+    """ Verify that simulated performance of the TFI coronagraph is consistent with that shown in
     Figure 10 of Doyon et al. 2010 SPIE 7731
 
     """
 
     return NotImplementedError('TFI has been deprecated.')
 	#     tfi = webbpsf_core.TFI()
-	# 
+	#
 	#     # create test files
 	#     tfi.etalon_wavelength = 4.6
-	#     tfi.pupil_shift_x = 0.025 # assumep 2.5% pupil shear for consistency with Doyon et al. 
+	#     tfi.pupil_shift_x = 0.025 # assumep 2.5% pupil shear for consistency with Doyon et al.
 	#     image_masks = [None, 'CORON058', 'CORON075', 'CORON150', 'CORON150', 'CORON200']
 	#     pupil_masks = [None, 'MASKC71N', 'MASKC71N', 'MASKC66N', 'MASKC21N', 'MASKC21N']
 	#     throughputs = [1.0, 0.71, 0.71, 0.66, 0.21, 0.21]
-	#     fns = ['test_tfi_4.6um_unocculted.fits', 'test_tfi_4.6um_058_c71n.fits', 'test_tfi_4.6um_075_c71n.fits', 
+	#     fns = ['test_tfi_4.6um_unocculted.fits', 'test_tfi_4.6um_058_c71n.fits', 'test_tfi_4.6um_075_c71n.fits',
 	#             'test_tfi_4.6um_150_c66n.fits', 'test_tfi_4.6um_150_c21n.fits', 'test_tfi_4.6um_200_c21n.fits']
 	#     colors = ['black','red','purple','yellow','orange', 'cyan']
-	# 
+	#
 	#     for i in range(len(fns)):
 	#         if not os.path.exists(fns[i]):
 	#             tfi.image_mask = image_masks[i]
 	#             tfi.pupil_mask = pupil_masks[i]
 	#             tfi.calcPSF(fns[i], fov_arcsec=16, oversample=2, calc_oversample=4)
-	# 
+	#
 	#     # plot radial profiles
 	#     seps = N.array([0.5, 1.0, 1.5, 2.0, 2.5, 5.0])  #arcsecs
 	#     contrasts = N.array([6.9, 7.9, 9.2, 10.0, 10.9, 12.3]) # mags
-	# 
+	#
 	#     P.clf()
 	#     peak_cts = None
 	#     for i in range(len(fns)):
@@ -639,7 +639,7 @@ def validate_tfi_coron():
 	#         #P.semilogy(radius, profile, color=colors[i])
 	#         P.semilogy(radius, 5*stds, color=colors[i], lw=5 if i >0 else 1)
 	#         #stop()
-	# 
+	#
 	#     P.xlabel("Separation (arcsec)")
 	#     P.ylabel("Contrast ratio (5$\sigma$)")
 	#     ax = P.gca()
@@ -841,11 +841,11 @@ def validate_nircam_ee():
 
     # from BALL-JWST-SYST-05-003, Systems Eng Rpt on OTE Geometric Optical Model Config
 
-    # Encircled energies at 1 micron, field position (0,0), 
+    # Encircled energies at 1 micron, field position (0,0),
     # page 18
     # from Code V model I think
     EE_fraction = [10, 20, 30, 40, 50, 60, 70, 80, 90]
-    EE_radius = [.004592, 0.009561, 0.015019, 0.021147, 0.028475, 0.037626, 0.052406, 0.081993, 0.204422] 
+    EE_radius = [.004592, 0.009561, 0.015019, 0.021147, 0.028475, 0.037626, 0.052406, 0.081993, 0.204422]
 
 
     # same thing, page 24, from OSLO model

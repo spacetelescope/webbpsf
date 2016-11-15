@@ -18,7 +18,7 @@ The POPPY functionality lives under the package name :py:mod:`poppy`, which is a
 
 POPPY includes a system for modeling a complete instrument (including
 optical propagation, synthetic photometry, and pointing jitter), and a variety
-of useful utility functions for analysing and plotting PSFs, documented below. 
+of useful utility functions for analysing and plotting PSFs, documented below.
 
 .. note::
 

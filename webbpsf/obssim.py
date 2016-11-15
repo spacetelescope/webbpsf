@@ -3,9 +3,9 @@ from __future__ import division, print_function, absolute_import, unicode_litera
 """
 obssim.py
 
-    Observation Simulator wrapper for webbPSF. 
+    Observation Simulator wrapper for webbPSF.
 
-    This package lets you easily script simulations of things more complicated than just a single point source. 
+    This package lets you easily script simulations of things more complicated than just a single point source.
 
 
 """
@@ -31,7 +31,7 @@ _log = logging.getLogger('webbpsf')
 class TargetScene(object):
     """ This class allows the user to specify some scene consisting of a central star
     plus one or more companions at specified separation, spectral type, etc. It automates the
-    necessary calculations to perform a simulated JWST observation of that target. 
+    necessary calculations to perform a simulated JWST observation of that target.
 
     pysynphot is required for this.
 
@@ -58,20 +58,20 @@ class TargetScene(object):
             deg from N
         normalization : scalar or tuple TBD
             Simple version: this is a float to multiply the PSF by.
-            Complex version: Probably tuple of arguments to spectrum.renorm(). 
+            Complex version: Probably tuple of arguments to spectrum.renorm().
 
 
 
-        How normalization works:  
+        How normalization works:
             First the PSF for that source is calculated, using calcPSF(norm='first')
-            i.e. the input intensity through the telescope pupil is set to 1. 
-            The resulting output PSF total counts will be proportional to the 
+            i.e. the input intensity through the telescope pupil is set to 1.
+            The resulting output PSF total counts will be proportional to the
             throughput through the OTE+SI (including filters, coronagraphs etc)
 
             Then we apply the normalization:
                 1) if it's just a number, we just multiply by it.
-                2) if it's something else: Then we use a separate bandpass object and parameters 
-                   passed in here to figure out the overall normalization, and apply that as a 
+                2) if it's something else: Then we use a separate bandpass object and parameters
+                   passed in here to figure out the overall normalization, and apply that as a
                    multiplicative factor to the resulting PSF itself?
         """
         if type(sptype_or_spectrum) is str:
@@ -79,10 +79,10 @@ class TargetScene(object):
         else:
             spectrum = sptype_or_spectrum
 
-        self.sources.append(   {'spectrum': sptype_or_spectrum, 'separation': separation, 'PA': PA, 
+        self.sources.append(   {'spectrum': sptype_or_spectrum, 'separation': separation, 'PA': PA,
             'normalization': normalization, 'name': name})
 
-    def calcImage(self, instrument, outfile=None, noise=False, rebin=True, clobber=True, 
+    def calcImage(self, instrument, outfile=None, noise=False, rebin=True, clobber=True,
             PA=0, offset_r=None, offset_PA=0.0, **kwargs):
         """ Calculate an image of a scene through some instrument
 
@@ -99,14 +99,14 @@ class TargetScene(object):
             postion angle for +Y direction in the output image
         offset_r, offset_PA : float
             Distance and angle to offset the target center from the FOV center.
-            This is to simulate imperfect acquisition + alignment. 
+            This is to simulate imperfect acquisition + alignment.
         noise : bool
             add read noise? TBD
         clobber : bool
             overwrite existing files? default True
 
 
-        It may also be useful to pass arguments to the calcPSF() call, which is supported through the **kwargs 
+        It may also be useful to pass arguments to the calcPSF() call, which is supported through the **kwargs
         mechanism. Such arguments might include fov_arcsec, fov_pixels, oversample, etc.
         """
 
@@ -139,7 +139,7 @@ class TargetScene(object):
             _log.info('  post-offset & rot pos: %.3f  at %.1f deg' % (instrument.options['source_offset_r'], instrument.options['source_offset_theta']))
 
 
-            src_psf =  instrument.calcPSF(source = src_spectrum, outfile=None, save_intermediates=False, rebin=rebin, 
+            src_psf =  instrument.calcPSF(source = src_spectrum, outfile=None, save_intermediates=False, rebin=rebin,
                 **kwargs)
 
             # figure out the flux ratio
@@ -155,7 +155,7 @@ class TargetScene(object):
                 bp = instrument._getSynphotBandpass()
                 effstim_Jy = pysynphot.Observation(src_spectrum, bp).effstim('Jy')
                 src_psf[0].data *= effstim_Jy
- 
+
             # add the scaled companion PSF to the stellar PSF:
             if sum_image is None:
                 sum_image = src_psf
@@ -183,11 +183,11 @@ class TargetScene(object):
 
         sum_image[0].header['NSOURCES'] = ( len(self.sources), "Number of point sources in sim")
             #add noise in image - photon and read noise, mainly.
-       
-        # downsample? 
+
+        # downsample?
         if rebin and sum_image[0].header['DET_SAMP'] > 1:
             # throw away the existing rebinned extension
-            sum_image.pop() 
+            sum_image.pop()
             # and generate a new one from the summed image
             _log.info(" Downsampling summed image to detector pixel scale.")
             rebinned_sum_image = sum_image[0].copy()

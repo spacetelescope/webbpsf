@@ -78,41 +78,41 @@ Version 0.5.0
 
 Released 2016 June 10. Various updates to instrument properties, improved
 documentation, and overhaul of internals in preparation for measured WFE data on
-JWST SIs. 
+JWST SIs.
 
-JWST updates: 
+JWST updates:
 
  * New documentation on :ref:`jwst_instruments`
  * Updated all JWST SI pixel scales to latest measured values from ISIM CV3 and
-   STScI Science Instruments Aperture File. 
+   STScI Science Instruments Aperture File.
  * Add coordinate inversion to get the correct (inverted) orientation of the OTE
    exit pupil relative to the ISIM focal plane. This will show up as an extra
    intermediate optical plane in all PSF calculations from this point, with the
    OTE pupil obscuration flipped upside down in orientation relative to the
-   entrance pupil. 
+   entrance pupil.
 
    * As a consequence of this, many optical planes displayed will now look
      "upside down" relative to prior versions of WebbPSF. This affects all
      coronagraphic Lyot masks for instance, the NIRISS CLEARP and NRM pupils, etc.
      This is as intended, and reflects the actual orientation of those optics in the
      internal pupil planes relative to a detector image that has been oriented to have
-     +V3 up and +V2 left (e.g. 'SCI' frame orientation on the sky, with north up and east left 
+     +V3 up and +V2 left (e.g. 'SCI' frame orientation on the sky, with north up and east left
      if the position angle is zero).
 
  * Added software infrastructure for using measured instrument WFE from ISIM
    cryo-tests - however the data files are not yet ready and approved. This
    functionality will be fully activated in a near-future release (later this summer).
- * Added attributes for detector selection and pixel positions to all SIs, backed with 
+ * Added attributes for detector selection and pixel positions to all SIs, backed with
    latest science instrument aperture file mapping between detector pixels and angular positions
    on the JWST focal plane.
  * Improved automatic toggling based on selected filter of instrument properties such as
-   NIRCam short/long channel and pixel scales, and NIRISS and MIRI pupil masks. 
- * *Thanks to Kyle van Gorkom, Anand Sivaramakrishnan, John Stansberry, Colin Cox, 
+   NIRCam short/long channel and pixel scales, and NIRISS and MIRI pupil masks.
+ * *Thanks to Kyle van Gorkom, Anand Sivaramakrishnan, John Stansberry, Colin Cox,
    Randal Telfer, and George Hartig for assisting with information and data to
    support these updates.*
 
 WFIRST updates:
- 
+
  * Updated to `GSFC Cycle 6 modeling results
    <http://wfirst.gsfc.nasa.gov/science/Inst_Ref_Info_Cycle6.html>`_ for WFI.
  * Some behind-the-scenes refactoring to implementation details for field dependent
@@ -121,9 +121,9 @@ WFIRST updates:
 
 
 General:
- 
+
  * New `Python PEP8 style guide <https://www.python.org/dev/peps/pep-0008/>`_ compliant names have been added
-   for most function calls, e.g. ``calc_psf`` instead of ``calcPSF``, ``display_psf`` instead of 
+   for most function calls, e.g. ``calc_psf`` instead of ``calcPSF``, ``display_psf`` instead of
    ``display_PSF`` and so forth. For now these are synonymous and both forms will work. The new styling is
    preferred and at some future point (but not soon!) the older syntax may be removed.
 
@@ -139,7 +139,7 @@ Released 2016 April 04. Mostly minor bug fixes, plus some updates to better matc
  * Also flip orientations of some NIRCam coronagraphic masks and improve modeling of NIRCam coronagraph ND squares and occulter bar mounting hardware (`#85 <https://github.com/mperrin/webbpsf/issue/85>`__; @mperrin);
    and remove two obsolete filter data files that don't correspond to any actual filters in NIRCam.
  * Relocate ``measure_strehl`` function code into ``webbpsf`` (`#88 <https://github.com/mperrin/webbpsf/issue/88>`__; Kathryn St.Laurent, @josephoenix, @mperrin)
- * Other minor bug fixes and improved error catching 
+ * Other minor bug fixes and improved error catching
    (`#87 <https://github.com/mperrin/webbpsf/issue/87>`__; @mperrin)
    (`#95 <https://github.com/mperrin/webbpsf/issue/95>`__; @mperrin)
    (`#98 <https://github.com/mperrin/webbpsf/pull/98>`__; @josephoenix)

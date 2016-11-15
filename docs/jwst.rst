@@ -6,7 +6,7 @@ JWST Instrument Model Details
 *****************************
 
 
-The following describes specific details for the various JWST instrument classes. See also :ref:`the references page <references>` for information on data sources. 
+The following describes specific details for the various JWST instrument classes. See also :ref:`the references page <references>` for information on data sources.
 
 One general note is that the ``webbpsf`` class interfaces do not attempt to exactly
 model the implementation details of all instrument mechanisms, particularly for
@@ -19,11 +19,11 @@ an optic is in a so-called "filter" wheel.
 
 All classes share some common attributes:
 
- * ``filter`` which is the string name of the currently selected filter. 
+ * ``filter`` which is the string name of the currently selected filter.
    The list of available filters is provided as the ``filter_list`` attribute.
  * ``image_mask`` which is the name of a selected image plane element such as a
-   coronagraph mask or spectrograph slit, or ``None`` to indicate no 
-   such element is present.  
+   coronagraph mask or spectrograph slit, or ``None`` to indicate no
+   such element is present.
    The list of available options is provided as the ``image_mask_list`` attribute.
  * ``pupil_mask`` likewise allows specification of any optic that modifies the pupil plane
    subsequent to the image mask, such as a coronagraphic Lyot stop or spectrograph grating stop.
@@ -92,7 +92,7 @@ The ``detector`` attribute can be used to select between any of the ten detector
 A1-A5 and B1-B5.  Additional attributes are then automatically set for ``channel``
 ("short" or "long") and module ("A" or "B") but these cannot be set directly;
 just set the desired detector and the channel and module are inferred
-automatically. 
+automatically.
 
 The choice of ``filter`` also impacts the channel selection: If you choose a
 long-wavelength filter such as F460M, then the detector will automatically
@@ -101,7 +101,7 @@ detector was previously set to A2, and the user enters ``nircam.filter = "F460M"
 then the detector will automatically change to A5.  If the user later selects
 ``nircam.filter = "F212N"`` then the detector will switch to A1 (and the user will
 need to manually select if a different short wave detector is desired).  This
-behavior on filter selection can be disabled by setting ``nircam.auto_channel = False``. 
+behavior on filter selection can be disabled by setting ``nircam.auto_channel = False``.
 
 
 
@@ -115,21 +115,21 @@ fields also include the nearby neutral density squares for target acquisitions.
 
 WebbPSF won't prevent users from simulating configuration using a coronagraph
 image mask without the Lyot stop, but that's not something that can be done for
-real with NIRCam. 
+real with NIRCam.
 
 
 Weak Lenses for Wavefront Sensing
 ---------------------------------
 
-WebbPSF includes models for the three weak lenses used for wavefront sensing, including the 
+WebbPSF includes models for the three weak lenses used for wavefront sensing, including the
 pairs of lenses that can be used together simultaneously.
 
 The convention is such that the "negative" 8 waves lens is concave, the
 "positive" two lenses are convex. Thus positive weak lenses move best focus
 in front of the detector, or equivalently the electric field imaged on the detector
-becomes behind or beyond best focus. Negative weak lenses move best focus behind the detector, 
+becomes behind or beyond best focus. Negative weak lenses move best focus behind the detector,
 or equivalently the image on the detector is moved closer to the OTE exit pupil
-than best focus. 
+than best focus.
 
 Note that the weak lenses are in the short wave channel only; webbpsf won't stop
 you from simulating a LW image with a weak lens, but that's not a real
@@ -143,7 +143,7 @@ SI WFE
 
 The SI internal WFE measurements are distinct for each of the modules and
 channels. When enabled, these are added to the final pupil of the optical
-train, i.e. after the coronagraphic image planes. 
+train, i.e. after the coronagraphic image planes.
 
 
 Wavelength-Dependent Focus Variations
@@ -169,7 +169,7 @@ assembling those monochromatic PSFs into a spectrum.
 Slits: webbpsf includes models of each of the fixed slits in NIRSpec (S200A1, S1600A1, and so forth), plus a
 few patterns with the MSA: (1) a single open shutter, (2) three adjacent
 open shutters to make a mini-slit, and (3) all shutters open at once.
-Other MSA patterns could be added if requested by users. 
+Other MSA patterns could be added if requested by users.
 
 By default the ``pupil_mask`` is set to the "NIRSpec grating" pupil mask.  In
 this case a rectangular pupil mask 8.41x7.91 m as projected onto the primary is
@@ -184,7 +184,7 @@ SI WFE
 
 (Not yet available)
 
-SI WFE will most likely be added to the entrance pupil, prior to the MSA image plane. This model is still under development. 
+SI WFE will most likely be added to the entrance pupil, prior to the MSA image plane. This model is still under development.
 
 NIRISS
 ======
@@ -207,7 +207,7 @@ Based on the selected filter, webbpsf will automatically toggle the
 Slitless Spectroscopy
 ---------------------
 
-webbpsf provides preliminary support for 
+webbpsf provides preliminary support for
 the single-object slitless
 spectroscopy ("SOSS") mode using the GR700XD cross-dispersed grating. Currently
 this includes the clipping of the pupil due to the undersized grating and its
@@ -226,7 +226,7 @@ For SOSS mode, contact Loic Albert at Universite de Montreal.
 
 The other two slitless spectroscopy grisms use the regular pupil and do not require any special
 support in WebbPSF; just calculate monochromatic PSFs at the desired wavelengths
-and assemble them into spectra using tools such as aXe. 
+and assemble them into spectra using tools such as aXe.
 
 Coronagraph Masks
 ------------------
@@ -243,7 +243,7 @@ SI WFE
 
 The SI internal WFE measurements are distinct for each of the modules and
 channels. When enabled, these are added to the final pupil of the optical
-train, i.e. after the coronagraphic image planes. 
+train, i.e. after the coronagraphic image planes.
 
 
 MIRI
@@ -272,7 +272,7 @@ LRS Spectroscopy
 
 webbpsf includes models for the LRS slit and the subsequent pupil stop on the
 grism in the wheels. Users should select ``miri.image_mask = "LRS slit"`` and ``miri.pupil_mask = 'P750L LRS grating'``.
-That said, the LRS simulations have not been extensively tested yet; 
+That said, the LRS simulations have not been extensively tested yet;
 feedback is appreciated about any issues encountered.
 
 
@@ -282,17 +282,17 @@ SI WFE
 (Not yet available)
 
 The SI internal WFE measurements, when enabled, are added to the final pupil of the optical
-train, i.e. after the coronagraphic image planes. 
+train, i.e. after the coronagraphic image planes.
 
 
 Minor Field-Dependent Pupil Vignetting
 ----------------------------------------
 
-**TODO** Add documentation here of this effect and how WebbPSF models it. 
+**TODO** Add documentation here of this effect and how WebbPSF models it.
 
-A fold mirror at the MIRI Imager's internal cold pupil is used to redirect light from the MIRI calibration sources towards the detector, 
-to enable flat field calibrations. For a subset of field positions, this fold mirror slightly obscures a small portion of the pupil.  
-This is a small effect with little practical consequence for MIRI PSFs, but WebbPSF does model it. 
+A fold mirror at the MIRI Imager's internal cold pupil is used to redirect light from the MIRI calibration sources towards the detector,
+to enable flat field calibrations. For a subset of field positions, this fold mirror slightly obscures a small portion of the pupil.
+This is a small effect with little practical consequence for MIRI PSFs, but WebbPSF does model it.
 
 
 
@@ -301,7 +301,7 @@ FGS
 
 The FGS class does not have any selectable optical elements (no filters or
 image or pupil masks of any kind). Only the detector is selectable, between
-either 'FGS1' or 'FGS2'. 
+either 'FGS1' or 'FGS2'.
 
 SI WFE
 ------

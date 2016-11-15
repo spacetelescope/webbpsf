@@ -12,7 +12,7 @@ from . import config
 from . import conf
 
 __doc__ = """
-Graphical Interface for WebbPSF 
+Graphical Interface for WebbPSF
 
 Developed in wxpython by Marshall Perrin
 
@@ -35,7 +35,7 @@ _log = logging.getLogger('webbpsf')
 def _default_options():
     import poppy
     return {'force_coron': False, 'no_sam': False, 'parity':'Either',
-                'psf_scale':'log', 'psf_normalize':'Peak', 
+                'psf_scale':'log', 'psf_normalize':'Peak',
                 'psf_cmap_str': 'Jet (blue to red)', 'psf_cmap': matplotlib.cm.jet,
                 'psf_vmin':1e-4, 'psf_vmax':1.0, 'monochromatic': False, 'fov_in_arcsec': True,
                 'parallelization': poppy.conf.use_multiprocessing }
@@ -53,12 +53,12 @@ import poppy
 import webbpsf_core
 
 class WebbPSF_GUI(wx.Frame):
-    """ A GUI for the PSF Simulator 
+    """ A GUI for the PSF Simulator
 
     Documentation TBD!
 
     """
-    def __init__(self, parent=None, id=-1, title="WebbPSF: JWST PSF Calculator"): 
+    def __init__(self, parent=None, id=-1, title="WebbPSF: JWST PSF Calculator"):
         wx.Frame.__init__(self,parent,id=id,title=title)
         self.parent=parent
         opdserver=None
@@ -81,7 +81,7 @@ class WebbPSF_GUI(wx.Frame):
         else:
             self._enable_opdserver = False
 
-        
+
         # create widgets & run
         self._create_widgets_wx()
 
@@ -115,9 +115,9 @@ class WebbPSF_GUI(wx.Frame):
         parentsizer.Add( mycombo, (position[0],position[1]+1),  (1,columnspan), style)
 
         self.widgets[name] = mycombo
- 
 
-    def _add_labeled_entry(self, name, parent, parentsizer, label="Entry:", value=None, format="%.2g", 
+
+    def _add_labeled_entry(self, name, parent, parentsizer, label="Entry:", value=None, format="%.2g",
             width=None, position=(0,0), postlabel=None, **kwargs):
         "convenient wrapper for adding an Entry"
         mylabel = wx.StaticText(parent, -1,label=label)
@@ -146,7 +146,7 @@ class WebbPSF_GUI(wx.Frame):
 
 
     def _create_widgets_wx(self):
-        """Create a nice GUI using the enhanced widget set provided by 
+        """Create a nice GUI using the enhanced widget set provided by
         the ttk extension to Tkinter, available in Python 2.7 or newer
         """
         #---- create the GUIs
@@ -189,7 +189,7 @@ class WebbPSF_GUI(wx.Frame):
         if _HAS_PYSYNPHOT:
             spectrumPanel = wx.Panel(top_panel)
             spectrumSizer = wx.GridBagSizer()
-            
+
             try:
                 choices = poppy.specFromSpectralType("",return_list=True)
                 default='G0V'
@@ -197,8 +197,8 @@ class WebbPSF_GUI(wx.Frame):
                 choices = ['Error: $PYSYN_CDBS does not have any spectral models']
                 default = choices[0]
 
-            self._add_labeled_dropdown("SpType", spectrumPanel,spectrumSizer, label='    Spectral Type:     ', 
-                    choices=choices, default=default, 
+            self._add_labeled_dropdown("SpType", spectrumPanel,spectrumSizer, label='    Spectral Type:     ',
+                    choices=choices, default=default,
                     position=(0,0))
             self.ButtonPlotSpec = wx.Button(spectrumPanel, label='Plot Spectrum')
             self.Bind(wx.EVT_BUTTON, self.ev_plotspectrum, self.ButtonPlotSpec)
@@ -232,7 +232,7 @@ class WebbPSF_GUI(wx.Frame):
             self.Bind(wx.EVT_BUTTON, self.ev_displayOptics, instButton)
 
 
-            self._add_labeled_dropdown(iname+"_filter", inst_panel,panelSizer, label='    Filter:', choices=self.instrument[iname].filter_list, 
+            self._add_labeled_dropdown(iname+"_filter", inst_panel,panelSizer, label='    Filter:', choices=self.instrument[iname].filter_list,
                 default=self.instrument[iname].filter,  position=(1,0))
 
             if len(self.instrument[iname].image_mask_list) >0 :
@@ -248,7 +248,7 @@ class WebbPSF_GUI(wx.Frame):
                 masks.insert(0, "")
                 self._add_labeled_dropdown(iname+"_pupil", inst_panel,panelSizer, label='    Pupil Stop:', choices=masks,  position=(3,0))
 
-                fr2 = wx.Panel(inst_panel) 
+                fr2 = wx.Panel(inst_panel)
                 fr2Sizer = wx.GridBagSizer()
                 self._add_labeled_entry(iname+"_pupilshift_x", fr2,fr2Sizer, label='  pupil shift in X:', value='0', width=40, position=(0,4))
                 self._add_labeled_entry(iname+"_pupilshift_y", fr2,fr2Sizer, label=' Y:', value='0', width=40, position=(0,6))
@@ -260,7 +260,7 @@ class WebbPSF_GUI(wx.Frame):
 
                 panelSizer.Add(fr2, (3,3),(1,3))
 
-            
+
 
             panelSizer.Add(wx.StaticText(inst_panel, label='Configuration Options for the Telescope (OTE) '), (5,0),(1,5), flag=wx.ALIGN_LEFT)
             opdPanel = wx.Panel(inst_panel)
@@ -297,7 +297,7 @@ class WebbPSF_GUI(wx.Frame):
             panelSizer.AddGrowableRow(6)
 
             inst_panel.SetSizerAndFit(panelSizer)
-        
+
             nb.AddPage(inst_panel, iname)
 
         self.widgets['tabset'] = nb
@@ -312,7 +312,7 @@ class WebbPSF_GUI(wx.Frame):
         calcSizer = wx.GridBagSizer()
 
 
-        r=0 
+        r=0
         self._add_labeled_entry('FOV', calcPanel,calcSizer, label='Field of View:',  value=str(conf.default_fov_arcsec), postlabel='arcsec/side', position=(0,0))
         r+=1
         self._add_labeled_entry('detector_oversampling', calcPanel,calcSizer, label='Output Oversampling:',  width=3, value=str(conf.default_oversampling), postlabel='x finer than instrument pixels       ', position=(r,0))
@@ -381,7 +381,7 @@ class WebbPSF_GUI(wx.Frame):
 
         self.Bind(wx.EVT_CLOSE, self.OnClose)
 
-        self.Center() 
+        self.Center()
 
 
     def _refresh_window(self):
@@ -414,13 +414,13 @@ class WebbPSF_GUI(wx.Frame):
     def ev_SaveAs(self, event):
         "Event handler for Save As of output PSFs"
         dlg = wx.FileDialog(self, 'Choose Output Filename to Save PSF', defaultDir = os.getcwd(),
-                defaultFile ='PSF_%s_%s.fits' %(self.iname, self.filter), 
+                defaultFile ='PSF_%s_%s.fits' %(self.iname, self.filter),
                 wildcard='*.fits',
                 style=wx.SAVE)
         if dlg.ShowModal() == wx.ID_OK:
             path = dlg.GetPath()
             filename = os.path.abspath(path)
-            self.PSF_HDUlist.writeto(filename) 
+            self.PSF_HDUlist.writeto(filename)
             self.log("Saved to %s" % filename)
         else:
             self.log("User cancelled save.")
@@ -458,21 +458,21 @@ class WebbPSF_GUI(wx.Frame):
 
             if self.advanced_options['fov_in_arcsec']:
                 self.widgets["FOV_post_label"].SetLabel("arcsec/side")
-                if not oldoptions['fov_in_arcsec']: 
+                if not oldoptions['fov_in_arcsec']:
                     # we have to convert pixels to arcsec
-                    self._setFOV( self._getFOV() * self.instrument[iname].pixelscale) 
+                    self._setFOV( self._getFOV() * self.instrument[iname].pixelscale)
             else:
                 self.widgets["FOV_post_label"].SetLabel("pixels/side")
-                if oldoptions['fov_in_arcsec']: 
+                if oldoptions['fov_in_arcsec']:
                     # we have to convert arcsec to pixels
                     newfov = self._getFOV() / self.instrument[iname].pixelscale
-                    if hasattr(newfov, '__len__') and len(newfov) > 1: 
+                    if hasattr(newfov, '__len__') and len(newfov) > 1:
                         newfov = np.asarray(newfov, dtype=int)
                     else:
                         newfov = int(newfov)
                     self._setFOV( newfov)
             poppy.conf.use_multiprocessing = self.advanced_options['parallelization']
- 
+
         dlg.Destroy()
 
 
@@ -559,8 +559,8 @@ class WebbPSF_GUI(wx.Frame):
            self.widgets[w].Enable(False)
 
         self.calcthread = PSFCalcThread()
-        self.calcthread.runPSFCalc(self.inst, self) 
-#        self.PSF_HDUlist = self.inst.calcPSF(source=source, 
+        self.calcthread.runPSFCalc(self.inst, self)
+#        self.PSF_HDUlist = self.inst.calcPSF(source=source,
 #                detector_oversample= self.detector_oversampling,
 #                fft_oversample=self.fft_oversampling,
 #                fov_arcsec = self.FOV,  nlambda = self.nlambda, display=True)
@@ -588,7 +588,7 @@ class WebbPSF_GUI(wx.Frame):
         #self._updateFromGUI()
         #if self.PSF_HDUlist is not None:
         plt.clf()
-        poppy.display_PSF(self.PSF_HDUlist, vmin = self.advanced_options['psf_vmin'], vmax = self.advanced_options['psf_vmax'], 
+        poppy.display_PSF(self.PSF_HDUlist, vmin = self.advanced_options['psf_vmin'], vmax = self.advanced_options['psf_vmax'],
                 scale = self.advanced_options['psf_scale'], cmap= self.advanced_options['psf_cmap'], normalize=self.advanced_options['psf_normalize'])
         self._refresh_window()
         self.log("PSF redisplayed")
@@ -596,7 +596,7 @@ class WebbPSF_GUI(wx.Frame):
     def ev_displayProfiles(self,event):
         "Event handler for Displaying the PSF"
         #self._updateFromGUI()
-        poppy.display_profiles(self.PSF_HDUlist)        
+        poppy.display_profiles(self.PSF_HDUlist)
         self._refresh_window()
         self.log("Radial profiles displayed.")
 
@@ -615,12 +615,12 @@ class WebbPSF_GUI(wx.Frame):
 
         self._updateFromGUI()
         if self.inst.pupilopd is None:
-            tkMessageBox.showwarning( message="You currently have selected no OPD file (i.e. perfect telescope) so there's nothing to display.", title="Can't Display") 
+            tkMessageBox.showwarning( message="You currently have selected no OPD file (i.e. perfect telescope) so there's nothing to display.", title="Can't Display")
         else:
             if self._enable_opdserver and 'ITM' in self.opd_name:
                 opd = self.inst.pupilopd   # will contain the actual OPD loaded in _updateFromGUI just above
             else:
-                opd = fits.getdata(self.inst.pupilopd[0])     # in this case self.inst.pupilopd is a tuple with a string so we have to load it here. 
+                opd = fits.getdata(self.inst.pupilopd[0])     # in this case self.inst.pupilopd is a tuple with a string so we have to load it here.
 
             if len(opd.shape) >2:
                 opd = opd[self.opd_i,:,:] # grab correct slice
@@ -643,7 +643,7 @@ class WebbPSF_GUI(wx.Frame):
         self._refresh_window()
 
     def ev_launch_ITM_dialog(self, event):
-        tkMessageBox.showwarning( message="ITM dialog box not yet implemented", title="Can't Display") 
+        tkMessageBox.showwarning( message="ITM dialog box not yet implemented", title="Can't Display")
 
     def ev_update_OPD_labels(self, event):
         "Update the descriptive text for all OPD files"
@@ -714,7 +714,7 @@ class WebbPSF_GUI(wx.Frame):
                 self.nlambda= int(self.widgets['nlambda'].GetValue())
             except:
                 self.nlambda = None # invoke autoselect for nlambda
-                
+
 
 
 
@@ -736,7 +736,7 @@ class WebbPSF_GUI(wx.Frame):
         elif jitterchoice == 'Gaussian jitter with 30 mas rms':
             options['jitter'] = 'gaussian'
             options['jitter_sigma'] = 0.030
-        else: 
+        else:
             _log.error("Unknown value for jitter selection: "+jitterchoice)
 
 
@@ -760,7 +760,7 @@ class WebbPSF_GUI(wx.Frame):
             self.inst.pupilopd = self._opdserver.get_OPD(return_as="FITS")
             self.opd_name = "OPD from ITM OPD GUI"
 
-        elif self.opd_name == "Zero OPD (perfect)": 
+        elif self.opd_name == "Zero OPD (perfect)":
             # perfect OPD
             self.opd_name = "Perfect"
             self.inst.pupilopd = None
@@ -788,10 +788,10 @@ class WebbPSF_GUI(wx.Frame):
 
 
     def _getFOV(self):
-        """ Get field of view, either as a scalar number for square or a 
-        2-element ndarray for rectangular 
-        
-        Note that if it is a 2-element paid, we flip the order of the elements. 
+        """ Get field of view, either as a scalar number for square or a
+        2-element ndarray for rectangular
+
+        Note that if it is a 2-element paid, we flip the order of the elements.
         This is to facilitate a more intuitive "x,y" ordering for the user interface.
         """
         fovstr = self.widgets['FOV'].GetValue()
@@ -808,10 +808,10 @@ class WebbPSF_GUI(wx.Frame):
 
 
     def _setFOV(self, newvalue):
-        """ Get field of view, either as a scalar number for square or a 
-        2-element ndarray for rectangular 
+        """ Get field of view, either as a scalar number for square or a
+        2-element ndarray for rectangular
 
-        Note that if it is a 2-element paid, we flip the order of the elements. 
+        Note that if it is a 2-element paid, we flip the order of the elements.
         This is to facilitate a more intuitive "x,y" ordering for the user interface.
         """
         if hasattr(newvalue, '__iter__'):
@@ -824,7 +824,7 @@ class WebbPSF_GUI(wx.Frame):
 #-------------------------------------------------------------------------
 # Class to run the actual PSF calculation in a background thread, to keep the
 # GUI still responsive
-# This code based on examples at http://wiki.wxpython.org/LongRunningTasks         
+# This code based on examples at http://wiki.wxpython.org/LongRunningTasks
 # and http://www.blog.pythonlibrary.org/2010/05/22/wxpython-and-threads/
 
 class PSFCalcThread(Thread):
@@ -847,13 +847,13 @@ class PSFCalcThread(Thread):
         else:
             fov_arcsec = None
             fov_pixels = masterapp.FOV
- 
-        PSF_HDUlist = instrument.calcPSF(source=source, 
+
+        PSF_HDUlist = instrument.calcPSF(source=source,
                 detector_oversample = masterapp.detector_oversampling,
                 fft_oversample = masterapp.fft_oversampling,
-                fov_arcsec = fov_arcsec, fov_pixels=fov_pixels,  
-                nlambda = masterapp.nlambda, 
-                monochromatic=masterapp.monochromatic_wavelength, 
+                fov_arcsec = fov_arcsec, fov_pixels=fov_pixels,
+                nlambda = masterapp.nlambda,
+                monochromatic=masterapp.monochromatic_wavelength,
                 display = True)
 
         wx.PostEvent(masterapp, ResultEvent(PSF_HDUlist)) # send results back to master thread
@@ -880,7 +880,7 @@ class ResultEvent(wx.PyEvent):
 class WebbPSFMenuBar(wx.MenuBar):
     def __init__(self,parent):
         wx.MenuBar.__init__(self)
-        item_keys =['save_psf','save_profile', 'documentation', 'preferences', 'calc_options', 'calcPSF', 
+        item_keys =['save_psf','save_profile', 'documentation', 'preferences', 'calc_options', 'calcPSF',
                 'display_spectrum', 'display_optics','display_opd', 'display_psf', 'display_profiles']
 
         self.ids = {}
@@ -929,7 +929,7 @@ class WebbPSFMenuBar(wx.MenuBar):
 
 #-------------------------------------------------------------------------
 class WebbPSFDialog(wx.Dialog):
-    """ Generic dialog box for WebbPSF 
+    """ Generic dialog box for WebbPSF
 
     TODO: investigate wx.Validator to validate the text input fields
     """
@@ -944,7 +944,7 @@ class WebbPSFDialog(wx.Dialog):
 
 
         #self._createWidgets()
- 
+
     def _add_labeled_dropdown(self, name, parent, parentsizer, label="Entry:", choices=None, default=0, width=5, position=(0,0), columnspan=1, **kwargs):
         """convenient wrapper for adding a Combobox
 
@@ -969,9 +969,9 @@ class WebbPSFDialog(wx.Dialog):
         parentsizer.Add( mycombo, (position[0],position[1]+1),  (1,columnspan), wx.EXPAND)
 
         self.widgets[name] = mycombo
- 
 
-    def _add_labeled_entry(self, name, parent, parentsizer, label="Entry:", value=None, format="%.2g", 
+
+    def _add_labeled_entry(self, name, parent, parentsizer, label="Entry:", value=None, format="%.2g",
             width=5, position=(0,0), postlabel=None, **kwargs):
         "convenient wrapper for adding an Entry"
         mylabel = wx.StaticText(parent, -1,label=label)
@@ -983,7 +983,7 @@ class WebbPSFDialog(wx.Dialog):
             except:
                 value=""
         else:
-            try: 
+            try:
                 value = format % value
             except:
                 pass
@@ -1008,12 +1008,12 @@ class WebbPSFDialog(wx.Dialog):
 
 
 class WebbPSFOptionsDialog(WebbPSFDialog):
-    """ Dialog box for WebbPSF options 
+    """ Dialog box for WebbPSF options
 
     TODO: investigate wx.Validator to validate the text input fields
     """
-    def __init__(self, parent=None, id=-1, title="WebbPSF Options", 
-            input_options=_default_options()): 
+    def __init__(self, parent=None, id=-1, title="WebbPSF Options",
+            input_options=_default_options()):
         WebbPSFDialog.__init__(self, parent,id=id,title=title)
         self.input_options = input_options
 
@@ -1039,7 +1039,7 @@ class WebbPSFOptionsDialog(WebbPSFDialog):
 
 
         self._createWidgets()
- 
+
 
     def _createWidgets(self):
 
@@ -1057,32 +1057,32 @@ class WebbPSFOptionsDialog(WebbPSFDialog):
 
 
         r=1
-        self._add_labeled_dropdown("monochromatic", panel1,sizer, 
-                label='    Broadband or monochromatic? ', 
+        self._add_labeled_dropdown("monochromatic", panel1,sizer,
+                label='    Broadband or monochromatic? ',
                 default = 1 if self.input_options['monochromatic'] else 0, position=(r,0))
         r+=1
-        self._add_labeled_dropdown("parallelization", panel1,sizer, 
-                label='    Parallelize Wavelengths? ', 
+        self._add_labeled_dropdown("parallelization", panel1,sizer,
+                label='    Parallelize Wavelengths? ',
                 default = 1 if self.input_options['parallelization'] else 0, position=(r,0))
         r+=1
-        self._add_labeled_dropdown("force_coron", panel1,sizer, 
-                label='    Direct imaging calculations use: ', 
+        self._add_labeled_dropdown("force_coron", panel1,sizer,
+                label='    Direct imaging calculations use: ',
                 default = 1 if self.input_options['force_coron'] else 0, position=(r,0))
 
         r+=1
-        self._add_labeled_dropdown("no_sam", panel1,sizer, 
-                label='    Coronagraphic calculations use', 
+        self._add_labeled_dropdown("no_sam", panel1,sizer,
+                label='    Coronagraphic calculations use',
                 default= 1 if self.input_options['no_sam'] else 0, position=(r,0))
         r+=1
-        self._add_labeled_dropdown("parity", panel1,sizer, 
-                label='    Output pixel grid parity is', 
+        self._add_labeled_dropdown("parity", panel1,sizer,
+                label='    Output pixel grid parity is',
                 choices=['odd', 'even', 'either'], default=self.input_options['parity'], position=(r,0))
         r+=1
-        self._add_labeled_dropdown("fov_in_arcsec", panel1,sizer, 
-                label='    Specify field of view in: ', 
+        self._add_labeled_dropdown("fov_in_arcsec", panel1,sizer,
+                label='    Specify field of view in: ',
                 default = 0 if self.input_options['fov_in_arcsec'] else 1, position=(r,0))
 
- 
+
         #sizer.AddGrowableCol(0)
         panel1.SetSizerAndFit(sizer)
 
@@ -1099,21 +1099,21 @@ class WebbPSFOptionsDialog(WebbPSFDialog):
                 default=self.input_options['psf_scale'], position=(r,0))
 
         r+=1
-        self._add_labeled_entry("psf_vmin", panel2,sizer, label='    Min scale value:', 
-            format="%.2g", width=7, 
+        self._add_labeled_entry("psf_vmin", panel2,sizer, label='    Min scale value:',
+            format="%.2g", width=7,
             position=(r,0))
         r+=1
-        self._add_labeled_entry("psf_vmax", panel2,sizer, label='    Max scale value:', 
-            format="%.2g", width=7, 
+        self._add_labeled_entry("psf_vmax", panel2,sizer, label='    Max scale value:',
+            format="%.2g", width=7,
             position=(r,0))
         r+=1
         self._add_labeled_dropdown("psf_normalize", panel2,sizer,
-                label='    Normalize PSF to:', choices=['Total', 'Peak'], 
+                label='    Normalize PSF to:', choices=['Total', 'Peak'],
                 default=self.input_options['psf_normalize'], position=(r,0))
         r+=1
-        self._add_labeled_dropdown("psf_cmap", panel2,sizer, label='    Color table:', 
-                choices=[a for a in self.colortables],  
-                default=self.input_options['psf_cmap_str'], 
+        self._add_labeled_dropdown("psf_cmap", panel2,sizer, label='    Color table:',
+                choices=[a for a in self.colortables],
+                default=self.input_options['psf_cmap_str'],
                 position=(r,0))
         panel2.SetSizerAndFit(sizer)
 
@@ -1121,7 +1121,7 @@ class WebbPSFOptionsDialog(WebbPSFDialog):
         bbar = self.CreateStdDialogButtonSizer( wx.OK | wx.CANCEL)
         self.Bind(wx.EVT_BUTTON, self.OnButtonOK, id=wx.ID_OK)
         #self.Bind(wx.EVT_BUTTON, self.OnButtonCancel, id=wx.ID_CANCEL)
- 
+
 
         topPanelSizer.Add(panel1, 1,wx.EXPAND)
         topPanelSizer.Add(panel2, 1, wx.EXPAND)
@@ -1129,7 +1129,7 @@ class WebbPSFOptionsDialog(WebbPSFDialog):
         topPanelSizer.Add(bbar,1, wx.EXPAND)
         #topPanel.AddGrowableCol(0)
         topPanel.SetSizerAndFit(topPanelSizer)
- 
+
         topSizer.Add(topPanel, 1, flag=wx.EXPAND|wx.ALL, border=10)
         self.SetSizerAndFit(topSizer)
         self.Show(True)
@@ -1147,8 +1147,8 @@ class WebbPSFOptionsDialog(WebbPSFDialog):
             results['monochromatic'] =  self.widgets['monochromatic'].GetValue() == 'Monochromatic'
             results['parallelization'] =  self.widgets['parallelization'].GetValue() == 'Parallelized'
             results['fov_in_arcsec'] =  self.widgets['fov_in_arcsec'].GetValue() == 'Arcseconds'
-            results['parity'] =         self.widgets['parity'].GetValue() 
-            results['psf_scale'] =      self.widgets['psf_scale'].GetValue() 
+            results['parity'] =         self.widgets['parity'].GetValue()
+            results['psf_scale'] =      self.widgets['psf_scale'].GetValue()
             results['psf_vmax'] = float(self.widgets['psf_vmax'].GetValue())
             results['psf_vmin'] = float(self.widgets['psf_vmin'].GetValue())
             results['psf_cmap_str'] =   self.widgets['psf_cmap'].GetValue()
@@ -1167,11 +1167,11 @@ class WebbPSFOptionsDialog(WebbPSFDialog):
 #-------------------------------------------------------------------------
 
 class WebbPSFPreferencesDialog(WebbPSFDialog):
-    """ Dialog box for WebbPSF options 
+    """ Dialog box for WebbPSF options
 
     TODO: investigate wx.Validator to validate the text input fields
     """
-    def __init__(self, parent=None, id=-1, title="WebbPSF Preferences"): 
+    def __init__(self, parent=None, id=-1, title="WebbPSF Preferences"):
         WebbPSFDialog.__init__(self, parent,id=id,title=title, size=(800,400))
 
         self._createWidgets()
@@ -1190,8 +1190,8 @@ class WebbPSFPreferencesDialog(WebbPSFDialog):
         sizer.Add(txt,(0,0),(1,3),wx.EXPAND|wx.ALIGN_CENTER_HORIZONTAL)
 
         r=1
-        self._add_labeled_entry("WEBBPSF_PATH", panel1,sizer, label='    WebbPSF Data Path:', 
-            value = str(conf.WEBBPSF_PATH), 
+        self._add_labeled_entry("WEBBPSF_PATH", panel1,sizer, label='    WebbPSF Data Path:',
+            value = str(conf.WEBBPSF_PATH),
             format="%50s", position=(r,0))
 
         self.ButtonBrowseDir = wx.Button(panel1, label='Browse...')
@@ -1208,16 +1208,16 @@ class WebbPSFPreferencesDialog(WebbPSFDialog):
         sizer.Add(txt,(0,0),(1,3),wx.EXPAND|wx.ALIGN_CENTER_HORIZONTAL)
 
         r=1
-        self._add_labeled_entry("default_oversampling", panel2,sizer, label='    Default Oversampling:', 
-            value = conf.default_oversampling, 
+        self._add_labeled_entry("default_oversampling", panel2,sizer, label='    Default Oversampling:',
+            value = conf.default_oversampling,
             format="%.2g", width=7, position=(r,0))
         r+=1
-        self._add_labeled_entry("default_fov_arcsec", panel2,sizer, label='    Default FOV [arcsec]:', 
-            value = conf.default_fov_arcsec, 
+        self._add_labeled_entry("default_fov_arcsec", panel2,sizer, label='    Default FOV [arcsec]:',
+            value = conf.default_fov_arcsec,
             format="%.2g", width=7, position=(r,0))
 
-        # update conf.default_oversampling , default_output_mode, default_fov_arcsec, WEBBPSF_PATH, 
-        # use_multiprocessing= True/False 
+        # update conf.default_oversampling , default_output_mode, default_fov_arcsec, WEBBPSF_PATH,
+        # use_multiprocessing= True/False
         # n_processes= #
         # use_fftw = True/False
 
@@ -1241,20 +1241,20 @@ class WebbPSFPreferencesDialog(WebbPSFDialog):
 #
 #
 #        r+=1
-#        self._add_labeled_entry("psf_vmin", panel2,sizer, label='    Min scale value:', 
+#        self._add_labeled_entry("psf_vmin", panel2,sizer, label='    Min scale value:',
 #            format="%.2g", width=7, position=(r,0))
 #        r+=1
-#        self._add_labeled_entry("psf_vmax", panel2,sizer, label='    Max scale value:', 
-#            format="%.2g", width=7, 
+#        self._add_labeled_entry("psf_vmax", panel2,sizer, label='    Max scale value:',
+#            format="%.2g", width=7,
 #            position=(r,0))
 #        r+=1
 #        self._add_labeled_dropdown("psf_normalize", panel2,sizer,
-#                label='    Normalize PSF to:', choices=['Total', 'Peak'], 
+#                label='    Normalize PSF to:', choices=['Total', 'Peak'],
 #                default=self.input_options['psf_normalize'], position=(r,0))
 #        r+=1
-#        self._add_labeled_dropdown("psf_cmap", panel2,sizer, label='    Color table:', 
-#                choices=[a for a in self.colortables.keys()],  
-#                default=self.input_options['psf_cmap_str'], 
+#        self._add_labeled_dropdown("psf_cmap", panel2,sizer, label='    Color table:',
+#                choices=[a for a in self.colortables.keys()],
+#                default=self.input_options['psf_cmap_str'],
 #                position=(r,0))
 #        panel2.SetSizerAndFit(sizer)
 #
@@ -1267,14 +1267,14 @@ class WebbPSFPreferencesDialog(WebbPSFDialog):
         topPanelSizer.Add(panel3, 1, wx.EXPAND)
         topPanelSizer.Add(bbar,1, wx.EXPAND)
         topPanel.SetSizerAndFit(topPanelSizer)
- 
+
         topSizer.Add(topPanel, 1, flag=wx.EXPAND|wx.ALL, border=10)
         self.SetSize((800,300))
         self.SetSizerAndFit(topSizer)
 
         self.Show(True)
 
-  
+
     def ev_browseDataDirectory(self, event):
         dlg = wx.DirDialog(self, 'Choose WebbPSF Data Directory', defaultPath=os.getcwd())
 
@@ -1293,8 +1293,8 @@ class WebbPSFPreferencesDialog(WebbPSFDialog):
 #            results['no_sam'] =         self.widgets['no_sam'].GetValue() == 'basic FFT method always'
 #            results['monochromatic'] =  self.widgets['monochromatic'].GetValue() == 'Monochromatic'
 #            results['fov_in_arcsec'] =  self.widgets['fov_in_arcsec'].GetValue() == 'Arcseconds'
-#            results['parity'] =         self.widgets['parity'].GetValue() 
-#            results['psf_scale'] =      self.widgets['psf_scale'].GetValue() 
+#            results['parity'] =         self.widgets['parity'].GetValue()
+#            results['psf_scale'] =      self.widgets['psf_scale'].GetValue()
 #            results['psf_vmax'] = float(self.widgets['psf_vmax'].GetValue())
 #            results['psf_vmin'] = float(self.widgets['psf_vmin'].GetValue())
 #            results['psf_cmap_str'] =   self.widgets['psf_cmap'].GetValue()
@@ -1341,7 +1341,7 @@ class LogFrame(wx.Frame):
 
         logging.getLogger('webbpsf').addHandler(hdlr)
         logging.getLogger('poppy').addHandler(hdlr)
-        
+
     def __del__(self):
         logging.getLogger('webbpsf').removeHandler(self.hdlr)
         logging.getLogger('poppy').removeHandler(self.hdlr)
@@ -1377,14 +1377,14 @@ With contributions from: Anand Sivaramakrishnan, Remi Soummer, &amp; Klaus Ponto
 <p>
 WebbPSF is running with the following software versions:
 <ul>
-<li><b>Python</b>: %(python)s 
+<li><b>Python</b>: %(python)s
 <li><b>numpy</b>: %(numpy)s
 <li><b>matplotlib</b>: %(matplotlib)s
 <li><b>astropy</b>: %(astropy)s
-<li><b>wxPython</b>: %(wxpy)s  
-<li><b>pysynphot</b>: %(pysynphot)s  
-<li><b>pyFFTW</b>: %(pyfftw)s  
-<li><b>PyFFTW3</b>: %(pyfftw3)s  
+<li><b>wxPython</b>: %(wxpy)s
+<li><b>pysynphot</b>: %(pysynphot)s
+<li><b>pyFFTW</b>: %(pyfftw)s
+<li><b>PyFFTW3</b>: %(pyfftw3)s
 </ul>
 </p>"""
 
@@ -1408,7 +1408,7 @@ WebbPSF is running with the following software versions:
             vers['pyfftw3'] = "Present"
         except:
             vers['pyfftw3'] = "Not Found"
-            
+
         vers["python"] = sys.version.split()[0]
         vers["wxpy"] = wx.VERSION_STRING
         vers['numpy'] = np.__version__
@@ -1470,7 +1470,7 @@ def wxgui(fignum=1, showlog=True):
     # GUI does not play well with multiprocessing, so avoid that.
     if poppy.conf.use_multiprocessing:
         _log.error('Multiprocessing is not compatible with the GUI right now. Falling back to single-threaded.')
-        poppy.conf.use_multiprocessing = False 
+        poppy.conf.use_multiprocessing = False
 
     # start the GUI
     app = wx.App()
@@ -1478,7 +1478,7 @@ def wxgui(fignum=1, showlog=True):
     gui = WebbPSF_GUI()
     gui.Show()
 
-    if showlog: 
+    if showlog:
         # start it immediately below the main window
         gpos = gui.GetScreenPosition()
         gsize = gui.GetSize()

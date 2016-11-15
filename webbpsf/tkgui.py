@@ -56,7 +56,7 @@ class WebbPSF_GUI(object):
         else:
             self._enable_opdserver = False
 
-        
+
         # create widgets & run
         self._create_widgets()
         self.root.update()
@@ -74,7 +74,7 @@ class WebbPSF_GUI(object):
 
         if default is None: default=values[0]
         self.widgets[name].set(default)
- 
+
 
     def _add_labeled_entry(self, name, root,label="Entry:", value="", width=5, position=(0,0), postlabel=None, **kwargs):
         "convenient wrapper for adding an Entry"
@@ -90,7 +90,7 @@ class WebbPSF_GUI(object):
 
 
     def _create_widgets(self):
-        """Create a nice GUI using the enhanced widget set provided by 
+        """Create a nice GUI using the enhanced widget set provided by
         the ttk extension to Tkinter, available in Python 2.7 or newer
         """
         #---- create the GUIs
@@ -139,7 +139,7 @@ class WebbPSF_GUI(object):
         notebook.pack(fill='both')
         for iname,i in zip(insts, range(len(insts))):
             page = ttk.Frame(notebook)
-            notebook.add(page,text=iname) 
+            notebook.add(page,text=iname)
             notebook.select(i)  # make it active
             self.widgets[notebook.select()] = iname # save reverse lookup from meaningless widget "name" to string name
             if iname =='NIRCam':
@@ -168,7 +168,7 @@ class WebbPSF_GUI(object):
                 #self.widgets[iname+"_wavelen"].insert(0, str(self.instrument[iname].etalon_wavelength))
                 #self.widgets[iname+"_wavelen"].grid(row=1, column=1, sticky='W')
                 #ttk.Label(page, text=' um' ).grid(row=1, column=2, sticky='W')
- 
+
             #self.vars[iname+"_filter"] = tk.StringVar()
             #self.widgets[iname+"_filter"] = ttk.Combobox(page,textvariable =self.vars[iname+"_filter"], width=10, state='readonly')
             #self.widgets[iname+"_filter"]['values'] = self.instrument[iname].filter_list
@@ -197,7 +197,7 @@ class WebbPSF_GUI(object):
             if len(self.instrument[iname].image_mask_list) >0 :
                 masks = self.instrument[iname].image_mask_list
                 masks.insert(0, "")
- 
+
                 self._add_labeled_dropdown(iname+"_coron", page, label='    Coron:', values=masks,  width=12, position=(2,0), sticky='W')
                 #self.vars[iname+"_coron"] = tk.StringVar()
                 #self.widgets[iname+"_coron"] = ttk.Combobox(page,textvariable =self.vars[iname+"_coron"], width=10, state='readonly')
@@ -239,7 +239,7 @@ class WebbPSF_GUI(object):
 
             opd_list =  self.instrument[iname].opd_list
             opd_list.insert(0,"Zero OPD (perfect)")
-            #if os.getenv("WEBBPSF_ITM") or 1:  
+            #if os.getenv("WEBBPSF_ITM") or 1:
             if self._enable_opdserver:
                 opd_list.append("OPD from ITM Server")
             default_opd = self.instrument[iname].pupilopd if self.instrument[iname].pupilopd is not None else "Zero OPD (perfect)"
@@ -250,10 +250,10 @@ class WebbPSF_GUI(object):
             self.widgets[iname+"_opd_label"] = ttk.Label(fr2, text=' 0 nm RMS            ', width=35)
             self.widgets[iname+"_opd_label"].grid( column=4,sticky='W', row=0)
 
-            self.widgets[iname+"_opd"].bind('<<ComboboxSelected>>', 
+            self.widgets[iname+"_opd"].bind('<<ComboboxSelected>>',
                     lambda e: self.ev_update_OPD_labels() )
                     # The below code does not work, and I can't tell why. This only ever has iname = 'FGS' no matter which instrument.
-                    # So instead brute-force it with the above to just update all 5. 
+                    # So instead brute-force it with the above to just update all 5.
                     #lambda e: self.ev_update_OPD_label(self.widgets[iname+"_opd"], self.widgets[iname+"_opd_label"], iname) )
             ttk.Button(fr2, text='Display', command=self.ev_displayOPD).grid(column=5,sticky='E',row=0)
 
@@ -320,7 +320,7 @@ class WebbPSF_GUI(object):
             if disabled:
                 self.widgets[text].state(['disabled'])
 
- 
+
         addbutton(self,lf,'Compute PSF', self.ev_calcPSF, 0)
         addbutton(self,lf,'Display PSF', self.ev_displayPSF, 1, disabled=True)
         addbutton(self,lf,'Display profiles', self.ev_displayProfiles, 2, disabled=True)
@@ -346,12 +346,12 @@ class WebbPSF_GUI(object):
     def ev_SaveAs(self):
         "Event handler for Save As of output PSFs"
         filename = tkFileDialog.asksaveasfilename(
-                initialfile='PSF_%s_%s.fits' %(self.iname, self.filter), 
+                initialfile='PSF_%s_%s.fits' %(self.iname, self.filter),
                 filetypes=[('FITS', '.fits')],
                 defaultextension='.fits',
                 parent=self.root)
         if len(filename) > 0:
-            self.PSF_HDUlist.writeto(filename) 
+            self.PSF_HDUlist.writeto(filename)
             print("Saved to {}".format(filename))
 
     def ev_options(self):
@@ -434,7 +434,7 @@ class WebbPSF_GUI(object):
         else:
             source=None # generic flat spectrum
 
-        self.PSF_HDUlist = self.inst.calcPSF(source=source, 
+        self.PSF_HDUlist = self.inst.calcPSF(source=source,
                 detector_oversample= self.detector_oversampling,
                 fft_oversample=self.fft_oversampling,
                 fov_arcsec = self.FOV,  nlambda = self.nlambda, display=True)
@@ -449,14 +449,14 @@ class WebbPSF_GUI(object):
         #self._updateFromGUI()
         #if self.PSF_HDUlist is not None:
         plt.clf()
-        poppy.display_PSF(self.PSF_HDUlist, vmin = self.advanced_options['psf_vmin'], vmax = self.advanced_options['psf_vmax'], 
+        poppy.display_PSF(self.PSF_HDUlist, vmin = self.advanced_options['psf_vmin'], vmax = self.advanced_options['psf_vmax'],
                 scale = self.advanced_options['psf_scale'], cmap= self.advanced_options['psf_cmap'], normalize=self.advanced_options['psf_normalize'])
         self._refresh_window()
 
     def ev_displayProfiles(self):
         "Event handler for Displaying the PSF"
         #self._updateFromGUI()
-        poppy.display_profiles(self.PSF_HDUlist)        
+        poppy.display_profiles(self.PSF_HDUlist)
         self._refresh_window()
 
     def ev_displayOptics(self):
@@ -471,12 +471,12 @@ class WebbPSF_GUI(object):
     def ev_displayOPD(self):
         self._updateFromGUI()
         if self.inst.pupilopd is None:
-            tkMessageBox.showwarning( message="You currently have selected no OPD file (i.e. perfect telescope) so there's nothing to display.", title="Can't Display") 
+            tkMessageBox.showwarning( message="You currently have selected no OPD file (i.e. perfect telescope) so there's nothing to display.", title="Can't Display")
         else:
             if self._enable_opdserver and 'ITM' in self.opd_name:
                 opd = self.inst.pupilopd   # will contain the actual OPD loaded in _updateFromGUI just above
             else:
-                opd = fits.getdata(self.inst.pupilopd[0])     # in this case self.inst.pupilopd is a tuple with a string so we have to load it here. 
+                opd = fits.getdata(self.inst.pupilopd[0])     # in this case self.inst.pupilopd is a tuple with a string so we have to load it here.
 
             if len(opd.shape) >2:
                 opd = opd[self.opd_i,:,:] # grab correct slice
@@ -496,7 +496,7 @@ class WebbPSF_GUI(object):
         self._refresh_window()
 
     def ev_launch_ITM_dialog(self):
-        tkMessageBox.showwarning( message="ITM dialog box not yet implemented", title="Can't Display") 
+        tkMessageBox.showwarning( message="ITM dialog box not yet implemented", title="Can't Display")
 
     def ev_update_OPD_labels(self):
         "Update the descriptive text for all OPD files"
@@ -537,7 +537,7 @@ class WebbPSF_GUI(object):
         self.iname = self.widgets[self.widgets['tabset'].select()]
 
 
- 
+
 
         try:
             self.nlambda= int(self.widgets['nlambda'].get())
@@ -581,7 +581,7 @@ class WebbPSF_GUI(object):
             self.inst.pupilopd = self._opdserver.get_OPD(return_as="FITS")
             self.opd_name = "OPD from ITM OPD GUI"
 
-        elif self.opd_name == "Zero OPD (perfect)": 
+        elif self.opd_name == "Zero OPD (perfect)":
             # perfect OPD
             self.opd_name = "Perfect"
             self.inst.pupilopd = None
@@ -614,7 +614,7 @@ class WebbPSF_GUI(object):
 #-------------------------------------------------------------------------
 
 class Dialog(tk.Toplevel):
-    """ Base class for a modal dialog box. 
+    """ Base class for a modal dialog box.
     From example code at  http://effbot.org/tkinterbook/tkinter-dialog-windows.htm
 
     """
@@ -723,7 +723,7 @@ class WebbPSFOptionsDialog(Dialog):
 
         if default is None: default=values[0]
         self.widgets[name].set(default)
- 
+
 
     def _add_labeled_entry(self, name, root,label="Entry:", value="", width=5, position=(0,0), postlabel=None, **kwargs):
         "convenient wrapper for adding an Entry"
@@ -764,7 +764,7 @@ class WebbPSFOptionsDialog(Dialog):
 
         self.values['force_coron'] = ['regular propagation (MFT)', 'full coronagraphic propagation (FFT/SAM)']
 
-        self._add_labeled_dropdown("force_coron", lf, label='Direct imaging calculations use', values=self.values['force_coron'], 
+        self._add_labeled_dropdown("force_coron", lf, label='Direct imaging calculations use', values=self.values['force_coron'],
                 default = self.values['force_coron'][ 1 if self.input_options['force_coron'] else 0]  ,  width=30, position=(r,0), sticky='W')
         r+=1
         self.values['no_sam'] = ['semi-analytic method if possible', 'basic FFT method always']
@@ -798,8 +798,8 @@ class WebbPSFOptionsDialog(Dialog):
             results = {}
             results['force_coron'] = self.vars['force_coron'].get() == 'full coronagraphic propagation (FFT/SAM)'
             results['no_sam'] = self.vars['no_sam'].get() == 'basic FFT method always'
-            results['parity'] = self.vars['parity'].get() 
-            results['psf_scale'] = self.vars['psf_scale'].get() 
+            results['parity'] = self.vars['parity'].get()
+            results['psf_scale'] = self.vars['psf_scale'].get()
             results['psf_vmax'] = float(self.vars['psf_vmax'].get())
             results['psf_vmin'] = float(self.vars['psf_vmin'].get())
             results['psf_cmap_str'] = self.vars['psf_cmap'].get()

@@ -29,7 +29,7 @@ for instr in insts:
     files = glob.glob(os.path.join(WORKING_DIR, 'webbpsf-data', instr, "OPD", "*.fits.gz"))
     files.sort()
     print(instr, files)
-    
+
     # just save the lowest alphabetically of each of them
     for file_to_delete in files[1:]:
         print("Deleting "+file_to_delete)
