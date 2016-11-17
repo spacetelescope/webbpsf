@@ -5,7 +5,7 @@ Conceptually, this simulation code has three layers of abstraction:
  * A base package for wavefront propagation through generic optical systems (provided by :py:mod:`POPPY <poppy>`)
  * Models of the JWST instruments implemented on top of that base system (provided by :py:mod:`WebbPSF <webbpsf>`)
  * An optional :ref:`graphical user interface <gui>`
-   
+
 It is entirely possible (and indeed recommended for scripting) to just use the :py:mod:`WebbPSF <webbpsf>` interface without the GUI, but the
 GUI can provide a quicker method for many simple interactive calculations.
 
@@ -14,19 +14,19 @@ GUI can provide a quicker method for many simple interactive calculations.
 Why WebbPSF?
 ------------
 
-WebbPSF replaced an older PSF simulation package,  ``JWPSF``, that was in use prior to 2011. 
+WebbPSF replaced an older PSF simulation package,  ``JWPSF``, that was in use prior to 2011.
 From a user's perspective WebbPSF provides the following enhancements over JWPSF:
 
 * Updated to the most recent JWST pupil and OPD models, Revision V.
 * Added TFI and FGS models. TFI then updated to NIRISS.
 * Updated lists of available filters.
-* Added support for coronagraphic and spectroscopic observing modes. 
+* Added support for coronagraphic and spectroscopic observing modes.
 * Includes the detector rotations, particularly for MIRI and NIRSpec
 * Adds ability to set output image FOV size and pixel sampling, separate from the oversampling factor used for the optical propagation.
 * New & improved graphical user interface.
 
 
-Perhaps even more importantly, the underlying codebase has been entirely replaced and revamped. The most 
+Perhaps even more importantly, the underlying codebase has been entirely replaced and revamped. The most
 significant additions from a programmer's perspective include:
 
 * Much cleaner object-oriented interface. Better abstraction of details across layers.
@@ -34,7 +34,7 @@ significant additions from a programmer's perspective include:
 * Support for coordinate rotations and rotated optics.
 * Arbitrary oversampling for coronagraphic models.
 * Matrix Fourier Transform algorithm from Soummer et al. implemented for arbitrary detector sampling.
-* Optional parallelization for improved speed and efficient use of multiple processor cores. 
+* Optional parallelization for improved speed and efficient use of multiple processor cores.
 * Uses ``pysynphot`` library (same as the HST & JWST exposure time calculators) for consistent treatment of filter bandpasses and source spectra.
 
 .. _intro_algorithms:
@@ -46,7 +46,7 @@ Read on if you're interested in details of how the computations are performed. O
 
 The problem at hand is to transform supplied, precomputed OPDs (derived from a detailed optomechanical model
 of the telescope)
-into observed PSFs as seen with one or more of JWST's various detectors. This requires knowledge of the 
+into observed PSFs as seen with one or more of JWST's various detectors. This requires knowledge of the
 location and orientation of the detector planes, the properties of relevant optics such as bandpass filters and/or
 coronagraphic image and pupil plane masks, and a model of light propagation between them.
 
@@ -56,7 +56,7 @@ provenance information. Optics may be described either numerically (for
 instance, a FITS file containing a mask image for a Lyot plane or a FITS
 bintable giving a spectral bandpass) or analytically (for instance, a
 coronagraph occulter described as a circle of a given radius or a band-limited
-mask function with given free parameters). 
+mask function with given free parameters).
 
 
 WebbPSF computes PSFs under the assumption that JWST's instruments are well
@@ -70,8 +70,8 @@ sampling in the pupil and image planes. As a result, obtaining finely sampled PS
 mostly of zero-padding. A more computationally attractive method is to use a discrete matrix Fourier transform, which
 provides flexibility to compute PSFs on any desired output sampling without requiring any excess padding of the input arrays.
 While this algorithm's computational cost grows as `O(N^3)` versus `O(N log N)` for the FFT, the FFT's apparent advantage is immediately lost
-due to the need to resample the output onto the real pixel grid, which is an `O(N^2)` operation. By performing a matrix fourier transform 
-directly to the desired output pixel scale, we can achieve arbitrarily fine sampling without the use of memory-intensive large padded arrays, and 
+due to the need to resample the output onto the real pixel grid, which is an `O(N^2)` operation. By performing a matrix fourier transform
+directly to the desired output pixel scale, we can achieve arbitrarily fine sampling without the use of memory-intensive large padded arrays, and
 with lower overall computation time.
 
 Further optimizations are available in coronagraphic mode using the semi-analytic coronagraphic propagation algorithm of Soummer et al. 2007. In this approach, rather than
@@ -115,7 +115,7 @@ First, download and install the software. Then just start ``python`` and
 >>> import webbpsf
 >>> webbpsf.gui()
 
-and you should be able to test drive things using the GUI: 
+and you should be able to test drive things using the GUI:
 
 .. figure:: ./fig_gui_main.png
    :scale: 75%
@@ -127,7 +127,7 @@ and you should be able to test drive things using the GUI:
 Most controls should be self-explanatory, so feel free to experiment. The article :ref:`gui` provides a detailed
 explanation of the GUI options.
 
-WebbPSF can save a detailed log of its calculations and results. This will by default be shown on screen but can also be saved to disk. 
+WebbPSF can save a detailed log of its calculations and results. This will by default be shown on screen but can also be saved to disk.
 
 >>> webbpsf.setup_logging(filename='my_log_file.txt')
 

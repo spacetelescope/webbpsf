@@ -30,7 +30,7 @@ def test_logging_restart():
 
     conf.logging_level = 'INFO'
     utils.restart_logging()
- 
+
     conf.logging_level = level
     utils.restart_logging()
 

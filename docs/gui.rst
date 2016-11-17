@@ -27,7 +27,7 @@ The main window is divided into three regions:
 
 * The top region allows control of the source spectral type and position. (Selecting a source spectral type requires installing the optional dependency :ref:`pysynphot <pysynphot_install>`.)
 * The central, main region allows selection of instrument and configuration of instrument options. The options available here largely correspond to attributes of the :py:class:`webbpsf.JWInstrument` classes.
-* The lower region contains options for the PSF calculation itself such as pixel sampling and wavelengths. These correspond to parameters of the  :py:meth:`webbpsf.JWInstrument.calcPSF` function call.
+* The lower region contains options for the PSF calculation itself such as pixel sampling and wavelengths. These correspond to parameters of the  :py:meth:`webbpsf.JWInstrument.calc_psf` function call.
 
 
 GUI Controls
@@ -40,7 +40,7 @@ Compute PSF
 -----------
 
 This invokes a PSF calculation with the given options. Each wavelength will be displayed in turn as it is computed, and finally the summed broadband PSF.
-This resulting PSF is stored in memory for use by the next three buttons. 
+This resulting PSF is stored in memory for use by the next three buttons.
 
 
 Display PSF

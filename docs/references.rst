@@ -12,7 +12,7 @@ Appendix: Instrument Property References
 We give here references for the instrumental properties assumed in PSF
 computations, with particular attention to coronagraphic optics. It also notes
 several places where the current models or available files are limited in some
-manner that might be improved in a future release. 
+manner that might be improved in a future release.
 
 Instrument pixel scales are all based on *average best estimate* scales
 available in April 2016, specifically from values in the Science Instruments
@@ -22,7 +22,7 @@ detectors, the values provided are averaged over the relevant detectors.
 WebbPSF calculates PSFs on an isotropic pixel grid (i.e. square pixels), but at
 high precision the SI pixel scales can differ between the X and Y axes by
 between 0.5% (for NIRCam) up to 2.5% (for FGS). WebbPSF also does not model any
-of the measured distortions within the instruments. 
+of the measured distortions within the instruments.
 
 
 
@@ -45,7 +45,7 @@ optical error budget.
 
 **Note:** The provided files included no header metadata, and in particular no
 pixel scale, so one was assumed based on the apparent pupil diameter in the
-files. The estimated uncertainty in this scale is 1 part in 1000, so users concerned with measurements of PSF FWHMs etc at that level should be cautious. 
+files. The estimated uncertainty in this scale is 1 part in 1000, so users concerned with measurements of PSF FWHMs etc at that level should be cautious.
 
 The current model pixel scale, roughly 6 mm/pixel, is too coarse to resolve well the edge roll-off around the border of each segment. We make no
 attempt to include such effects here at this time. An independent study using much more finely sampled pupils has shown that the effect of segment edge roll-off is to scatter ~2% of the light from the PSF core out to large radii, primarily in the form of increased intensity along the diffraction spikes (Soummer et al. 2009, Technical Report JWST-STScI-001755)
@@ -56,12 +56,12 @@ NIRCam
 
 NIRCam focal plane scale:  0.0311 +- 0.0002 (short wave), 0.0630 +- 0.0002 (long wave). SOC PRD SIAF PRDDEVSOC-D-012, 2016 April
 
-The coronagraph optics models are based on the NIRCam instrument team's series of SPIE papers describing the coronagraph designs and flight hardware. 
-(Krist et al. 2007, 2009, 2010 Proc. SPIE), as clarified through cross checks with information provided by the NIRCam instrument team (Krist, private communication 2011).  Currently, the models include only the 5 arcsec square ND acquisition boxes and not the second set of 2 arcsec squares. 
+The coronagraph optics models are based on the NIRCam instrument team's series of SPIE papers describing the coronagraph designs and flight hardware.
+(Krist et al. 2007, 2009, 2010 Proc. SPIE), as clarified through cross checks with information provided by the NIRCam instrument team (Krist, private communication 2011).  Currently, the models include only the 5 arcsec square ND acquisition boxes and not the second set of 2 arcsec squares.
 
 .. comment
     Note that the NIRCam wedge BLCs both have 'flat' regions with constant FWHM at the extreme left and right
-    sides of the wedge, as well as the region in the middle with varying FWHM. Though the widths of these flat 
+    sides of the wedge, as well as the region in the middle with varying FWHM. Though the widths of these flat
     regions are not explicitly stated in either of Krist's papers, by inspection of the figures they appear to be
     ~ 2.5 arcsec wide, so the actual wedge is 15 arcsec in length.  **Note:** This should be double-checked with John Krist.
     **John says "Do not reference or distribute my memo. " so don't say the following **
@@ -75,7 +75,7 @@ The coronagraph optics models are based on the NIRCam instrument team's series o
 
 
 Weak lenses: The lenses are nominally +- 8 and +4 waves at 2.14 microns. The as built defocus values are as follows based on component testing:  7.76198,
--7.74260, 3.90240. 
+-7.74260, 3.90240.
 
 
 NIRSpec
@@ -97,17 +97,17 @@ NIRISS focal plane scale, 0.0656 +- 0.0005 arcsec/pix:          SOC PRD SIAF PRD
 Occulting spots: Assumed to be perfect circles with diameters 0.58, 0.75, 1.5,
 and 2.0 arcsec. Doyon et al. 2010 SPIE 7731. While these are not likely to see
 much (any?) use with NIRISS, they are indeed still present in the pickoff mirror hardware, so we
-retain the ability to simulate them. 
+retain the ability to simulate them.
 
-NIRISS internal pupils: The regular imaging mode internal pupil stop is a 4% oversized tricontagon (with sharp corners). See Doyon et al. Proc SPIE 2012 Figure 2. 
+NIRISS internal pupils: The regular imaging mode internal pupil stop is a 4% oversized tricontagon (with sharp corners). See Doyon et al. Proc SPIE 2012 Figure 2.
 The CLEARP pupil has an oversized central obscuration plus 3 support vanes. Details based on NIRISS design drawing 196847Rev0.pdf "Modified Calibration Optic Holder" provided by Loic Albert.
-NRM occulter mask: digital file provided by Anand Sivaramakrishnan. GR700XD mask design details provided by Loic Albert. 
+NRM occulter mask: digital file provided by Anand Sivaramakrishnan. GR700XD mask design details provided by Loic Albert.
 
 
 MIRI
 ------
 
-MIRIM focal plane scale, 0.1110 +- 0.001 arcsec/pix:         SOC PRD SIAF PRDDEVSOC-D-012, 2016 April       
+MIRIM focal plane scale, 0.1110 +- 0.001 arcsec/pix:         SOC PRD SIAF PRDDEVSOC-D-012, 2016 April
 
 MIRIM field of view rotation, 5.0152 degrees:               SOC PRD SIAF PRDDEVSOC-D-012, 2016 April
 
@@ -115,13 +115,13 @@ Coronagraph pupils rotated to match,  4.56 degrees:  MIRI-DD-00001-AEU  5.7.8.2.
 
 Coronagraphic FOVs,  30.0 arcsec for Lyot, 24.0x23.8 arcsec for FQPMs: MIRI-DD-00001-AEU 2.2.1
 
-Lyot coronagraph occulting spot diameter,               4.25 arcsec:      
+Lyot coronagraph occulting spot diameter,               4.25 arcsec:
 
 Lyot coronagraph support bar width, 0.46 mm = 0.722 arcsec:              Anthony Boccaletti private communication December 2010 to Perrin and Hines
 
 Lyot mask files:                                         Anthony Boccaletti private communication to Remi Soummer
 
-LRS slit size (4.7 x 0.51 arcsec):     MIRI-TR-00001-CEA. And LRS Overview presentation by Silvia Scheithaur to MIRI team meeting May 2013. 
+LRS slit size (4.7 x 0.51 arcsec):     MIRI-TR-00001-CEA. And LRS Overview presentation by Silvia Scheithaur to MIRI team meeting May 2013.
 
 LRS P750L grating aperture mask (3.8% oversized tricontagon): MIRI OBA Design Description, MIRI-DD-00001-AEU
 
@@ -136,7 +136,7 @@ Where possible, instrumental relative spectral responses were derived from the
 Pysynphot CDBS files used for the development version of the JWST Exposure Time Calculators (ETCs),
 normalized to peak transmission = 1.0 (because absolute throughput is not
 relevant for PSF calculations). Not all filters are yet supported in Pysynphot,
-however.  
+however.
 
 
 For the following filters we take information from alternate sources other than the CDBS::
@@ -150,7 +150,7 @@ For the following filters we take information from alternate sources other than 
    MIRI         F*W filters     Data published in Glasse et al. 2015 PASP Vol 127 No. 953, p. 688 Fig 2
    MIRI         F*C filters     Data published in Bouchet et al. 2015 PASP Vol 127 No. 953, p. 612 Fig 3
    NIRISS       all filters     Measurement data provided by Loic Albert of the NIRISS team
-   FGS          none            Assumed top-hat function based on detector cut-on and cut-off wavelengths. 
+   FGS          none            Assumed top-hat function based on detector cut-on and cut-off wavelengths.
 
 
 The MIRI wide filters (F*W) are total system photon conversion efficiencies
@@ -158,10 +158,10 @@ including filter, telescope, instrument, and detector throughputs, normalized
 to unity.  The MIRI coronagraphic filters are just the filters themselves, but
 the detector and optics throughputs are relatively flat with wavelength
 compared to the narrow coronagraphic filters. These are sufficiently accurate for
-typical coronagraphic modeling but be aware of that caveat if attempting precise photometric 
+typical coronagraphic modeling but be aware of that caveat if attempting precise photometric
 calculations.
 
-For the NIRCam and NIRSpec filters called out in the table above, the provided throughputs do not include the detector QE or OTE/SI optics throughputs versus wavelength. 
+For the NIRCam and NIRSpec filters called out in the table above, the provided throughputs do not include the detector QE or OTE/SI optics throughputs versus wavelength.
 
-All other filters do include these effects, to the extent that they are accurately 
-captured in the Calibration Database in support of the ETCs. 
+All other filters do include these effects, to the extent that they are accurately
+captured in the Calibration Database in support of the ETCs.

@@ -449,7 +449,7 @@ def annotate_ote_entrance_coords(self, ax):
 
 def annotate_sky_pupil_coords(self, ax, show_NE=False, north_angle=45.):
     """ Draw OTE V frame axes projected onto the sky
-    Optionally also draw a compass for north and east at some given 
+    Optionally also draw a compass for north and east at some given
     position angle
     """
     color='yellow'

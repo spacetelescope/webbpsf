@@ -13,7 +13,7 @@ WebbPSF for WFIRST
 Introduction
 ============
 
-WebbPSF provides a framework for JWST instrument PSF calculations that is easily extensible to other instruments and observatories. The :py:mod:`webbpsf.wfirst` module was developed to enable simulation of WFIRST's Wide Field Instrument (WFI) based on the `Cycle 5 instrument reference information <http://wfirst.gsfc.nasa.gov/science/Instrument_Reference_Information.html>`_ from the WFIRST team at Goddard Space Flight Center.
+WebbPSF provides a framework for JWST instrument PSF calculations that is easily extensible to other instruments and observatories. The :py:mod:`webbpsf.wfirst` module was developed to enable simulation of WFIRST's Wide Field Instrument (WFI) based on the `Cycle 6 instrument reference information <https://wfirst.gsfc.nasa.gov/science/Inst_Ref_Info_Cycle6.html>`_ from the WFIRST team at Goddard Space Flight Center.
 
 At this time, the only instrument simulated is the WFI, but that may change in the future. To work with the WFI model, import and instantiate it as follows::
 
@@ -23,7 +23,7 @@ At this time, the only instrument simulated is the WFI, but that may change in t
 
 Usage of the WFI model class is, for the most part, just like any other WebbPSF instrument model. For help setting things like filters, position offsets, and sampling refer back to :ref:`using_api`.
 
-What is different (and, for now, only available for the WFIRST WFI) is the support for field dependent aberrations. With as large a field of view as the WFI is designed to cover, there will be variation in the PSF from one end of the field of view to the other. WebbPSF's WFI model faithfully reproduces the field dependent aberrations calculated from the Goddard WFIRST team's Cycle 5 WFI design. This provides a toolkit for users to assess the impact of inter-SCA and intra-SCA PSF variations on science cases of interest.
+The WFI model includes a model for field dependent PSF aberrations. With as large a field of view as the WFI is designed to cover, there will be variation in the PSF from one end of the field of view to the other. WebbPSF's WFI model faithfully reproduces the field dependent aberrations calculated from the Goddard WFIRST team's Cycle 6 WFI design. This provides a toolkit for users to assess the impact of inter-SCA and intra-SCA PSF variations on science cases of interest.
 
 .. admonition:: Quickstart IPython Notebook
 
@@ -58,7 +58,7 @@ The usable region of the 4096 by 4096 pixel detectors specified for the Wide Fie
    WebbPSF will not prevent you from setting an out of range detector position, but an error will be raised if you try to calculate a PSF with one. ::
 
       >>> wfi.detector_position = (1, 1)
-      >>> wfi.calcPSF()
+      >>> wfi.calc_psf()
       [ ... traceback omitted ... ]
       RuntimeError: Attempted to get aberrations for an out-of-bounds field point
 
@@ -81,14 +81,14 @@ This example shows the power of WebbPSF to simulate and analyze field dependent 
    >>> wfi.filter = 'J129'
    >>> wfi.detector = 'SCA09'
    >>> wfi.detector_position = (4, 4)
-   >>> psf_sca09 = wfi.calcPSF()
+   >>> psf_sca09 = wfi.calc_psf()
    >>> wfi.detector = 'SCA17'
    >>> wfi.detector_position = (4092, 4092)
-   >>> psf_sca17 = wfi.calcPSF()
+   >>> psf_sca17 = wfi.calc_psf()
    >>> fig, (ax_sca09, ax_sca17, ax_diff) = plt.subplots(1, 3, figsize=(16, 4))
-   >>> webbpsf.display_PSF(psf_sca09, ax=ax_sca09, imagecrop=2.0, title='WFI SCA09, bottom left - J129')
-   >>> webbpsf.display_PSF(psf_sca17, ax=ax_sca17, imagecrop=2.0, title='WFI SCA17, top right - J129')
-   >>> webbpsf.display_PSF_difference(psf_sca09, psf_sca17, vmax=5e-3, title='(SCA09) - (SCA17)', imagecrop=2.0, ax=ax_diff)
+   >>> webbpsf.display_psf(psf_sca09, ax=ax_sca09, imagecrop=2.0, title='WFI SCA09, bottom left - J129')
+   >>> webbpsf.display_psf(psf_sca17, ax=ax_sca17, imagecrop=2.0, title='WFI SCA17, top right - J129')
+   >>> webbpsf.display_psf_difference(psf_sca09, psf_sca17, vmax=5e-3, title='(SCA09) - (SCA17)', imagecrop=2.0, ax=ax_diff)
 
 .. figure:: ./wfirst_figures/compare_wfi_sca09_sca17.png
    :alt: This figure shows oversampled PSFs in the J129 filter at two different field points, and the intensity difference image between the two.
