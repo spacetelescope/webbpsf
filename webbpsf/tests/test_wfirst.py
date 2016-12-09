@@ -1,3 +1,4 @@
+from __future__ import division, print_function, absolute_import, unicode_literals
 import pytest
 from webbpsf import wfirst
 
@@ -7,7 +8,7 @@ def test_WFI_psf():
     any exceptions
     """
     wi = wfirst.WFI()
-    wi.calcPSF(fov_pixels=4)
+    wi.calc_psf(fov_pixels=4)
 
 def test_detector_position_setter():
     detector = wfirst.FieldDependentAberration(4096, 4096)
@@ -39,7 +40,7 @@ def test_WFI_detector_position_setter():
     wfi.detector = 'SCA01'
     valid_pos = (4000, 1000)
     wfi.detector_position = valid_pos
-    assert wfi._detectors[wfi._selected_detector].field_position == valid_pos, (
+    assert wfi._detectors[wfi._detector].field_position == valid_pos, (
         "Setting field position through Instrument.detector_position did not update field_position "
         "for the detector's aberration optic"
     )
@@ -50,8 +51,8 @@ def test_WFI_includes_aberrations():
     wfi = wfirst.WFI()
     wfi.detector = 'SCA01'
     osys = wfi._getOpticalSystem()
-    assert isinstance(osys[1], wfirst.FieldDependentAberration), (
-        "Second plane of WFIRST WFI optical system should be the "
+    assert isinstance(osys[2], wfirst.FieldDependentAberration), (
+        "Third plane of WFIRST WFI optical system should be the "
         "field dependent aberration virtual optic"
     )
 

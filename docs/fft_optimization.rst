@@ -33,12 +33,12 @@ Planning in FFTW3
 
 
 
-* Performing plans can take a *long* time, especially if you select exhaustive or patient modes: 
-* The default option is 'estimate' which turns out to be really a poor choice.  
-* It appears that you can get most of the planning benefit from using the 'measure' option. 
-* Curiously, the really time-consuming planning only appears to take place if you do use aligned arrays. 
+* Performing plans can take a *long* time, especially if you select exhaustive or patient modes:
+* The default option is 'estimate' which turns out to be really a poor choice.
+* It appears that you can get most of the planning benefit from using the 'measure' option.
+* Curiously, the really time-consuming planning only appears to take place if you do use aligned arrays.
   If you use regular unaligned arrays, then a very abbreviated planning set is performed, and yet you still
-  appear to reap most of the benefits of 
+  appear to reap most of the benefits of
 
 
 
@@ -49,7 +49,7 @@ This test involves, in each iteration, allocating a new numpy array filled
 with random values, passing it to a function, FFTing it, and then returning the
 result. Thus it is a fairly realistic test but takes longer per iteration than some of the
 other tests presented below on this page. This is noted here in way of explanation for why
-there are discrepant values for how long an optimized FFT of a given size takes. 
+there are discrepant values for how long an optimized FFT of a given size takes.
 
 
 Test results::
@@ -78,7 +78,7 @@ Test results::
 Conclusions: It appears that the most efficient algorithm is a non-aligned in-place FFT.  Therefore, this is the algorithm adopted into POPPY.
 
 In this case, it makes sense that avoiding the alignment is beneficial, since it avoids a memory copy of the
-entire array (from regular python unaligned into the special aligned array). 
+entire array (from regular python unaligned into the special aligned array).
 Another set of tests (results not shown here) indicated that there is no gain in performance from FFTing from an unaligned input array to an aligned output array.
 
 
@@ -168,7 +168,7 @@ and then repeatedly FFTing that same array. Thus it is pretty much the best poss
 
 Caching of plans means that irunning the same script a second time is much faster
 -----------------------------------------------------------------------------------
-Immediately after executing the above, I ran the same script again. Now the planning times all become essentially negligible. 
+Immediately after executing the above, I ran the same script again. Now the planning times all become essentially negligible.
 
 Oddly, the exection time for the largest array gets longer. I suspect this has something to do with memory or system load.  ::
 
@@ -225,7 +225,7 @@ The Payoff: Speed improvements in POPPY
 ----------------------------------------
 
 
-For a monochromatic propagation through a 1024x1024 pupil, using 4x oversampling, 
+For a monochromatic propagation through a 1024x1024 pupil, using 4x oversampling,
 using FFTW results in about a 3x increase in performance. ::
 
         Using FFTW:         FFT time elapsed:      0.838939 s
@@ -241,7 +241,7 @@ This leads to substantial savings in total computation time::
 
 
 
-Users are encouraged to try different approaches to optimizing performance on their own machines. 
+Users are encouraged to try different approaches to optimizing performance on their own machines.
 To enable some rudimentary benchmarking for the FFT section of the code, set `poppy.conf.enable_speed_tests=True` and configure
 your logging display to show debug messages. (i.e. `webbpsf.configure_logging('debug')`).
 Measured times will be printed in the log stream, for instance like so::

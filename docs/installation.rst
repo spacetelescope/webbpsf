@@ -1,17 +1,19 @@
 .. _installation:
 
 Requirements & Installation
-============================
+===========================
 
-WebbPSF uses the `Python Package Index <https://pypi.python.org>`_ (PyPI) to distribute new versions. For ease of installation, we recommend a scientific Python distribution like `Ureka <http://ssb.stsci.edu/ureka/>`_ that includes NumPy, SciPy, and other packages that can be tricky to compile on your own.
+The latest released version of WebbPSF can be installed with the conda package management system or `using pip <install_pip>`_.
 
-If you have Python 2.7, pip, and NumPy already installed, you can easily install or upgrade WebbPSF with::
+For ease of installation, we recommend using `AstroConda <http://astroconda.readthedocs.io/en/latest/>`_, an astronomy-optimized software distribution for scientific Python built on Anaconda. Install AstroConda according to `their instructions <http://astroconda.readthedocs.io/en/latest/installation.html>`_, then activate the environment with::
 
-    $ pip install -U webbpsf
+   $ source activate astroconda
 
-Once the WebbPSF code has been installed, you should proceed to :ref:`install the required data files <data_install>`. You may also wish to :ref:`set up Pysynphot <pysynphot_install>`, a recommended optional dependency that improves PSF fidelity.
+(Note: if you named your environment something other than ``astroconda``, change the above command appropriately.)
 
-For detailed instructions and software requirements, read on.
+Next, install WebbPSF (along with its dependencies and required reference data) with::
+
+   (astroconda)$ conda install webbpsf
 
 .. admonition:: Optional: sign up to receive announcement of updates
 
@@ -19,132 +21,120 @@ For detailed instructions and software requirements, read on.
 
    To subscribe, visit  the `maillist.stsci.edu server <https://maillist.stsci.edu/scripts/wa.exe?SUBED1=Webbpsf-users&A=1>`_
 
-Software Requirements
------------------------
+.. _install-with-conda:
 
-**Required Python version**: WebbPSF is supported on both Python 2.7 and 3.4.
+Installing with conda (but no AstroConda)
+-----------------------------------------
 
-**Required Python packages**:
+If you already use ``conda``, but do not want to install the full suite of STScI software, you can simply add the AstroConda *channel* and install WebbPSF as follows (creating a new environment named ``webbpsf-env``)::
 
-* Recent versions of `NumPy, SciPy <http://www.scipy.org/scipylib/download.html>`_ and `matplotlib <http://matplotlib.org>`_, if not installed already.
-* `Astropy <http://astropy.org>`_, 0.4 or more recent.
-* `POPPY <https://pypi.python.org/pypi/poppy>`_, 0.3.4 or more recent.
+   $ conda config --add channels http://ssb.stsci.edu/astroconda
+   $ conda create -n webbpsf-env webbpsf
+   $ source activate webbpsf-env
 
-**Recommended Python packages**:
+Upgrading to the latest version is done with ``conda update -n webbpsf-env --all``.
 
-* `pysynphot <https://pypi.python.org/pypi/pysynphot>`_ enables the simulation
-  of PSFs with proper spectral response to realistic source spectra.  Without
-  this, PSF fidelity is reduced. See below for :ref:`installation instructions
-  for pysynphot <pysynphot_install>`.  Pysynphot is recommended for most users. 
+.. warning::
 
+   You *must* install WebbPSF into a specific environment (e.g. ``webbpsf-env``); our conda package will not work if installed into the default "root" environment.
 
-**Optional Python packages**:
+.. _install_pip:
 
-Some calculations with POPPY can benefit from the optional packages `psutil <https://pypi.python.org/pypi/psutil>`_ and `pyFFTW <https://pypi.python.org/pypi/pyFFTW>`_, but these are not needed in general. See `the POPPY installation docs <http://pythonhosted.org//poppy/installation.html>`_ for more details. 
-These optional packages are only worth adding for speed improvements if you are spending substantial time running calculations.
+Installing with pip
+-------------------
 
+**If you have Python 2.7, 3.4, or 3.5 already installed another way**, WebbPSF and its underlying optical library POPPY may be installed from the `Python Package Index <http://pypi.python.org/pypi>`_ in the usual manner for Python packages. ::
 
-Installing WebbPSF
-----------------------
-
-WebbPSF and its underlying optical library POPPY may be installed from the
-`Python Package Index <http://pypi.python.org/pypi>`_ in the usual manner for
-Python packages. :: 
-
-    $ pip install webbpsf --upgrade
+    $ pip install --upgrade webbpsf
     [... progress report ...]
 
     Successfully installed webbpsf
 
-However, ``pip install webbpsf`` only installs the program code. You still must download and install the data files, as :ref:`described below <data_install>`. To obtain source spectra for calculations, you should also follow :ref:`installation instructions for pysynphot <pysynphot_install>`.
+Note that ``pip install webbpsf`` only installs the program code. You still must download and install the data files, as :ref:`described below <data_install>`.
+To obtain source spectra for calculations, you should also follow :ref:`installation instructions for pysynphot <pysynphot_install>`.
 
-If you wish to install webbpsf on a machine for which you do not have administrative access, you can do so by using Python's
-built-in `"--user" mechanism  <http://docs.python.org/2/install/#alternate-installation-the-user-scheme>`_
-for installing packages into your home directory. ::
+To use the Jupyter Notebook GUI, you will need to install ``ipywidgets``::
 
-    $ pip install webbpsf --user
+   $ pip install ipywidgets
+   $ jupyter nbextension enable --py --sys-prefix widgetsnbextension
 
-.. admonition:: For STScI Users Only
+(See `the ipywidgets README <https://github.com/ipython/ipywidgets#install>`_ for more info.)
 
-   Users at STScI may also access WebbPSF through the standard `SSB software distributions <http://ssb.stsci.edu/ssb_software.shtml>`_. Set the environment variable ``WEBBPSF_PATH`` to ``/grp/jwst/ote/webbpsf-data``, select the desired version of SSB (``ssbx``, ``ssbdev``, or ``ssbrel``), and the webbpsf package will be available.
+.. tip::
 
-The source code is hosted in `this repository on GitHub <https://github.com/mperrin/webbpsf>`_. See :ref:`below <install_dev_version>` for more on how
-to install from the development source.
+   If you wish to install WebbPSF on a machine for which you do not have administrative access, you can do so by using Python's
+   built-in `"--user" mechanism  <http://docs.python.org/2/install/#alternate-installation-the-user-scheme>`_
+   for installing packages into your home directory. ::
 
+      $ pip install webbpsf --user
 
 .. warning::
-  If you get the message ``SystemError: Cannot compile 'Python.h'. Perhaps you need to install python-dev|python-devel.`` during install *even when Python.h is available*, this means ``setup.py`` was unable to install NumPy. This can sometimes be fixed by executing ``pip install numpy`` separately, before installing webbpsf. See the bug report at `numpy/numpy#2434 <https://github.com/numpy/numpy/issues/2434>`_ for details.
+
+   If you get the message ``SystemError: Cannot compile 'Python.h'. Perhaps you need to install python-dev|python-devel.`` during install *even when Python.h is available*, this means ``setup.py`` was unable to install NumPy. This can sometimes be fixed by executing ``pip install numpy`` separately, before installing WebbPSF. See the bug report at `numpy/numpy#2434 <https://github.com/numpy/numpy/issues/2434>`_ for details.
 
 .. _pysynphot_install:
 
 Installing or updating pysynphot
----------------------------------
+--------------------------------
 
 Pysynphot is an optional dependency, but is highly recommended.  Installation instructions can be found `here in the POPPY docs <http://pythonhosted.org//poppy/installation.html#installing-or-updating-pysynphot>`_.
 
 .. _data_install:
 
 Installing the Required Data Files
----------------------------------------------
+----------------------------------
 
 Files containing such information as the JWST pupil shape, instrument throughputs, and aperture positions are distributed separately from WebbPSF. To run WebbPSF, you must download these files and tell WebbPSF where to find them using the ``WEBBPSF_PATH`` environment variable.
 
-1. Download the following file:  `webbpsf-data-0.4.0.tar.gz <http://www.stsci.edu/~mperrin/software/webbpsf/webbpsf-data-0.4.0.tar.gz>`_  [approx. 430 MB]
-2. Untar ``webbpsf-data-0.4.0.tar.gz`` into a directory of your choosing.
+1. Download the following file:  `webbpsf-data-0.5.0.tar.gz <http://www.stsci.edu/~mperrin/software/webbpsf/webbpsf-data-0.5.0.tar.gz>`_  [approx. 430 MB]
+2. Untar ``webbpsf-data-0.5.0.tar.gz`` into a directory of your choosing.
 3. Set the environment variable ``WEBBPSF_PATH`` to point to that directory. e.g. ::
 
-    setenv WEBBPSF_PATH $HOME/data/webbpsf-data
+   export WEBBPSF_PATH=$HOME/data/webbpsf-data
 
-   for tcsh/csh, or ::
-
-    WEBBPSF_PATH=$HOME/data/webbpsf-data; export WEBBPSF_PATH
-
-   for bash. (You will probably want to add this to your ``.cshrc`` or ``.bashrc``.)
+for bash. (You will probably want to add this to your ``.bashrc``.)
 
 You should now be able to successfully ``import webbpsf`` in a Python session, or start the GUI with the command ``webbpsfgui``.
 
-
 .. warning::
-  If you have previously installed the data files for an earlier version of webbpsf, and then update to a newer version, the
-  software may prompt you that you must download and install a new updated version of the data files. 
+
+   If you have previously installed the data files for an earlier version of WebbPSF, and then update to a newer version, the
+   software may prompt you that you must download and install a new updated version of the data files.
 
 .. admonition:: For STScI Users Only
 
-  Users at STScI may access the required data files from the Central Storage network. 
+   Users at STScI may access the required data files from the Central Storage network. Set the following environment variables in your ``bash`` shell. (You will probably want to add this to your ``.bashrc``.) ::
 
-    1. ``setenv WEBBPSF_PATH /grp/jwst/ote/webbpsf-data``  
-    2. ``setenv PYSYN_CDBS /grp/hst/cdbs`` 
+      export WEBBPSF_PATH="/grp/jwst/ote/webbpsf-data"
+      export PYSYN_CDBS="/grp/hst/cdbs"
 
-.. _alternate_install:
+Software Requirements
+---------------------
 
-Alternate Installation Methods
----------------------------------------
+**Required Python version**: WebbPSF is supported on both Python 2.7 and 3.4+.
 
-Installing with `conda <http://conda.pydata.org>`_ or `miniconda <http://conda.pydata.org/miniconda.html>`_
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+**Required Python packages**:
 
-Many users have expressed a preference for the `Anaconda <https://store.continuum.io/cshop/anaconda/>`_ distribution of scientific computing tools. Fortunately, it is straightforward to install WebbPSF into a ``conda`` environment.
+* Recent versions of `NumPy, SciPy <http://www.scipy.org/scipylib/download.html>`_ and `matplotlib <http://matplotlib.org>`_, if not installed already.
+* `Astropy <http://astropy.org>`_, 1.0 or more recent.
+* `POPPY <https://pypi.python.org/pypi/poppy>`_, 0.5.0 or more recent.
 
-1. Create a new environment for WebbPSF to live in::
+**Recommended Python packages**:
 
-    conda create -n webbpsf numpy scipy matplotlib pip
+* `pysynphot <https://pypi.python.org/pypi/pysynphot>`_ enables the simulation
+  of PSFs with proper spectral response to realistic source spectra.  Without
+  this, PSF fidelity is reduced. See below for :ref:`installation instructions
+  for pysynphot <pysynphot_install>`.  Pysynphot is recommended for most users.
 
-2. Activate the environment so that the next command takes effect in the new environment::
+**Optional Python packages**:
 
-    source activate webbpsf
-
-3. Install WebbPSF with pip::
-
-    pip install webbpsf
-
-You must next download and install the data files, as described in :ref:`data_install`. To obtain source spectra for calculations, you should also follow :ref:`installation instructions for pysynphot <pysynphot_install>`.
-
-Later, when you open a new terminal window, remember to run ``source activate webbpsf`` before running ``webbpsfgui`` or attempting to ``import webbpsf``. You may also install webbpsf in the default environment, if that is more convenient for you. Simply ensure the packages listed in step 1 are installed with ``conda install``, then ``pip install webbpsf``.
+Some calculations with POPPY can benefit from the optional packages `psutil <https://pypi.python.org/pypi/psutil>`_ and `pyFFTW <https://pypi.python.org/pypi/pyFFTW>`_, but these are not needed in general. See `the POPPY installation docs <http://pythonhosted.org//poppy/installation.html>`_ for more details.
+These optional packages are only worth adding for speed improvements if you are spending substantial time running calculations.
 
 .. _install_dev_version:
 
 Installing a pre-release version or contributing to WebbPSF development
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-----------------------------------------------------------------------
 
 The `WebbPSF source code repository <https://github.com/mperrin/webbpsf>`_ is hosted at GitHub, as is the repository for `POPPY <https://github.com/mperrin/poppy>`_. Users may clone or fork in the usual manner. Pull requests with code enhancements welcomed.
 
@@ -156,4 +146,3 @@ To install the current development version of WebbPSF, you can use ``pip`` to in
 This will create directories ``./src/poppy`` and ``./src/webbpsf`` in your current directory containing the cloned repository. If you have commit access to the repository, you may want to clone via ssh with a URL like ``git+ssh://git@github.com:mperrin/webbpsf.git``. Documentation of the available options for installing directly from Git can be found in the `pip documentation <http://pip.readthedocs.org/en/latest/reference/pip_install.html#git>`_.
 
 Remember to :ref:`install the required data files <data_install>`, if you have not already installed them.
-

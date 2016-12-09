@@ -37,5 +37,5 @@ def norm_all():
             #print inst_name, f
             norm_one_filter(inst_name,f)
 
-    
+
 

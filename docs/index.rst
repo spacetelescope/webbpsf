@@ -1,12 +1,12 @@
-Documentation for WebbPSF 
+Documentation for WebbPSF
 ===============================
 
-WebbPSF is a Python package that computes simulated PSFs for the JWST instruments (and now for WFIRST too!), taking into account detector pixel scales, rotations, filter profiles, and point source spectra. It is *not* a full optical model of JWST, but rather a tool for transforming optical path difference (OPD) maps, created with some other tool, into the resulting PSFs as observed with JWST's instruments. 
+WebbPSF is a Python package that computes simulated PSFs for the JWST instruments (and now for WFIRST too!), taking into account detector pixel scales, rotations, filter profiles, and point source spectra. It is *not* a full optical model of JWST, but rather a tool for transforming optical path difference (OPD) maps, created with some other tool, into the resulting PSFs as observed with JWST's instruments.
 
 .. figure:: ./fig_instrument_comparison.png
    :scale: 45 %
    :align: center
-   :alt: Sample PSFs for JWST's instruments. 
+   :alt: Sample PSFs for JWST's instruments.
 
    Sample PSFs for JWST's instrument suite, all on the same angular scale and display stretch.
 
@@ -15,7 +15,7 @@ WebbPSF is a Python package that computes simulated PSFs for the JWST instrument
    :align: center
    :alt: Sample PSFs for the filters in the WFIRST WFI.
 
-   Sample PSFs for the filters in the WFIRST WFI. 
+   Sample PSFs for the filters in the WFIRST WFI.
 
 
 
@@ -42,9 +42,9 @@ The WebbPSF software system is composed of two Python packages: a lower-level op
 
 .. admonition:: Quickstart IPython Notebook
 
-   This documentation is complemented by an `IPython Notebook format quickstart tutorial <http://nbviewer.ipython.org/github/mperrin/webbpsf/blob/master/notebooks/WebbPSF_tutorial.ipynb>`_. Downloading and running that notebook is a great way to get started using WebbPSF.
+   This documentation is complemented by an `Jupyter (IPython) Notebook format quickstart tutorial <http://nbviewer.jupyter.org/github/mperrin/webbpsf/blob/master/notebooks/WebbPSF_tutorial.ipynb>`_. Downloading and running that notebook is a great way to get started using WebbPSF.
 
-:ref:`What's new in release 0.4.0? <rel0.4.0>`
+:ref:`What's new in the latest release? <whatsnew>`
 
 
 .. toctree::
@@ -53,23 +53,15 @@ The WebbPSF software system is composed of two Python packages: a lower-level op
    intro.rst
    installation.rst
    webbpsf.rst
+   jwst.rst
    wfirst.rst
    gui.rst
    more_examples.rst
    poppy.rst
 
+.. admonition:: Getting Help
 
-.. admonition:: How to cite WebbPSF
-
-    In addition to this documentation, WebbPSF is described in the following references.  Users of WebbPSF are encouraged to cite one of these.
-   
-    * Perrin et al. 2014, `"Updated point spread function simulations for JWST with WebbPSF" <http://adsabs.harvard.edu/abs/2014SPIE.9143E..3XP>`_,  Proc. SPIE. 9143, 
-    * Perrin et al. 2012, `"Simulating point spread functions for the James Webb Space Telescope with WebbPSF", <http://adsabs.harvard.edu/abs/2012SPIE.8442E..3DP>`_ Proc SPIE 8842, and 
-    * Perrin 2011, `Improved PSF Simulations for JWST: Methods, Algorithms, and Validation <Improved_PSFs_for_Webb.pdf>`_ , JWST Technical report JWST-STScI-002469.
-
-    In particular, the 2012 SPIE paper gives a broad overview, the 2014 SPIE paper presents comparisons to instrument cryotest data, and the Technical Report document describes in more detail the relevant optical physics, explains design decisions and motivation for WebbPSF's architecture, and presents extensive validation tests demonstrating consistency between WebbPSF and other PSF simulation packages used throughout the JWST project.
-
-
+   For help using or installing webbpsf, you can contact the STScI Help Desk, help@stsci.edu. Note that WebbPSF is included in the `Ureka <http://ssb.stsci.edu/ureka>`_ python distribution, as well as being installable via :ref:`standard Python packaging tools <installation>`. For detailed aspects of the JWST models, contact Marshall Perrin at STScI; for WFIRST, contact Joseph Long at STScI.
 
 Advanced Usage
 --------------
@@ -89,14 +81,26 @@ Appendices and Reference
 .. toctree::
    :maxdepth: 1
 
+   relnotes.rst
    available_opds.rst
    references.rst
-   relnotes.rst
    release.rst
+
+
+.. admonition:: How to cite WebbPSF
+
+    In addition to this documentation, WebbPSF is described in the following references.  Users of WebbPSF are encouraged to cite one of these.
+
+    * Perrin et al. 2014, `"Updated point spread function simulations for JWST with WebbPSF" <http://adsabs.harvard.edu/abs/2014SPIE.9143E..3XP>`_,  Proc. SPIE. 9143,
+    * Perrin et al. 2012, `"Simulating point spread functions for the James Webb Space Telescope with WebbPSF", <http://adsabs.harvard.edu/abs/2012SPIE.8442E..3DP>`_ Proc SPIE 8842, and
+    * Perrin 2011, :download:`Improved PSF Simulations for JWST: Methods, Algorithms, and Validation <Improved_PSFs_for_Webb.pdf>`, JWST Technical report JWST-STScI-002469.
+
+    In particular, the 2012 SPIE paper gives a broad overview, the 2014 SPIE paper presents comparisons to instrument cryotest data, and the Technical Report document describes in more detail the relevant optical physics, explains design decisions and motivation for WebbPSF's architecture, and presents extensive validation tests demonstrating consistency between WebbPSF and other PSF simulation packages used throughout the JWST project.
+
 
 * :ref:`genindex`
 * :ref:`search`
 
-**Version Information**
+**Mailing List**
 
-The current version of WebbPSF is version 0.2.8, released Nov 7, 2011. If you would like to receive email announcements of future versions, please contact Marshall Perrin, or send an email to "webbpsf-users-request@stsci.edu" containing the message "subscribe".
+If you would like to receive email announcements of future versions, please contact Marshall Perrin, or visit `maillist.stsci.edu <https://maillist.stsci.edu/scripts/wa.exe?SUBED1=webbpsf-users&A=1>` to subscribe yourself to the "webbpsf-users@maillist.stsci.edu" list.

@@ -1,3 +1,4 @@
+from __future__ import division, print_function, absolute_import, unicode_literals
 import sys, os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -26,14 +27,14 @@ def do_test_miri_fqpm(nlambda=1, clobber=True, angle=0.0, offset=0.0, oversample
     miri.filter='F1065C'
     miri.image_mask = 'FQPM1065'
     miri.pupil_mask = 'MASKFQPM'
- 
+
     #for offset in np.linspace(0.0, 1.0, nsteps):
     #miri.options['source_offset_theta'] = 0.0
     miri.options['source_offset_r'] = offset
 
     #for angle in [0,45]:
-    miri.options['source_offset_theta'] = angle 
-    psf = miri.calcPSF(oversample=oversample, nlambda=nlambda, save_intermediates=False, display=display)
+    miri.options['source_offset_theta'] = angle
+    psf = miri.calc_psf(oversample=oversample, nlambda=nlambda, save_intermediates=False, display=display)
 
     if save:
         if outputdir is None:
@@ -44,7 +45,7 @@ def do_test_miri_fqpm(nlambda=1, clobber=True, angle=0.0, offset=0.0, oversample
         fn = os.path.join(outputdir, 'test_miri_fqpm_t{0}_r{1:.2f}.fits'.format(angle,offset))
         psf.writeto(fn, clobber=clobber)
 
-    #FIXME - add some assertion tests here. 
+    #FIXME - add some assertion tests here.
 
 def test_miri_fqpm_centered(*args, **kwargs):
     do_test_miri_fqpm(angle=0.0, offset=0.0)

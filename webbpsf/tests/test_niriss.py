@@ -1,3 +1,4 @@
+from __future__ import division, print_function, absolute_import, unicode_literals
 import sys, os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -27,23 +28,28 @@ def test_niriss_auto_pupil():
     assert niriss.pupil_mask is None
 
     niriss.filter='F277W'
-    niriss.calcPSF(nlambda=1)
+    niriss.calc_psf(nlambda=1)
     assert niriss.pupil_mask == 'CLEARP'
 
     niriss.filter='F090W'
-    niriss.calcPSF(nlambda=1)
+    niriss.calc_psf(nlambda=1)
     assert niriss.pupil_mask is None
 
     niriss.filter='F480M'
-    niriss.calcPSF(nlambda=1)
+    niriss.calc_psf(nlambda=1)
     assert niriss.pupil_mask == 'CLEARP'
 
     niriss.filter='F200W'
-    niriss.calcPSF(nlambda=1)
+    niriss.calc_psf(nlambda=1)
     assert niriss.pupil_mask is None
 
-
-
-
-
-
+def test_niriss_gr700xd():
+    '''
+    Smoke-test calculations with the GR700XD custom optic
+    present in the system. This is a regression test for
+    https://github.com/mperrin/webbpsf/issues/148
+    '''
+    niriss = webbpsf_core.NIRISS()
+    niriss.filter = 'CLEAR'
+    niriss.pupil_mask = 'GR700XD'
+    niriss.calc_psf(monochromatic=1e-6, fov_pixels=2)
