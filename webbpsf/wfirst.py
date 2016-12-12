@@ -371,7 +371,7 @@ class CGI(WFIRSTInstrument):
     
         trySAM = False
         char_fpmres = 4
-        disk_fpmres = 4
+        disk_fpmres = 3
 
         if ('pupil_shift_x' in self.options and self.options['pupil_shift_x'] != 0) or \
            ('pupil_shift_y' in self.options and self.options['pupil_shift_y'] != 0):
@@ -392,20 +392,20 @@ class CGI(WFIRSTInstrument):
             elif self.filter == 'F890':
                 self.image_mask = 'CHARSPC_F890'
                 optsys.addImage(transmission=os.path.join(self._datapath,"optics/CHARSPC_FPM_25WA90_2x65deg_-_FP1res{0:d}_evensamp_D{1:03d}_F890.fits.gz".format(char_fpmres, 2*9*char_fpmres)))
-        elif self.filter == 'F721':
+        else: #elif self.filter == 'F721':
             self.image_mask = 'DISKSPC_F721'
-            optsys.addImage(transmission=os.path.join(self._datapath,"optics/DISKSPC_FPM_65WA200_360deg_-_FP1res{0:d}_evensamp_D{1:03d}_F721.fits.gz"%(disk_fpmres, 2*20*disk_fpmres)))
+            optsys.addImage(transmission=os.path.join(self._datapath,"optics/DISKSPC_FPM_65WA200_360deg_-_FP1res{0:d}_evensamp_D{1:03d}_F721.fits.gz".format(disk_fpmres, 2*20*disk_fpmres)))
 
         if self.mode == 'CHARSPC':
             if not hasattr(self, 'fov_arcsec') or not self._override_fov:
                 self.fov_arcsec = 2*0.82 # See 2015 SDT report, Section 3.4.1.1.1: IFS has 76 lenslets across the (2 x 0.82) arcsec FoV.
             if not hasattr(self, 'pixelscale') or not self._override_pixelscale:
-                self.pixelscale = self.fov_arcsec/76 # arcsec/pix. 
+                self.pixelscale = 0.025 # Nyquist at 600 nm
         elif self.mode == 'DISKSPC':
             if not hasattr(self, 'fov_arcsec') or not self._override_fov:
                 self.fov_arcsec = 3.2
             if not hasattr(self, 'pixelscale') or not self._override_pixelscale:
-                self.pixelscale = 0.02
+                self.pixelscale = 0.020 # Nyquist at 465 nm
         # Lyot stop
         self.pupil_mask = 'SPC30D88'
         optsys.addPupil(transmission=os.path.join(self._datapath,"optics/SPC_LS_30D88_256pix.fits.gz"), name=self.pupil_mask, shift=shift)
