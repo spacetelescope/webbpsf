@@ -114,15 +114,11 @@ def test_CGI_psf():
     Just test that instantiating CGI works and can compute a PSF without raising
     any exceptions
     """
-    charspc = wfirst.CGI()
-    charspc.pupilopd = None
-    charspc.filter = 'F770'
-    charspc.apod_mask = 'CHARSPC'
-    charspc.image_mask = 'CHARSPC_F770'
-    charspc.pupil_mask = 'SPC30D88'
+    char_spc = wfirst.CGI()
+    char_spc.mode = 'CHARSPC'
 
-    print('Reading instrument data from {:s}'.format(charspc._WebbPSF_basepath)
-    print('Filter list: {:}'.format(charspc.filter_list))
+    #print('Reading instrument data from {:s}'.format(charspc._WebbPSF_basepath)
+    #print('Filter list: {:}'.format(charspc.filter_list))
 
-    monopsf = charspc.calcPSF(nlambda=1, display=True)
+    monopsf = char_spc.calcPSF(nlambda=1, display=True)
     wfirst.poppy.display_PSF(monopsf)
