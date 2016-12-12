@@ -119,10 +119,10 @@ def test_CGI_psf():
     charspc.filter = 'F770'
     charspc.apod_mask = 'CHARSPC'
     charspc.image_mask = 'CHARSPC_F770'
-    charspc.pupil_mask = 'SPC26D88'
+    charspc.pupil_mask = 'SPC30D88'
 
     print 'Reading instrument data from %s'%charspc._WebbPSF_basepath
     print 'Filter list:',charspc.filter_list
 
-    monopsf = charspc.calcPSF(oversample=8, nlambda=1, display=True)
+    monopsf = charspc.calcPSF(nlambda=1, display=True)
     wfirst.poppy.display_PSF(monopsf)

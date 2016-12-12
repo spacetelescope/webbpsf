@@ -16,8 +16,7 @@ from . import webbpsf_core
 from scipy.interpolate import griddata
 from astropy.io import fits
 import logging
-_log = logging.getLogger('webbpsf').setLevel('DEBUG')
-import pdb
+_log = logging.getLogger('webbpsf')
 
 class WavelengthDependenceInterpolator(object):
     """WavelengthDependenceInterpolator can be configured with
