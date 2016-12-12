@@ -379,22 +379,22 @@ class CGI(WFIRSTInstrument):
         else: shift = None
 
         if self.mode == 'CHARSPC':
-            optsys.addPupil(transmission=self._datapath+"optics/CHARSPC_SP_256pix.fits.gz", name=self.mode, shift=None)
-        else # self.mode == 'DISKSPC':
-            optsys.addPupil(transmission=self._datapath+"optics/DISKSPC_SP_256pix.fits.gz", name=self.mode, shift=None)
+            optsys.addPupil(transmission=os.path.join(self._datapath, "optics/CHARSPC_SP_256pix.fits.gz"), name=self.mode, shift=None)
+        else: # self.mode == 'DISKSPC':
+            optsys.addPupil(transmission=os.path.join(self._datapath, "optics/DISKSPC_SP_256pix.fits.gz"), name=self.mode, shift=None)
         if self.mode == 'CHARSPC':
             if self.filter == 'F660':
                 self.image_mask = 'CHARSPC_F660'
-                optsys.addImage(transmission=self._datapath+"optics/CHARSPC_FPM_25WA90_2x65deg_-_FP1res%d_evensamp_D%d_F660.fits.gz"%(char_fpmres, 2*9*char_fpmres))
+                optsys.addImage(transmission=os.path.join(self._datapath,"optics/CHARSPC_FPM_25WA90_2x65deg_-_FP1res{0:d}_evensamp_D{1:03d}_F660.fits.gz".format(char_fpmres, 2*9*char_fpmres)))
             elif self.filter == 'F770':
                 self.image_mask = 'CHARSPC_F770'
-                optsys.addImage(transmission=self._datapath+"optics/CHARSPC_FPM_25WA90_2x65deg_-_FP1res%d_evensamp_D%d_F770.fits.gz"%(char_fpmres, 2*9*char_fpmres))
+                optsys.addImage(transmission=os.path.join(self._datapath,"optics/CHARSPC_FPM_25WA90_2x65deg_-_FP1res{0:d}_evensamp_D{1:03d}_F770.fits.gz".format(char_fpmres, 2*9*char_fpmres)))
             elif self.filter == 'F890':
                 self.image_mask = 'CHARSPC_F890'
-                optsys.addImage(transmission=self._datapath+"optics/CHARSPC_FPM_25WA90_2x65deg_-_FP1res%d_evensamp_D%d_F890.fits.gz"%(char_fpmres, 2*9*char_fpmres))
+                optsys.addImage(transmission=os.path.join(self._datapath,"optics/CHARSPC_FPM_25WA90_2x65deg_-_FP1res{0:d}_evensamp_D{1:03d}_F890.fits.gz".format(char_fpmres, 2*9*char_fpmres)))
         elif self.filter == 'F721':
             self.image_mask = 'DISKSPC_F721'
-            optsys.addImage(transmission=self._datapath+"optics/DISKSPC_FPM_65WA200_360deg_-_FP1res%d_evensamp_D%d_F721.fits.gz"%(disk_fpmres, 2*20*disk_fpmres))
+            optsys.addImage(transmission=os.path.join(self._datapath,"optics/DISKSPC_FPM_65WA200_360deg_-_FP1res{0:d}_evensamp_D{1:03d}_F721.fits.gz"%(disk_fpmres, 2*20*disk_fpmres)))
 
         if self.mode == 'CHARSPC':
             if not hasattr(self, 'fov_arcsec') or not self._override_fov:
@@ -408,7 +408,7 @@ class CGI(WFIRSTInstrument):
                 self.pixelscale = 0.02
         # Lyot stop
         self.pupil_mask = 'SPC30D88'
-        optsys.addPupil(transmission=self._datapath+"optics/SPC_LS_30DS88_256pix.fits.gz", name=self.pupil_mask, shift=shift)
+        optsys.addPupil(transmission=os.path.join(self._datapath,"optics/SPC_LS_30D88_256pix.fits.gz"), name=self.pupil_mask, shift=shift)
 
         occ_box_size = 1.
         mft_optsys = poppy.MatrixFTCoronagraph(optsys, oversample=oversample, occulter_box=occ_box_size)
