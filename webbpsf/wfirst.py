@@ -327,7 +327,26 @@ class CGI(WFIRSTInstrument):
     """
     WFIRST Coronagraph Instrument
 
+    Simulates the PSF of the WFIRST coronagraph.
+
+	Current functionality is limited to the Shaped Pupil Coronagraph (SPC)
+    observing modes, and these modes are only simulated with static, unaberrated
+    wavefronts, without relay optics and without DM control.
+
     """
+
+    camera_list = ['Imager', 'IFS']
+    filter_list = ['F660', 'F721', 'F770', 'F890']
+    apodizer_list = ['CHARSPC', 'DISKSPC']
+    fpm_list = ['CHARSPC_F660', 'CHARSPC_F770', 'CHARSPC_F890', 'DISKSPC_F721']
+    lyotstop_list = ['SPC30D88']
+
+    _mode_table = { # MODE             CAMERA    FILTER  APODIZER   FPM             LYOT STOP
+                      'CHARSPC_F660': ('IFS',    'F660', 'CHARSPC', 'CHARSPC_F660', 'SPC30D88'),
+                      'CHARSPC_F770': ('IFS',    'F770', 'CHARSPC', 'CHARSPC_F770', 'SPC30D88'),
+                      'CHARSPC_F890': ('IFS',    'F890', 'CHARSPC', 'CHARSPC_F890', 'SPC30D88'),
+                      'DISKSPC_F721': ('IMAGER', 'F721', 'DISKSPC', 'DISKSPC_F721', 'SPC30D88') }
+
     def __init__(self, mode='CHARSPC', filter=None, pixelscale=None, fov_arcsec=None, apply_static_opd=False):
         super(CGI, self).__init__("CGI", pixelscale=pixelscale)
 
@@ -337,9 +356,9 @@ class CGI(WFIRSTInstrument):
             self.pupilopd = os.path.join(self._WebbPSF_basepath, 'CGI', 'OPD', 'CGI_static_OPD.fits')
         else:
             self.pupilopd = None
-        self.mode_list = ['CHARSPC', 'DISKSPC']
-        self.image_mask_list = ['CHARSPC_F660', 'CHARSPC_F770', 'CHARSPC_F890', 'DISKSPC_F721']
-        self.pupil_mask_list = ['SPC30D88']
+        #self.mode_list = ['CHARSPC', 'DISKSPC']
+        #self.image_mask_list = ['CHARSPC_F660', 'CHARSPC_F770', 'CHARSPC_F890', 'DISKSPC_F721']
+        #self.pupil_mask_list = ['SPC30D88']
         self.aberration_optic = None
         self.options = {'force_coron':True}
         # Allow the user to pre-emptively override the default instrument FoV and pixel scale
@@ -354,16 +373,99 @@ class CGI(WFIRSTInstrument):
         else:
             self._override_pixelscale = False
         self.mode = mode
-        if filter is not None:
-            self.filter = filter
-        elif mode is 'CHARSPC':
-            self.filter = 'F770'
-        else:
-            self.filter = 'F721'
+        #if filter is not None:
+        #    self.filter = filter
+        #elif mode is 'CHARSPC':
+        #    self.filter = 'F770'
+        #else:
+        #    self.filter = 'F721'
 
-    def _validate_config(self):
-        if self.mode in self.mode_list:
-            return True
+    @property
+    def camera(self):
+        """Currently selected camera name"""
+        return self._camera
+    @camera.setter
+    def camera(self, value):
+        value = value.upper() # force to uppercase
+        if value not in self.camera_list:
+            raise ValueError("Instrument {0} doesn't have a camera called {1}.".format(self.name, value))
+        self._camera = value
+
+    @property
+    def filter(self):
+        """Currently selected filter name"""
+        return self._filter
+    @filter.setter
+    def filter(self, value):
+        value = value.upper() # force to uppercase
+        if value not in self.filter_list:
+            raise ValueError("Instrument {0} doesn't have a filter called {1}.".format(self.name, value))
+        self._filter = value
+
+    @property
+    def apodizer(self):
+        """Currently selected apodizer name"""
+        return self._apodizer
+    @apodizer.setter
+    def apodizer(self, value):
+        value = value.upper() # force to uppercase
+        if value not in self.apodizer_list:
+            raise ValueError("Instrument {0} doesn't have a apodizer called {1}.".format(self.name, value))
+        self._apodizer = value
+
+    @property
+    def fpm(self):
+        """Currently selected FPM name"""
+        return self._fpm
+    @fpm.setter
+    def fpm(self, value):
+        value = value.upper() # force to uppercase
+        if value not in self.fpm_list:
+            raise ValueError("Instrument {0} doesn't have a FPM called {1}.".format(self.name, value))
+        self._fpm = value
+
+    @property
+    def lyotstop(self):
+        """Currently selected Lyot stop name"""
+        return self._lyotstop
+    @lyotmask.setter
+    def lyotstop(self, value):
+        # preserve case for this one since we're used to that with the lyot mask names
+        if value not in self.lyotstop_list:
+            raise ValueError("Instrument {0} doesn't have a Lyot mask called {1}.".format(self.name, value))
+        self._lyotstop = value
+
+    @property
+    def mode_list(self):
+        "Available Observation Modes"
+        keys = self._mode_table.keys()
+        keys = sorted(keys)
+        return keys
+
+    # mode works differently since it's a meta-property that affects the other ones:
+    @property
+    def mode(self):
+        """Currently selected mode name"""
+        for modename, settings in self._mode_table.items():
+            if (self.camera==settings[0].upper() and self.filter==settings[1].upper() and 
+                self.apodizer==settings[2].upper() and self.fpm==settings[3].upper() and 
+                self.lyotstop==settings[4]):
+                return modename
+        return 'Custom'
+    @mode.setter
+    def mode(self, value):
+        if value not in self.mode_list:
+            raise ValueError("Instrument {0} doesn't have an Obsmode called {1}.".format(self.name, value))
+
+        settings = self._mode_table[value]
+        self.camera=settings[0]
+        self.filter=settings[1]
+        self.apodizer=settings[2]
+        self.fpm=settings[3]
+        self.lyotstop=settings[4]
+
+    def _validateConfig(self):
+        super(CGI, self)._validateConfig(**kwargs)
 
     def _addAdditionalOptics(self, optsys, oversample=4):
         """Add coronagraphic or spectrographic optics for WFIRST CGI."""
