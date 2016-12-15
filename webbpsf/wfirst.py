@@ -17,6 +17,7 @@ from scipy.interpolate import griddata
 from astropy.io import fits
 import logging
 _log = logging.getLogger('webbpsf')
+import pprint
 
 class WavelengthDependenceInterpolator(object):
     """WavelengthDependenceInterpolator can be configured with
@@ -335,78 +336,48 @@ class CGI(WFIRSTInstrument):
 
     """
 
-    camera_list = ['Imager', 'IFS']
+    camera_list = ['IMAGER', 'IFS']
     filter_list = ['F660', 'F721', 'F770', 'F890']
     apodizer_list = ['CHARSPC', 'DISKSPC']
     fpm_list = ['CHARSPC_F660', 'CHARSPC_F770', 'CHARSPC_F890', 'DISKSPC_F721']
-    lyotstop_list = ['SPC30D88']
+    lyotstop_list = ['LS30D88']
 
     _mode_table = { # MODE             CAMERA    FILTER  APODIZER   FPM             LYOT STOP
-                      'CHARSPC_F660': ('IFS',    'F660', 'CHARSPC', 'CHARSPC_F660', 'SPC30D88'),
-                      'CHARSPC_F770': ('IFS',    'F770', 'CHARSPC', 'CHARSPC_F770', 'SPC30D88'),
-                      'CHARSPC_F890': ('IFS',    'F890', 'CHARSPC', 'CHARSPC_F890', 'SPC30D88'),
-                      'DISKSPC_F721': ('IMAGER', 'F721', 'DISKSPC', 'DISKSPC_F721', 'SPC30D88') }
+                      'CHARSPC_F660': ('IFS',    'F660', 'CHARSPC', 'CHARSPC_F660', 'LS30D88'),
+                      'CHARSPC_F770': ('IFS',    'F770', 'CHARSPC', 'CHARSPC_F770', 'LS30D88'),
+                      'CHARSPC_F890': ('IFS',    'F890', 'CHARSPC', 'CHARSPC_F890', 'LS30D88'),
+                      'DISKSPC_F721': ('IMAGER', 'F721', 'DISKSPC', 'DISKSPC_F721', 'LS30D88') }
 
-    def __init__(self, mode='CHARSPC_F770', pixelscale=None, fov_arcsec=None, apply_static_opd=False):
+    def __init__(self, mode=None, pixelscale=None, fov_arcsec=None, apply_static_opd=False):
         super(CGI, self).__init__("CGI", pixelscale=pixelscale)
 
-        self.mode = mode
+        self.pupil_mask_list = self.lyotstop_list # alias for use in webbpsf_core
+        self.image_mask_list = self.fpm_list # alias for use in webbpsf_core
         self.pupil = os.path.join(self._WebbPSF_basepath, 'AFTA_CGI_C5_Pupil_onax_256px_flip.fits')
         if apply_static_opd:
-            #self.pupilopd = os.path.join(self._WebbPSF_basepath, 'CGI', 'OPD', 'CGI_primary_OPD.fits')
             self.pupilopd = os.path.join(self._WebbPSF_basepath, 'CGI', 'OPD', 'CGI_static_OPD.fits')
         else:
             self.pupilopd = None
-        #self.mode_list = ['CHARSPC', 'DISKSPC']
-        #self.image_mask_list = ['CHARSPC_F660', 'CHARSPC_F770', 'CHARSPC_F890', 'DISKSPC_F721']
-        #self.pupil_mask_list = ['SPC30D88']
         self.aberration_optic = None
         self.options = {'force_coron':True}
         # Allow the user to pre-emptively override the default instrument FoV and pixel scale
         if fov_arcsec is not None:
-            setattr(self, 'fov_arcsec', fov_arcsec)
-            setattr(self, '_override_fov', True)
+            self.fov_arcsec  = fov_arcsec
+            self._override_fov = True
         else:
-            setattr(self, '_override_fov', False)
+            self._override_fov = False
         if pixelscale is not None:
-            setattr(self, 'pixelscale', pixelscale)
-            setattr(self, '_override_pixelscale', True)
+            self._pixelscale = pixelscale
+            self._override_pixelscale = True
         else:
-            setattr(self, '_override_pixelscale', False)
+            self._override_pixelscale = False
 
-        if self.mode is 'DISKSPC_F721':
-            setattr(self, '_fpmres', 3)
-            setattr(self, '_owa', 20.)
-        else: # for now, default to CHARSPC
-            setattr(self, '_fpmres', 4)
-            setattr(self, '_owa', 9.)
-        setattr(self, '_Mfpm', self._fpmres*self._owa)
-
-        if self.apodizer == 'DISKSPC':
-            optsys.addPupil(transmission=os.path.join(self._datapath, "optics/DISKSPC_SP_256pix.fits.gz"), name=self.mode, shift=None)
-            setattr(self, '_fpm_fname',
-                    os.path.join(self._datapath,
-                                 "optics/DISKSPC_FPM_65WA200_360deg_-_FP1res{0:d}_evensamp_D{1:03d}_{2:s}.fits.gz".format(
-                                 self._fpmres, 2*self._Mfpm, self.filter)))
-            setattr(self, '_lyotstop_fname', os.path.join(self._datapath, "optics/SPC_LS_30D88_256pix.fits.gz")
-        else: # for now, default to CHARSPC
-            optsys.addPupil(transmission=os.path.join(self._datapath, "optics/CHARSPC_SP_256pix.fits.gz"), name=self.mode, shift=None)
-            setattr(self, '_fpm_fname',
-                    os.path.join(self._datapath,
-                                 "optics/CHARSPC_FPM_25WA90_2x65deg_-_FP1res{0:d}_evensamp_D{1:03d}_{3:s}.fits.gz".format(
-                                 self._fpmres, 2*self._Mfpm, self.filter)))
-            setattr(self, '_lyotstop_fname', os.path.join(self._datapath, "optics/SPC_LS_30D88_256pix.fits.gz")
-
-        if self.camera == 'IMAGER':
-            if not hasattr(self, 'fov_arcsec') or not self._override_fov:
-                setattr(self, 'fov_arcsec', 3.2)
-            if not hasattr(self, 'pixelscale') or not self._override_pixelscale:
-                setattr(self, 'pixelscale', 0.020) # Nyquist at 465 nm
-        else: # default to 'IFS'
-            if not hasattr(self, 'fov_arcsec') or not self._override_fov:
-                setattr(self, 'fov_arcsec', 2*0.82) # 2015 SDT report, Section 3.4.1.1.1: IFS has 76 lenslets across the (2 x 0.82) arcsec FoV.
-            if not hasattr(self, 'pixelscale') or not self._override_pixelscale:
-                self.pixelscale = 0.025 # Nyquist at 600 nm
+        if mode is None:
+           self.print_mode_table() 
+           _log.info("Since the mode was not specified at instantiation, defaulting to CHARSPC_F660")
+           self.mode = 'CHARSPC_F660'
+        else:
+           self.mode = mode
             
     @property
     def camera(self):
@@ -456,7 +427,7 @@ class CGI(WFIRSTInstrument):
     def lyotstop(self):
         """Currently selected Lyot stop name"""
         return self._lyotstop
-    @lyotmask.setter
+    @lyotstop.setter
     def lyotstop(self, value):
         # preserve case for this one since we're used to that with the lyot mask names
         if value not in self.lyotstop_list:
@@ -465,7 +436,7 @@ class CGI(WFIRSTInstrument):
 
     @property
     def mode_list(self):
-        "Available Observation Modes"
+        """Available Observation Modes"""
         keys = self._mode_table.keys()
         keys = sorted(keys)
         return keys
@@ -490,8 +461,52 @@ class CGI(WFIRSTInstrument):
         self.apodizer=settings[2]
         self.fpm=settings[3]
         self.lyotstop=settings[4]
+        _log.info('Set the following optical configuration:')
+        _log.info('camera = {0}, filter = {1}, apodizer = {2}, fpm = {3}, lyotstop = {4}'.format\
+                  (self.camera, self.filter, self.apodizer, self.fpm, self.lyotstop))
 
-    def _validateConfig(self):
+        if self.mode is 'DISKSPC_F721':
+            self._fpmres = 3
+            self._owa = 20.
+        else: # for now, default to CHARSPC
+            self._fpmres = 4
+            self._owa = 9.
+        self._Mfpm = int(np.ceil(self._fpmres*self._owa))
+
+        if self.apodizer == 'DISKSPC':
+            self._apodizer_fname = \
+              os.path.join(self._datapath, "optics/DISKSPC_SP_256pix.fits.gz")
+            self._fpm_fname  = \
+              os.path.join(self._datapath,
+                           "optics/DISKSPC_FPM_65WA200_360deg_-_FP1res{0:d}_evensamp_D{1:03d}_{2:s}.fits.gz".format\
+                           (self._fpmres, 2*self._Mfpm, self.filter))
+            self._lyotstop_fname = os.path.join(self._datapath, "optics/SPC_LS_30D88_256pix.fits.gz")
+        else: # for now, default to CHARSPC
+            self._apodizer_fname = \
+              os.path.join(self._datapath, "optics/CHARSPC_SP_256pix.fits.gz")
+            self._fpm_fname = \
+              os.path.join(self._datapath,
+                           "optics/CHARSPC_FPM_25WA90_2x65deg_-_FP1res{0:d}_evensamp_D{1:03d}_{2:s}.fits.gz".format\
+                           (self._fpmres, 2*self._Mfpm, self.filter))
+            self._lyotstop_fname  = os.path.join(self._datapath, "optics/SPC_LS_30D88_256pix.fits.gz")
+        if self.camera == 'IMAGER':
+            if not hasattr(self, 'fov_arcsec') or not self._override_fov:
+                self.fov_arcsec = 3.2
+            if not hasattr(self, 'pixelscale') or not self._override_pixelscale:
+                self.pixelscale = 0.020 # Nyquist at 465 nm
+        else: # default to 'IFS'
+            if not hasattr(self, 'fov_arcsec') or not self._override_fov:
+                self.fov_arcsec = 2*0.82 # 2015 SDT report, Section 3.4.1.1.1: IFS has 76 lenslets across the (2 x 0.82) arcsec FoV.
+            if not hasattr(self, 'pixelscale') or not self._override_pixelscale:
+                self.pixelscale = 0.025 # Nyquist at 600 nm
+
+    def print_mode_table(self):
+        """Print the table of observing mode options and their associated optical configuration"""
+        _log.info("Printing the table of WFIRST CGI observing modes supported by WebbPSF.")
+        _log.info("Each is defined by a combo of camera, filter, apodizer, focal plane mask (FPM), and Lyot stop settings:")
+        _log.info(pprint.pformat(self._mode_table))
+
+    def _validateConfig(self, **kwargs):
         super(CGI, self)._validateConfig(**kwargs)
 
     def _addAdditionalOptics(self, optsys, oversample=4):
@@ -504,12 +519,15 @@ class CGI(WFIRSTInstrument):
             shift = (self.options['pupil_shift_x'], self.options['pupil_shift_y'])
         else: shift = None
 
-        # Add FPM
-        optsys.addImage(transmission=self._fpm_fname)
+        # Add the shaped pupil apodizer
+        optsys.add_pupil(transmission=self._apodizer_fname, name=self.apodizer, shift=None)
+
+        # Add the FPM
+        optsys.add_image(transmission=self._fpm_fname)
 
         # Add Lyot stop
-        self.pupil_mask = 'Lyot stop'
-        optsys.addPupil(transmission=self._lyotstop_fname, name=self.pupil_mask, shift=shift)
+        self.pupil_mask = self.lyotstop
+        optsys.add_pupil(transmission=self._lyotstop_fname, name=self.lyotstop, shift=shift)
 
         # Cast as MatrixFTCoronagraph; this configures the detector
         occ_box_size = 1.
