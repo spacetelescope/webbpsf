@@ -541,6 +541,16 @@ class CGI(WFIRSTInstrument):
     def _getFITSHeader(self, result, options):
         """Populate FITS Header keywords"""
         super(WFIRSTInstrument, self)._getFITSHeader(result, options)
-
-
-
+        pupil_hdr = fits.getheader(self.pupil)
+        apodizer_hdr = fits.getheader(self._apodizer_fname)
+        fpm_hdr = fits.getheader(self._fpm_fname)
+        lyostop_hdr = fits.getheader(self._lyotstop_fname)
+ 
+        result[0].header.set('MODE', self.mode, comment='Observing mode')
+        result[0].header.set('CAMERA', self.camera, comment='Imager or IFS')
+        result[0].header.set('APODIZER', self.apodizer, comment='Apodizer')
+        result[0].header.set('FPM', self.fpm, comment='Focal plane mask')
+        result[0].header.set('LYOTSTOP', self.lyotstop, comment='Lyot stop')
+        result[0].header.set('PUPLSCAL', pupil_hdr['PUPLSCAL'], comment='Pupil pixel scale in m/pixel')
+        result[0].header.set('PUPLDIAM', pupil_hdr['PUPLDIAM'], comment='Full pupil file size, incl padding.')
+        result[0].header.set('FPMSCAL', fpm_hdr['PIXSCALE'], comment='FPM spatial sampling, arcsec/pix')
