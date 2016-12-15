@@ -544,13 +544,25 @@ class CGI(WFIRSTInstrument):
         pupil_hdr = fits.getheader(self.pupil)
         apodizer_hdr = fits.getheader(self._apodizer_fname)
         fpm_hdr = fits.getheader(self._fpm_fname)
-        lyostop_hdr = fits.getheader(self._lyotstop_fname)
+        lyotstop_hdr = fits.getheader(self._lyotstop_fname)
  
         result[0].header.set('MODE', self.mode, comment='Observing mode')
         result[0].header.set('CAMERA', self.camera, comment='Imager or IFS')
         result[0].header.set('APODIZER', self.apodizer, comment='Apodizer')
+        result[0].header.set('APODTRAN', os.path.basename(self._apodizer_fname),
+                             comment='Apodizer transmission')
+        result[0].header.set('PUPLSCAL', apodizer_hdr['PUPLSCAL'],
+                             comment='Apodizer pixel scale in m/pixel')
+        result[0].header.set('PUPLDIAM', apodizer_hdr['PUPLDIAM'],
+                             comment='Full apodizer array size, incl padding.')
         result[0].header.set('FPM', self.fpm, comment='Focal plane mask')
-        result[0].header.set('LYOTSTOP', self.lyotstop, comment='Lyot stop')
-        result[0].header.set('PUPLSCAL', pupil_hdr['PUPLSCAL'], comment='Pupil pixel scale in m/pixel')
-        result[0].header.set('PUPLDIAM', pupil_hdr['PUPLDIAM'], comment='Full pupil file size, incl padding.')
+        result[0].header.set('FPMTRAN', os.path.basename(self._fpm_fname),
+                             comment='FPM transmission')
         result[0].header.set('FPMSCAL', fpm_hdr['PIXSCALE'], comment='FPM spatial sampling, arcsec/pix')
+        result[0].header.set('LYOTSTOP', self.lyotstop, comment='Lyot stop')
+        result[0].header.set('LSTRAN', os.path.basename(self._lyotstop_fname),
+                             comment='Lyot stop transmission')
+        result[0].header.set('PUPLSCAL', lyotstop_hdr['PUPLSCAL'],
+                             comment='Lyot stop pixel scale in m/pixel')
+        result[0].header.set('PUPLDIAM', lyotstop_hdr['PUPLDIAM'],
+                             comment='Lyot stop array size, incl padding.')
