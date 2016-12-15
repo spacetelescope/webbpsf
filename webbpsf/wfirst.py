@@ -347,9 +347,10 @@ class CGI(WFIRSTInstrument):
                       'CHARSPC_F890': ('IFS',    'F890', 'CHARSPC', 'CHARSPC_F890', 'SPC30D88'),
                       'DISKSPC_F721': ('IMAGER', 'F721', 'DISKSPC', 'DISKSPC_F721', 'SPC30D88') }
 
-    def __init__(self, mode='CHARSPC', filter=None, pixelscale=None, fov_arcsec=None, apply_static_opd=False):
+    def __init__(self, mode='CHARSPC_F770', pixelscale=None, fov_arcsec=None, apply_static_opd=False):
         super(CGI, self).__init__("CGI", pixelscale=pixelscale)
 
+        self.mode = mode
         self.pupil = os.path.join(self._WebbPSF_basepath, 'AFTA_CGI_C5_Pupil_onax_256px_flip.fits')
         if apply_static_opd:
             #self.pupilopd = os.path.join(self._WebbPSF_basepath, 'CGI', 'OPD', 'CGI_primary_OPD.fits')
@@ -363,23 +364,50 @@ class CGI(WFIRSTInstrument):
         self.options = {'force_coron':True}
         # Allow the user to pre-emptively override the default instrument FoV and pixel scale
         if fov_arcsec is not None:
-            self.fov_arcsec = fov_arcsec
-            self._override_fov = True
+            setattr(self, 'fov_arcsec', fov_arcsec)
+            setattr(self, '_override_fov', True)
         else:
-            self._override_fov = False
+            setattr(self, '_override_fov', False)
         if pixelscale is not None:
-            self.pixelscale = pixelscale
-            self._override_pixelscale = True
+            setattr(self, 'pixelscale', pixelscale)
+            setattr(self, '_override_pixelscale', True)
         else:
-            self._override_pixelscale = False
-        self.mode = mode
-        #if filter is not None:
-        #    self.filter = filter
-        #elif mode is 'CHARSPC':
-        #    self.filter = 'F770'
-        #else:
-        #    self.filter = 'F721'
+            setattr(self, '_override_pixelscale', False)
 
+        if self.mode is 'DISKSPC_F721':
+            setattr(self, '_fpmres', 3)
+            setattr(self, '_owa', 20.)
+        else: # for now, default to CHARSPC
+            setattr(self, '_fpmres', 4)
+            setattr(self, '_owa', 9.)
+        setattr(self, '_Mfpm', self._fpmres*self._owa)
+
+        if self.apodizer == 'DISKSPC':
+            optsys.addPupil(transmission=os.path.join(self._datapath, "optics/DISKSPC_SP_256pix.fits.gz"), name=self.mode, shift=None)
+            setattr(self, '_fpm_fname',
+                    os.path.join(self._datapath,
+                                 "optics/DISKSPC_FPM_65WA200_360deg_-_FP1res{0:d}_evensamp_D{1:03d}_{2:s}.fits.gz".format(
+                                 self._fpmres, 2*self._Mfpm, self.filter)))
+            setattr(self, '_lyotstop_fname', os.path.join(self._datapath, "optics/SPC_LS_30D88_256pix.fits.gz")
+        else: # for now, default to CHARSPC
+            optsys.addPupil(transmission=os.path.join(self._datapath, "optics/CHARSPC_SP_256pix.fits.gz"), name=self.mode, shift=None)
+            setattr(self, '_fpm_fname',
+                    os.path.join(self._datapath,
+                                 "optics/CHARSPC_FPM_25WA90_2x65deg_-_FP1res{0:d}_evensamp_D{1:03d}_{3:s}.fits.gz".format(
+                                 self._fpmres, 2*self._Mfpm, self.filter)))
+            setattr(self, '_lyotstop_fname', os.path.join(self._datapath, "optics/SPC_LS_30D88_256pix.fits.gz")
+
+        if self.camera == 'IMAGER':
+            if not hasattr(self, 'fov_arcsec') or not self._override_fov:
+                setattr(self, 'fov_arcsec', 3.2)
+            if not hasattr(self, 'pixelscale') or not self._override_pixelscale:
+                setattr(self, 'pixelscale', 0.020) # Nyquist at 465 nm
+        else: # default to 'IFS'
+            if not hasattr(self, 'fov_arcsec') or not self._override_fov:
+                setattr(self, 'fov_arcsec', 2*0.82) # 2015 SDT report, Section 3.4.1.1.1: IFS has 76 lenslets across the (2 x 0.82) arcsec FoV.
+            if not hasattr(self, 'pixelscale') or not self._override_pixelscale:
+                self.pixelscale = 0.025 # Nyquist at 600 nm
+            
     @property
     def camera(self):
         """Currently selected camera name"""
@@ -455,8 +483,7 @@ class CGI(WFIRSTInstrument):
     @mode.setter
     def mode(self, value):
         if value not in self.mode_list:
-            raise ValueError("Instrument {0} doesn't have an Obsmode called {1}.".format(self.name, value))
-
+            raise ValueError("Instrument {0} doesn't have a mode called {1}.".format(self.name, value))
         settings = self._mode_table[value]
         self.camera=settings[0]
         self.filter=settings[1]
@@ -471,46 +498,20 @@ class CGI(WFIRSTInstrument):
         """Add coronagraphic or spectrographic optics for WFIRST CGI."""
     
         trySAM = False
-        char_fpmres = 4
-        disk_fpmres = 3
 
         if ('pupil_shift_x' in self.options and self.options['pupil_shift_x'] != 0) or \
            ('pupil_shift_y' in self.options and self.options['pupil_shift_y'] != 0):
             shift = (self.options['pupil_shift_x'], self.options['pupil_shift_y'])
         else: shift = None
 
-        if self.mode == 'CHARSPC':
-            optsys.addPupil(transmission=os.path.join(self._datapath, "optics/CHARSPC_SP_256pix.fits.gz"), name=self.mode, shift=None)
-        else: # self.mode == 'DISKSPC':
-            optsys.addPupil(transmission=os.path.join(self._datapath, "optics/DISKSPC_SP_256pix.fits.gz"), name=self.mode, shift=None)
-        if self.mode == 'CHARSPC':
-            if self.filter == 'F660':
-                self.image_mask = 'CHARSPC_F660'
-                optsys.addImage(transmission=os.path.join(self._datapath,"optics/CHARSPC_FPM_25WA90_2x65deg_-_FP1res{0:d}_evensamp_D{1:03d}_F660.fits.gz".format(char_fpmres, 2*9*char_fpmres)))
-            elif self.filter == 'F770':
-                self.image_mask = 'CHARSPC_F770'
-                optsys.addImage(transmission=os.path.join(self._datapath,"optics/CHARSPC_FPM_25WA90_2x65deg_-_FP1res{0:d}_evensamp_D{1:03d}_F770.fits.gz".format(char_fpmres, 2*9*char_fpmres)))
-            elif self.filter == 'F890':
-                self.image_mask = 'CHARSPC_F890'
-                optsys.addImage(transmission=os.path.join(self._datapath,"optics/CHARSPC_FPM_25WA90_2x65deg_-_FP1res{0:d}_evensamp_D{1:03d}_F890.fits.gz".format(char_fpmres, 2*9*char_fpmres)))
-        else: #elif self.filter == 'F721':
-            self.image_mask = 'DISKSPC_F721'
-            optsys.addImage(transmission=os.path.join(self._datapath,"optics/DISKSPC_FPM_65WA200_360deg_-_FP1res{0:d}_evensamp_D{1:03d}_F721.fits.gz".format(disk_fpmres, 2*20*disk_fpmres)))
+        # Add FPM
+        optsys.addImage(transmission=self._fpm_fname)
 
-        if self.mode == 'CHARSPC':
-            if not hasattr(self, 'fov_arcsec') or not self._override_fov:
-                self.fov_arcsec = 2*0.82 # See 2015 SDT report, Section 3.4.1.1.1: IFS has 76 lenslets across the (2 x 0.82) arcsec FoV.
-            if not hasattr(self, 'pixelscale') or not self._override_pixelscale:
-                self.pixelscale = 0.025 # Nyquist at 600 nm
-        elif self.mode == 'DISKSPC':
-            if not hasattr(self, 'fov_arcsec') or not self._override_fov:
-                self.fov_arcsec = 3.2
-            if not hasattr(self, 'pixelscale') or not self._override_pixelscale:
-                self.pixelscale = 0.020 # Nyquist at 465 nm
-        # Lyot stop
-        self.pupil_mask = 'SPC30D88'
-        optsys.addPupil(transmission=os.path.join(self._datapath,"optics/SPC_LS_30D88_256pix.fits.gz"), name=self.pupil_mask, shift=shift)
+        # Add Lyot stop
+        self.pupil_mask = 'Lyot stop'
+        optsys.addPupil(transmission=self._lyotstop_fname, name=self.pupil_mask, shift=shift)
 
+        # Cast as MatrixFTCoronagraph; this configures the detector
         occ_box_size = 1.
         mft_optsys = poppy.MatrixFTCoronagraph(optsys, oversample=oversample, occulter_box=occ_box_size)
 
