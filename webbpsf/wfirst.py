@@ -332,7 +332,22 @@ class CGI(WFIRSTInstrument):
 
 	Current functionality is limited to the Shaped Pupil Coronagraph (SPC)
     observing modes, and these modes are only simulated with static, unaberrated
-    wavefronts, without relay optics and without DM control.
+    wavefronts, without relay optics and without DM control. The design
+    respresented here is an approximation to a baseline concept, and will be
+    subject to change based on trades studies and technology development.
+
+    Parameters
+    ----------
+    mode : str
+        CGI observing mode. If not specified, the __init__ function
+        will set this to a default mode 'CHARSPC_F660'
+    pixelscale : float
+        Detector pixelscale. If not specified, the pixelscale will default to
+        0.02 arcsec for configurations usint the IMAGER camera and 0.025 arcsec 
+        for the IFS.
+    fov_arcsec : float
+        Field of view in arcseconds. If not specified, the field of view will
+        default to 3.20 arcsec for the IMAGER camera and 1.76 arcsec for the IFS.
 
     """
 
