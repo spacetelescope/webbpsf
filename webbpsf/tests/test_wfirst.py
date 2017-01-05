@@ -115,7 +115,7 @@ def test_CGI_psf(display=False):
     any exceptions
     """
     char_spc = wfirst.CGI()
-    char_spc.mode = 'CHARSPC'
+    char_spc.mode = 'CHARSPC_F660'
 
     #print('Reading instrument data from {:s}'.format(charspc._WebbPSF_basepath)
     #print('Filter list: {:}'.format(charspc.filter_list))
