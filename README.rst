@@ -19,11 +19,10 @@ flagship infrared space telescope. WebbPSF can simulate images for any of the
 four science instruments plus the fine guidance sensor, including both direct
 imaging and coronagraphic modes.
 
-WebbPSF also supports simulating PSFs for the proposed Wide-Field Instrument
-for the upcoming WFIRST mission, including variation of the PSF within and
-among the eighteen detectors.
+WebbPSF also supports simulating PSFs for the upcoming Wide Field Infrared Survey Telescope (WFIRST),
+including its Wide Field Instrument and a preliminary version of the Coronagraph Instrument.
 
-Developed by Marshall Perrin, Joseph Long, and collaborators, 2010-2016.
+Developed by Marshall Perrin, Joseph Long, Neil Zimmerman, and collaborators, 2010-2017.
 
 Documentation can be found online at https://pythonhosted.org/webbpsf/
 
