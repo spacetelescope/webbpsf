@@ -3,6 +3,14 @@ WebbPSF for WFIRST
 ******************
 
 
+WebbPSF provides a framework for instrument PSF calculations that is easily extensible to other instruments and observatories. The :py:mod:`webbpsf.wfirst` module was developed to enable simulation of WFIRST's instruments, the :ref:`Wide Field Instrument (WFI) <wfirst_wfi>` and :ref:`Coronagraph Instrument (CGI) <wfirst_cgi>`.
+
+
+.. _wfirst_wfi:
+
+Wide Field Instrument (WFI)
+===========================
+
 
 .. figure:: ./wfirst_figures/webbpsf-wfirst_page_header.png
    :align: center
@@ -10,10 +18,7 @@ WebbPSF for WFIRST
 
    Sample PSFs for the filters in the WFIRST WFI. Angular scale in arcseconds, log-scaled intensity.
 
-Introduction
-============
-
-WebbPSF provides a framework for JWST instrument PSF calculations that is easily extensible to other instruments and observatories. The :py:mod:`webbpsf.wfirst` module was developed to enable simulation of WFIRST's Wide Field Instrument (WFI) based on the `Cycle 6 instrument reference information <https://wfirst.gsfc.nasa.gov/science/Inst_Ref_Info_Cycle6.html>`_ from the WFIRST team at Goddard Space Flight Center.
+The WFI model is based on the `Cycle 6 instrument reference information <https://wfirst.gsfc.nasa.gov/science/Inst_Ref_Info_Cycle6.html>`_ from the WFIRST team at Goddard Space Flight Center.
 
 At this time, the only instrument simulated is the WFI, but that may change in the future. To work with the WFI model, import and instantiate it as follows::
 
@@ -30,7 +35,7 @@ The WFI model includes a model for field dependent PSF aberrations. With as larg
    This documentation is complemented by an `IPython Notebook format quickstart tutorial <http://nbviewer.ipython.org/github/mperrin/webbpsf/blob/master/notebooks/WebbPSF-WFIRST_Tutorial.ipynb>`_. Downloading and run that notebook to use the beta notebook GUI for the WFI model, and to explore code samples for common tasks interactively.
 
 Field dependence in the WFI model
-=================================
+---------------------------------
 
 Field points are specified in a WebbPSF calculation by selecting a detector and pixel coordinates within that detector. A newly instantiated WFI model already has a default detector and position. ::
 
@@ -70,8 +75,8 @@ Bear in mind that the pixel position you set does not automatically set the **ce
    >>> wfi.options['parity'] = 'odd'  # worst case for PSF core flux landing in a single pixel
 
 
-Example: Computing the PSF difference between opposite corners of the field of view
-======================================================================================
+Example: Computing the PSF difference between opposite corners of the WFI field of view
+-----------------------------------------------------------------------------------------
 
 This example shows the power of WebbPSF to simulate and analyze field dependent variation in the model. About a dozen lines of code are all that's necessary to produce a figure showing how the PSF differs between the two extreme edges of the instrument field of view.
 
@@ -94,3 +99,60 @@ This example shows the power of WebbPSF to simulate and analyze field dependent 
    :alt: This figure shows oversampled PSFs in the J129 filter at two different field points, and the intensity difference image between the two.
 
    This figure shows oversampled PSFs in the J129 filter at two different field points, and the intensity difference image between the two.
+
+.. _wfirst_cgi:
+
+Coronagraph Instrument (CGI)
+============================
+
+We have begun developing a Coronagraph Instrument (CGI) simulation module.
+The goal is to provide
+an open source modeling package for CGI for use by the science centers and
+science teams, to complement the existing in-house optical modeling
+capabilities at JPL. 
+
+Currently a prototype implementation is available for the shaped pupil
+coronagraph modes only, for both the CGI imager and IFS. Future releases will incorporate realistic aberrations, both
+static and dynamic, to produce realistic speckle fields.  We also plan to 
+add the hybrid Lyot modes.
+
+
+.. warning::
+    Current functionality is limited to the Shaped Pupil Coronagraph (SPC)
+    observing modes, and these modes are only simulated with static, unaberrated
+    wavefronts, without relay optics and without DM control. The design
+    respresented here is an approximation to a baseline concept, and will be
+    subject to change based on ongoing trades studies and technology development.
+
+
+A hands-on tutorial in using the CGI class is available in this
+`Jupyter Notebook <http://nbviewer.ipython.org/github/mperrin/webbpsf/blob/master/notebooks/wfirst_cgi_demo.ipynb>`_. 
+Here we briefly summarize the key points, but see that for more detail. 
+
+
+The CGI class has attributes for  ``filter``, etc., like other instrument classes, but since these masks are designed to be
+used in specific combinations, a ``mode`` attribute exists that allows easy specification of all those attributes at once. For example, setting
+
+::
+    >> cgi = wfirst.CGI()
+    >> cgi.mode='CHARSPC_F770'
+
+is equivalent to::
+
+    >> cgi.camera = 'IFS'
+    >> cgi.filter = 'F770'
+    >> cgi.apodizer = 'CHARSPC'
+    >> cgi.fpm = 'CHARSPC_F770_BOWTIE'
+    >> cgi.lyotstop = 'LS30D88'
+
+There are ``_list`` attributes that tell you the allowed values for each attribute, including a ``mode_list`` for all the available meta-modes.
+
+
+Calculations are invoked similarly to any other instrument class::
+
+    >> mono_char_spc_psf = cgi.calc_psf(nlambda=1, fov_arcsec=1.6, display=True)
+
+.. figure:: ./wfirst_figures/fig_cgi_spc_f770.png
+   :alt: Example CGI PSF calculation.
+
+

@@ -1,7 +1,7 @@
 Documentation for WebbPSF
 ===============================
 
-WebbPSF is a Python package that computes simulated PSFs for the JWST instruments (and now for WFIRST too!), taking into account detector pixel scales, rotations, filter profiles, and point source spectra. It is *not* a full optical model of JWST, but rather a tool for transforming optical path difference (OPD) maps, created with some other tool, into the resulting PSFs as observed with JWST's instruments.
+WebbPSF is a Python package that computes simulated PSFs for the JWST instruments (and now for WFIRST too), taking into account detector pixel scales, rotations, filter profiles, and point source spectra. It is *not* a full optical model of JWST, but rather a tool for transforming optical path difference (OPD) maps, created with some other tool, into the resulting PSFs as observed with JWST's instruments.
 
 .. figure:: ./fig_instrument_comparison.png
    :scale: 45 %
@@ -24,8 +24,8 @@ WebbPSF is a Python package that computes simulated PSFs for the JWST instrument
 * Uses OPD map(s) precomputed by detailed optical simulations of these telescopes.
 * Computes from those PSF images with requested properties for any of JWST's instruments
 * Supports imaging, coronagraphy, and most spectrographic modes with all of JWST's instruments. IFUs are yet to come.
-* For WFIRST, computes PSFs with the Wide Field Imager, based on recent GSFC optical models, including field- and wavelength-dependent aberrations.
-  CGI models may be included in a future release.
+* For WFIRST, computes PSFs with the Wide Field Imager, based on recent GSFC optical models, including field- and wavelength-dependent aberrations. 
+  A preliminary version of the Coronagraph Instrument is also available.
 * Provides a suite of tools for quantifying PSF properties such as FWHM, Strehl ratio, etc.
 
 **What this software does NOT do:**
