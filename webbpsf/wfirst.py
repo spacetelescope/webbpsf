@@ -17,6 +17,7 @@ from scipy.interpolate import griddata
 from astropy.io import fits
 import logging
 _log = logging.getLogger('webbpsf')
+import pprint
 
 class WavelengthDependenceInterpolator(object):
     """WavelengthDependenceInterpolator can be configured with
@@ -323,5 +324,260 @@ class WFI(WFIRSTInstrument):
             pass
         super(WFI, self)._validateConfig(**kwargs)
 
+class CGI(WFIRSTInstrument):
+    """
+    WFIRST Coronagraph Instrument
 
+    Simulates the PSF of the WFIRST coronagraph.
 
+	Current functionality is limited to the Shaped Pupil Coronagraph (SPC)
+    observing modes, and these modes are only simulated with static, unaberrated
+    wavefronts, without relay optics and without DM control. The design
+    respresented here is an approximation to a baseline concept, and will be
+    subject to change based on trades studies and technology development.
+
+    Parameters
+    ----------
+    mode : str
+        CGI observing mode. If not specified, the __init__ function
+        will set this to a default mode 'CHARSPC_F660'
+    pixelscale : float
+        Detector pixelscale. If not specified, the pixelscale will default to
+        0.02 arcsec for configurations usint the IMAGER camera and 0.025 arcsec 
+        for the IFS.
+    fov_arcsec : float
+        Field of view in arcseconds. If not specified, the field of view will
+        default to 3.20 arcsec for the IMAGER camera and 1.76 arcsec for the IFS.
+
+    """
+
+    camera_list = ['IMAGER', 'IFS']
+    filter_list = ['F660', 'F721', 'F770', 'F890']
+    apodizer_list = ['CHARSPC', 'DISKSPC']
+    fpm_list = ['CHARSPC_F660_BOWTIE', 'CHARSPC_F770_BOWTIE', 'CHARSPC_F890_BOWTIE', 'DISKSPC_F721_ANNULUS']
+    lyotstop_list = ['LS30D88']
+
+    _mode_table = { # MODE             CAMERA    FILTER  APODIZER   FPM             LYOT STOP
+                      'CHARSPC_F660': ('IFS',    'F660', 'CHARSPC', 'CHARSPC_F660_BOWTIE', 'LS30D88'),
+                      'CHARSPC_F770': ('IFS',    'F770', 'CHARSPC', 'CHARSPC_F770_BOWTIE', 'LS30D88'),
+                      'CHARSPC_F890': ('IFS',    'F890', 'CHARSPC', 'CHARSPC_F890_BOWTIE', 'LS30D88'),
+                      'DISKSPC_F721': ('IMAGER', 'F721', 'DISKSPC', 'DISKSPC_F721_ANNULUS', 'LS30D88') }
+
+    def __init__(self, mode=None, pixelscale=None, fov_arcsec=None, apply_static_opd=False):
+        super(CGI, self).__init__("CGI", pixelscale=pixelscale)
+
+        self.pupil_mask_list = self.lyotstop_list # alias for use in webbpsf_core
+        self.image_mask_list = self.fpm_list # alias for use in webbpsf_core
+        self.pupil = os.path.join(self._WebbPSF_basepath, 'AFTA_CGI_C5_Pupil_onax_256px_flip.fits')
+        if apply_static_opd:
+            self.pupilopd = os.path.join(self._WebbPSF_basepath, 'CGI', 'OPD', 'CGI_static_OPD.fits')
+        else:
+            self.pupilopd = None
+        self.aberration_optic = None
+        self.options = {'force_coron':True}
+        # Allow the user to pre-emptively override the default instrument FoV and pixel scale
+        if fov_arcsec is not None:
+            self.fov_arcsec  = fov_arcsec
+            self._override_fov = True
+        else:
+            self._override_fov = False
+        if pixelscale is not None:
+            self._pixelscale = pixelscale
+            self._override_pixelscale = True
+        else:
+            self._override_pixelscale = False
+
+        if mode is None:
+           self.print_mode_table() 
+           _log.info("Since the mode was not specified at instantiation, defaulting to CHARSPC_F660")
+           self.mode = 'CHARSPC_F660'
+        else:
+           self.mode = mode
+            
+    @property
+    def camera(self):
+        """Currently selected camera name"""
+        return self._camera
+    @camera.setter
+    def camera(self, value):
+        value = value.upper() # force to uppercase
+        if value not in self.camera_list:
+            raise ValueError("Instrument {0} doesn't have a camera called {1}.".format(self.name, value))
+        self._camera = value
+        if value == 'IMAGER':
+            if not hasattr(self, 'fov_arcsec') or not self._override_fov:
+                self.fov_arcsec = 3.2
+            if not hasattr(self, 'pixelscale') or not self._override_pixelscale:
+                self.pixelscale = 0.020 # Nyquist at 465 nm
+        else: # default to 'IFS'
+            if not hasattr(self, 'fov_arcsec') or not self._override_fov:
+                self.fov_arcsec = 2*0.82 # 2015 SDT report, Section 3.4.1.1.1: IFS has 76 lenslets across the (2 x 0.82) arcsec FoV.
+            if not hasattr(self, 'pixelscale') or not self._override_pixelscale:
+                self.pixelscale = 0.025 # Nyquist at 600 nm
+
+    @property
+    def filter(self):
+        """Currently selected filter name"""
+        return self._filter
+    @filter.setter
+    def filter(self, value):
+        value = value.upper() # force to uppercase
+        if value not in self.filter_list:
+            raise ValueError("Instrument {0} doesn't have a filter called {1}.".format(self.name, value))
+        self._filter = value
+
+    @property
+    def apodizer(self):
+        """Currently selected apodizer name"""
+        return self._apodizer
+    @apodizer.setter
+    def apodizer(self, value):
+        value = value.upper() # force to uppercase
+        if value not in self.apodizer_list:
+            raise ValueError("Instrument {0} doesn't have a apodizer called {1}.".format(self.name, value))
+        self._apodizer = value
+        if value == 'DISKSPC':
+            self._apodizer_fname = \
+              os.path.join(self._datapath, "optics/DISKSPC_SP_256pix.fits.gz")
+        else: # for now, default to CHARSPC
+            self._apodizer_fname = \
+              os.path.join(self._datapath, "optics/CHARSPC_SP_256pix.fits.gz")
+
+    @property
+    def fpm(self):
+        """Currently selected FPM name"""
+        return self._fpm
+    @fpm.setter
+    def fpm(self, value):
+        value = value.upper() # force to uppercase
+        if value not in self.fpm_list:
+            raise ValueError("Instrument {0} doesn't have a FPM called {1}.".format(self.name, value))
+        self._fpm = value
+        if value.startswith('DISKSPC'):
+            self._fpmres = 3
+            self._owa = 20.
+            self._Mfpm = int(np.ceil(self._fpmres*self._owa))
+            self._fpm_fname  = \
+              os.path.join(self._datapath,
+                           "optics/DISKSPC_FPM_65WA200_360deg_-_FP1res{0:d}_evensamp_D{1:03d}_{2:s}.fits.gz".format\
+                           (self._fpmres, 2*self._Mfpm, self.filter))
+        else:
+            self._fpmres = 4
+            self._owa = 9.
+            self._Mfpm = int(np.ceil(self._fpmres*self._owa))
+            self._fpm_fname = \
+              os.path.join(self._datapath,
+                           "optics/CHARSPC_FPM_25WA90_2x65deg_-_FP1res{0:d}_evensamp_D{1:03d}_{2:s}.fits.gz".format\
+                           (self._fpmres, 2*self._Mfpm, self.filter))
+
+    @property
+    def lyotstop(self):
+        """Currently selected Lyot stop name"""
+        return self._lyotstop
+    @lyotstop.setter
+    def lyotstop(self, value):
+        # preserve case for this one since we're used to that with the lyot mask names
+        if value not in self.lyotstop_list:
+            raise ValueError("Instrument {0} doesn't have a Lyot mask called {1}.".format(self.name, value))
+        self._lyotstop = value
+        self._lyotstop_fname  = os.path.join(self._datapath, "optics/SPC_LS_30D88_256pix.fits.gz")
+
+    @property
+    def mode_list(self):
+        """Available Observation Modes"""
+        keys = self._mode_table.keys()
+        keys = sorted(keys)
+        return keys
+
+    # mode works differently since it's a meta-property that affects the other ones:
+    @property
+    def mode(self):
+        """Currently selected mode name"""
+        for modename, settings in self._mode_table.items():
+            if (self.camera==settings[0].upper() and self.filter==settings[1].upper() and 
+                self.apodizer==settings[2].upper() and self.fpm==settings[3].upper() and 
+                self.lyotstop==settings[4]):
+                return modename
+        return 'Custom'
+    @mode.setter
+    def mode(self, value):
+        if value not in self.mode_list:
+            raise ValueError("Instrument {0} doesn't have a mode called {1}.".format(self.name, value))
+        settings = self._mode_table[value]
+        self.camera=settings[0]
+        self.filter=settings[1]
+        self.apodizer=settings[2]
+        self.fpm=settings[3]
+        self.lyotstop=settings[4]
+        _log.info('Set the following optical configuration:')
+        _log.info('camera = {0}, filter = {1}, apodizer = {2}, fpm = {3}, lyotstop = {4}'.format\
+                  (self.camera, self.filter, self.apodizer, self.fpm, self.lyotstop))
+
+    def print_mode_table(self):
+        """Print the table of observing mode options and their associated optical configuration"""
+        _log.info("Printing the table of WFIRST CGI observing modes supported by WebbPSF.")
+        _log.info("Each is defined by a combo of camera, filter, apodizer, focal plane mask (FPM), and Lyot stop settings:")
+        _log.info(pprint.pformat(self._mode_table))
+
+    def _validateConfig(self, **kwargs):
+        super(CGI, self)._validateConfig(**kwargs)
+
+    def _addAdditionalOptics(self, optsys, oversample=4):
+        """Add coronagraphic or spectrographic optics for WFIRST CGI."""
+    
+        trySAM = False
+
+        if ('pupil_shift_x' in self.options and self.options['pupil_shift_x'] != 0) or \
+           ('pupil_shift_y' in self.options and self.options['pupil_shift_y'] != 0):
+            shift = (self.options['pupil_shift_x'], self.options['pupil_shift_y'])
+        else: shift = None
+
+        # Add the shaped pupil apodizer
+        optsys.add_pupil(transmission=self._apodizer_fname, name=self.apodizer, shift=None)
+
+        # Add the FPM
+        optsys.add_image(transmission=self._fpm_fname, name=self.fpm)
+
+        # Add Lyot stop
+        self.pupil_mask = self.lyotstop
+        optsys.add_pupil(transmission=self._lyotstop_fname, name=self.lyotstop, shift=shift)
+
+        # Cast as MatrixFTCoronagraph; this configures the detector
+        occ_box_size = 1.
+        mft_optsys = poppy.MatrixFTCoronagraph(optsys, oversample=oversample, occulter_box=occ_box_size)
+
+        return (mft_optsys, trySAM, occ_box_size)
+
+    def _get_aberrations(self):
+        """Get the OpticalElement that applies the field-dependent
+        optical aberrations. (Called in _getOpticalSystem.)"""
+        return None
+
+    def _getFITSHeader(self, result, options):
+        """Populate FITS Header keywords"""
+        super(WFIRSTInstrument, self)._getFITSHeader(result, options)
+        pupil_hdr = fits.getheader(self.pupil)
+        apodizer_hdr = fits.getheader(self._apodizer_fname)
+        fpm_hdr = fits.getheader(self._fpm_fname)
+        lyotstop_hdr = fits.getheader(self._lyotstop_fname)
+ 
+        result[0].header.set('MODE', self.mode, comment='Observing mode')
+        result[0].header.set('CAMERA', self.camera, comment='Imager or IFS')
+        result[0].header.set('APODIZER', self.apodizer, comment='Apodizer')
+        result[0].header.set('APODTRAN', os.path.basename(self._apodizer_fname),
+                             comment='Apodizer transmission')
+        result[0].header.set('PUPLSCAL', apodizer_hdr['PUPLSCAL'],
+                             comment='Apodizer pixel scale in m/pixel')
+        result[0].header.set('PUPLDIAM', apodizer_hdr['PUPLDIAM'],
+                             comment='Full apodizer array size, incl padding.')
+        result[0].header.set('FPM', self.fpm, comment='Focal plane mask')
+        result[0].header.set('FPMTRAN', os.path.basename(self._fpm_fname),
+                             comment='FPM transmission')
+        result[0].header.set('FPMSCAL', fpm_hdr['PIXSCALE'], comment='FPM spatial sampling, arcsec/pix')
+        result[0].header.set('LYOTSTOP', self.lyotstop, comment='Lyot stop')
+        result[0].header.set('LSTRAN', os.path.basename(self._lyotstop_fname),
+                             comment='Lyot stop transmission')
+        result[0].header.set('PUPLSCAL', lyotstop_hdr['PUPLSCAL'],
+                             comment='Lyot stop pixel scale in m/pixel')
+        result[0].header.set('PUPLDIAM', lyotstop_hdr['PUPLDIAM'],
+                             comment='Lyot stop array size, incl padding.')

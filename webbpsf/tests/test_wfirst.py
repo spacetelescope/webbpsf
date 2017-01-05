@@ -108,3 +108,18 @@ def test_WFI_limits_interpolation_range():
     assert 'wavelength outside the range' in str(excinfo.value), (
         "FieldDependentAberration did not error on out-of-bounds wavelength"
     )
+
+def test_CGI_psf(display=False):
+    """
+    Just test that instantiating CGI works and can compute a PSF without raising
+    any exceptions
+    """
+    char_spc = wfirst.CGI()
+    char_spc.mode = 'CHARSPC_F660'
+
+    #print('Reading instrument data from {:s}'.format(charspc._WebbPSF_basepath)
+    #print('Filter list: {:}'.format(charspc.filter_list))
+
+    monopsf = char_spc.calcPSF(nlambda=1, display=False)
+    if display:
+        wfirst.poppy.display_PSF(monopsf)
