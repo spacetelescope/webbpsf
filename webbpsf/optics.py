@@ -971,8 +971,11 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
                                                    'si_zernikes_isim_cv3.fits'))
         # Determine the pupil sampling of the first aperture in the
         # instrument's optical system
-        pupilfile = os.path.join(instrument._datapath, "OPD", instrument.pupil)
-        pupilheader = fits.getheader(pupilfile)
+        if isinstance(instrument.pupil, fits.HDUList):
+            pupilheader = instrument.pupil[0].header
+        else:
+            pupilfile = os.path.join(instrument._datapath, "OPD", instrument.pupil)
+            pupilheader = fits.getheader(pupilfile)
 
         npix = pupilheader['NAXIS1']
         self.pixelscale = pupilheader['PUPLSCAL'] * units.meter / units.pixel
