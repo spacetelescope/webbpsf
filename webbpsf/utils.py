@@ -409,8 +409,8 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, displa
         ref_peak = comparison_image[center[1], center[0]]
     else:
         # average across a group of 4
-        bot = [np.floor(f) for f in center]
-        top = [np.ceil(f)+1 for f in center]
+        bot = [int(np.floor(f)) for f in center]
+        top = [int(np.ceil(f)+1) for f in center]
         meas_peak =           image[bot[1]:top[1], bot[0]:top[0]].mean()
         ref_peak = comparison_image[bot[1]:top[1], bot[0]:top[0]].mean()
     strehl = (meas_peak/ref_peak)
