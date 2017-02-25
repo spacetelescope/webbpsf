@@ -352,6 +352,14 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
             name='{telescope}+{instrument}'.format(telescope=self.telescope, instrument=self.name),
             oversample=fft_oversample
         )
+        # For convenience offsets can be given in cartesian or radial coords
+        if 'source_offset_x' in options or 'source_offset_y' in options:
+            offx = options.get('source_offset_x', 0)
+            offy = options.get('source_offset_y', 0)
+            optsys.source_offset_r = np.sqrt(offx**2+offy**2)
+            optsys.source_offset_theta = np.rad2deg(np.arctan2(-offx, offy))
+            _log.debug("Source offset from X,Y = ({}, {}) is (r,theta) = {},{}".format(
+                offx,offy, optsys.source_offset_r, optsys.source_offset_theta))
         if 'source_offset_r' in options:
             optsys.source_offset_r = options['source_offset_r']
         if 'source_offset_theta' in options:
