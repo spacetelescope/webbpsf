@@ -664,18 +664,33 @@ class NIRISS_CLEARP(poppy.CompoundAnalyticOptic):
                 poppy.CircularAperture( radius = 39 * pupil_mag /2) ), name = 'CLEARP')
 
 
-
 class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
-    """ Band Limited Coronagraph """
+    """ Band Limited Coronagraph
+
+    Paramaters
+    ----------
+    name : string
+        Descriptive name. Must be one of the defined NIRCam coronagraphic mask names.
+    module : string
+        A or B
+    nd_squares : bool
+        Include the ND squares in the mask simulation? (Not an option in the real instrument;
+        solely for certain simulation checks.)
+    bar_offset : float
+        Offset along coronagraphic bar (wedge) occulter, in arcseconds.
+        Used for computing a PSF at a different position along the wedge, while
+        keeping the convention that the target star has zero tip/tilt.
+    """
     allowable_kinds = ['nircamcircular', 'nircamwedge']
     """ Allowable types of BLC supported by this class"""
 
-    def __init__(self, name="unnamed BLC", kind='nircamcircular',  module='A',
-            **kwargs):
+    def __init__(self, name="unnamed BLC", kind='nircamcircular',  module='A', nd_squares=True,
+            bar_offset=None, **kwargs):
         super(NIRCam_BandLimitedCoron, self).__init__(name=name, kind=kind, **kwargs)
         if module not in ['A','B']:
             raise ValueError("module parameter must be 'A' or 'B'.")
         self.module=module
+        self.nd_squares = nd_squares
 
         if self.name=='MASK210R':
             self.sigma = 5.253
@@ -695,6 +710,13 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
         else:
             raise NotImplementedError("invalid name for NIRCam occulter: "+self.name)
 
+        if bar_offset is not None:
+            if self.kind == 'nircamcircular':
+                raise ValueError("bar_offset option only makes sense with the bar occulters.")
+            self.bar_offset = float(bar_offset)
+            _log.debug("Set offset along {} to {} arcsec.".format(self.name, self.bar_offset))
+        else:
+            self.bar_offset = None
 
 
     def get_transmission(self, wave):
@@ -716,6 +738,10 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
         assert (wave.planetype == poppy.poppy_core._IMAGE)
 
         y, x = self.get_coordinates(wave)
+
+        if self.bar_offset is not None:
+            x += float(self.bar_offset)
+
         if self.kind == 'nircamcircular':
             r = np.sqrt(x ** 2 + y ** 2)
             sigmar = self.sigma * r
@@ -761,90 +787,91 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
             woutside = np.where(np.abs(x) > 10)
             self.transmission[woutside] = 1.0
 
-
-        # add in the ND squares. Note the positions are not exactly the same in the two wedges.
-        # See the figures  in Krist et al. of how the 6 ND squares are spaced among the 5
-        # corongraph regions
-        # Note: 180 deg rotation needed relative to Krist's figures for the flight SCI orientation:
-        x = x[::-1, ::-1]
-        y = y[::-1, ::-1]
-        if ((self.module=='A' and self.name=='MASKLWB') or
-            (self.module=='B' and self.name=='MASK210R')):
-            # left edge:
-            # has one fully in the corner and one half in the other corner, half outside the 10x10 box
-            wnd_5 = np.where(
-                ((y > 5)&(y<10)) &
-                (
-                    ((x < -5) & (x > -10)) |
-                    ((x > 7.5) & (x < 12.5))
+        if self.nd_squares:
+            # add in the ND squares. Note the positions are not exactly the same in the two wedges.
+            # See the figures  in Krist et al. of how the 6 ND squares are spaced among the 5
+            # corongraph regions
+            # Note: 180 deg rotation needed relative to Krist's figures for the flight SCI orientation:
+            # We flip the signs of X and Y here as a shortcut to avoid recoding all of the below...
+            x *= -1
+            y *= -1
+            if ((self.module=='A' and self.name=='MASKLWB') or
+                (self.module=='B' and self.name=='MASK210R')):
+                # left edge:
+                # has one fully in the corner and one half in the other corner, half outside the 10x10 box
+                wnd_5 = np.where(
+                    ((y > 5)&(y<10)) &
+                    (
+                        ((x < -5) & (x > -10)) |
+                        ((x > 7.5) & (x < 12.5))
+                    )
                 )
-            )
-            wnd_2 = np.where(
-                ((y > -10)&(y<-8)) &
-                (
-                    ((x < -8) & (x > -10)) |
-                    ((x > 9) & (x < 11))
+                wnd_2 = np.where(
+                    ((y > -10)&(y<-8)) &
+                    (
+                        ((x < -8) & (x > -10)) |
+                        ((x > 9) & (x < 11))
+                    )
                 )
-            )
-        elif ((self.module=='A' and self.name=='MASK210R') or
-              (self.module=='B' and self.name=='MASKSWB')):
-            # right edge
-            wnd_5 = np.where(
-                ((y > 5)&(y<10)) &
-                (
-                    ((x > -12.5) & (x < -7.5)) |
-                    ((x > 5) & (x <10))
+            elif ((self.module=='A' and self.name=='MASK210R') or
+                  (self.module=='B' and self.name=='MASKSWB')):
+                # right edge
+                wnd_5 = np.where(
+                    ((y > 5)&(y<10)) &
+                    (
+                        ((x > -12.5) & (x < -7.5)) |
+                        ((x > 5) & (x <10))
+                    )
                 )
-            )
-            wnd_2 = np.where(
-                ((y > -10)&(y<-8)) &
-                (
-                    ((x > -11) & (x < -9)) |
-                    ((x > 8) & (x<10))
+                wnd_2 = np.where(
+                    ((y > -10)&(y<-8)) &
+                    (
+                        ((x > -11) & (x < -9)) |
+                        ((x > 8) & (x<10))
+                    )
                 )
-            )
-        else:
-            # the others have two, one in each corner, both halfway out of the 10x10 box.
-            wnd_5 = np.where(
-                ((y > 5)&(y<10)) &
-                (np.abs(x) > 7.5) &
-                (np.abs(x) < 12.5)
-            )
-            wnd_2 = np.where(
-                ((y > -10)&(y<-8)) &
-                (np.abs(x) > 9) &
-                (np.abs(x) < 11)
-            )
+            else:
+                # the others have two, one in each corner, both halfway out of the 10x10 box.
+                wnd_5 = np.where(
+                    ((y > 5)&(y<10)) &
+                    (np.abs(x) > 7.5) &
+                    (np.abs(x) < 12.5)
+                )
+                wnd_2 = np.where(
+                    ((y > -10)&(y<-8)) &
+                    (np.abs(x) > 9) &
+                    (np.abs(x) < 11)
+                )
 
-        self.transmission[wnd_5] = np.sqrt(1e-3)
-        self.transmission[wnd_2] = np.sqrt(1e-3)
-
+            self.transmission[wnd_5] = np.sqrt(1e-3)
+            self.transmission[wnd_2] = np.sqrt(1e-3)
 
 
-        # Add in the opaque border of the coronagraph mask holder.
-        if ((self.module=='A' and self.name=='MASKLWB') or
-            (self.module=='B' and self.name=='MASK210R')):
-            # left edge
-            woutside = np.where((x < -10) & (y < 11.5 ))
+
+            # Add in the opaque border of the coronagraph mask holder.
+            if ((self.module=='A' and self.name=='MASKLWB') or
+                (self.module=='B' and self.name=='MASK210R')):
+                # left edge
+                woutside = np.where((x < -10) & (y < 11.5 ))
+                self.transmission[woutside] = 0.0
+            elif ((self.module=='A' and self.name=='MASK210R') or
+                  (self.module=='B' and self.name=='MASKSWB')):
+                # right edge
+                woutside = np.where((x > 10) & (y < 11.5))
+                self.transmission[woutside] = 0.0
+            # mask holder edge
+            woutside = np.where(y < -10)
             self.transmission[woutside] = 0.0
-        elif ((self.module=='A' and self.name=='MASK210R') or
-              (self.module=='B' and self.name=='MASKSWB')):
-            # right edge
-            woutside = np.where((x > 10) & (y < 11.5))
-            self.transmission[woutside] = 0.0
-        # mask holder edge
-        woutside = np.where(y < -10)
-        self.transmission[woutside] = 0.0
 
-        # edge of mask itself
-        # TODO the mask edge is complex and partially opaque based on CV3 images?
-        # edge of glass plate rather than opaque mask I believe. To do later.
-        # The following is just a temporary placeholder with no quantitative accuracy.
-        # but this is outside the coronagraph FOV so that's fine - this only would matter in
-        # modeling atypical/nonstandard calibration exposures.
+            # edge of mask itself
+            # TODO the mask edge is complex and partially opaque based on CV3 images?
+            # edge of glass plate rather than opaque mask I believe. To do later.
+            # The following is just a temporary placeholder with no quantitative accuracy.
+            # but this is outside the coronagraph FOV so that's fine - this only would matter in
+            # modeling atypical/nonstandard calibration exposures.
 
-        wedge = np.where(( y > 11.5) & (y < 13))
-        self.transmission[wedge] = 0.7
+            wedge = np.where(( y > 11.5) & (y < 13))
+            self.transmission[wedge] = 0.7
 
 
 

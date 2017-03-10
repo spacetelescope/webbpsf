@@ -874,6 +874,19 @@ class NIRCam(JWInstrument):
     The NIRCam class is smart enough to automatically select the appropriate pixel scale for the short or long wavelength channel
     based on whether you request a short or long wavelength filter.
 
+    Special Options:
+    The 'bar_offset' option allows specification of an offset position
+    along one of the coronagraph bar occulters, in arcseconds.
+    ```
+    nc.image_mask = 'MASKLWB'
+    nc.options['bar_offset'] = 3 # 3 arcseconds towards the right (narrow end on module A)
+    ```
+
+    The 'nd_squares' option allows toggling on and off the ND squares for TA in the simulation.
+    Note that these of course aren't removable in the real instrument; this option exists solely for
+    some simulation purposes.
+
+
     """
     SHORT_WAVELENGTH_MIN = 0.6 * 1e-6
     SHORT_WAVELENGTH_MAX = LONG_WAVELENGTH_MIN = 2.35 * 1e-6
@@ -1000,14 +1013,19 @@ class NIRCam(JWInstrument):
         #optsys.add_image(name='null for debugging NIRcam _addCoron') # for debugging
         from .optics import NIRCam_BandLimitedCoron
 
+        nd_squares = self.options.get('nd_squares', True)
+
         if ((self.image_mask == 'MASK210R') or (self.image_mask == 'MASK335R') or
                 (self.image_mask == 'MASK430R')):
-            optsys.add_image( NIRCam_BandLimitedCoron( name=self.image_mask, module=self.module),
+            optsys.add_image( NIRCam_BandLimitedCoron( name=self.image_mask, module=self.module,
+                    nd_squares=nd_squares),
                     index=2)
             trySAM = False # FIXME was True - see https://github.com/mperrin/poppy/issues/169
             SAM_box_size = 5.0
         elif ((self.image_mask == 'MASKSWB') or (self.image_mask == 'MASKLWB')):
-            optsys.add_image( NIRCam_BandLimitedCoron(name=self.image_mask, module=self.module),
+            bar_offset = self.options.get('bar_offset',None)
+            optsys.add_image( NIRCam_BandLimitedCoron(name=self.image_mask, module=self.module,
+                    nd_squares=nd_squares, bar_offset=bar_offset),
                     index=2)
             trySAM = False #True FIXME
             SAM_box_size = [5,20]
