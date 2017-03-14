@@ -680,12 +680,43 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
         Offset along coronagraphic bar (wedge) occulter, in arcseconds.
         Used for computing a PSF at a different position along the wedge, while
         keeping the convention that the target star has zero tip/tilt.
+        This option is used to MANUALLY specify a specific position along the bar;
+        see also the following option auto_offset.
+    auto_offset : string or None
+        Set to a NIRCam filter name to automatically offset to the nominal
+        position along the bar for that filter. See bar_offset if you want to set
+        to some arbitrary position.
+
     """
     allowable_kinds = ['nircamcircular', 'nircamwedge']
     """ Allowable types of BLC supported by this class"""
 
+    # Offsets along the bar occulters are based on
+    # outputs from John Stansberry's filt_baroffset.pro
+    # See https://github.com/mperrin/webbpsf/issues/63
+    offset_swb = {"F182M":  1.856,
+        "F187N":  1.571,
+        "F210M":  0.071,
+        "F212N": -0.143,
+        "F200W": -0.232}
+    """ Offsets per filter along SWB occulter for module A, in arcsec"""
+
+    offset_lwb = {"F250M":  6.846,
+        "F300M":  5.249,
+        "F277W":  5.078,
+        "F335M":  4.075,
+        "F360M":  3.195,
+        "F356W":  2.455,
+        "F410M":  1.663,
+        "F430M":  1.043,
+        "F460M": -0.098,
+        "F480M": -0.619,
+        "F444W": -0.768}
+    """ Offsets per filter along LWB occulter for module A, in arcsec"""
+
+
     def __init__(self, name="unnamed BLC", kind='nircamcircular',  module='A', nd_squares=True,
-            bar_offset=None, **kwargs):
+            bar_offset=None, auto_offset=None, **kwargs):
         super(NIRCam_BandLimitedCoron, self).__init__(name=name, kind=kind, **kwargs)
         if module not in ['A','B']:
             raise ValueError("module parameter must be 'A' or 'B'.")
@@ -709,6 +740,14 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
             # coeffs set in lookup table inside getPhasor
         else:
             raise NotImplementedError("invalid name for NIRCam occulter: "+self.name)
+
+        if bar_offset is None and auto_offset is not None:
+            offsets = self.offset_swb if self.name.lower()=='maskswb' else self.offset_lwb
+            try:
+                bar_offset = offsets[auto_offset]
+                _log.debug("Automatically set bar offset to {} for filter {} on {}.".format(bar_offset, auto_offset, self.name))
+            except:
+                raise ValueError("Filter {} does not have a defined nominal offset position along {}".format(auto_offset,self.name))
 
         if bar_offset is not None:
             if self.kind == 'nircamcircular':
@@ -885,6 +924,24 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
             self.transmission[np.where(np.isfinite(self.transmission) == False)] = 0
         return self.transmission
 
+
+    def display(self, annotate=False, annotate_color='cyan', annotate_text_color=None, *args, **kwargs):
+        """Same as regular display for any other optical element, except adds annotate option
+        for the LWB offsets """
+        poppy.AnalyticOpticalElement.display(self,*args,  **kwargs)
+        if annotate:
+            if annotate_text_color is None:
+                annotate_text_color = annotate_color
+            if self.name.lower()=='maskswb' or self.name.lower() =='masklwb':
+                offset = self.offset_swb if self.name.lower()=='maskswb' else self.offset_lwb
+                for filt, offset in offset.items():
+                    if 'W' in filt:
+                        horiz, vert, voffset = 'right', 'top', -0.5
+                    else:
+                        horiz, vert, voffset = 'left', 'bottom', +0.5
+                    matplotlib.pyplot.plot(offset,0,marker='+', color=annotate_color)
+                    matplotlib.pyplot.text(offset,voffset, filt, color=annotate_text_color, rotation=75,
+                        horizontalalignment=horiz, verticalalignment=vert)
 
 
 # Helper functions for NIRcam occulters.

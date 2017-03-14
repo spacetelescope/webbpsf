@@ -1024,8 +1024,9 @@ class NIRCam(JWInstrument):
             SAM_box_size = 5.0
         elif ((self.image_mask == 'MASKSWB') or (self.image_mask == 'MASKLWB')):
             bar_offset = self.options.get('bar_offset',None)
+            auto_offset = self.filter if bar_offset is None else None
             optsys.add_image( NIRCam_BandLimitedCoron(name=self.image_mask, module=self.module,
-                    nd_squares=nd_squares, bar_offset=bar_offset),
+                    nd_squares=nd_squares, bar_offset=bar_offset, auto_offset=auto_offset),
                     index=2)
             trySAM = False #True FIXME
             SAM_box_size = [5,20]

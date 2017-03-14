@@ -118,6 +118,9 @@ def do_test_nircam_blc(clobber=False, kind='circular', angle=0, save=False, disp
     else:
         nc.image_mask = 'MASKSWB'
         nc.pupil_mask = 'WEDGELYOT'
+        nc.options['bar_offset'] = 0  # For consistency with how this test was developed
+                                      # FIXME update the expected fluxes for the offset positions
+                                      # which are now the default.
         fn ='mswb'
         if angle==0:
             expected_total_fluxes=[2.09e-6, .0415, 0.1442]  # Based on a prior calculation with WebbPSF
