@@ -1139,6 +1139,15 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
             )
             self.amplitude = (self.opd != 0).astype(int)
 
+    def header_keywords(self):
+        """ Return info we would like to save in FITS header of output PSFs
+        """
+        keywords = dict()
+        keywords['SIWFEFPT'] = (self.row['field_point_name'], "SI WFE based on ISIM CV3 meas. at this field pt")
+        return keywords
+
+
+
     # wrapper just to change default vmax
     def display(self, *args, **kwargs):
         if 'opd_vmax' not in kwargs:
