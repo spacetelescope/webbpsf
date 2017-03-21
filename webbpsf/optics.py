@@ -1222,7 +1222,8 @@ class NIRCamFieldAndWavelengthDependentAberration(WebbFieldDependentAberration):
             kind='cubic'
         )
 
-        long_wavelengths_mask = ~short_wavelengths_mask
+        long_wavelengths_mask = model_wavelengths > 2.45
+        # (n.b. row where model_wavelengths == 2.45 is nan)
         self.fm_long = scipy.interpolate.interp1d(
             model_wavelengths[long_wavelengths_mask],
             model_defocus[long_wavelengths_mask],
