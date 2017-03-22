@@ -1205,26 +1205,30 @@ class NIRCamFieldAndWavelengthDependentAberration(WebbFieldDependentAberration):
             'NIRCam',
             'optics',
             'nircam_defocus_vs_wavelength.fits')
-        focusmodel = Table.read(self.focusmodel_file)
-        self.focus_model_data = focusmodel
+        model_hdul = fits.open(self.focusmodel_file)
+        assert model_hdul[1].header['XTENSION'] == 'BINTABLE'
+        self.focus_model_data = model_hdul[1].data
+        model_wavelengths, model_defocus = (
+            self.focus_model_data['wavelength'].astype('=f8'),
+            self.focus_model_data['defocus_in_rms_wfe'].astype('=f8')
+        )
 
         # Read in model data and set up interpolators.
 
-        wshort = focusmodel['wavelength'] < 2.45
-        fm_short = scipy.interpolate.interp1d(
-            focusmodel['wavelength'][wshort],
-            focusmodel['defocus_in_rms_wfe'][wshort],
+        short_wavelengths_mask = model_wavelengths < 2.45
+        self.fm_short = scipy.interpolate.interp1d(
+            model_wavelengths[short_wavelengths_mask],
+            model_defocus[short_wavelengths_mask],
             kind='cubic'
         )
 
-        wlong = focusmodel['wavelength'] > 2.45
-        fm_long = scipy.interpolate.interp1d(
-            focusmodel['wavelength'][wlong],
-            focusmodel['defocus_in_rms_wfe'][wlong],
+        long_wavelengths_mask = model_wavelengths > 2.45
+        # (n.b. row where model_wavelengths == 2.45 is nan)
+        self.fm_long = scipy.interpolate.interp1d(
+            model_wavelengths[long_wavelengths_mask],
+            model_defocus[long_wavelengths_mask],
             kind='cubic'
         )
-        self.fm_short = fm_short
-        self.fm_long = fm_long
 
         # Get the representation of focus in the same Zernike basis as used for
         # making the OPD. While it looks like this does more work here than needed
