@@ -1301,7 +1301,7 @@ class NIRISS(JWInstrument):
         self.image_mask_list = ['CORON058', 'CORON075','CORON150','CORON200'] # available but unlikely to be used...
         self.pupil_mask_list = ['CLEARP', 'MASK_NRM','GR700XD']
 
-        self._detectors = {'NIRISS':'NIS-CEN'}
+        self._detectors = {'NIRISS':'NIS_CEN'}
         self.detector=self.detector_list[0]
 
 
