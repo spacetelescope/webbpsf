@@ -118,8 +118,8 @@ def test_CGI_detector_position():
 
     with pytest.raises(RuntimeError) as excinfo:
         cgi.detector_position = valid_pos
-    assert excinfo.value.message.startswith("Detector position not adjustable"), "Failed to raise exception for"\
-                                                        "trying to change CGI detector position."
+    assert 'not adjustable' in str(excinfo.value), ("Failed to raise exception for"\
+                                                        "trying to change CGI detector position.")
 
 def test_CGI_psf(display=False):
     """
