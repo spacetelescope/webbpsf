@@ -281,7 +281,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
     def _getFITSHeader(self, result, options):
         """ populate FITS Header keywords """
-        poppy.Instrument._getFITSHeader(self,result, options)
+        super(SpaceTelescopeInstrument, self)._getFITSHeader(result, options)
         result[0].header['FILTER'] = (self.filter, 'Filter name')
         if self.image_mask is not None:
             result[0].header['CORONMSK'] = ( self.image_mask, "Image plane mask")
@@ -293,11 +293,8 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
         result[0].header['DET_NAME'] = (self.detector, "Name of detector on this instrument")
         dpos = self.detector_position
-        v2v3pos = self._tel_coords()
         result[0].header['DET_X'] = (dpos[0], "Detector X pixel position")
         result[0].header['DET_Y'] = (dpos[1], "Detector Y pixel position")
-        result[0].header['DET_V2'] = (v2v3pos[0].value, "[arcmin] Det. pos. in telescope V2,V3 coord sys")
-        result[0].header['DET_V3'] = (v2v3pos[1].value, "[arcmin] Det. pos. in telescope V2,V3 coord sys")
 
         for key in self._extra_keywords:
             result[0].header[key] = self._extra_keywords[key]
@@ -679,6 +676,16 @@ class JWInstrument(SpaceTelescopeInstrument):
         return coords
 
 
+    def _getFITSHeader(self, result, options):
+        """ populate FITS Header keywords """
+        super(JWInstrument, self)._getFITSHeader(result, options)
+
+        # Add JWST-specific V2,V3 focal plane coordinate system.
+        v2v3pos = self._tel_coords()
+        result[0].header['DET_V2'] = (v2v3pos[0].value, "[arcmin] Det. pos. in telescope V2,V3 coord sys")
+        result[0].header['DET_V3'] = (v2v3pos[1].value, "[arcmin] Det. pos. in telescope V2,V3 coord sys")
+
+
 class MIRI(JWInstrument):
     """ A class modeling the optics of MIRI, the Mid-InfraRed Instrument.
 
@@ -877,7 +884,7 @@ class MIRI(JWInstrument):
 
     def _getFITSHeader(self, hdulist, options):
         """ Format MIRI-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
-        JWInstrument._getFITSHeader(self, hdulist, options)
+        super(MIRI,self)._getFITSHeader(hdulist, options)
 
         hdulist[0].header['GRATNG14'] = ('None', 'MRS Grating for channels 1 and 4')
         hdulist[0].header['GRATNG23'] = ('None', 'MRS Grating for channels 2 and 3')
@@ -1143,7 +1150,7 @@ class NIRCam(JWInstrument):
 
     def _getFITSHeader(self, hdulist, options):
         """ Format NIRCam-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
-        JWInstrument._getFITSHeader(self,hdulist, options)
+        super(NIRCam,self)._getFITSHeader(hdulist, options)
 
         hdulist[0].header['MODULE'] = (self.module, 'NIRCam module: A or B')
         hdulist[0].header['CHANNEL'] = ( 'Short' if self.channel  == 'short' else 'Long', 'NIRCam channel: long or short')
@@ -1246,7 +1253,7 @@ class NIRSpec(JWInstrument):
 
     def _getFITSHeader(self, hdulist, options):
         """ Format NIRSpec-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
-        JWInstrument._getFITSHeader(self, hdulist, options)
+        super(NIRSpec,self)._getFITSHeader(hdulist, options)
         hdulist[0].header['GRATING'] = ( 'None', 'NIRSpec grating element name')
         hdulist[0].header['APERTURE'] = ( str(self.image_mask), 'NIRSpec slit aperture name')
 
@@ -1357,7 +1364,7 @@ class NIRISS(JWInstrument):
 
     def _getFITSHeader(self, hdulist, options):
         """ Format NIRISS-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
-        JWInstrument._getFITSHeader(self, hdulist, options)
+        super(NIRISS,self)._getFITSHeader(hdulist, options)
 
         if self.image_mask is not None:
             hdulist[0].header['CORONPOS'] = ( self.image_mask, 'NIRISS coronagraph spot location')
@@ -1430,7 +1437,7 @@ class FGS(JWInstrument):
 
     def _getFITSHeader(self, hdulist, options):
         """ Format FGS-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
-        JWInstrument._getFITSHeader(self, hdulist, options)
+        super(FGS,self)._getFITSHeader( hdulist, options)
         hdulist[0].header['FOCUSPOS'] = (0,'FGS focus mechanism not yet modeled.')
 
 
