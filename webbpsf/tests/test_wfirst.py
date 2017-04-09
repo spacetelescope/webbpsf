@@ -10,7 +10,7 @@ def test_WFI_psf():
     wi = wfirst.WFI()
     wi.calc_psf(fov_pixels=4)
 
-def test_detector_position_setter():
+def test_aberration_detector_position_setter():
     detector = wfirst.FieldDependentAberration(4096, 4096)
 
     with pytest.raises(ValueError) as excinfo:
@@ -108,6 +108,18 @@ def test_WFI_limits_interpolation_range():
     assert 'wavelength outside the range' in str(excinfo.value), (
         "FieldDependentAberration did not error on out-of-bounds wavelength"
     )
+
+def test_CGI_detector_position():
+    """ Test existence of the CGI detector position etc, and that you can't set it."""
+    cgi = wfirst.CGI()
+
+    valid_pos = (512,512)
+    assert cgi.detector_position == valid_pos, "CGI detector position isn't as expected"
+
+    with pytest.raises(RuntimeError) as excinfo:
+        cgi.detector_position = valid_pos
+    assert 'not adjustable' in str(excinfo.value), ("Failed to raise exception for"\
+                                                        "trying to change CGI detector position.")
 
 def test_CGI_psf(display=False):
     """

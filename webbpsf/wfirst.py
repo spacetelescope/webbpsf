@@ -366,6 +366,10 @@ class CGI(WFIRSTInstrument):
     def __init__(self, mode=None, pixelscale=None, fov_arcsec=None, apply_static_opd=False):
         super(CGI, self).__init__("CGI", pixelscale=pixelscale)
 
+
+        self._detector_npixels=1024
+        self._detectors = {camera:'placeholder' for camera in self.camera_list}
+
         self.pupil_mask_list = self.lyotstop_list # alias for use in webbpsf_core
         self.image_mask_list = self.fpm_list # alias for use in webbpsf_core
         self.pupil = os.path.join(self._WebbPSF_basepath, 'AFTA_CGI_C5_Pupil_onax_256px_flip.fits')
@@ -414,6 +418,15 @@ class CGI(WFIRSTInstrument):
                 self.fov_arcsec = 2*0.82 # 2015 SDT report, Section 3.4.1.1.1: IFS has 76 lenslets across the (2 x 0.82) arcsec FoV.
             if not hasattr(self, 'pixelscale') or not self._override_pixelscale:
                 self.pixelscale = 0.025 # Nyquist at 600 nm
+
+    # for CGI, there is one detector per camera and it should be set automatically.
+    @property
+    def detector(self):
+        return self.camera
+
+    @detector.setter
+    def detector(self, value):
+        raise RuntimeError("Can't set detector directly for CGI; set camera instead.")
 
     @property
     def filter(self):
@@ -518,6 +531,16 @@ class CGI(WFIRSTInstrument):
         _log.info("Printing the table of WFIRST CGI observing modes supported by WebbPSF.")
         _log.info("Each is defined by a combo of camera, filter, apodizer, focal plane mask (FPM), and Lyot stop settings:")
         _log.info(pprint.pformat(self._mode_table))
+
+
+    @property
+    def detector_position(self):
+        """The pixel position in (X, Y) on the detector"""
+        return (512,512)
+
+    @detector_position.setter
+    def detector_position(self, position):
+        raise RuntimeError("Detector position not adjustable for CGI")
 
     def _validateConfig(self, **kwargs):
         super(CGI, self)._validateConfig(**kwargs)

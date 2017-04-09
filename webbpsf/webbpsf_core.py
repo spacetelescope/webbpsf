@@ -281,10 +281,9 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
         self._detector_position = (int(position[0]),int(position[1]))
 
-
     def _getFITSHeader(self, result, options):
         """ populate FITS Header keywords """
-        poppy.Instrument._getFITSHeader(self,result, options)
+        super(SpaceTelescopeInstrument, self)._getFITSHeader(result, options)
         result[0].header['FILTER'] = (self.filter, 'Filter name')
         if self.image_mask is not None:
             result[0].header['CORONMSK'] = ( self.image_mask, "Image plane mask")
@@ -293,6 +292,14 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
         result[0].header['VERSION'] =(version.version, "WebbPSF software version")
         result[0].header['DATAVERS'] =(data_files_version, "WebbPSF reference data files version")
+
+        result[0].header['DET_NAME'] = (self.detector, "Name of detector on this instrument")
+        dpos = self.detector_position
+        result[0].header['DET_X'] = (dpos[0], "Detector X pixel position")
+        result[0].header['DET_Y'] = (dpos[1], "Detector Y pixel position")
+
+        for key in self._extra_keywords:
+            result[0].header[key] = self._extra_keywords[key]
 
 
     def _calcPSF_format_output(self, result, options):
@@ -345,6 +352,8 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         """
 
         _log.info("Creating optical system model:")
+
+        self._extra_keywords = dict() # Place to save info we later want to put into the FITS header for each PSF.
 
         if options is None: options = self.options
         if detector_oversample is None: detector_oversample = fft_oversample
@@ -410,6 +419,8 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
                 opd=opd_map,
                 #rotation=self._rotation
             )
+        pupil_rms_wfe_nm = np.sqrt(np.mean(pupil_optic.opd[pupil_optic.amplitude==1]**2))*1e9
+        self._extra_keywords['TEL_WFE'] = (pupil_rms_wfe_nm, '[nm] Telescope pupil RMS wavefront error')
         self.pupil_radius = pupil_optic.pupil_diam / 2.0
 
         # add coord transform from entrance pupil to exit pupil
@@ -425,19 +436,26 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         aberration_optic = self._get_aberrations()
         if aberration_optic is not None:
             optsys.add_pupil(aberration_optic)
+            inst_rms_wfe_nm = np.sqrt(np.mean(aberration_optic.opd[aberration_optic.amplitude==1]**2))*1e9
+            self._extra_keywords['SI_WFE'] = (inst_rms_wfe_nm, '[nm] instrument pupil RMS wavefront error')
+
+            if hasattr(aberration_optic, 'header_keywords'):
+                self._extra_keywords.update( aberration_optic.header_keywords() )
 
         #---- Add defocus if requested
         if 'defocus_waves' in options:
-           defocus_waves = options['defocus_waves']
-           defocus_wavelength = float(options['defocus_wavelength']) if 'defocus_wavelength' in options else 2.0e-6
-           _log.info("Adding defocus of %d waves at %.2f microns" % (defocus_waves, defocus_wavelength *1e6))
-           lens = poppy.ThinLens(
-               name='Defocus',
-               nwaves=defocus_waves,
-               reference_wavelength=defocus_wavelength,
-               radius=self.pupil_radius
-           )
-           optsys.add_pupil(optic=lens)
+            defocus_waves = options['defocus_waves']
+            defocus_wavelength = float(options['defocus_wavelength']) if 'defocus_wavelength' in options else 2.0e-6
+            _log.info("Adding defocus of %d waves at %.2f microns" % (defocus_waves, defocus_wavelength *1e6))
+            lens = poppy.ThinLens(
+                name='Defocus',
+                nwaves=defocus_waves,
+                reference_wavelength=defocus_wavelength,
+                radius=self.pupil_radius
+            )
+            optsys.add_pupil(optic=lens)
+            self._extra_keywords['DEFOCUS'] = (defocus_waves, '# of waves of defocus added')
+            self._extra_keywords['DEFOC_WL'] = (defocus_wavelength, 'Wavelength reference for defocus added')
 
 
         #---- add coronagraph or spectrograph optics if requested, and possibly flag to invoke semi-analytic coronagraphic propagation
@@ -660,6 +678,16 @@ class JWInstrument(SpaceTelescopeInstrument):
         return coords
 
 
+    def _getFITSHeader(self, result, options):
+        """ populate FITS Header keywords """
+        super(JWInstrument, self)._getFITSHeader(result, options)
+
+        # Add JWST-specific V2,V3 focal plane coordinate system.
+        v2v3pos = self._tel_coords()
+        result[0].header['DET_V2'] = (v2v3pos[0].value, "[arcmin] Det. pos. in telescope V2,V3 coord sys")
+        result[0].header['DET_V3'] = (v2v3pos[1].value, "[arcmin] Det. pos. in telescope V2,V3 coord sys")
+
+
 class MIRI(JWInstrument):
     """ A class modeling the optics of MIRI, the Mid-InfraRed Instrument.
 
@@ -858,7 +886,7 @@ class MIRI(JWInstrument):
 
     def _getFITSHeader(self, hdulist, options):
         """ Format MIRI-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
-        JWInstrument._getFITSHeader(self, hdulist, options)
+        super(MIRI,self)._getFITSHeader(hdulist, options)
 
         hdulist[0].header['GRATNG14'] = ('None', 'MRS Grating for channels 1 and 4')
         hdulist[0].header['GRATNG23'] = ('None', 'MRS Grating for channels 2 and 3')
@@ -1124,7 +1152,7 @@ class NIRCam(JWInstrument):
 
     def _getFITSHeader(self, hdulist, options):
         """ Format NIRCam-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
-        JWInstrument._getFITSHeader(self,hdulist, options)
+        super(NIRCam,self)._getFITSHeader(hdulist, options)
 
         hdulist[0].header['MODULE'] = (self.module, 'NIRCam module: A or B')
         hdulist[0].header['CHANNEL'] = ( 'Short' if self.channel  == 'short' else 'Long', 'NIRCam channel: long or short')
@@ -1227,7 +1255,7 @@ class NIRSpec(JWInstrument):
 
     def _getFITSHeader(self, hdulist, options):
         """ Format NIRSpec-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
-        JWInstrument._getFITSHeader(self, hdulist, options)
+        super(NIRSpec,self)._getFITSHeader(hdulist, options)
         hdulist[0].header['GRATING'] = ( 'None', 'NIRSpec grating element name')
         hdulist[0].header['APERTURE'] = ( str(self.image_mask), 'NIRSpec slit aperture name')
 
@@ -1282,7 +1310,7 @@ class NIRISS(JWInstrument):
         self.image_mask_list = ['CORON058', 'CORON075','CORON150','CORON200'] # available but unlikely to be used...
         self.pupil_mask_list = ['CLEARP', 'MASK_NRM','GR700XD']
 
-        self._detectors = {'NIRISS':'NIS-CEN'}
+        self._detectors = {'NIRISS':'NIS_CEN'}
         self.detector=self.detector_list[0]
 
 
@@ -1338,7 +1366,7 @@ class NIRISS(JWInstrument):
 
     def _getFITSHeader(self, hdulist, options):
         """ Format NIRISS-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
-        JWInstrument._getFITSHeader(self, hdulist, options)
+        super(NIRISS,self)._getFITSHeader(hdulist, options)
 
         if self.image_mask is not None:
             hdulist[0].header['CORONPOS'] = ( self.image_mask, 'NIRISS coronagraph spot location')
@@ -1411,7 +1439,7 @@ class FGS(JWInstrument):
 
     def _getFITSHeader(self, hdulist, options):
         """ Format FGS-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
-        JWInstrument._getFITSHeader(self, hdulist, options)
+        super(FGS,self)._getFITSHeader( hdulist, options)
         hdulist[0].header['FOCUSPOS'] = (0,'FGS focus mechanism not yet modeled.')
 
 
