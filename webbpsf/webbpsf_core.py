@@ -37,6 +37,8 @@ import astropy.units as units
 
 import poppy
 
+from jwxml import SIAF
+
 from . import conf
 from . import utils
 from . import version
@@ -1512,12 +1514,11 @@ class DetectorGeometry(object):
     def __init__(self, instrname, aperturename, shortname=None):
         self.instrname = instrname
         self.name = aperturename
-        if shortname is not None: self.name=shortname
-        from jwxml import SIAF
+        if shortname is not None:
+            self.name = shortname
 
-        self.mysiaf = SIAF(instr=self.instrname)
+        self.mysiaf = SIAF(self.instrname)
         self.aperture = self.mysiaf[aperturename]
-
 
     @property
     def shape(self):
