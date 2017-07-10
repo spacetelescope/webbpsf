@@ -530,12 +530,11 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
 
         _log.debug(" Cylinder P-V: {0:.4g} meters physical sag across full array".format(sag.max()-sag.min()) )
 
-        #fits.writeto('py_opd.fits', sag*(self.ZnSe_index(wavelength) -1), clobber=True)
-        # remove piston offset
-        #sag -= sag[wnz].min()   # normalize to 0 at the minimum
-        #sag -= sag[wnz].mean()    # normalize around the mean
-        sag[self.amplitude == 0] = 0 # no OPD in opaque regions (makes no difference in propagation but improves display)
-        wnz = np.where(self.amplitude != 0) # this is just for display of the log messages:
+        # no OPD in opaque regions (makes no difference in propagation but improves display)
+        if self._transmission.shape != sag.shape:
+            tmp = self.get_transmission() # Update the ._transmission attribute
+        sag[self._transmission == 0] = 0
+        wnz = np.where(self._transmission != 0) # use this just for display of the log messages:
         _log.debug(" Cylinder P-V: {0:.4g} meters physical sag across clear aperture".format(sag[wnz].max()-sag[wnz].min()) )
 
 
@@ -566,6 +565,8 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
         pupilmask = np.ones_like(x)
         pupilmask[np.abs(x) > pupil_halfsize_m] = 0
         pupilmask[np.abs(y) > pupil_halfsize_m] = 0
+
+        self._transmission=pupilmask
 
         return pupilmask
 
@@ -1249,6 +1250,8 @@ class NIRCamFieldAndWavelengthDependentAberration(WebbFieldDependentAberration):
             outside=0
         )
         self.defocus_zern = basis[3]
+
+        model_hdul.close()
 
     def get_opd(self, wave):
         # Which wavelength was used to generate the OPD map we have already
