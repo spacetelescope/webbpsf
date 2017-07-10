@@ -957,6 +957,9 @@ class NIRCam(JWInstrument):
     def channel(self):
         return 'long' if self.detector.endswith('5') else 'short'
         # note, you can't set channel directly; it's inferred based on detector.
+    @channel.setter
+    def channel(self,value):
+        raise RuntimeError("NIRCam channel is not directly settable; set filter or detector instead.")
 
     @JWInstrument.filter.setter
     def filter(self, value):
