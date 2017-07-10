@@ -40,25 +40,25 @@ matrix:
         # - python: 3.5
 
         # Do a coverage test in Python 3.
-        - python: 3.5
+        - python: 3.6
           env: SETUP_CMD='test --coverage'
 
         # Check for Sphinx doc build errors
-        - python: 2.7
+        - python: 3.6
           env: SETUP_CMD='build_sphinx'
 
         # Try Astropy development version
-        - python: 3.5
+        - python: 3.6
           env: SETUP_CMD='test' ASTROPY_VERSION=development
 
         # Try older numpy versions
         - python: 2.7
-          env: SETUP_CMD='test' NUMPY_VERSION=1.10
+          env: SETUP_CMD='test' NUMPY_VERSION=1.12
         - python: 2.7
-          env: SETUP_CMD='test' NUMPY_VERSION=1.9
+          env: SETUP_CMD='test' NUMPY_VERSION=1.11
 
         # Try released POPPY
-        - python: 3.5
+        - python: 3.6
           env: SETUP_CMD='test' PIP_DEPENDENCIES='poppy jwxml'
 
     allow_failures:
