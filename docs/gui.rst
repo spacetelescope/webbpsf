@@ -13,6 +13,8 @@ Once you have :ref:`installed WebbPSF <installation>`, you should have the launc
 
 Alternatively, you may start the GUI from an interactive session::
 
+>>> import matplotlib
+>>> matplotlib.use('TkAgg')
 >>> import webbpsf
 >>> webbpsf.gui()
 
