@@ -32,7 +32,7 @@ Linear Model for JWST based on influence functions provided by Erin Elliott
 class OPD(object):
     """ Base class for JWST Optical Path Difference (OPD) files
 
-    Provides methods for analyzing and displaying OPDS. 
+    Provides methods for analyzing and displaying OPDS.
 
     If you want to manipulate one using the linear optical model, see the OPDbender class.
 
@@ -50,13 +50,13 @@ class OPD(object):
         Parameters
         ----------
         opdfile : str or fits.HDUList
-            FITS file to load an OPD from. The OPD must be specified in microns. 
+            FITS file to load an OPD from. The OPD must be specified in microns.
         ext : int, optional
             FITS extension to load OPD from
         slice : int, optional
-            slice of a datacube to load OPD from, if the selected extension contains a datacube. 
+            slice of a datacube to load OPD from, if the selected extension contains a datacube.
         pupilfile : str
-            FITS file for pupil mask, with throughput from 0-1. If not explicitly provided, will be inferred from 
+            FITS file for pupil mask, with throughput from 0-1. If not explicitly provided, will be inferred from
             wherever is nonzero in the OPD file.
         """
 
@@ -161,7 +161,7 @@ class OPD(object):
         if isinstance(x, OPD):
             output._opdHDU.data += x.data
             output.name += " + "+x.name
-        else:            
+        else:
             output._opdHDU.data += x
             output.name += " + "+str(x)
         return output
@@ -176,7 +176,7 @@ class OPD(object):
         if isinstance(x, OPD):
             output._opdHDU.data -= x.data
             output.name += " - "+x.name
-        else:            
+        else:
             output._opdHDU.data -= x
             output.name += " - "+str(x)
         return output
@@ -192,13 +192,10 @@ class OPD(object):
         """
 
         output = fits.HDUList([self._opdHDU])
-        output[0].header.update('EXTNAME','OPD')
-        if include_pupil: 
-            #puphdu= fits.ImageHDU(self._pupilHDU, name='PUPIL')
-            self._pupilHDU.header.update('EXTNAME','PUPIL')
+        output[0].header['EXTNAME'] = 'OPD'
+        if include_pupil:
+            self._pupilHDU.header['EXTNAME'] = 'PUPIL'
             output.append(self._pupilHDU)
-            #hdus.append(puphdu)
-            #hdus[0].header.update("EXTEND",'True', 'File may contain extensions')
         return output
 
     def writeto(self, outname, clobber=True, **kwargs):
@@ -207,16 +204,16 @@ class OPD(object):
 
     #---- display and analysis
     def powerspectrum(self, max_cycles=50, sampling=5, vmax=100, iterate=False):
-        """ 
-        Compute the spatial power spectrum of an aberrated wavefront. 
+        """
+        Compute the spatial power spectrum of an aberrated wavefront.
 
-        Produces nice plots on screen. 
+        Produces nice plots on screen.
 
         Returns an array [low, mid, high] giving the RMS spatial frequencies in the
         different JWST-defined spatial frequency bins:
             low:   <=5 cycles/aperture
             mid:   5 < cycles <= 30
-            high:  30 < cycles 
+            high:  30 < cycles
 
         """
         import SFT
@@ -307,13 +304,13 @@ class OPD(object):
 
     def draw(self, ax=None, labelsegs=True, vmax=150., colorbar=True, clear=True, title= None, unit='nm', cbpad=None, colorbar_orientation='vertical'):
         """ Draw on screen the perturbed OPD
-        
+
         Parameters
         -----------
         ax : matplotlib.Axes
-            axes instance to display into. 
+            axes instance to display into.
         labelsegs : bool
-            draw segment name labels on each segment? default True. 
+            draw segment name labels on each segment? default True.
 
         clear : bool
             Clear plot window before display? default true
@@ -327,10 +324,10 @@ class OPD(object):
             scalefact = 1000.
         elif unit =='micron':
             scalefact = 1.0
-        else: 
+        else:
             raise ValueError("unknown unit keyword")
 
-        if clear: 
+        if clear:
             plt.clf()
         cmap = matplotlib.cm.jet
         cmap.set_bad('0.3')
@@ -338,7 +335,7 @@ class OPD(object):
         mask = np.ones_like(self._opdHDU.data)
         mask[np.where(self._pupilHDU.data == 0)] = np.nan
 
-        try: 
+        try:
             pupilscale = self._opdHDU.header['PUPLSCAL']
             s = self._opdHDU.data.shape
             extent = [a*pupilscale for a in [-s[0]/2, s[0]/2, -s[1]/2,s[1]/2]]
@@ -402,7 +399,7 @@ class OPD(object):
             scalefact = 1000.
         elif unit =='micron':
             scalefact = 1.0
-        else: 
+        else:
             raise ValueError("unknown unit keyword")
 
 
@@ -444,8 +441,8 @@ class OPD(object):
         plt.draw()
 
     def rms(self, segment=None):
-        """ Return RMS WFE in nanometers 
-        
+        """ Return RMS WFE in nanometers
+
         Parameters
         ----------
         segment : string
@@ -480,7 +477,7 @@ class OPD(object):
             iseg = np.where(self.segnames == segment)[0][0]+1  # segment index from 1 - 18
             wseg = np.where(self._segment_masks == iseg)
             wgood = wseg
- 
+
         peak = self._opdHDU.data[wgood].max()
         valley =  self._opdHDU.data[wgood].min()
         return (peak-valley) * 1000
@@ -489,7 +486,7 @@ class OPD(object):
 
     def estimated_Strehl(self, wavelength, verbose=True):
         """ Compute an estimated Strehl given a wavelength in meters
-        
+
         Parameters
         -----------
         wavelength : float
@@ -501,7 +498,7 @@ class OPD(object):
 
         rms = self.rms() * 1e-9
         strehl  = np.exp(-(rms * 2 * np.pi / wavelength)**2)
-        if verbose: 
+        if verbose:
             print("For wavelength = {0} meters, estimated Strehl = {1} for {2} nm rms WFE".format(wavelength, strehl, rms*1e9))
         return strehl
 
@@ -511,12 +508,12 @@ class OPD(object):
 class OPDbender(OPD):
     """ Perturb an existing wavefront OPD file, by applying changes in WFE
     derived from Erin Elliott's linear optical model.
-    
-    Note that this model is strictly accurate only for a single NIRCam field 
+
+    Note that this model is strictly accurate only for a single NIRCam field
     point, but we can apply it elsewhere and it should not be too far off for small motions.
 
     TBD to quantify the range of applicability and uncertainties.
-    
+
     """
 
     def __init__(self, opdfile=None, ext=0, slice=0, pupilfile=None, segment_mask_file='JWpupil_segments.fits', rm_piston_tilt=False, zero=False):
@@ -524,13 +521,13 @@ class OPDbender(OPD):
         Parameters
         ----------
         opdfile : str or fits.HDUList
-            FITS file to load an OPD from. The OPD must be specified in microns. 
+            FITS file to load an OPD from. The OPD must be specified in microns.
         ext : int, optional
             FITS extension to load OPD from
         slice : int, optional
-            slice of a datacube to load OPD from, if the selected extension contains a datacube. 
+            slice of a datacube to load OPD from, if the selected extension contains a datacube.
         pupilfile : str
-            FITS file for pupil mask, with throughput from 0-1. If not explicitly provided, will be inferred from 
+            FITS file for pupil mask, with throughput from 0-1. If not explicitly provided, will be inferred from
             wherever is nonzero in the OPD file.
 
 
@@ -589,9 +586,9 @@ class OPDbender(OPD):
     #---- overall state manipulation
 
     def reset(self):
-        """ Reset an OPD to the state it was loaded from disk.  
+        """ Reset an OPD to the state it was loaded from disk.
 
-        i.e. undo all segment moves. 
+        i.e. undo all segment moves.
         """
         self._opdHDU.data = self._opdHDU_orig.data.copy()
         _log.info("Reset to unperturbed OPD")
@@ -629,11 +626,11 @@ class OPDbender(OPD):
             for segment in self.segnames:
                 if segment+"-tilt" in keys:
                     tilts = self.state[segment+"-tilt"].tolist()
-                else: 
+                else:
                     tilts = [0,0,0]
                 if segment+"-decenter" in keys:
                     decenters = self.state[segment+"-decenter"].tolist()
-                else: 
+                else:
                     decenters = [0,0,0]
 
                 print("%2s\t %10.4f %10.4f %10.4f %10.4f %10.4f %10.4f" % tuple([segment]+decenters+tilts))
@@ -643,15 +640,15 @@ class OPDbender(OPD):
             for segment in self.segnames:
                 if segment+"-tilt" in keys:
                     tilts = self.state[segment+"-tilt"].tolist()
-                else: 
+                else:
                     tilts = [0,0,0]
                 if segment+"-decenter" in keys:
                     decenters = self.state[segment+"-decenter"].tolist()
-                else: 
+                else:
                     decenters = [0,0,0]
 
                 decenters = (np.array([decenters[1], decenters[0], -1 * decenters[2]])/1000).tolist()
-                tilts[2] *= 1000 # convert millirad to microrad for consistency 
+                tilts[2] *= 1000 # convert millirad to microrad for consistency
                 tilts = (np.array([tilts[1], tilts[0], -1 * tilts[2]])*1e-6*180/np.pi).tolist()
 
                 print("%2s\t %12.4e %12.4e %12.4e %12.4e %12.4e %12.4e" % tuple([segment]+decenters+tilts))
@@ -703,7 +700,7 @@ class OPDbender(OPD):
         Yw = Y[wseg].astype(np.float64)
         Yw -= cy
         Xw -= cx
-        ang = self._rotations[segment]*np.pi/180  # This definitely has to be a positive sign, 
+        ang = self._rotations[segment]*np.pi/180  # This definitely has to be a positive sign,
                                                  # to get the right X, Y for locally-defined zernikes
         Xr = Xw * np.cos(ang) + Yw * np.sin(ang)
         Yr = Xw *-np.sin(ang) + Yw * np.cos(ang)
@@ -726,9 +723,9 @@ class OPDbender(OPD):
         _log.debug("     "+outtxt)
 
     def _move(self, segment, type='tilt', vector=None, draw=False, return_zernikes=False):
-        """ 
+        """
         Internal function that actually modifies the OPD by applying the linear optical model.
-        Don't use this directly, use tilt() or displace() instead. 
+        Don't use this directly, use tilt() or displace() instead.
 
         """
 
@@ -748,7 +745,7 @@ class OPDbender(OPD):
         zernike_coeffs_2d = sensitivities * local_vector[:, np.newaxis]
         zernike_coeffs = zernike_coeffs_2d.sum(axis=0)
 
-        if return_zernikes: 
+        if return_zernikes:
             return zernike_coeffs
         else:
             _log.info("Segment %s requested %s: %s in %s" % (segment, type, str(vector), units))
@@ -770,7 +767,7 @@ class OPDbender(OPD):
         unit : str
             Unit for displacements. Can be 'urad', 'radian', 'arcsec', 'arcmin', 'milliarcsec'
         draw: bool
-            Display after moving? 
+            Display after moving?
 
         """
         tilts = np.array([tiltX, tiltY, tiltZ]).astype(float)
@@ -807,7 +804,7 @@ class OPDbender(OPD):
         unit : str
             Unit for displacements. Can be 'micron', 'millimeter','nanometer', 'mm', 'nm', 'um'
         draw : bool
-            Display after moving? 
+            Display after moving?
 
         """
         vector = np.array([distX, distY, distZ])
@@ -818,7 +815,7 @@ class OPDbender(OPD):
         if unit == 'micron' or unit =='um': pass
         elif unit =='millimeters' or unit =='millimeter' or unit =='mm': vector *= 1000
         elif unit =='nm' or unit =='nanometer' or unit =='nanometers' : vector /= 1000
-        else: raise ValueError("Unknown unit for length: %s" % unit) 
+        else: raise ValueError("Unknown unit for length: %s" % unit)
 
 
         self._move(segment, 'decenter', vector, draw=draw)
@@ -868,10 +865,10 @@ class OPDbender(OPD):
         """ Randomly perturb all segments
 
 
-        There is no good easy way to dial in a desired level of WFE right now. 
-        Best/easiest is to try iteratively adjusting the multiplier keyword and 
+        There is no good easy way to dial in a desired level of WFE right now.
+        Best/easiest is to try iteratively adjusting the multiplier keyword and
         repeat until you get the desired level of RMS WFE.
- 
+
 
         """
         for seg in self.segnames:
@@ -887,13 +884,13 @@ class OPDbender(OPD):
             self.print_state(type='Matlab')
 
     def perturb(self, segment, max=False, multiplier=1.0):
-        """ Randomly perturb a segment 
+        """ Randomly perturb a segment
 
 
-        There is no good easy way to dial in a desired level of WFE right now. 
-        Best/easiest is to try iteratively adjusting the multiplier keyword and 
+        There is no good easy way to dial in a desired level of WFE right now.
+        Best/easiest is to try iteratively adjusting the multiplier keyword and
         repeat until you get the desired level of RMS WFE.
-        
+
         Parameters
         ----------
         segment : str
@@ -902,18 +899,18 @@ class OPDbender(OPD):
             Scale factor for making larger or smaller motions.
         max : bool
             force the motion to the largest possible motion consistent with the linear optical
-            model bounds. 
+            model bounds.
 
         """
         bound = [13, 13, 0.2, 0.9, 0.9, 200] # bounds on linear regime, the region over which the
                                              # linear model can be considered trustworthy.
         stepsize = [1, 1, 0.1, 0.1, 0.1, 1]  # what relative size motion should we put in the various terms?
 
-        
+
         if max:
             steps = bound
 
-        else: 
+        else:
             # stick in a random step between -1 and 1 times the desired step size
             steps = (np.random.random_sample(6)-0.5)*2 * np.array(stepsize) * multiplier
 
@@ -926,15 +923,15 @@ class OPDbender(OPD):
 #--------------------------------------------------------------------------------
 def segment_primary(infile='JWpupil.fits'):
     """ Given a FITS file containing the JWST aperture, create an array
-    with the PMSAs numbered from 1 - 18. 
+    with the PMSAs numbered from 1 - 18.
 
-    This is used to create the 'JWpupil_segments.fits' file used by the OPDbender code. 
+    This is used to create the 'JWpupil_segments.fits' file used by the OPDbender code.
     You should not need to run this routine unless you want to change the model of the
     JWST pupil.
 
     The basic algorithm is general, but right now this routine contains
-    a bunch of hard-coded values tuned for the 1024x1024 Rev V pupil, 
-    so probably you will need to edit it for any other pupil. 
+    a bunch of hard-coded values tuned for the 1024x1024 Rev V pupil,
+    so probably you will need to edit it for any other pupil.
 
     M. P. 2011-02-15
 
@@ -950,7 +947,7 @@ def segment_primary(infile='JWpupil.fits'):
         #for i in range(len(uniq)):
             #print "Segment %s has %d pixels" % (i, np.where( res == i)[0].size)
         return res
-     
+
     im = fits.getdata(infile)
     markers = np.zeros_like(im).astype(np.int16)
     xm, ym = np.ogrid[0:1024:102, 0:1024:100]
@@ -973,7 +970,7 @@ def segment_primary(infile='JWpupil.fits'):
     res3[w10h] = 31
     w10h = np.where( (res == 12) & ( Y >= 512))
     res3[w10h] = 32
-    
+
     res3 = renumber_array(res3)
 
 
@@ -983,7 +980,7 @@ def segment_primary(infile='JWpupil.fits'):
     #plt.imshow(res)
     plt.subplot(121)
     plt.imshow(res3)
- 
+
 
     for i in range(19):
         w = np.where(res3 == i)
@@ -1009,10 +1006,10 @@ def segment_primary(infile='JWpupil.fits'):
     plt.subplot(122)
     plt.imshow(result)
     for i in range(18): plt.text(mxs[i], mys[i], segs[i], color='k', horizontalalignment='center',verticalalignment='center')
- 
+
     hdu = fits.PrimaryHDU((result*im).astype(np.uint8))
     for i in range(18):
-        hdu.header.update('PMSA_'+str(i+1), segs[i])
+        hdu.header['PMSA_'+str(i+1)] = segs[i]
 
     # TODO copy relevant keywords and history from input FITS file header
     hdu.writeto("JWpupil_segments.fits", clobber=True)
