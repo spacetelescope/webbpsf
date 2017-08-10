@@ -17,7 +17,7 @@ except IndexError:
 insts = ['FGS', 'NIRCam', 'NIRSpec','NIRISS','MIRI']
 
 WORKING_DIR =  os.path.expanduser("~/tmp/minimal-webbpsf-data")
-subprocess.call("mkdir "+WORKING_DIR, shell=True)
+subprocess.call("mkdir -p "+WORKING_DIR, shell=True)
 
 
 print("#### Expanding full tar file into temp directory ####")
