@@ -77,7 +77,7 @@ To use the Jupyter Notebook GUI, you will need to install ``ipywidgets``::
 Installing or updating pysynphot
 --------------------------------
 
-Pysynphot is an optional dependency, but is highly recommended.  Installation instructions can be found `here in the POPPY docs <http://pythonhosted.org//poppy/installation.html#installing-or-updating-pysynphot>`_.
+Pysynphot is an optional dependency, but is highly recommended.  Installation instructions can be found `here in the POPPY docs <http://poppy-optics.readthedocs.io/en/stable/installation.html#installing-or-updating-pysynphot>`_.
 
 .. _data_install:
 
@@ -128,7 +128,7 @@ Software Requirements
 
 **Optional Python packages**:
 
-Some calculations with POPPY can benefit from the optional packages `psutil <https://pypi.python.org/pypi/psutil>`_ and `pyFFTW <https://pypi.python.org/pypi/pyFFTW>`_, but these are not needed in general. See `the POPPY installation docs <http://pythonhosted.org//poppy/installation.html>`_ for more details.
+Some calculations with POPPY can benefit from the optional packages `psutil <https://pypi.python.org/pypi/psutil>`_ and `pyFFTW <https://pypi.python.org/pypi/pyFFTW>`_, but these are not needed in general. See `the POPPY installation docs <http://poppy-optics.readthedocs.io/en/stable/installation.html>`_ for more details.
 These optional packages are only worth adding for speed improvements if you are spending substantial time running calculations.
 
 .. _install_dev_version:
