@@ -42,8 +42,8 @@ from jwxml import SIAF
 from . import conf
 from . import utils
 from . import version
-from . import data_files_version
 from . import optics
+from . import DATA_VERSION_MIN
 
 try:
     import pysynphot
@@ -291,6 +291,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
             result[0].header['PUPIL'] = ( self.pupil_mask, "Pupil plane mask")
 
         result[0].header['VERSION'] =(version.version, "WebbPSF software version")
+        _, data_files_version = utils.get_webbpsf_data_path(data_version_min=DATA_VERSION_MIN, return_version=True)
         result[0].header['DATAVERS'] =(data_files_version, "WebbPSF reference data files version")
 
         result[0].header['DET_NAME'] = (self.detector, "Name of detector on this instrument")

@@ -85,16 +85,6 @@ if not _ASTROPY_SETUP_:
     if conf.autoconfigure_logging:
         restart_logging(verbose=True)
 
-    # this should display a warning to the user if they don't have WEBBPSF_PATH
-    # defined in either the environment or in webbpsf.cfg
-    try:
-        tmp, data_files_version = utils.get_webbpsf_data_path(data_version_min=DATA_VERSION_MIN, return_version=True)
-        del tmp
-    except (EnvironmentError, IOError):
-        import sys
-        sys.stderr.write(utils.MISSING_WEBBPSF_DATA_MESSAGE)
-        raise
-
 from poppy import ( display_psf, display_psf_difference, display_ee, measure_ee, # current names
         display_PSF, display_PSF_difference, display_EE, measure_EE,  # older non-PEP8 names for back compatibility
         display_profiles, radial_profile,
