@@ -7,7 +7,7 @@ Overview of POPPY (Physical Optics Propagation in Python)
 POPPY, which stands for Physical Optics Propagation in Python, implements an object-oriented system for modeling physical optics propagation with diffraction, particularly for telescopic and coronagraphic imaging. (Right now only image and pupil planes are supported; intermediate planes are a future goal.)
 
 .. note::
-   This is an *abbreviated* version of the documentation for POPPY, included here as a brief summary relevant for WebbPSF. For more comprehensive documentation for POPPY please see `the full POPPY documentation <http://pythonhosted.org/poppy/>`_
+   This is an *abbreviated* version of the documentation for POPPY, included here as a brief summary relevant for WebbPSF. For more comprehensive documentation for POPPY please see `the full POPPY documentation <http://poppy-optics.readthedocs.io/>`_
 
 
 
