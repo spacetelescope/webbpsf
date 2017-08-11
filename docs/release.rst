@@ -51,15 +51,6 @@ Releasing new versions on PyPI
  #. If that runs as expected, ``cd`` back to your ``webbpsf`` repository and run ``twine upload dist/webbpsf-0.X.Y.tar.gz`` for your new version
  #. Verify that the latest version is visible and others are hidden on the `PyPI package editing page <https://pypi.python.org/pypi?%3Aaction=pkg_edit&name=webbpsf>`_
 
-Uploading updated docs
-^^^^^^^^^^^^^^^^^^^^^^
-
- #. On the same `PyPI package editing page <https://pypi.python.org/pypi?%3Aaction=pkg_edit&name=webbpsf>`_, there is a field for uploading updated documentation, so keep that window open.
- #. In your terminal, ``cd`` to ``webbpsf/docs`` and run ``make html``
- #. ``cd _build/html``
- #. Build a zip file for upload: ``zip -r docs-to-upload.zip ./*``
- #. Choose the new zip file from the file field on the `PyPI package editing page <https://pypi.python.org/pypi?%3Aaction=pkg_edit&name=webbpsf>`_ and click "Upload Documentation"
-
 Finishing the release
 ^^^^^^^^^^^^^^^^^^^^^
 

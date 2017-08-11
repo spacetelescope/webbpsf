@@ -41,6 +41,11 @@ Road Map for Future Releases
 Version History and Change Log
 -------------------------------
 
+Version 0.6.1
+=============
+
+*Unreleased*
+
 .. _rel0.6.0:
 
 Version 0.6.0
