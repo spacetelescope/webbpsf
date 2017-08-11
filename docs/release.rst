@@ -18,7 +18,11 @@ Releasing new data packages
  #. If the new data package is **required** (meaning you can't run WebbPSF without it, or you can run but may get incorrect results), you must bump ``DATA_VERSION_MIN`` in ``__init__.py`` to ``(0, X, Y)``
  #. Extract the resulting data archive and check that you can run the WebbPSF tests with ``WEBBPSF_PATH`` pointing to it
  #. Copy the data archive into public web space
- #. Update the link in ``installation.rst`` under :ref:`data_install`
+ #. ``cd`` to ``/grp/jwst/ote`` and remove the ``webbpsf-data`` symlink
+ #. Copy the archive into ``/grp/jwst/ote/`` and extract it to ``/grp/jwst/ote/webbpsf-data``
+ #. Rename the folder to ``webbpsf-data-0.x.y``
+ #. Create a symbolic link at ``/grp/jwst/ote/webbpsf-data`` to point to the new folder
+ #. Update the URL in ``installation.rst`` under :ref:`data_install`
 
 Invoke ``dev_utils/make-data-sdist.sh`` one of the following ways to make a gzipped tarred archive of the WebbPSF data suitable for distribution.
 

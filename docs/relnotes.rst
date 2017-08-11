@@ -41,13 +41,31 @@ Road Map for Future Releases
 Version History and Change Log
 -------------------------------
 
+.. _rel0.6.0:
+
 Version 0.6.0
 =============
 
-*Unreleased*
+*2017 August 11*
 
- - NIRISS ``CLEAR`` filter now sets the ``GR700XD`` pupil mask when ``auto_pupil`` is True (the default) [#151]
- - Correctly convert wavelengths to microns when computing NIRISS ZnS index of refraction [#149]
+**JWST optical models:**
+
+- Substantial update to the optical models for the telescope, to incorporate measurements of the as-built optics plus the latest expectations for alignments in flight.
+The reference data layout has changed: each instrument now includes only two OPD files, a ``predicted`` and a ``requirements`` OPD. Ex: ``OPD_RevW_ote_for_NIRCam_predicted.fits.gz``. The OPD files are now derived from measured flight mirror surfaces (for high spatial frequencies), plus statistical models for their alignment in flight following wavefront sensing and control (for mid and lower spatial frequencies), as described in :doc:`jwst`.  Each OPD file still contains 10 different realizations of the statistical part.
+- The NIRISS ``auto_pupil`` feature now recognizes that the ``CLEAR`` filter is used with the ``GR700XD`` pupil mask  [#151]
+- Correctly convert wavelengths to microns when computing NIRISS ZnS index of refraction [#149]
+- Aperture definitions now come from a copy of the SIAF bundled in ``jwxml`` rather than in the WebbPSF reference data.
+- An alpha version of a linear optical model for adjusting OPDs is now provided for power-users, but currently unsupported and not documented.
+
+**WFIRST optical models:**
+
+- Addition of a model for the WFIRST CGI (Coronagraph Instrument) shaped pupil coronagraph by @neilzim [#154]
+
+**General:**
+
+- Jitter is now enabled by default (approximated by convolution with 0.007 arcsec FWHM Gaussian)
+- Source offsets can now be specified as ``source_offset_x`` and ``source_offset_y`` in ``instrument.options`` (in addition to the existing ``instrument.options[‘source_offset_r’]`` and ``instrument.options[‘source_offset_theta’]``)
+- The Astropy Helpers have been updated to v2.0.1 to fix various install-time issues.
 
 .. _rel0.5.1:
 
