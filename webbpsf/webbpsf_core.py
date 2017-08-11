@@ -577,9 +577,10 @@ class JWInstrument(SpaceTelescopeInstrument):
 
     telescope : name of telescope
     pupilopd : filename or FITS file object
-
-    include_si_wfe : boolean. Should SI internal WFE be included in models?
-
+    include_si_wfe : boolean (default: False)
+        Should SI internal WFE be included in models? Requires
+        the presence of ``si_zernikes_isim_cv3.fits`` in the
+        ``WEBBPSF_PATH``.
 
     """
     telescope = "JWST"
@@ -615,7 +616,7 @@ class JWInstrument(SpaceTelescopeInstrument):
         # where is the source on the detector, in 'Science frame' pixels?
         self.detector_position = (1024, 1024)
 
-        self.include_si_wfe = True
+        self.include_si_wfe = False
         """Should calculations include the Science Instrument internal WFE?"""
         self.options['jitter']='gaussian'
         self.options['jitter_sigma']=0.007
