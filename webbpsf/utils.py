@@ -197,12 +197,14 @@ def get_webbpsf_data_path(data_version_min=None, return_version=False):
     if path_from_config == 'from_environment_variable':
         path = os.getenv('WEBBPSF_PATH')
         if path is None:
+            sys.stderr.write(MISSING_WEBBPSF_DATA_MESSAGE)
             raise EnvironmentError("Environment variable $WEBBPSF_PATH is not set!")
     else:
         path = path_from_config
 
     # at minimum, the path must be a valid directory
     if not os.path.isdir(path):
+        sys.stderr.write(MISSING_WEBBPSF_DATA_MESSAGE)
         raise IOError("WEBBPSF_PATH ({}) is not a valid directory path!".format(path))
 
     if data_version_min is not None:
@@ -215,6 +217,7 @@ def get_webbpsf_data_path(data_version_min=None, return_version=False):
                 parts = version_contents.split('.')[:3]
             version_tuple = tuple(map(int, parts))
         except (IOError, ValueError):
+            sys.stderr.write(MISSING_WEBBPSF_DATA_MESSAGE)
             raise EnvironmentError(
                 "Couldn't read the version number from {}. (Do you need to update the WebbPSF "
                 "data? See http://pythonhosted.org/webbpsf/installation.html#data-install "
@@ -222,6 +225,7 @@ def get_webbpsf_data_path(data_version_min=None, return_version=False):
             )
 
         if not version_tuple >= data_version_min:
+            sys.stderr.write(MISSING_WEBBPSF_DATA_MESSAGE)
             raise EnvironmentError(
                 "WebbPSF data package has version {cur}, but {min} is needed. "
                 "See http://pythonhosted.org/webbpsf/installation.html#data-install "
