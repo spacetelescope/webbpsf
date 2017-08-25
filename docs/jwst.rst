@@ -78,7 +78,26 @@ To select the ``predicted`` map, simply assign it to the ``pupilopd`` attribute 
 
    >>> nc.pupilopd = 'OPD_RevW_ote_for_NIRCam_predicted.fits.gz'
 
-Of course, while different OPD maps are used for each SI, these OPD maps do not include wavefront error contributions from optics internal to the science instrument. Additional details on the SI-specific wavefront error models are given under each instrument model section.
+For both the required and predicted cases, the OPD files contain 10 Monte Carlo realizations of the telescope. You can select one of these by specifying the plane number in a tuple::
+
+   >>> nc.pupilopd = ('OPD_RevW_ote_for_NIRCam_predicted.fits.gz', 7)
+
+Note that these represent 10 distinct, totally independent realizations of JWST and its optical error budget. They do not represent any sort of time series or wavefront drift.
+The average levels of WFE from the telescope itself used in the OPD files are as follows. 
+
+
+==========  ============  ============
+Instrument  Predicted     Requirements
+==========  ============  ============
+NIRCam       90 nm rms    117 nm rms
+NIRSpec     163 nm rms    188 nm rms
+NIRISS      108 nm rms    145 nm rms
+MIRI        204 nm rms    258 nm rms
+==========  ============  ============
+
+
+While different OPD maps are used for each SI, these OPD maps do not include wavefront error contributions from optics internal to the science instrument. Additional details on the SI-specific wavefront error models are given under each instrument model section below.
+
 
 NIRCam
 ======

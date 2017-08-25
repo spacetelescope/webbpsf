@@ -55,8 +55,16 @@ Version 0.6.0
 
 **JWST optical models:**
 
-- Substantial update to the optical models for the telescope, to incorporate measurements of the as-built optics plus the latest expectations for alignments in flight.
-The reference data layout has changed: each instrument now includes only two OPD files, a ``predicted`` and a ``requirements`` OPD. Ex: ``OPD_RevW_ote_for_NIRCam_predicted.fits.gz``. The OPD files are now derived from measured flight mirror surfaces (for high spatial frequencies), plus statistical models for their alignment in flight following wavefront sensing and control (for mid and lower spatial frequencies), as described in :doc:`jwst`.  Each OPD file still contains 10 different realizations of the statistical part.
+- Substantial update to the optical models for the telescope, to incorporate
+  measurements of the as-built optics plus the latest expectations for
+  alignments in flight.  The reference data layout has changed: each instrument
+  now includes only two OPD files, a ``predicted`` and a ``requirements`` OPD.
+  Ex: ``OPD_RevW_ote_for_NIRCam_predicted.fits.gz``. The OPD files are now
+  derived from measured flight mirror surfaces (for high spatial frequencies),
+  plus statistical models for their alignment in flight following wavefront
+  sensing and control (for mid and lower spatial frequencies), as described in
+  :doc:`jwst`.  Each OPD file still contains 10 different realizations of the
+  statistical part.
 - The NIRISS ``auto_pupil`` feature now recognizes that the ``CLEAR`` filter is used with the ``GR700XD`` pupil mask  [#151]
 - Correctly convert wavelengths to microns when computing NIRISS ZnS index of refraction [#149]
 - Aperture definitions now come from a copy of the SIAF bundled in ``jwxml`` rather than in the WebbPSF reference data.
