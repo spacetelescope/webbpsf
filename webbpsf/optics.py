@@ -695,11 +695,11 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
     # Offsets along the bar occulters are based on
     # outputs from John Stansberry's filt_baroffset.pro
     # See https://github.com/mperrin/webbpsf/issues/63
-    offset_swb = {"F182M":  1.856,
-        "F187N":  1.571,
-        "F210M":  0.071,
-        "F212N": -0.143,
-        "F200W": -0.232}
+    offset_swb = {"F182M":  -1.856,
+        "F187N": -1.571,
+        "F210M": -0.071,
+        "F212N":  0.143,
+        "F200W":  0.232}
     """ Offsets per filter along SWB occulter for module A, in arcsec"""
 
     offset_lwb = {"F250M":  6.846,
