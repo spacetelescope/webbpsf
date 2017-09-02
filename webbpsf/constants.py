@@ -165,7 +165,12 @@ JWST_PRIMARY_SEGMENTS = (
 for name, arr in JWST_PRIMARY_SEGMENTS:
     arr.flags.writeable = False
 
+# A1-6,B1-6,C1-6
 SEGNAMES_WSS = tuple(name for name, arr in JWST_PRIMARY_SEGMENTS)
+
+# Sort same names by another order: A1-6,B1,C1,B2,C2,etc
+SEGNAMES_WSS_ORDER = tuple(np.asarray(SEGNAMES_WSS)[
+   np.argsort([int(a.split('-')[1]) for a in SEGNAMES_WSS]) ])
 
 JWST_PRIMARY_STRUTS = (
     ("strut1", np.array([

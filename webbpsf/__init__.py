@@ -94,6 +94,8 @@ from poppy import ( display_psf, display_psf_difference, display_ee, measure_ee,
 from .webbpsf_core import (Instrument, JWInstrument, NIRCam, NIRISS, NIRSpec,
     MIRI, FGS)
 
+from .opds import enable_adjustable_ote
+
 from .wfirst import WFI, CGI
 
 from .jupyter_gui import show_notebook_interface
