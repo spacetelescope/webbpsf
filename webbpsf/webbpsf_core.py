@@ -1080,7 +1080,7 @@ class NIRCam(JWInstrument):
 
 
         #NIRCam as-built weak lenses, from WSS config file
-        WLP4_diversity =  8.27398 # microns
+        WLP4_diversity =  8.27309 # microns
         WLP8_diversity = 16.4554  # microns
         WLM8_diversity =-16.4143  # microns
         WL_wavelength =   2.12    # microns
