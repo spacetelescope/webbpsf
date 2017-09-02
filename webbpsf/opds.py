@@ -1238,7 +1238,7 @@ class OTE_Linear_Model_WSS(OPD):
         """
 
         # Handle tilts and clocking
-        tilts = np.array([xtilt, ytilt, clocking]).astype(float)
+        tilts = np.array([xtilt, ytilt, clocking], dtype=float)
         if np.abs(tilts).sum() > 0:
             self.opd_header.add_history('Rotation: %s %s' % (str(tuple(tilts)), rot_unit))
 
@@ -1269,7 +1269,7 @@ class OTE_Linear_Model_WSS(OPD):
             if xtrans is not None or ytrans is not None:
                 raise RuntimeError("Cannot specify x/ytrans and radial at the same time.")
 
-        vector = np.asarray([piston,radial ])
+        vector = np.asarray([piston,radial ], dtype=float)
         if np.abs(vector).sum() > 0:
             # influence functions are in microns WFE per micron, so convert all to microns
             if trans_unit.endswith('s'): trans_unit = trans_unit[:-1]
