@@ -596,7 +596,7 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         opd_path = os.path.join(self._datapath, 'OPD')
         self.opd_list = []
-        for filename in glob.glob(os.path.join(opd_path, 'OPD*.fits.gz')):
+        for filename in glob.glob(os.path.join(opd_path, 'OPD*.fits*')):
             self.opd_list.append(os.path.basename(os.path.abspath(filename)))
 
         if not len(self.opd_list) > 0:
