@@ -10,6 +10,8 @@ from astropy.table import Table
 import astropy.io.fits as fits
 import astropy.units as units
 
+from scipy.interpolate import griddata
+
 from . import utils
 from . import constants
 
@@ -1082,7 +1084,20 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
             field_point=self.row['field_point_name']
         )
         # Retrieve those Zernike coeffs (no interpolation for now)
-        coeffs = [self.row['Zernike_{}'.format(i)] for i in range(1, 36)]
+        #coeffs = [self.row['Zernike_{}'.format(i)] for i in range(1, 36)]
+
+        # Field point interpolation
+        v2_tel,v3_tel = telcoords_am
+        coeffs = []
+        for i in range(1,36):
+            zkey = 'Zernike_{}'.format(i)
+            zvals = self.ztable[zkey]
+            
+            # Cubic interpolation of of non-uniform 2D grid
+            cf = griddata((v2, v3), zvals, (v2_tel, v3_tel), method='cubic').tolist()
+            # If outside of grid space, then use nearest neighbor
+            cf = self.row[zkey]
+            coeffs.append(cf)
 
         self.zernike_coeffs = coeffs
 
