@@ -307,7 +307,9 @@ class OPD(poppy.FITSOpticalElement):
 
         return np.asarray(components)
 
-    def display_opd(self, ax=None, labelsegs=True, vmax=150., colorbar=True, clear=False, title= None, unit='nm', cbpad=None, colorbar_orientation='vertical',
+    def display_opd(self, ax=None, labelsegs=True, vmax=150., colorbar=True, clear=False, title= None, unit='nm',
+            cbpad=None, colorbar_orientation='vertical',
+            show_axes=False, show_rms=True,
             cmap=None):
         """ Draw on screen the perturbed OPD
 
@@ -646,6 +648,7 @@ class OTE_Linear_Model_Elliott(OPD):
                     decenters = [0,0,0]
 
                 print("%2s\t %10.4f %10.4f %10.4f %10.4f %10.4f %10.4f" % tuple([segment]+decenters+tilts))
+ 
         elif type == 'Report':
             raise NotImplementedError("Coord conversions need work")
             print("Segment positions in Report coordinates: (microns for decenter, microradians for alpha & beta, milliradians for gamma):")
