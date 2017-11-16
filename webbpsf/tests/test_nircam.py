@@ -247,4 +247,20 @@ def test_validate_nircam_wavelengths():
         nc._validateConfig(wavelengths=np.linspace(nc.LONG_WAVELENGTH_MAX, nc.LONG_WAVELENGTH_MAX + 1e-6, 3))
     assert _exception_message_starts_with(excinfo,"The requested wavelengths are too long to be imaged with NIRCam")
 
+def test_nircam_coron_unocculted(plot=False):
+    """ NIRCam with lyot mask but not an occulter
+    See https://github.com/mperrin/webbpsf/issues/157
+    """
+
+    nc = webbpsf_core.NIRCam()
+    nc.pupilopd = None
+    nc.filter='F212N'
+    nc.pupil_mask='WEDGELYOT'
+    nc.image_mask=None
+
+    if plot:
+        nc.display()
+
+    psf = nc.calc_psf(monochromatic=2.12e-6)
+    return(psf)
 

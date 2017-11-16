@@ -699,7 +699,8 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
         "F187N": -1.571,
         "F210M": -0.071,
         "F212N":  0.143,
-        "F200W":  0.232}
+        "F200W":  0.232,
+        'narrow':-8.00}
     """ Offsets per filter along SWB occulter for module A, in arcsec"""
 
     offset_lwb = {"F250M":  6.846,
@@ -712,7 +713,8 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
         "F430M":  1.043,
         "F460M": -0.098,
         "F480M": -0.619,
-        "F444W": -0.768}
+        "F444W": -0.768,
+        'narrow': 8.0}
     """ Offsets per filter along LWB occulter for module A, in arcsec"""
 
 
