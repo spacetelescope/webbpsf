@@ -1637,8 +1637,8 @@ def one_segment_pupil(segmentname):
     segmap = os.path.join(utils.get_webbpsf_data_path(), "JWpupil_segments.fits")
 
     newpupil = fits.open(segmap)
-    if newpupil[0].header['VERSION'] != 2:
-        raise RuntimeError("Expecting file version 2 for JWpupil_segments.fits")
+    if newpupil[0].header['VERSION'] < 2:
+        raise RuntimeError("Expecting file version >= 2 for JWpupil_segments.fits")
 
     segment_official_name = segname(segmentname)
     num = int(segment_official_name.split('-')[1])
