@@ -136,6 +136,13 @@ WebbPSF won't prevent users from simulating configuration using a coronagraph
 image mask without the Lyot stop, but that's not something that can be done for
 real with NIRCam.
 
+Note, the Lyot masks have multiple names for historical reasons: The names 
+'CIRCLYOT' and 'WEDGELYOT' have been used since early in WebbPSF development, and
+can still be used, but the same masks can also be referred to as "MASKRND" and 
+"MASKSWB" or "MASKLWB", the nomenclature that was eventually adopted for use in
+APT and other JWST documentation. Both ways work and will continue to do so.
+
+
 
 Weak Lenses for Wavefront Sensing
 ---------------------------------

@@ -942,8 +942,9 @@ class NIRCam(JWInstrument):
 
         self.image_mask_list = ['MASKLWB','MASKSWB','MASK210R','MASK335R','MASK430R']
 
-        self.pupil_mask_list = ['CIRCLYOT','WEDGELYOT',
-                'WEAK LENS +4', 'WEAK LENS +8', 'WEAK LENS -8', 'WEAK LENS +12 (=4+8)','WEAK LENS -4 (=4-8)']
+        self.pupil_mask_list = ['CIRCLYOT','WEDGELYOT', 'MASKRND', 'MASKSWB','MASKLWB',  # The last 3 of these are synonyms
+                'WEAK LENS +4', 'WEAK LENS +8', 'WEAK LENS -8', 'WEAK LENS +12 (=4+8)','WEAK LENS -4 (=4-8)',
+                'WLP4', 'WLM4', 'WLP8', 'WLM8', 'WLP12']
 
         self._detectors = dict()
         det_list = ['A1','A2','A3','A4','A5', 'B1','B2','B3','B4','B5']
@@ -1086,36 +1087,36 @@ class NIRCam(JWInstrument):
         WL_wavelength =   2.12    # microns
 
         #optsys.add_pupil( name='null for debugging NIRcam _addCoron') # debugging
-        if self.pupil_mask == 'CIRCLYOT':
+        if self.pupil_mask == 'CIRCLYOT' or self.pupil_mask=='MASKRND':
             optsys.add_pupil(transmission=self._datapath+"/optics/NIRCam_Lyot_Somb.fits.gz", name=self.pupil_mask,
                     flip_y=True, shift=shift, index=3)
-            optsys.planes[3].wavefront_display_hint='intensity'
-        elif self.pupil_mask == 'WEDGELYOT':
+            optsys.planes[-1].wavefront_display_hint='intensity'
+        elif self.pupil_mask == 'WEDGELYOT' or self.pupil_mask=='MASKSWB' or self.pupil_mask=='MASKLWB':
             optsys.add_pupil(transmission=self._datapath+"/optics/NIRCam_Lyot_Sinc.fits.gz", name=self.pupil_mask,
                     flip_y=True, shift=shift, index=3)
-            optsys.planes[3].wavefront_display_hint='intensity'
-        elif self.pupil_mask == 'WEAK LENS +4':
+            optsys.planes[-1].wavefront_display_hint='intensity'
+        elif self.pupil_mask == 'WEAK LENS +4' or  self.pupil_mask == 'WLP4':
             optsys.add_pupil(poppy.ThinLens(
                 name='Weak Lens +4',
                 nwaves=WLP4_diversity / WL_wavelength,
                 reference_wavelength=WL_wavelength*1e-6, #convert microns to meters
                 radius=self.pupil_radius
             ), index=3)
-        elif self.pupil_mask == 'WEAK LENS +8':
+        elif self.pupil_mask == 'WEAK LENS +8'  or  self.pupil_mask == 'WLP8':
             optsys.add_pupil(poppy.ThinLens(
                 name='Weak Lens +8',
                 nwaves=WLP8_diversity / WL_wavelength,
                 reference_wavelength=WL_wavelength*1e-6,
                 radius=self.pupil_radius
             ), index=3)
-        elif self.pupil_mask == 'WEAK LENS -8':
+        elif self.pupil_mask == 'WEAK LENS -8'  or  self.pupil_mask == 'WLM8':
             optsys.add_pupil(poppy.ThinLens(
                 name='Weak Lens -8',
                 nwaves=WLM8_diversity / WL_wavelength,
                 reference_wavelength=WL_wavelength*1e-6,
                 radius=self.pupil_radius
             ), index=3)
-        elif self.pupil_mask == 'WEAK LENS +12 (=4+8)':
+        elif self.pupil_mask == 'WEAK LENS +12 (=4+8)'  or  self.pupil_mask == 'WLP12':
             stack = poppy.CompoundAnalyticOptic(name='Weak Lens Pair +12', opticslist=[
                 poppy.ThinLens(
                     name='Weak Lens +4',
@@ -1131,7 +1132,7 @@ class NIRCam(JWInstrument):
                 )]
             )
             optsys.add_pupil(stack, index=3)
-        elif self.pupil_mask == 'WEAK LENS -4 (=4-8)':
+        elif self.pupil_mask == 'WEAK LENS -4 (=4-8)'  or  self.pupil_mask == 'WLM4':
             stack = poppy.CompoundAnalyticOptic(name='Weak Lens Pair -4', opticslist=[
                 poppy.ThinLens(
                     name='Weak Lens +4',
