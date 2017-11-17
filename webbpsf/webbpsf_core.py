@@ -1059,7 +1059,22 @@ class NIRCam(JWInstrument):
             SAM_box_size = 5.0
         elif ((self.image_mask == 'MASKSWB') or (self.image_mask == 'MASKLWB')):
             bar_offset = self.options.get('bar_offset',None)
-            auto_offset = self.filter if bar_offset is None else None
+            # If the bar offset is not provided, use the filter name to lookup the default
+            # position. If an offset is provided and is a floating point value, use that
+            # directly as the offset. Otherwise assume it's a filter name and try passing
+            # that in to the auto offset. (that allows for selecting the narrow position, or
+            # for simulating using a given filter at some other filter's position.)
+            if bar_offset is None:
+                auto_offset = self.filter
+            else:
+                try:
+                    _ = float(bar_offset)
+                    auto_offset = None
+                except ValueError:
+                    # If the "bar_offset" isn't a float, pass it to auto_offset instead
+                    auto_offset = bar_offset
+                    bar_offset = None
+
             optsys.add_image( NIRCam_BandLimitedCoron(name=self.image_mask, module=self.module,
                     nd_squares=nd_squares, bar_offset=bar_offset, auto_offset=auto_offset),
                     index=2)

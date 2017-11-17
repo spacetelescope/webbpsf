@@ -748,7 +748,7 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
             offsets = self.offset_swb if self.name.lower()=='maskswb' else self.offset_lwb
             try:
                 bar_offset = offsets[auto_offset]
-                _log.debug("Automatically set bar offset to {} for filter {} on {}.".format(bar_offset, auto_offset, self.name))
+                _log.debug("Set bar offset to {} based on requested filter {} on {}.".format(bar_offset, auto_offset, self.name))
             except:
                 raise ValueError("Filter {} does not have a defined nominal offset position along {}".format(auto_offset,self.name))
 
