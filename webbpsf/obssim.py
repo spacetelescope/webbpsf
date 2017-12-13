@@ -19,7 +19,7 @@ import pysynphot
 import logging
 import poppy
 
-import webbpsf_core
+from . import webbpsf_core
 
 
 _log = logging.getLogger('webbpsf')
@@ -34,8 +34,6 @@ class TargetScene(object):
     necessary calculations to perform a simulated JWST observation of that target.
 
     pysynphot is required for this.
-
-
 
     """
 
@@ -82,7 +80,7 @@ class TargetScene(object):
         self.sources.append(   {'spectrum': sptype_or_spectrum, 'separation': separation, 'PA': PA,
             'normalization': normalization, 'name': name})
 
-    def calcImage(self, instrument, outfile=None, noise=False, rebin=True, clobber=True,
+    def calc_image(self, instrument, outfile=None, noise=False, rebin=True, clobber=True,
             PA=0, offset_r=None, offset_PA=0.0, **kwargs):
         """ Calculate an image of a scene through some instrument
 
@@ -147,6 +145,7 @@ class TargetScene(object):
                 # use the explicitly-provided normalization:
                 if isinstance(obj['normalization'], numbers.Number):
                     src_psf[0].data *= obj['normalization']
+                    fluxlogstring = "                with source flux = {}".format(obj['normalization'])
                 else:
                     raise NotImplemented("Not Yet")
             else:
@@ -154,6 +153,7 @@ class TargetScene(object):
                 # i.e. figure out what the flux of the source is, inside the selected bandpass
                 bp = instrument._getSynphotBandpass()
                 effstim_Jy = pysynphot.Observation(src_spectrum, bp).effstim('Jy')
+                fluxlogstring = "                with effstim = %.3g Jy" % effstim_Jy
                 src_psf[0].data *= effstim_Jy
 
             # add the scaled companion PSF to the stellar PSF:
@@ -173,7 +173,7 @@ class TargetScene(object):
                 sum_image[0].data += src_psf[0].data
             #update FITS header history
             sum_image[0].header.add_history("Added source %s at r=%.3f, theta=%.2f" % (obj['name'], obj['separation'], obj['PA']))
-            sum_image[0].header.add_history("                with effstim = %.3g Jy" % effstim_Jy)
+            sum_image[0].header.add_history(fluxlogstring)
             sum_image[0].header.add_history("                counts in image: %.3g" % src_psf[0].data.sum())
             sum_image[0].header.add_history("                pos in image: %.3g'' at %.1f deg" % (instrument.options['source_offset_r'],  instrument.options['source_offset_theta'])  )
 
@@ -192,7 +192,7 @@ class TargetScene(object):
             _log.info(" Downsampling summed image to detector pixel scale.")
             rebinned_sum_image = sum_image[0].copy()
             detector_oversample = sum_image[0].header['DET_SAMP']
-            rebinned_sum_image.data = poppy.rebin_array(rebinned_sum_image.data, rc=(detector_oversample, detector_oversample))
+            rebinned_sum_image.data = poppy.utils.rebin_array(rebinned_sum_image.data, rc=(detector_oversample, detector_oversample))
             rebinned_sum_image.header['OVERSAMP'] = ( 1, 'These data are rebinned to detector pixels')
             rebinned_sum_image.header['CALCSAMP'] = ( detector_oversample, 'This much oversampling used in calculation')
             rebinned_sum_image.header['EXTNAME'] = ( 'DET_SAMP')
@@ -232,7 +232,7 @@ def test_obssim(nlambda=3, clobber=False):
         inst.filter = filt
         outname = "test_scene_%s.fits"% filt
         if not os.path.exists(outname) or clobber:
-            s.calcImage(inst, outfile=outname, fov_arcsec=5, nlambda=nlambda)
+            s.calc_image(inst, outfile=outname, fov_arcsec=5, nlambda=nlambda)
 
 
 
