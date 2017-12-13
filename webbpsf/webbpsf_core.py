@@ -567,7 +567,9 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
             raise ValueError("The supplied file, %s, does not appear to be a FITS table "
                              "with WAVELENGTH and THROUGHPUT columns." % filter_info.filename)
 
+        filterfits.close()
         return band
+
 
 #######  JWInstrument classes  #####
 

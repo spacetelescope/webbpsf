@@ -243,18 +243,20 @@ def test_calc_or_load_PSF(outputdir=None):
     filename =  os.path.join(outputdir, "test_calc_or_load_output.fits")
     if os.path.exists(filename): os.unlink(filename)
 
-    webbpsf_core.calc_or_load_PSF(filename, nc, monochromatic=2e-6)
-
+    f0 = webbpsf_core.calc_or_load_PSF(filename, nc, monochromatic=2e-6)
+    f0.close()
     assert os.path.exists(filename)
 
     #this one should not re-calc since the file already exists:
     # TODO - add some checking here of file modification date/times
-    webbpsf_core.calc_or_load_PSF(filename, nc, monochromatic=2e-6)
+    f1 = webbpsf_core.calc_or_load_PSF(filename, nc, monochromatic=2e-6)
     assert os.path.exists(filename)
+    f1.close()
 
     # this one should recalc since we explicitly ask it to
-    webbpsf_core.calc_or_load_PSF(filename, nc, monochromatic=2e-6, clobber=True)
+    f2 = webbpsf_core.calc_or_load_PSF(filename, nc, monochromatic=2e-6, clobber=True)
     assert os.path.exists(filename)
+    f2.close()
 
 #--------------------------------------------------------------------------------
 
