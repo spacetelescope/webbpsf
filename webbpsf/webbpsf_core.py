@@ -220,6 +220,8 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
                 if name not in self.image_mask_list: # if still not found, that's an error.
                     raise ValueError("Instrument %s doesn't have an image mask called '%s'." % (self.name, name))
         self._image_mask = name
+        if hasattr(self, '_image_mask_apertures') and name in self._image_mask_apertures:
+            self.set_position_from_aperture_name(self._image_mask_apertures[name])
 
     @property
     def pupil_mask(self):
@@ -678,6 +680,21 @@ class JWInstrument(SpaceTelescopeInstrument):
         coords[1] = -coords[1] - 468*units.arcsec
         return coords
 
+    def set_position_from_aperture_name(self, aperture_name):
+        """ Set the simulated center point of the array based on a named SIAF aperture.
+        This will adjust the detector and detector position attributes.
+        """
+        siaf = SIAF(self.name)
+        try:
+            ap = siaf[aperture_name]
+
+            self.detector_position = (ap.XDetRef, ap.YDetRef)
+            detname = aperture_name.split('_')[0]
+            self.detector = detname
+            _log.debug("From {} set det. pos. to {} {}".format(aperture_name, detname, self.detector_position))
+
+        except KeyError:
+            raise ValueError("Not a valid aperture name for {}: {}".format(self.name, aperture_name))
 
     def _getFITSHeader(self, result, options):
         """ populate FITS Header keywords """
@@ -706,6 +723,11 @@ class MIRI(JWInstrument):
 
         self.image_mask_list = ['FQPM1065', 'FQPM1140', 'FQPM1550', 'LYOT2300', 'LRS slit']
         self.pupil_mask_list = ['MASKFQPM', 'MASKLYOT', 'P750L LRS grating']
+
+        self._image_mask_apertures = {'FQPM1065': 'MIRIM_CORON1065',
+                                      'FQPM1140': 'MIRIM_CORON1140',
+                                      'FQPM1550': 'MIRIM_CORON1550',
+                                      'LYOT2300': 'MIRIM_CORONLYOT'}
 
         self.monochromatic = 8.0
         self._IFU_pixelscale = {
@@ -933,7 +955,7 @@ class NIRCam(JWInstrument):
         # so the overridden filter setter will work successfully inside that.
         self.auto_channel = True
         self._filter='F200W'
-        self._detector='A1'
+        self._detector='NRCA1'
 
         JWInstrument.__init__(self, "NIRCam") # do this after setting the long & short scales.
 
@@ -941,6 +963,11 @@ class NIRCam(JWInstrument):
         self._filter='F200W'                     # likewise need to redo
 
         self.image_mask_list = ['MASKLWB','MASKSWB','MASK210R','MASK335R','MASK430R']
+        self._image_mask_apertures = {'MASKLWB':'NRCA5_MASKLWB',
+                                      'MASKSWB':'NRCA4_MASKSWB',
+                                      'MASK210R':'NRCA2_MASK210R',
+                                      'MASK335R':'NRCA5_MASK335R',
+                                      'MASK430R':'NRCA5_MASK430R'}
 
         self.pupil_mask_list = ['CIRCLYOT','WEDGELYOT', 'MASKRND', 'MASKSWB','MASKLWB',  # The last 3 of these are synonyms
                 'WEAK LENS +4', 'WEAK LENS +8', 'WEAK LENS -8', 'WEAK LENS +12 (=4+8)','WEAK LENS -4 (=4-8)',
@@ -948,14 +975,14 @@ class NIRCam(JWInstrument):
 
         self._detectors = dict()
         det_list = ['A1','A2','A3','A4','A5', 'B1','B2','B3','B4','B5']
-        for name in det_list: self._detectors[name] = 'NRC{0}_FULL'.format(name)
+        for name in det_list: self._detectors["NRC{0}".format(name)] = 'NRC{0}_FULL'.format(name)
         self.detector=self.detector_list[0]
 
         self._si_wfe_class = optics.NIRCamFieldAndWavelengthDependentAberration
 
     @property
     def module(self):
-        return self._detector[0]
+        return self._detector[3]
 
     @property
     def channel(self):
@@ -974,7 +1001,7 @@ class NIRCam(JWInstrument):
             wlnum = int(self.filter[1:4])
             if wlnum >= 250:
                 #ensure long wave by switching to detector 5
-                self.detector = self.detector[0]+'5'
+                self.detector = self.detector[0:4]+'5'
                 if self.pixelscale==self._pixelscale_short:
                     self.pixelscale = self._pixelscale_long
                     _log.info("NIRCam pixel scale switched to %f arcsec/pixel for the "
@@ -982,8 +1009,8 @@ class NIRCam(JWInstrument):
             else:
                 # only change if the detector was already LW;
                 # don't override selection of a particular SW SCA otherwise
-                if self.detector[1] == '5':
-                    self.detector = self.detector[0]+'1'
+                if self.detector[-1] == '5':
+                    self.detector = self.detector[0:4]+'1'
                 if self.pixelscale==self._pixelscale_long:
                     self.pixelscale = self._pixelscale_short
                     _log.info("NIRCam pixel scale switched to %f arcsec/pixel for the "
@@ -1330,7 +1357,7 @@ class NIRISS(JWInstrument):
         self.image_mask_list = ['CORON058', 'CORON075','CORON150','CORON200'] # available but unlikely to be used...
         self.pupil_mask_list = ['CLEARP', 'MASK_NRM','GR700XD']
 
-        self._detectors = {'NIRISS':'NIS_CEN'}
+        self._detectors = {'NIS':'NIS_CEN'}
         self.detector=self.detector_list[0]
 
 

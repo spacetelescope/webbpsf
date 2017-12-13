@@ -16,13 +16,17 @@ import pytest
 
 
 #------------------    NIRCam Tests    ----------------------------
-from .test_webbpsf import generic_output_test, do_test_source_offset
+from .test_webbpsf import generic_output_test, do_test_source_offset, do_test_set_position_from_siaf
 test_nircam = lambda : generic_output_test('NIRCam')
 test_nircam_source_offset_00 = lambda : do_test_source_offset('NIRCam', theta=0.0, monochromatic=2e-6)
 test_nircam_source_offset_45 = lambda : do_test_source_offset('NIRCam', theta=45.0, monochromatic=2e-6)
 
+test_nircam_set_siaf = lambda : do_test_set_position_from_siaf('NIRCam', 
+        ['NRCA5_SUB160', 'NRCA3_DHSPIL_SUB96','NRCA5_MASKLWB_F300M', 'NRCA2_TAMASK210R'])
+
 test_nircam_blc_circ_45 =  lambda : do_test_nircam_blc(kind='circular', angle=45)
 test_nircam_blc_circ_0 =   lambda : do_test_nircam_blc(kind='circular', angle=0)
+
 
 @pytest.mark.xfail
 def test_nircam_blc_wedge_0():
@@ -172,7 +176,7 @@ def test_nircam_get_detector():
     nc=webbpsf_core.NIRCam()
 
     detname = nc.detector
-    assert detname=='A1'
+    assert detname=='NRCA1'
 
 
 
