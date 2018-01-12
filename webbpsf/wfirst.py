@@ -279,14 +279,14 @@ class WFI(WFIRSTInstrument):
         super(WFI, self).__init__("WFI", pixelscale=pixelscale)
 
         self._detector_npixels=4096
-        self._detectors = _load_wfi_detector_aberrations(os.path.join(self._datapath, 'wim_zernikes_cycle6.csv'))
+        self._detectors = _load_wfi_detector_aberrations(os.path.join(self._datapath, 'wim_zernikes_cycle7.csv'))
         assert len(self._detectors.keys()) > 0
         self.detector = 'SCA01'
 
         # Paths to the two possible pupils. The correct one is selected based on requested
         # wavelengths in _validateConfig()
-        self._unmasked_pupil_path = os.path.join(self._WebbPSF_basepath, 'wfc_pupil_rev_mcr.fits')
-        self._masked_pupil_path = os.path.join(self._WebbPSF_basepath, 'wfc_pupil_masked_rev_mcr.fits')
+        self._unmasked_pupil_path = os.path.join(self._WebbPSF_basepath, 'WFIRST_SRR_WFC_Pupil_Mask_Shortwave_2048.fits')
+        self._masked_pupil_path = os.path.join(self._WebbPSF_basepath, 'WFIRST_SRR_WFC_Pupil_Mask_Longwave_2048.fits')
 
         # Flag to en-/disable automatic selection of the appropriate pupil_mask
         self.auto_pupil = True
