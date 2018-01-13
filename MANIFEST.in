@@ -1,7 +1,7 @@
 include README.rst
-include webbpsf/otelm *.fits
+include webbpsf/otelm *
 
-recursive-include webbpsf *.pyx *.c *.fits
+recursive-include webbpsf *.pyx *.c
 include ez_setup.py
 include ah_bootstrap.py
 include setup.cfg
