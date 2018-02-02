@@ -309,7 +309,6 @@ class WFI(WFIRSTInstrument):
             os.path.join(self._WebbPSF_basepath, 'upscaled_HST_OPD.fits'),
         ]
         self.pupilopd = self.opd_list[-1]
-        self.set_pupil_mask_on = None  # Overrides pupil mask default.
 
     def _validateConfig(self, **kwargs):
         """Validates that the WFI is configured sensibly
