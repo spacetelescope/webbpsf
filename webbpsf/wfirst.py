@@ -346,17 +346,17 @@ class WFI(WFIRSTInstrument):
         self.auto_pupil = False
         _log.info("Using custom pupil mask")
         self.pupil = self._masked_pupil_path
-        self._validateConfig()
 
     def toggle_pupil_mask_off(self):
         self.auto_pupil = False
         _log.info("Using custom pupil mask")
         self.pupil = self._unmasked_pupil_path
-        self._validateConfig()
 
     def toggle_pupil_default(self):
         self.auto_pupil = True
-        self._validateConfig()
+        _log.info("Using automatic selection of the appropriate pupil_mask")
+        # Use default mask
+        self.pupil = self._unmasked_pupil_path
 
 
 class CGI(WFIRSTInstrument):
