@@ -280,7 +280,8 @@ class WFI(WFIRSTInstrument):
         Parameters
         -----------
         set_pupil_mask_on : bool
-            Set mask on/off -> true/false pupil.
+            Set pupil mask on/off (true/false).
+            To use default settings set to None.
         """
         pixelscale = 110e-3  # arcsec/px, WFIRST-AFTA SDT report final version (p. 91)
         super(WFI, self).__init__("WFI", pixelscale=pixelscale)
@@ -300,10 +301,13 @@ class WFI(WFIRSTInstrument):
 
         self.pupil = self._unmasked_pupil_path
         if set_pupil_mask_on is not None:
-            self.auto_pupil = False
-            _log.info("Using custom pupil mask")
-            if set_pupil_mask_on:
-                self.pupil = self._masked_pupil_path
+            if isinstance(set_pupil_mask_on, bool):
+                self.auto_pupil = False
+                _log.info("Using custom pupil mask")
+                if set_pupil_mask_on:
+                    self.pupil = self._masked_pupil_path
+            else:
+                raise TypeError("set_pupil_mask_on parameter must be boolean")
 
         self.opd_list = [
             os.path.join(self._WebbPSF_basepath, 'upscaled_HST_OPD.fits'),
