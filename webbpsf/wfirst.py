@@ -279,9 +279,9 @@ class WFI(WFIRSTInstrument):
         Initiate WFI
         Parameters
         -----------
-        set_pupil_mask_on : bool
-            Set pupil mask on/off (True/False).
-            To use default settings set to None.
+        set_pupil_mask_on : bool or None
+            Set to True or False to force using or not using the cold pupil mask,
+            or to None for the automatic behavior.
         """
         pixelscale = 110e-3  # arcsec/px, WFIRST-AFTA SDT report final version (p. 91)
         super(WFI, self).__init__("WFI", pixelscale=pixelscale)
@@ -342,21 +342,25 @@ class WFI(WFIRSTInstrument):
             pass
         super(WFI, self)._validateConfig(**kwargs)
 
-    def toggle_pupil_mask_on(self):
-        self.auto_pupil = False
-        _log.info("Using custom pupil mask")
-        self.pupil = self._masked_pupil_path
+    def toggle_pupil_mask(self, set_pupil_mask_on):
+        """ Determine whether to use the pupil mask
 
-    def toggle_pupil_mask_off(self):
-        self.auto_pupil = False
-        _log.info("Using custom pupil mask")
-        self.pupil = self._unmasked_pupil_path
+             Parameters
+             ------------
+             set_pupil_mask_on : bool or None
+                  Set to True or False to force using or not using the cold pupil mask,
+                  or to None for the automatic behavior.
+        """
 
-    def toggle_pupil_default(self):
-        self.auto_pupil = True
-        _log.info("Using automatic selection of the appropriate pupil_mask")
-        # Use default mask
-        self.pupil = self._unmasked_pupil_path
+        if set_pupil_mask_on is None:
+            self.auto_pupil = True
+        else:
+            self.auto_pupil = False
+            _log.info("Using custom pupil mask")
+            if set_pupil_mask_on:
+                self.pupil = self._masked_pupil_path
+            else:
+                self.pupil = self._unmasked_pupil_path
 
 
 class CGI(WFIRSTInstrument):
