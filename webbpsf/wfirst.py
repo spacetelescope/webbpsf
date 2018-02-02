@@ -274,14 +274,12 @@ class WFI(WFIRSTInstrument):
     UNMASKED_PUPIL_WAVELENGTH_MIN, UNMASKED_PUPIL_WAVELENGTH_MAX = 0.760e-6, 1.454e-6
     MASKED_PUPIL_WAVELENGTH_MIN, MASKED_PUPIL_WAVELENGTH_MAX = 1.380e-6, 2.000e-6
 
-    def __init__(self, auto_pupil=True, set_pupil_mask_on=None):
+    def __init__(self, set_pupil_mask_on=None):
         """
         Initiate pupil
         Parameters
         -----------
-        auto_pupil : bool
-            Flag to en-/disable automatic selection of the appropriate pupil_mask
-        mask_pupil : bool
+        set_pupil_mask_on : bool
             Set mask on/off -> true/false pupil.
         """
         pixelscale = 110e-3  # arcsec/px, WFIRST-AFTA SDT report final version (p. 91)
@@ -298,11 +296,12 @@ class WFI(WFIRSTInstrument):
         self._masked_pupil_path = os.path.join(self._WebbPSF_basepath, 'wfc_pupil_masked_rev_mcr.fits')
 
         # Flag to en-/disable automatic selection of the appropriate pupil_mask
-        self.auto_pupil = auto_pupil
+        self.auto_pupil = True
 
         self.pupil = self._unmasked_pupil_path
         if set_pupil_mask_on is not None:
             self.auto_pupil = False
+            _log.info("Using custom pupil mask")
             if set_pupil_mask_on:
                 self.pupil = self._masked_pupil_path
 
@@ -342,11 +341,13 @@ class WFI(WFIRSTInstrument):
 
     def toggle_pupil_mask_on(self):
         self.auto_pupil = False
+        _log.info("Using custom pupil mask")
         self.pupil = self._masked_pupil_path
         self._validateConfig()
 
     def toggle_pupil_mask_off(self):
         self.auto_pupil = False
+        _log.info("Using custom pupil mask")
         self.pupil = self._unmasked_pupil_path
         self._validateConfig()
 
