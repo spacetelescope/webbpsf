@@ -280,7 +280,7 @@ class WFI(WFIRSTInstrument):
         Parameters
         -----------
         set_pupil_mask_on : bool
-            Set pupil mask on/off (true/false).
+            Set pupil mask on/off (True/False).
             To use default settings set to None.
         """
         pixelscale = 110e-3  # arcsec/px, WFIRST-AFTA SDT report final version (p. 91)
