@@ -1248,8 +1248,7 @@ class OTE_Linear_Model_WSS(OPD):
 
         apmask = np.ones_like(Xc) # by construction, we're only evaluating this for the good pixels
 
-        hexikes = zernike.hexike_basis_wss(x=Xc, y=Yc, nterms=len(hexike_coeffs),
-            aperture=apmask)
+        hexikes = zernike.hexike_basis_wss(x=Xc, y=Yc, nterms=len(hexike_coeffs))
 
         # returns a list of hexikes each with the same shape as Xc
         if self.remove_piston_tip_tilt:
@@ -1918,7 +1917,7 @@ def setup_image_array(ote, radius=1, size=None, inverted=False, reset=False, ver
 
     assert isinstance(ote, OTE_Linear_Model_WSS), "First argument has to be a linear optical model instance."
 
-
+    jsc = None
     if size is not None:
         jsc =  ((size =='jsc') or (size=='jsc_compact') or (size=='jsc_inverted'))
         if not jsc:
