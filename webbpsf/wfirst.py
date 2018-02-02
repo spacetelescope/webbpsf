@@ -276,7 +276,7 @@ class WFI(WFIRSTInstrument):
 
     def __init__(self, set_pupil_mask_on=None):
         """
-        Initiate pupil
+        Initiate WFI
         Parameters
         -----------
         set_pupil_mask_on : bool
