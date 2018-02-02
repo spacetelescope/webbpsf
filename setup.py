@@ -19,7 +19,7 @@ WARNING: NumPy was not found! setup.py will attempt to install it if asked, but
 """)
 
 import ah_bootstrap
-from setuptools import setup
+from setuptools import setup, find_packages
 
 #A dirty hack to get around some early import/configurations ambiguities
 if sys.version_info[0] >= 3:
@@ -125,6 +125,5 @@ setup(name=PACKAGENAME,
       cmdclass=cmdclassd,
       zip_safe=False,
       use_2to3=True,
-      include_package_data=True,
       **package_info
 )

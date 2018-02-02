@@ -1,5 +1,5 @@
 include README.rst
-include webbpsf/otelm *
+recursive-include  webbpsf/otelm *.fits *.txt
 
 recursive-include webbpsf *.pyx *.c
 include ez_setup.py
