@@ -652,12 +652,8 @@ class JWInstrument(SpaceTelescopeInstrument):
         if not self.include_si_wfe:
             return None
 
-        zernike_file = os.path.join(utils.get_webbpsf_data_path(),'si_zernikes_isim_cv3.fits')
+        optic = self._si_wfe_class(self)
 
-        if not os.path.exists(zernike_file):
-            raise RuntimeError("Could not find Zernike coefficients file in WebbPSF data directory")
-        else:
-            optic = self._si_wfe_class(self)
         return optic
 
     def _tel_coords(self):
