@@ -1096,7 +1096,7 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
             # Cubic interpolation of of non-uniform 2D grid
             cf = griddata((v2, v3), zvals, (v2_tel, v3_tel), method='cubic').tolist()
             # If outside of grid space, then use nearest neighbor
-            cf = self.row[zkey]
+            if np.isnan(cf): cf = self.row[zkey]
             coeffs.append(cf)
 
         self.zernike_coeffs = coeffs
