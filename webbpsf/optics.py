@@ -826,7 +826,7 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
             sigmar.clip(min=np.finfo(sigmar.dtype).tiny, max=2*np.pi, out=sigmar)
             self.transmission = (1 - (np.sin(sigmar) / sigmar) ** 2)
             # TODO pattern should be truncated past first sidelobe
-            self.transmission[x==0] = 0   # special case center point (value based on L'Hopital's rule)
+            self.transmission[y==0] = 0   # special case center point (value based on L'Hopital's rule)
             # the bar should truncate at +- 10 arcsec:
             woutside = np.where(np.abs(x) > 10)
             self.transmission[woutside] = 1.0
