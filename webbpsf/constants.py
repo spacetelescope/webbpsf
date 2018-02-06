@@ -238,6 +238,8 @@ JWST_PRIMARY_SEGMENT_CENTERS = (
     ('C6-18', (-1.142963, 1.979670))
 )
 
+# TODO - add in V1 positions to the above? 0.055154 for As, 0.218578 Bs, 0.164535 Cs
+
 JWST_SEGMENT_RADIUS = 1.517 / 2
 JWST_CIRCUMSCRIBED_DIAMETER = 6.603464  # meters. Outer corners of B segments
 JWST_INSCRIBED_DIAMETER = 5.47334 # meters. Middle corners of C segments

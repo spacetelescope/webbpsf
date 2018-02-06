@@ -202,6 +202,17 @@ def test_unicode_filter_names():
 
     assert np.array_equal(psf_unicode[0].data, psf_str[0].data)
 
+
+def do_test_set_position_from_siaf(iname, more_apertures=[]):
+    """ Test that we can use the mapping from image mask names to
+    aperture names to set detector positions automatically when
+    image masks are selected. """
+    inst = webbpsf_core.Instrument(iname)
+    for im in inst.image_mask_list:
+        inst.image_mask = im
+    for apname in more_apertures:
+        inst.set_position_from_aperture_name(apname)
+
 #------------------    Utility Function Tests    ----------------------------
 
 
@@ -232,18 +243,20 @@ def test_calc_or_load_PSF(outputdir=None):
     filename =  os.path.join(outputdir, "test_calc_or_load_output.fits")
     if os.path.exists(filename): os.unlink(filename)
 
-    webbpsf_core.calc_or_load_PSF(filename, nc, monochromatic=2e-6)
-
+    f0 = webbpsf_core.calc_or_load_PSF(filename, nc, monochromatic=2e-6)
+    f0.close()
     assert os.path.exists(filename)
 
     #this one should not re-calc since the file already exists:
     # TODO - add some checking here of file modification date/times
-    webbpsf_core.calc_or_load_PSF(filename, nc, monochromatic=2e-6)
+    f1 = webbpsf_core.calc_or_load_PSF(filename, nc, monochromatic=2e-6)
     assert os.path.exists(filename)
+    f1.close()
 
     # this one should recalc since we explicitly ask it to
-    webbpsf_core.calc_or_load_PSF(filename, nc, monochromatic=2e-6, clobber=True)
+    f2 = webbpsf_core.calc_or_load_PSF(filename, nc, monochromatic=2e-6, clobber=True)
     assert os.path.exists(filename)
+    f2.close()
 
 #--------------------------------------------------------------------------------
 

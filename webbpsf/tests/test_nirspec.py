@@ -14,7 +14,7 @@ import poppy
 
 #------------------    NIRSpec Tests    ----------------------------
 
-from .test_webbpsf import generic_output_test, do_test_source_offset
+from .test_webbpsf import generic_output_test, do_test_source_offset, do_test_set_position_from_siaf
 
 test_nirspec= lambda : generic_output_test('NIRSpec')
 
@@ -23,3 +23,6 @@ test_nirspec= lambda : generic_output_test('NIRSpec')
 # better than 1/10th of a pixel precision using default settings.
 test_nirspec_source_offset_00 = lambda : do_test_source_offset('NIRSpec', theta=0.0, tolerance=0.1, monochromatic=3e-6)
 test_nirspec_source_offset_45 = lambda : do_test_source_offset('NIRSpec', theta=45.0, tolerance=0.1, monochromatic=3e-6)
+
+test_nirspec_set_siaf = lambda : do_test_set_position_from_siaf('NIRSpec')
+

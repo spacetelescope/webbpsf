@@ -701,7 +701,8 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
         "F187N": -1.571,
         "F210M": -0.071,
         "F212N":  0.143,
-        "F200W":  0.232}
+        "F200W":  0.232,
+        'narrow':-8.00}
     """ Offsets per filter along SWB occulter for module A, in arcsec"""
 
     offset_lwb = {"F250M":  6.846,
@@ -714,7 +715,8 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
         "F430M":  1.043,
         "F460M": -0.098,
         "F480M": -0.619,
-        "F444W": -0.768}
+        "F444W": -0.768,
+        'narrow': 8.0}
     """ Offsets per filter along LWB occulter for module A, in arcsec"""
 
 
@@ -748,7 +750,7 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
             offsets = self.offset_swb if self.name.lower()=='maskswb' else self.offset_lwb
             try:
                 bar_offset = offsets[auto_offset]
-                _log.debug("Automatically set bar offset to {} for filter {} on {}.".format(bar_offset, auto_offset, self.name))
+                _log.debug("Set bar offset to {} based on requested filter {} on {}.".format(bar_offset, auto_offset, self.name))
             except:
                 raise ValueError("Filter {} does not have a defined nominal offset position along {}".format(auto_offset,self.name))
 
@@ -1053,9 +1055,13 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
         self.tel_coords = instrument._tel_coords()
 
         # load the Zernikes table here
+        zernike_file = os.path.join(utils.get_webbpsf_data_path(),'si_zernikes_isim_cv3.fits')
 
-        self.ztable_full = Table.read(os.path.join(utils.get_webbpsf_data_path(),
-                                                   'si_zernikes_isim_cv3.fits'))
+        if not os.path.exists(zernike_file):
+            raise RuntimeError("Could not find Zernike coefficients file in WebbPSF data directory")
+        else:
+            self.ztable_full = Table.read(zernike_file)
+
         # Determine the pupil sampling of the first aperture in the
         # instrument's optical system
         if isinstance(instrument.pupil, fits.HDUList):

@@ -220,6 +220,8 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
                 if name not in self.image_mask_list: # if still not found, that's an error.
                     raise ValueError("Instrument %s doesn't have an image mask called '%s'." % (self.name, name))
         self._image_mask = name
+        if hasattr(self, '_image_mask_apertures') and name in self._image_mask_apertures:
+            self.set_position_from_aperture_name(self._image_mask_apertures[name])
 
     @property
     def pupil_mask(self):
@@ -565,7 +567,9 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
             raise ValueError("The supplied file, %s, does not appear to be a FITS table "
                              "with WAVELENGTH and THROUGHPUT columns." % filter_info.filename)
 
+        filterfits.close()
         return band
+
 
 #######  JWInstrument classes  #####
 
@@ -648,12 +652,8 @@ class JWInstrument(SpaceTelescopeInstrument):
         if not self.include_si_wfe:
             return None
 
-        zernike_file = os.path.join(utils.get_webbpsf_data_path(),'si_zernikes_isim_cv3.fits')
+        optic = self._si_wfe_class(self)
 
-        if not os.path.exists(zernike_file):
-            raise RuntimeError("Could not find Zernike coefficients file in WebbPSF data directory")
-        else:
-            optic = self._si_wfe_class(self)
         return optic
 
     def _tel_coords(self):
@@ -678,6 +678,21 @@ class JWInstrument(SpaceTelescopeInstrument):
         coords[1] = -coords[1] - 468*units.arcsec
         return coords
 
+    def set_position_from_aperture_name(self, aperture_name):
+        """ Set the simulated center point of the array based on a named SIAF aperture.
+        This will adjust the detector and detector position attributes.
+        """
+        siaf = SIAF(self.name)
+        try:
+            ap = siaf[aperture_name]
+
+            self.detector_position = (ap.XDetRef, ap.YDetRef)
+            detname = aperture_name.split('_')[0]
+            self.detector = detname
+            _log.debug("From {} set det. pos. to {} {}".format(aperture_name, detname, self.detector_position))
+
+        except KeyError:
+            raise ValueError("Not a valid aperture name for {}: {}".format(self.name, aperture_name))
 
     def _getFITSHeader(self, result, options):
         """ populate FITS Header keywords """
@@ -706,6 +721,11 @@ class MIRI(JWInstrument):
 
         self.image_mask_list = ['FQPM1065', 'FQPM1140', 'FQPM1550', 'LYOT2300', 'LRS slit']
         self.pupil_mask_list = ['MASKFQPM', 'MASKLYOT', 'P750L LRS grating']
+
+        self._image_mask_apertures = {'FQPM1065': 'MIRIM_CORON1065',
+                                      'FQPM1140': 'MIRIM_CORON1140',
+                                      'FQPM1550': 'MIRIM_CORON1550',
+                                      'LYOT2300': 'MIRIM_CORONLYOT'}
 
         self.monochromatic = 8.0
         self._IFU_pixelscale = {
@@ -933,7 +953,7 @@ class NIRCam(JWInstrument):
         # so the overridden filter setter will work successfully inside that.
         self.auto_channel = True
         self._filter='F200W'
-        self._detector='A1'
+        self._detector='NRCA1'
 
         JWInstrument.__init__(self, "NIRCam") # do this after setting the long & short scales.
 
@@ -941,20 +961,26 @@ class NIRCam(JWInstrument):
         self._filter='F200W'                     # likewise need to redo
 
         self.image_mask_list = ['MASKLWB','MASKSWB','MASK210R','MASK335R','MASK430R']
+        self._image_mask_apertures = {'MASKLWB':'NRCA5_MASKLWB',
+                                      'MASKSWB':'NRCA4_MASKSWB',
+                                      'MASK210R':'NRCA2_MASK210R',
+                                      'MASK335R':'NRCA5_MASK335R',
+                                      'MASK430R':'NRCA5_MASK430R'}
 
-        self.pupil_mask_list = ['CIRCLYOT','WEDGELYOT',
-                'WEAK LENS +4', 'WEAK LENS +8', 'WEAK LENS -8', 'WEAK LENS +12 (=4+8)','WEAK LENS -4 (=4-8)']
+        self.pupil_mask_list = ['CIRCLYOT','WEDGELYOT', 'MASKRND', 'MASKSWB','MASKLWB',  # The last 3 of these are synonyms
+                'WEAK LENS +4', 'WEAK LENS +8', 'WEAK LENS -8', 'WEAK LENS +12 (=4+8)','WEAK LENS -4 (=4-8)',
+                'WLP4', 'WLM4', 'WLP8', 'WLM8', 'WLP12']
 
         self._detectors = dict()
         det_list = ['A1','A2','A3','A4','A5', 'B1','B2','B3','B4','B5']
-        for name in det_list: self._detectors[name] = 'NRC{0}_FULL'.format(name)
+        for name in det_list: self._detectors["NRC{0}".format(name)] = 'NRC{0}_FULL'.format(name)
         self.detector=self.detector_list[0]
 
         self._si_wfe_class = optics.NIRCamFieldAndWavelengthDependentAberration
 
     @property
     def module(self):
-        return self._detector[0]
+        return self._detector[3]
 
     @property
     def channel(self):
@@ -973,7 +999,7 @@ class NIRCam(JWInstrument):
             wlnum = int(self.filter[1:4])
             if wlnum >= 250:
                 #ensure long wave by switching to detector 5
-                self.detector = self.detector[0]+'5'
+                self.detector = self.detector[0:4]+'5'
                 if self.pixelscale==self._pixelscale_short:
                     self.pixelscale = self._pixelscale_long
                     _log.info("NIRCam pixel scale switched to %f arcsec/pixel for the "
@@ -981,8 +1007,8 @@ class NIRCam(JWInstrument):
             else:
                 # only change if the detector was already LW;
                 # don't override selection of a particular SW SCA otherwise
-                if self.detector[1] == '5':
-                    self.detector = self.detector[0]+'1'
+                if self.detector[-1] == '5':
+                    self.detector = self.detector[0:4]+'1'
                 if self.pixelscale==self._pixelscale_long:
                     self.pixelscale = self._pixelscale_short
                     _log.info("NIRCam pixel scale switched to %f arcsec/pixel for the "
@@ -1058,7 +1084,22 @@ class NIRCam(JWInstrument):
             SAM_box_size = 5.0
         elif ((self.image_mask == 'MASKSWB') or (self.image_mask == 'MASKLWB')):
             bar_offset = self.options.get('bar_offset',None)
-            auto_offset = self.filter if bar_offset is None else None
+            # If the bar offset is not provided, use the filter name to lookup the default
+            # position. If an offset is provided and is a floating point value, use that
+            # directly as the offset. Otherwise assume it's a filter name and try passing
+            # that in to the auto offset. (that allows for selecting the narrow position, or
+            # for simulating using a given filter at some other filter's position.)
+            if bar_offset is None:
+                auto_offset = self.filter
+            else:
+                try:
+                    _ = float(bar_offset)
+                    auto_offset = None
+                except ValueError:
+                    # If the "bar_offset" isn't a float, pass it to auto_offset instead
+                    auto_offset = bar_offset
+                    bar_offset = None
+
             optsys.add_image( NIRCam_BandLimitedCoron(name=self.image_mask, module=self.module,
                     nd_squares=nd_squares, bar_offset=bar_offset, auto_offset=auto_offset),
                     index=2)
@@ -1086,36 +1127,36 @@ class NIRCam(JWInstrument):
         WL_wavelength =   2.12    # microns
 
         #optsys.add_pupil( name='null for debugging NIRcam _addCoron') # debugging
-        if self.pupil_mask == 'CIRCLYOT':
+        if self.pupil_mask == 'CIRCLYOT' or self.pupil_mask=='MASKRND':
             optsys.add_pupil(transmission=self._datapath+"/optics/NIRCam_Lyot_Somb.fits.gz", name=self.pupil_mask,
                     flip_y=True, shift=shift, index=3)
-            optsys.planes[3].wavefront_display_hint='intensity'
-        elif self.pupil_mask == 'WEDGELYOT':
+            optsys.planes[-1].wavefront_display_hint='intensity'
+        elif self.pupil_mask == 'WEDGELYOT' or self.pupil_mask=='MASKSWB' or self.pupil_mask=='MASKLWB':
             optsys.add_pupil(transmission=self._datapath+"/optics/NIRCam_Lyot_Sinc.fits.gz", name=self.pupil_mask,
                     flip_y=True, shift=shift, index=3)
-            optsys.planes[3].wavefront_display_hint='intensity'
-        elif self.pupil_mask == 'WEAK LENS +4':
+            optsys.planes[-1].wavefront_display_hint='intensity'
+        elif self.pupil_mask == 'WEAK LENS +4' or  self.pupil_mask == 'WLP4':
             optsys.add_pupil(poppy.ThinLens(
                 name='Weak Lens +4',
                 nwaves=WLP4_diversity / WL_wavelength,
                 reference_wavelength=WL_wavelength*1e-6, #convert microns to meters
                 radius=self.pupil_radius
             ), index=3)
-        elif self.pupil_mask == 'WEAK LENS +8':
+        elif self.pupil_mask == 'WEAK LENS +8'  or  self.pupil_mask == 'WLP8':
             optsys.add_pupil(poppy.ThinLens(
                 name='Weak Lens +8',
                 nwaves=WLP8_diversity / WL_wavelength,
                 reference_wavelength=WL_wavelength*1e-6,
                 radius=self.pupil_radius
             ), index=3)
-        elif self.pupil_mask == 'WEAK LENS -8':
+        elif self.pupil_mask == 'WEAK LENS -8'  or  self.pupil_mask == 'WLM8':
             optsys.add_pupil(poppy.ThinLens(
                 name='Weak Lens -8',
                 nwaves=WLM8_diversity / WL_wavelength,
                 reference_wavelength=WL_wavelength*1e-6,
                 radius=self.pupil_radius
             ), index=3)
-        elif self.pupil_mask == 'WEAK LENS +12 (=4+8)':
+        elif self.pupil_mask == 'WEAK LENS +12 (=4+8)'  or  self.pupil_mask == 'WLP12':
             stack = poppy.CompoundAnalyticOptic(name='Weak Lens Pair +12', opticslist=[
                 poppy.ThinLens(
                     name='Weak Lens +4',
@@ -1131,7 +1172,7 @@ class NIRCam(JWInstrument):
                 )]
             )
             optsys.add_pupil(stack, index=3)
-        elif self.pupil_mask == 'WEAK LENS -4 (=4-8)':
+        elif self.pupil_mask == 'WEAK LENS -4 (=4-8)'  or  self.pupil_mask == 'WLM4':
             stack = poppy.CompoundAnalyticOptic(name='Weak Lens Pair -4', opticslist=[
                 poppy.ThinLens(
                     name='Weak Lens +4',
@@ -1314,7 +1355,7 @@ class NIRISS(JWInstrument):
         self.image_mask_list = ['CORON058', 'CORON075','CORON150','CORON200'] # available but unlikely to be used...
         self.pupil_mask_list = ['CLEARP', 'MASK_NRM','GR700XD']
 
-        self._detectors = {'NIRISS':'NIS_CEN'}
+        self._detectors = {'NIS':'NIS_CEN'}
         self.detector=self.detector_list[0]
 
 
@@ -1636,8 +1677,8 @@ def one_segment_pupil(segmentname):
     segmap = os.path.join(utils.get_webbpsf_data_path(), "JWpupil_segments.fits")
 
     newpupil = fits.open(segmap)
-    if newpupil[0].header['VERSION'] != 2:
-        raise RuntimeError("Expecting file version 2 for JWpupil_segments.fits")
+    if newpupil[0].header['VERSION'] < 2:
+        raise RuntimeError("Expecting file version >= 2 for JWpupil_segments.fits")
 
     segment_official_name = segname(segmentname)
     num = int(segment_official_name.split('-')[1])

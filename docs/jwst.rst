@@ -136,6 +136,35 @@ WebbPSF won't prevent users from simulating configuration using a coronagraph
 image mask without the Lyot stop, but that's not something that can be done for
 real with NIRCam.
 
+Note, the Lyot masks have multiple names for historical reasons: The names 
+'CIRCLYOT' and 'WEDGELYOT' have been used since early in WebbPSF development, and
+can still be used, but the same masks can also be referred to as "MASKRND" and 
+"MASKSWB" or "MASKLWB", the nomenclature that was eventually adopted for use in
+APT and other JWST documentation. Both ways work and will continue to do so.
+
+**Offsets along the MASKLWB and MASKSWB masks**:
+
+Each allowable filter has its own default location along one of these masks. The appropriate offset is automatically selected
+in WebbPSF based on the currently selected filter name. If you want to do something different, you can
+set the ``bar_offset`` option::
+
+   >>> nc.options['bar_offset'] = 2.0    # Offsets 2 arcseconds in +X along the mask
+   or
+   >>> nc.options['bar_offset'] = 'F480M'  # Use the position for F480M regardless of the currently selected filter
+
+Note that just because you can simulate such arbitrary position in WebbPSF does not mean you can
+easily actually achieve that pointing with the flight hardware.
+
+
+.. image:: ./fig_maskswb_offsets_v3.png
+    :scale: 50%
+    :alt: MASKSWB Offsets
+
+.. image:: ./fig_masklwb_offsets_v3.png
+    :scale: 50%
+    :alt: MASKLWB Offsets
+
+
 
 Weak Lenses for Wavefront Sensing
 ---------------------------------

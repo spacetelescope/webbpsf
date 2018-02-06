@@ -168,7 +168,7 @@ MISSING_WEBBPSF_DATA_MESSAGE = """
  *  version of the software requires a newer set of reference files than    *
  *  you have installed.  For more details see:                              *
  *                                                                          *
- *           http://pythonhosted.org/webbpsf/installation.html              *
+ *        https://webbpsf.readthedocs.io/en/stable/installation.html        *
  *                                                                          *
  *  under "Installing the Required Data Files".                             *
  *  WebbPSF will not be able to function properly until the appropriate     *
@@ -220,7 +220,7 @@ def get_webbpsf_data_path(data_version_min=None, return_version=False):
             sys.stderr.write(MISSING_WEBBPSF_DATA_MESSAGE)
             raise EnvironmentError(
                 "Couldn't read the version number from {}. (Do you need to update the WebbPSF "
-                "data? See http://pythonhosted.org/webbpsf/installation.html#data-install "
+                "data? See https://webbpsf.readthedocs.io/en/stable/installation.html#data-install "
                 "for a link to the latest version.)".format(version_file_path)
             )
 
@@ -228,7 +228,7 @@ def get_webbpsf_data_path(data_version_min=None, return_version=False):
             sys.stderr.write(MISSING_WEBBPSF_DATA_MESSAGE)
             raise EnvironmentError(
                 "WebbPSF data package has version {cur}, but {min} is needed. "
-                "See http://pythonhosted.org/webbpsf/installation.html#data-install "
+                "See https://webbpsf.readthedocs.io/en/stable/installation.html#data-install "
                 "for a link to the latest version.".format(
                     cur=version_contents,
                     min='{}.{}.{}'.format(*data_version_min)

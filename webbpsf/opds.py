@@ -126,9 +126,31 @@ class OPD(poppy.FITSOpticalElement):
         full_seg_mask_file = os.path.join(utils.get_webbpsf_data_path(),segment_mask_file)
         self._segment_masks = fits.getdata(full_seg_mask_file)
 
-        #seg_rotangles= np.concatenate([np.arange(6)*60, np.arange(6)*60, np.arange(6)*60])  # rotation angle of each segment relative to the A1/B1/C1 set
+
+        # Where are the centers of each segment?  From OTE design geometry
+        self._seg_centers_m = {seg[0:2]: np.asarray(cen)
+                for seg, cen in constants.JWST_PRIMARY_SEGMENT_CENTERS}
+        # convert the center of each segment to pixels for the current array sampling:
+        self._seg_centers_pixels = {seg[0:2]: self.shape[0]/2+ np.asarray(cen)/self.pixelscale.value
+                for seg, cen in constants.JWST_PRIMARY_SEGMENT_CENTERS}
+
+        # And what are the angles of the local control coordinate systems?
         self._rotations =  {}
-        for i in range(18): self._rotations[self.segnames[i]] =  (int(self.segnames[i][1])-1)*60 # seg_rotangles[i]
+        self._control_xaxis_rotations =  {}
+        self._control_xaxis_rot_base = {'A': 180,   # Rotations of local control coord
+                                        'B': 0,     # X axes, CCW relative to V2 axis
+                                        'C': 60}    # for A,B,C1
+
+        for i in range(18):
+            seg  = self.segnames[i]
+            self._rotations[seg] =  (int(seg[1])-1)*60 # seg_rotangles[i]
+            self._control_xaxis_rotations[seg] = (self._control_xaxis_rot_base[seg[0]] + 
+                    -1 * self._rotations[seg] )
+                    
+
+        self._seg_tilt_angles = {'A':-4.7644,  # Tilts of local normal vector
+                                 'B': 9.4210,  # relative to the V1 axis, around
+                                 'C':-8.1919}  # the local X axis, or Y axis for Cs
 
         self.name=name
         self.header = self.opd_header # convenience reference
@@ -285,7 +307,9 @@ class OPD(poppy.FITSOpticalElement):
 
         return np.asarray(components)
 
-    def display_opd(self, ax=None, labelsegs=True, vmax=150., colorbar=True, clear=False, title= None, unit='nm', cbpad=None, colorbar_orientation='vertical',
+    def display_opd(self, ax=None, labelsegs=True, vmax=150., colorbar=True, clear=False, title= None, unit='nm',
+            cbpad=None, colorbar_orientation='vertical',
+            show_axes=False, show_rms=True,
             cmap=None):
         """ Draw on screen the perturbed OPD
 
@@ -338,20 +362,18 @@ class OPD(poppy.FITSOpticalElement):
 
         _log.debug("Displaying OPD. Vmax is %f, data max is %f " % (vmax, self.opd.max()))
 
-        #if self.remove_piston_tip_tilt: title +", Piston/tip/tilt removed"
         if title is None:
             title=self.name
         ax.set_title(title)
-        ax.set_xlabel("RMS WFE = %.1f nm" % self.rms())
+        if show_rms:
+            ax.set_xlabel("RMS WFE = %.1f nm" % self.rms())
 
         if labelsegs:
             for seg in self.segnames[0:18]:
-                self.label_seg(seg, ax=ax)
+                self.label_seg(seg, ax=ax, show_axes=show_axes)
         if colorbar:
             if cbpad is None:
                 cbpad = 0.05 if colorbar_orientation=='vertical' else 0.15
-            #pts = plt.gca().get_position().get_points()
-            #col_ax = plt.gcf().add_axes([0.92, pts[0,1]+0.08, 0.02, 0.62 ])
             cb= plt.colorbar(plot, ax=ax, pad=cbpad, orientation=colorbar_orientation)
             cb.set_label("WFE [%s]" % unit)
         else:
@@ -360,21 +382,72 @@ class OPD(poppy.FITSOpticalElement):
 
         return (ax, cb)
 
-    def label_seg(self, segment, ax=None, color='black'):
+    def label_seg(self, segment, ax=None, show_axes=False, color='black'):
         Y, X = np.indices(self.opd.shape)
 
-        base = {'A':0, 'B':6,'C':12}
+        #base = {'A':0, 'B':6,'C':12}
         iseg = np.where(self.segnames == segment)[0][0]+1  # segment index from 1 - 18
         #iseg = base[segment.upper()[0]]+int(segment[1])
-        wseg = np.where(self._segment_masks == iseg)
-        pupilscale = self.opd_header['PUPLSCAL']
-        cx = (np.mean([X[wseg].min(), X[wseg].max()])  -512) * pupilscale
-        cy = (np.mean([Y[wseg].min(), Y[wseg].max()])  -512) * pupilscale
+        #wseg = np.where(self._segment_masks == iseg)
+        #pupilscale = self.opd_header['PUPLSCAL']
+        cx, cy = self._seg_centers_m[segment]
+        #cx = (np.mean([X[wseg].min(), X[wseg].max()])  -512) * pupilscale
+        #cy = (np.mean([Y[wseg].min(), Y[wseg].max()])  -512) * pupilscale
+
+        offset = 0.2 if show_axes else 0
 
         if ax is None: ax = plt.gca()
-        label = ax.text(cx,cy, segment, color=color, horizontalalignment='center',verticalalignment='center')
+        label = ax.text(cx+offset, cy+offset, segment, color=color, horizontalalignment='center',verticalalignment='center')
+
+        if show_axes:
+            ax_arrow_len = .3
+            #if not ('C' in segment ): 
+            if True:
+
+                for i, color, label in zip([0,1,2],['green','blue','red'],['x','y','z']):
+                    vec = np.matrix([0,0,0]).transpose() # xyz order
+                    vec[i] = 1
+                    b = self._rot_matrix_local_to_global(segment)*vec
+                    b = np.asarray(b).flatten() # Inelegant but it works
+
+                    ax.arrow(cx, cy, ax_arrow_len*b[0], ax_arrow_len*b[1], color=color,
+                            #width=ax,
+                            head_width=.050, head_length=.080) # in units of mm
+                    
+                    xoffset= 0.1 if i==2 else 0
+                    ax.text(cx+ ax_arrow_len*b[0]*1.5+xoffset, cy+ax_arrow_len*b[1]*1.5, label, 
+                            color=color, fontsize=8,
+                            horizontalalignment='center',verticalalignment='center'
+                            )
+
+
         ax.get_figure().canvas.draw()
         return label
+
+    def _rot_matrix_local_to_global(self, segname):
+        """ Rotation matrix from Local to Global coordinates
+
+        Inverse of _rot_matrix_global_to_local
+        """
+        from . import geometry
+        tilt = self._seg_tilt_angles[segname[0]]
+        xaxis_rot =  self._control_xaxis_rotations[segname]
+        if 'C' in segname:  # Cs are tilted about Y, ABs tilted about X
+            return geometry.rot_matrix_z(xaxis_rot) * geometry.rot_matrix_y(tilt)
+        else:
+            return geometry.rot_matrix_z(xaxis_rot) * geometry.rot_matrix_x(tilt)
+
+    def _rot_matrix_global_to_local(self, segname):
+        """ Rotation matrix from Global to Local coordinates
+        """
+        from . import geometry
+        tilt = self._seg_tilt_angles[segname[0]]
+        xaxis_rot =  self._control_xaxis_rotations[segname]
+        if 'C' in segname:  # Cs are tilted about Y, ABs tilted about X
+            return geometry.rot_matrix_y(-tilt) * geometry.rot_matrix_z(-xaxis_rot)
+        else:
+            return geometry.rot_matrix_x(-tilt) * geometry.rot_matrix_z(-xaxis_rot)
+
 
     def zern_seg(self, segment, vmax=150, unit='nm'):
         """ Show the Zernike terms applied to a given segment"""
@@ -564,7 +637,7 @@ class OTE_Linear_Model_Elliott(OPD):
         if type == 'local': # control coords
             print("Segment poses in local Control coordinates: (microns for decenter & piston, microradians for tilts, milliradians for clocking):")
             print("  \t %10s %10s %10s %10s %10s %10s" % ("X dec", "Y dec", "Z piston", "X tilt", "Y tilt", "Clocking"))
-            for segment in self.segnames:
+            for segment in self.segnames[0:18]:
                 if segment+"-tilt" in keys:
                     tilts = self.state[segment+"-tilt"].tolist()
                 else:
@@ -575,6 +648,7 @@ class OTE_Linear_Model_Elliott(OPD):
                     decenters = [0,0,0]
 
                 print("%2s\t %10.4f %10.4f %10.4f %10.4f %10.4f %10.4f" % tuple([segment]+decenters+tilts))
+ 
         elif type == 'Report':
             raise NotImplementedError("Coord conversions need work")
             print("Segment positions in Report coordinates: (microns for decenter, microradians for alpha & beta, milliradians for gamma):")
@@ -1006,19 +1080,19 @@ class OTE_Linear_Model_WSS(OPD):
         self.segment_state = np.zeros((19,6), dtype=float)  # 18 segs, 6 controllable DOF each, plus SM
         self.segnames = np.asarray( list(self.segnames)+['SM']) # this model, unlike the above, knows about the SM.
 
-        # calculate the center of each segment in pixels for the current array sampling,
-        # based on the OTE design geometry
-        self._seg_centers_pixels = {seg[0:2]: self.shape[0]/2+ np.asarray(cen)/self.pixelscale.value
-                for seg, cen in constants.JWST_PRIMARY_SEGMENT_CENTERS}
-
         self._opd_original = self.opd.copy() # make a separate copy
         self._jsc = jsc
         self.remove_piston_tip_tilt = rm_ptt
+        self._global_zernike_coeffs = np.zeros(15)
         if self._jsc:
             self._jsc_acf_tilts = np.zeros((3,2))   # only for JSC sims. Tilts in microradians.
-            self._jsc_acf_cens = np.array([[-0.382703, -1.96286  ],  # X center, Y center
-                                           [-1.52316,   1.342146 ],
-                                           [ 1.90478,   0.6781127]])
+
+            # helper diagram taped to WSS monitor says:
+            # 'ACF1' = ABC4, 'ACF2' = ABC6, 'ACF3' = ABC2.
+
+            self._jsc_acf_cens = np.array([[ 1.90478,   0.6781127],  # Segs ABC2  V2, V3
+                                           [-0.382703, -1.96286  ],  # Secs ABC4
+                                           [-1.52316,   1.342146 ]])  # Segs ABC6
             self._jsc_acf_centers_pixels = self.shape[0]/2+self._jsc_acf_cens/self.pixelscale.value
         if zero: self.zero()
 
@@ -1057,10 +1131,22 @@ class OTE_Linear_Model_WSS(OPD):
 
         print("Segment poses in Control coordinates: (microns for decenter & piston, microradians for tilts and clocking):")
         print("  \t %10s %10s %10s %10s %10s %10s" % tuple(self._control_modes))
-        for i, segment in enumerate(self.segnames):
+        for i, segment in enumerate(self.segnames[0:18]):
             thatsegment = self.segment_state[i]
 
             print("%2s\t %10.4f %10.4f %10.4f %10.4f %10.4f %10.4f" % tuple([segment]+thatsegment.tolist()))
+        if len(self.segnames) ==19: # SM is present
+            print("Secondary Mirror Pose in Control coordinates: ")
+            print("  \t %10s %10s %10s %10s %10s     n/a" % tuple(self._sm_control_modes))
+            segment=18
+            thatsegment=self.segment_state[18]
+            print("%2s\t %10.4f %10.4f %10.4f %10.4f %10.4f %10.4f" % tuple([segment]+thatsegment.tolist()))
+        if self._jsc:
+            print("JSC Autocollimating flat tilts: ")
+            print("  \t %10s %10s " % ("Xtilt", "Ytilt"))
+            for i in range(3):
+                print("  \t %10s %10s " % tuple(self._jsc_acf_tilts[i]))
+
 
     #---- segment manipulation via linear model
 
@@ -1194,9 +1280,24 @@ class OTE_Linear_Model_WSS(OPD):
 
         zern_xtilt = Yc * 2e-6  # remember, "Xtilt" means tilt around the X axis
         zern_ytilt = Xc * 2e-6  # Times 1e-6 to convert from microradians of tilt to meters of WFE
-                              # Times 2 since double pass
+                                # Times 2 since double pass, negative since facing the other way
 
         self.opd[wacf] += coeffs[0]*zern_xtilt + coeffs[1]*zern_ytilt
+
+
+    def _apply_global_zernikes(self):
+        """ Apply Zernike perturbations to the whole primary
+
+        """
+
+        if not self.opd.shape==(1024, 1024):
+            raise NotImplementedError("Code need to be generalized for OPD sizes other than 1024**2")
+
+
+        perturbation = poppy.opd_from_zernikes(self._global_zernike_coeffs,
+                npix=1024, basis=poppy.zernike.zernike_basis_faster)
+
+
 
 
     def move_seg_local(self, segment, xtilt=0.0, ytilt=0.0, clocking=0.0, rot_unit='urad',
@@ -1288,19 +1389,138 @@ class OTE_Linear_Model_WSS(OPD):
 
         iseg = np.where(self.segnames ==segment)[0][0]
 
-        # Ordering = xtilt, ytily, piston, clocking, rad trans, roc
+        # Ordering = xtilt, ytilt, piston, clocking, rad trans, roc
         update_vector = [tilts[0], tilts[1], vector[0], tilts[2], vector[1], roc]
         if absolute:
             self.segment_state[iseg][:] = update_vector
         else:
             self.segment_state[iseg][:] += update_vector
 
-#            self.segment_state[iseg][0] += tilts[0] # xtilt
-#            self.segment_state[iseg][1] += tilts[1] # ytilt
-#            self.segment_state[iseg][2] += vector[0] # piston
-#            self.segment_state[iseg][3] += tilts[2] # clocking
-#            self.segment_state[iseg][4] += vector[1] # radial decenter (variously local X or Y)
-#            self.segment_state[iseg][5] += roc
+        if not delay_update:
+            self.update_opd(display=display)
+
+
+    def move_seg_global(self, segment, xtilt=0.0, ytilt=0.0, clocking=0.0, rot_unit='urad',
+                radial=None, xtrans=0.0, ytrans=0.0, piston=0.0, roc=0.0, trans_unit='micron', display=False,
+                delay_update=False, absolute=False):
+        """ Move a segment in pose and/or ROC, using PM global V coordinates..
+
+        These motions are converted into the segment-local "Control" coordinate systems,
+        which are distinct for each segment.
+
+        Parameters
+        -----------
+        segment : str
+            Segment name, e.g. 'A1'. Use 'SM' for the secondary mirror.
+        xtilt, ytilt, clocking : floats
+            Tilt angle, in microradians by default. 'xtilt' means tilt *around the X axis*, and similarly for ytilt.
+        radial, ytrans,xtrans : floats
+            Displacement distance, in microns by default. Note the 'radial' and 'xtrans', 'ytrans' are redundant and
+            included for convenience; the Ball WAS linear optical model uses radial translation as the control DoF, but
+            physically that maps to either x or y translation depending on whether A, B, or C segment, and the Ball MCS
+            algorithms expect X and Y translations.  We support both ways of describing this here.
+        piston : float
+            Displacement distance for piston.
+        roc : float
+            radius of curvature mechanism adjustment, in microns.
+        trans_unit : str
+            Unit for translations. Can be 'micron', 'millimeter','nanometer', 'mm', 'nm', 'um'
+        rot_unit : str
+            Unit for rotations. Can be 'urad', 'radian', 'milliradian', 'arcsec', 'arcmin', 'milliarcsec'
+        absolute : bool
+            Same meaning as for JWST SURs: if true, move the segment to exactly this position. Otherwise moves
+            are treated as incremental relative moves from the current position.
+        display : bool
+            Display after moving?
+        delay_update : bool
+            hold off on computing the WFE change? This is useful for computational efficiency if you're
+            moving a whole bunch of segments at once. Incompatible with display=True.
+
+        """
+
+        # Handle tilts and clocking
+        tilts = np.array([xtilt, ytilt, clocking], dtype=float)
+
+        # Handle displacements. First special handling for radial vs x/y trans to allow both ways.
+        # FIXME if radial provided, assign that value to either ytrans or xtrans
+        if radial is not None:
+            if 'A' in segment:
+                ytrans = -1*radial
+            elif 'B' in segment:
+                ytrans = 1*radial
+            else:
+                xtrans = 1*radial
+
+        vector = np.asarray([xtrans, ytrans, piston ], dtype=float)
+
+        # convert to local coords
+
+
+        local_tilt  = tilts * 1.0
+
+        self.move_seg_global(segment,
+            xtilt=local_tilt[0],
+            ytilt=local_tilt[1],
+            clocking=local_tilt[2],)
+        # FIXME
+        #FIXME - need to complete this fn!
+
+
+        if np.abs(tilts).sum() > 0:
+            self.opd_header.add_history('Rotation: %s %s' % (str(tuple(tilts)), rot_unit))
+
+            # sensitivity matrices are in microns per microradian
+            # so convert all to urad.
+            if rot_unit.endswith('s'): rot_unit = rot_unit[:-1]
+            rot_unit = rot_unit.lower()
+            if rot_unit == 'urad': pass
+            elif rot_unit =='milliarcsec': tilts *= (1e6*np.pi/ (180.*60*60*1000))
+            elif rot_unit =='arcsec': tilts *= (1e6*np.pi/ (180.*60*60))
+            elif rot_unit =='arcmin': tilts *= (1e6*np.pi/ (180.*60))
+            elif rot_unit == 'radian' or rot_unit=='rad': tilts*= 1e6
+            elif rot_unit == 'milliradian' or rot_unit=='mrad': tilts*= 1e3
+            else: raise NotImplementedError('unknown rot_unit')
+
+        # Handle displacements. First special handling for radial vs x/y trans to allow both ways.
+        if radial is None:
+            if xtrans is None and ytrans is None:
+                radial = 0
+            else:
+                if 'A' in segment:
+                    radial = -1*ytrans
+                elif 'B' in segment:
+                    radial = 1*ytrans
+                else:
+                    radial = 1*xtrans
+        else:
+            if xtrans is not None or ytrans is not None:
+                raise RuntimeError("Cannot specify x/ytrans and radial at the same time.")
+
+        vector = np.asarray([piston,radial ], dtype=float)
+        if np.abs(vector).sum() > 0:
+            # influence functions are in microns WFE per micron, so convert all to microns
+            if trans_unit.endswith('s'): trans_unit = trans_unit[:-1]
+            trans_unit = trans_unit.lower()
+            if trans_unit == 'micron' or trans_unit =='um': pass
+            elif trans_unit =='mm' or trans_unit =='millimeter': vector *= 1000
+            elif trans_unit =='nm' or trans_unit =='nanometer' or trans_unit =='nanometers' : vector /= 1000
+            elif trans_unit =='m' or trans_unit =='meter'  : vector *= 1e6
+            else: raise ValueError("Unknown trans_unit for length: %s" % trans_unit)
+
+            self.opd_header.add_history('Displacement: %s %s' % (str(tuple(vector)), trans_unit))
+
+        # Handle ROC. ROC doesn't support any units conversions
+        if np.abs(roc) != 0:
+            self.opd_header.add_history('ROC: %s %s' % (roc, 'micron'))
+
+        iseg = np.where(self.segnames ==segment)[0][0]
+
+        # Ordering = xtilt, ytilt, piston, clocking, rad trans, roc
+        update_vector = [tilts[0], tilts[1], vector[0], tilts[2], vector[1], roc]
+        if absolute:
+            self.segment_state[iseg][:] = update_vector
+        else:
+            self.segment_state[iseg][:] += update_vector
 
         if not delay_update:
             self.update_opd(display=display)
@@ -1391,6 +1611,48 @@ class OTE_Linear_Model_WSS(OPD):
         if not delay_update:
             self.update_opd(display=display)
 
+
+    def move_global_zernikes(self, zvector, unit='micron',
+            absolute=False):
+        """ Add one or more aberrations specified arbitrarily as Zernike polynomials.
+        This assumes no particular physics for the mirror motions, and allows adding
+        any arbitrary WFE.
+
+        Parameters
+        ----------
+        zvector : list or ndarray
+            Zernike coefficients
+
+
+        Note that the Zernikes are interpreted as being with respect to the
+        *CIRCUMSCRIBING* circle.
+        """
+
+
+        if len(zvector) > len(self._global_zernike_coeffs):
+            raise RuntimeError("Too many Zernike coefficients supplied. "+
+                "Need to increase length of global zernike coeffs vector in OTE_Linear_model_WSS.__init__")
+
+        vector = np.asarray(zvector)
+        # Convert to meters, since that's what the OPDs are in
+        if unit.endswith('s'): unit = unit[:-1]
+        unit = unit.lower()
+        if unit == 'micron' or unit =='um': vector *= 1e-6
+        elif unit =='mm' or unit =='millimeter': vector *= 1e-3
+        elif unit =='nm' or unit =='nanometer' or unit =='nanometers' : vector *=1e-9
+        elif unit =='m' or unit =='meter'  : passv
+        else: raise ValueError("Unknown unit for Zernike wavefront RMS: %s" % unit)
+
+
+
+
+        if absolute:
+            self._global_zernike_coeffs *= 0
+        for i in range(len(zvector)): # for loop is inelegant but easily handles len(zvector) < len(coeffs).
+            self._global_zernike_coeffs[i] +=zvector[i]
+
+        if not delay_update:
+            self.update_opd(display=display)
 
 
 
@@ -1571,6 +1833,11 @@ class OTE_Linear_Model_WSS(OPD):
 
                 self._apply_hexikes_to_seg(segname, hexike_coeffs_combined)
 
+        # Apply Global Zernikes
+        if not np.all(self._global_zernike_coeffs==0):
+            self._apply_global_zernikes(self)
+
+        # Apply NASA JSC OTIS test ACF tilts (not relevant in flight)
         if self._jsc and np.any(self._jsc_acf_tilts != 0):
             for iacf in range(3):
                 self._apply_acf_tilt(iacf)
@@ -1583,7 +1850,7 @@ class OTE_Linear_Model_WSS(OPD):
 ################################################################################
 
 
-def enable_adjustable_ote(instr, jsc=False):
+def enable_adjustable_ote(instr, jsc=False, **kwargs):
     """
     Set up a WebbPSF instrument instance to have a modifiable OTE
     wavefront error OPD via an OTE linear optical model (LOM).
@@ -1603,13 +1870,16 @@ def enable_adjustable_ote(instr, jsc=False):
     """
     import copy
     instcopy = copy.copy(instr)
-    opdpath = os.path.join(instr._datapath, 'OPD', instr.pupilopd)
+    if instr.pupilopd is None:
+        opdpath = None
+    else:
+        opdpath = os.path.join(instr._datapath, 'OPD', instr.pupilopd)
     if jsc:
         pupilpath = os.path.join(utils.get_webbpsf_data_path(), "jwst_pupil_JSC_OTIS_Cryo.fits")
     else:
         pupilpath = instr.pupil
 
-    name="Modified OPD from "+instr.pupilopd
+    name="Modified OPD from "+str(instr.pupilopd)
     opd = OTE_Linear_Model_WSS(name=name,
                                opd=opdpath, transmission=pupilpath, jsc=jsc)
 
@@ -1620,6 +1890,7 @@ def enable_adjustable_ote(instr, jsc=False):
 
 
 def setup_image_array(ote, radius=1, size=None, inverted=False, reset=False, verbose=False,
+        acfs_only=False,
         guide_seg=None, guide_radius=10.0):
     """
     Apply tilts to put the segments in an image array configuration.
@@ -1635,6 +1906,8 @@ def setup_image_array(ote, radius=1, size=None, inverted=False, reset=False, ver
         'large' for the standard sizes used in OTE commissioning.
     guide_seg : string
         relevant mostly for coarse MIMF and image stacking. Kick out a segment to guide?
+    acfs_only : bool
+        Only tilt the ACFs (applicable to JSC OTIS only)
     inverted : bool
         Invert the array
     reset : bool
@@ -1647,14 +1920,14 @@ def setup_image_array(ote, radius=1, size=None, inverted=False, reset=False, ver
 
 
     if size is not None:
-        nircam_pixelscale = 0.0311
-        standard_sizes = {'small': 80*nircam_pixelscale,
-                          'medium':  300*nircam_pixelscale,
-                          'large': 812*nircam_pixelscale,
-                          'jsc': 200*nircam_pixelscale
-                          }
-        radius = standard_sizes[size]
-    jsc = (size is not None) and (size =='jsc')
+        jsc =  ((size =='jsc') or (size=='jsc_compact') or (size=='jsc_inverted'))
+        if not jsc:
+            nircam_pixelscale = 0.0311
+            standard_sizes = {'small': 80*nircam_pixelscale,
+                              'medium':  300*nircam_pixelscale,
+                              'large': 812*nircam_pixelscale
+                              }
+            radius = standard_sizes[size]
 
     #how many microradians of segment tilt per arcsecond of PSF motion?
     # note factor of 2 since reflection
@@ -1671,26 +1944,51 @@ def setup_image_array(ote, radius=1, size=None, inverted=False, reset=False, ver
             ote.move_seg_local('B'+str(i), xtilt= size*arcsec_urad, delay_update=True)
             ote.move_seg_local('C'+str(i), ytilt=-size*np.sqrt(3)/2*arcsec_urad, delay_update=True)
     else:
-        # Image Arrays used for JSC OTIS Cryo
-        # 6 umicradian tilt of each of ABC 2,4,6
-        # plus 50 microradian tilt of the ACFs
-        # Standard tilts used at JSC are:
-        xt = -5.1961524228
-        yt = 3
-        for i in [2,4,6]:
-            #for l in ['A','B','C']:
-                #ote.move_seg_local(l+str(i), xtilt=xt, ytilt=yt, delay_update=True)
-            ote.move_seg_local('A'+str(i), xtilt= xt, ytilt= yt, delay_update=True)
-            ote.move_seg_local('B'+str(i), xtilt= xt, ytilt=-yt, delay_update=True)
-            ote.move_seg_local('C'+str(i), xtilt=-xt, ytilt= yt, delay_update=True)
-        # TODO ACF tilts
-        # These are a rough estimate - get the real values.
-        r = 25
+        if not acfs_only:
+            # Image Arrays used for JSC OTIS Cryo
+            # 6 umicradian tilt of each of ABC 2,4,6
+            # plus 50 microradian tilt of the ACFs
+            # Standard tilts used at JSC are as follows. See BATC SER 2508696 by K. Smith and L. Coyle.
+            xt = -5.1961524228
+            yt = 3
+
+            if size=='jsc_inverted':
+                xt *= -1
+                yt *= -1
+            for i in [2,4,6]:
+                ote.move_seg_local('A'+str(i), xtilt= xt, ytilt= yt, delay_update=True)
+                ote.move_seg_local('B'+str(i), xtilt= xt, ytilt=-yt, delay_update=True)
+                ote.move_seg_local('C'+str(i), xtilt=-xt, ytilt= yt, delay_update=True)
+
+
+        # ACF tilts. Also see BATC SER 2508696
+
+        if size=='jsc':  # regular "radial array"
+            #acftilts = [[  6.868, -20.901],
+                        #[-21.647,   3.926],
+                        #[ 14.228,  16.780] ]
+            acftilts = [ #  rV2       rV3
+                        [  6.868, -20.901],  # ABC2
+                        [-21.647,   3.926],  # ABC4
+                        [ 14.228,  16.780]]  # ABC6
+        elif size=='jsc_inverted':  # inverted "radial array"
+            acftilts = [ #  rV2       rV3
+                        [-14.228, -16.780],  # ABC2
+                        [ 21.647,  -3.926],  # ABC4  CORRECT
+                        [ -6.868,  20.901]]  # ABC6
+        elif size=='jsc_compact':
+            acftilts = [[ 20.901,   6.868],      # ACF1 = ABC2
+                        [ -3.926, -21.647],      # ACF2 = ABC4
+                        [-16.780,  14.228] ]     # ACF3 = ABC6
+            #acftilts = [[-16.780,  14.228],      # ACF1 = ABC4
+                        #[ -3.926, -21.647],      # ACF2 = ABC6
+                        #[ 20.901,   6.868] ]     # ACF3 = ABC2
+
+        else:
+            raise ValueError("Unknown array configuration.")
+
         for i in range(3):
-            ang = 160+120*i
-            xt = r*np.cos(np.deg2rad(ang))
-            yt = r*np.sin(np.deg2rad(ang))
-            ote.move_jsc_acf(i, xtilt=xt, ytilt=yt, absolute=True, delay_update=True)
+            ote.move_jsc_acf(i, xtilt=acftilts[i][0], ytilt=acftilts[i][1], absolute=True, delay_update=True)
 
 
     if guide_seg is not None:

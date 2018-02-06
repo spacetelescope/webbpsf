@@ -16,13 +16,17 @@ import pytest
 
 
 #------------------    NIRCam Tests    ----------------------------
-from .test_webbpsf import generic_output_test, do_test_source_offset
+from .test_webbpsf import generic_output_test, do_test_source_offset, do_test_set_position_from_siaf
 test_nircam = lambda : generic_output_test('NIRCam')
 test_nircam_source_offset_00 = lambda : do_test_source_offset('NIRCam', theta=0.0, monochromatic=2e-6)
 test_nircam_source_offset_45 = lambda : do_test_source_offset('NIRCam', theta=45.0, monochromatic=2e-6)
 
+test_nircam_set_siaf = lambda : do_test_set_position_from_siaf('NIRCam', 
+        ['NRCA5_SUB160', 'NRCA3_DHSPIL_SUB96','NRCA5_MASKLWB_F300M', 'NRCA2_TAMASK210R'])
+
 test_nircam_blc_circ_45 =  lambda : do_test_nircam_blc(kind='circular', angle=45)
 test_nircam_blc_circ_0 =   lambda : do_test_nircam_blc(kind='circular', angle=0)
+
 
 @pytest.mark.xfail
 def test_nircam_blc_wedge_0():
@@ -172,7 +176,7 @@ def test_nircam_get_detector():
     nc=webbpsf_core.NIRCam()
 
     detname = nc.detector
-    assert detname=='A1'
+    assert detname=='NRCA1'
 
 
 
@@ -247,4 +251,20 @@ def test_validate_nircam_wavelengths():
         nc._validateConfig(wavelengths=np.linspace(nc.LONG_WAVELENGTH_MAX, nc.LONG_WAVELENGTH_MAX + 1e-6, 3))
     assert _exception_message_starts_with(excinfo,"The requested wavelengths are too long to be imaged with NIRCam")
 
+def test_nircam_coron_unocculted(plot=False):
+    """ NIRCam with lyot mask but not an occulter
+    See https://github.com/mperrin/webbpsf/issues/157
+    """
+
+    nc = webbpsf_core.NIRCam()
+    nc.pupilopd = None
+    nc.filter='F212N'
+    nc.pupil_mask='WEDGELYOT'
+    nc.image_mask=None
+
+    if plot:
+        nc.display()
+
+    psf = nc.calc_psf(monochromatic=2.12e-6)
+    return(psf)
 
