@@ -826,7 +826,7 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
             sigmar.clip(min=np.finfo(sigmar.dtype).tiny, max=2*np.pi, out=sigmar)
             self.transmission = (1 - (np.sin(sigmar) / sigmar) ** 2)
             # TODO pattern should be truncated past first sidelobe
-            self.transmission[x==0] = 0   # special case center point (value based on L'Hopital's rule)
+            self.transmission[y==0] = 0   # special case center point (value based on L'Hopital's rule)
             # the bar should truncate at +- 10 arcsec:
             woutside = np.where(np.abs(x) > 10)
             self.transmission[woutside] = 1.0
@@ -1055,9 +1055,13 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
         self.tel_coords = instrument._tel_coords()
 
         # load the Zernikes table here
+        zernike_file = os.path.join(utils.get_webbpsf_data_path(),'si_zernikes_isim_cv3.fits')
 
-        self.ztable_full = Table.read(os.path.join(utils.get_webbpsf_data_path(),
-                                                   'si_zernikes_isim_cv3.fits'))
+        if not os.path.exists(zernike_file):
+            raise RuntimeError("Could not find Zernike coefficients file in WebbPSF data directory")
+        else:
+            self.ztable_full = Table.read(zernike_file)
+
         # Determine the pupil sampling of the first aperture in the
         # instrument's optical system
         if isinstance(instrument.pupil, fits.HDUList):
@@ -1098,6 +1102,7 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
             cf = griddata((v2, v3), zvals, (v2_tel, v3_tel), method='cubic').tolist()
             if np.isnan(cf):
                 cf = self.row[zkey]
+                
             coeffs.append(cf)
 
         self.zernike_coeffs = coeffs
