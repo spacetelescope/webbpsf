@@ -129,8 +129,9 @@ def do_test_nircam_blc(clobber=False, kind='circular', angle=0, save=False, disp
         if angle==0:
             expected_total_fluxes=[2.09e-6, .0415, 0.1442]  # Based on a prior calculation with WebbPSF
         elif angle==45 or angle==-45:
-            expected_total_fluxes=[2.09e-6, 0.0219, 0.1176]  # Based on a prior calculation
+            expected_total_fluxes=[2.09e-6, 0.0220, 0.1192]  # Based on a prior calculation
             # Updated 2016-09-29 for Rev W results - slight change from 0.1171 to 0.1176
+            # Updated 2018-02-20 for recoded MASKSWB - changes from 0.0219 to 0.0220; 0.1176 to 0.1192 ??
         else:
             raise ValueError("Don't know how to check fluxes for angle={0}".format(angle))
 
