@@ -113,7 +113,7 @@ setup(name=PACKAGENAME,
           'matplotlib>=1.5.0',
           'scipy>=0.16.0',
           'poppy>=0.6.1',
-          'astropy>=1.2.0',
+          'astropy>=1.2.0,<3',
           'jwxml>=0.3.0'
       ],
       provides=[PACKAGENAME],
