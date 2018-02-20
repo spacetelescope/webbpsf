@@ -687,7 +687,11 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
         Set to a NIRCam filter name to automatically offset to the nominal
         position along the bar for that filter. See bar_offset if you want to set
         to some arbitrary position.
-
+    shift_x, shift_y : floats or None
+        X and Y offset shifts applied to the occulter, via the standard mechanism for
+        poppy.AnalyticOpticalElements. Like bar_offset but allows for 2D offets, and
+        applies to both bar and wedge coronagraphs.  This is IN ADDITION TO any offset
+        from bar_offset.
     """
     allowable_kinds = ['nircamcircular', 'nircamwedge']
     """ Allowable types of BLC supported by this class"""
@@ -799,7 +803,9 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
             # the scale fact should depend on X coord in arcsec, scaling across a 20 arcsec FOV.
             # map flat regions to 2.5 arcsec each
             # map -7.5 to 2, +7.5 to 6. slope is 4/15, offset is +9.5
-            scalefact = (2 + (-x + 7.5) * 4 / 15).clip(2, 6)
+            wedgesign = 1 if self.name=='MASKSWB' else -1 # wide ends opposite for SW and LW
+
+            scalefact = (2 + (x*wedgesign + 7.5) * 4 / 15).clip(2, 6)
 
             # Working out the sigma parameter vs. wavelength to get that wedge pattern is non trivial
             # This is NOT a linear relationship. See calc_blc_wedge helper fn below.
@@ -808,7 +814,6 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
                 polyfitcoeffs = np.array([2.01210737e-04, -7.18758337e-03, 1.12381516e-01,
                                           -1.00877701e+00, 5.72538509e+00, -2.12943497e+01,
                                           5.18745152e+01, -7.97815606e+01, 7.02728734e+01])
-                scalefact = scalefact[:, ::-1] # flip orientation left/right for SWB mask
             elif self.name == 'MASKLWB': #elif np.abs(self.wavelength - 4.6e-6) < 0.1e-6:
                 polyfitcoeffs = np.array([9.16195583e-05, -3.27354831e-03, 5.11960734e-02,
                                           -4.59674047e-01, 2.60963397e+00, -9.70881273e+00,
@@ -834,53 +839,51 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
             # See the figures  in Krist et al. of how the 6 ND squares are spaced among the 5
             # corongraph regions
             # Note: 180 deg rotation needed relative to Krist's figures for the flight SCI orientation:
-            # We flip the signs of X and Y here as a shortcut to avoid recoding all of the below...
-            x *= -1
-            y *= -1
+
             if ((self.module=='A' and self.name=='MASKLWB') or
                 (self.module=='B' and self.name=='MASK210R')):
                 # left edge:
                 # has one fully in the corner and one half in the other corner, half outside the 10x10 box
                 wnd_5 = np.where(
-                    ((y > 5)&(y<10)) &
+                    ((y < -5)&(y>-10)) &
                     (
-                        ((x < -5) & (x > -10)) |
-                        ((x > 7.5) & (x < 12.5))
+                        ((x > 5) & (x < 10)) |
+                        ((x < -7.5) & (x > -12.5))
                     )
                 )
                 wnd_2 = np.where(
-                    ((y > -10)&(y<-8)) &
+                    ((y <  10)&(y> 8)) &
                     (
-                        ((x < -8) & (x > -10)) |
-                        ((x > 9) & (x < 11))
+                        ((x > 8) & (x < 10)) |
+                        ((x < -9) & (x > -11))
                     )
                 )
             elif ((self.module=='A' and self.name=='MASK210R') or
                   (self.module=='B' and self.name=='MASKSWB')):
                 # right edge
                 wnd_5 = np.where(
-                    ((y > 5)&(y<10)) &
+                    ((y < -5)&(y>-10)) &
                     (
-                        ((x > -12.5) & (x < -7.5)) |
-                        ((x > 5) & (x <10))
+                        ((x < 12.5) & (x > 7.5)) |
+                        ((x < -5) & (x > -10))
                     )
                 )
                 wnd_2 = np.where(
-                    ((y > -10)&(y<-8)) &
+                    ((y < 10)&(y>8)) &
                     (
-                        ((x > -11) & (x < -9)) |
-                        ((x > 8) & (x<10))
+                        ((x < 11) & (x > 9)) |
+                        ((x < -8) & (x > -10))
                     )
                 )
             else:
                 # the others have two, one in each corner, both halfway out of the 10x10 box.
                 wnd_5 = np.where(
-                    ((y > 5)&(y<10)) &
+                    ((y < -5)&(y > -10)) &
                     (np.abs(x) > 7.5) &
                     (np.abs(x) < 12.5)
                 )
                 wnd_2 = np.where(
-                    ((y > -10)&(y<-8)) &
+                    ((y < 10)&(y > 8)) &
                     (np.abs(x) > 9) &
                     (np.abs(x) < 11)
                 )
@@ -888,21 +891,19 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
             self.transmission[wnd_5] = np.sqrt(1e-3)
             self.transmission[wnd_2] = np.sqrt(1e-3)
 
-
-
             # Add in the opaque border of the coronagraph mask holder.
             if ((self.module=='A' and self.name=='MASKLWB') or
                 (self.module=='B' and self.name=='MASK210R')):
                 # left edge
-                woutside = np.where((x < -10) & (y < 11.5 ))
+                woutside = np.where((x > 10) & (y > -11.5 ))
                 self.transmission[woutside] = 0.0
             elif ((self.module=='A' and self.name=='MASK210R') or
                   (self.module=='B' and self.name=='MASKSWB')):
                 # right edge
-                woutside = np.where((x > 10) & (y < 11.5))
+                woutside = np.where((x < -10) & (y > -11.5))
                 self.transmission[woutside] = 0.0
             # mask holder edge
-            woutside = np.where(y < -10)
+            woutside = np.where(y > 10)
             self.transmission[woutside] = 0.0
 
             # edge of mask itself
@@ -911,15 +912,8 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
             # The following is just a temporary placeholder with no quantitative accuracy.
             # but this is outside the coronagraph FOV so that's fine - this only would matter in
             # modeling atypical/nonstandard calibration exposures.
-
-            wedge = np.where(( y > 11.5) & (y < 13))
+            wedge = np.where(( y < -11.5) & (y > -13))
             self.transmission[wedge] = 0.7
-
-
-
-
-
-
 
         if not np.isfinite(self.transmission.sum()):
             #stop()
@@ -928,11 +922,15 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
         return self.transmission
 
 
-    def display(self, annotate=False, annotate_color='cyan', annotate_text_color=None, *args, **kwargs):
+    def display(self, annotate=False, annotate_color='cyan', annotate_text_color=None, grid_size=20, *args, **kwargs):
         """Same as regular display for any other optical element, except adds annotate option
         for the LWB offsets """
-        poppy.AnalyticOpticalElement.display(self,*args,  **kwargs)
+        poppy.AnalyticOpticalElement.display(self, grid_size=grid_size, *args,  **kwargs)
         if annotate:
+
+            shift_dx = getattr(self, 'shift_x', 0) - getattr(self, 'bar_offset', 0)
+            shift_dy = getattr(self, 'shift_y', 0)
+
             if annotate_text_color is None:
                 annotate_text_color = annotate_color
             if self.name.lower()=='maskswb' or self.name.lower() =='masklwb':
@@ -942,9 +940,13 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
                         horiz, vert, voffset = 'right', 'top', -0.5
                     else:
                         horiz, vert, voffset = 'left', 'bottom', +0.5
-                    matplotlib.pyplot.plot(offset,0,marker='+', color=annotate_color)
-                    matplotlib.pyplot.text(offset,voffset, filt, color=annotate_text_color, rotation=75,
-                        horizontalalignment=horiz, verticalalignment=vert)
+                    matplotlib.pyplot.plot(offset+shift_dx, shift_dy, marker='+', color=annotate_color, clip_on=True)
+                    matplotlib.pyplot.text(offset+shift_dx, voffset+shift_dy, filt, color=annotate_text_color, rotation=75,
+                        horizontalalignment=horiz, verticalalignment=vert, clip_on=True)
+            ax = matplotlib.pyplot.gca()
+            # Fix the axis scaling if any of the overplots exceeded it
+            ax.set_xlim(-grid_size/2, grid_size/2)
+            ax.set_ylim(-grid_size/2, grid_size/2)
 
 
 # Helper functions for NIRcam occulters.

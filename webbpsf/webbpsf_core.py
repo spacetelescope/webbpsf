@@ -1079,10 +1079,19 @@ class NIRCam(JWInstrument):
 
         nd_squares = self.options.get('nd_squares', True)
 
+        SAM_box_size = None # default
+
+        # Allow arbitrary offsets of the focal plane masks with respect to the pixel grid origin;
+        # In most use cases it's better to offset the star away from the mask instead, using
+        # options['source_offset_*'], but doing it this way instead is helpful when generating
+        # the Pandeia ETC reference PSF library.
+        shifts = {'shift_x': self.options.get('coron_shift_x', None),
+                   'shift_y': self.options.get('coron_shift_y', None)}
+
         if ((self.image_mask == 'MASK210R') or (self.image_mask == 'MASK335R') or
                 (self.image_mask == 'MASK430R')):
             optsys.add_image( NIRCam_BandLimitedCoron( name=self.image_mask, module=self.module,
-                    nd_squares=nd_squares),
+                    nd_squares=nd_squares, **shifts),
                     index=2)
             trySAM = False # FIXME was True - see https://github.com/mperrin/poppy/issues/169
             SAM_box_size = 5.0
@@ -1105,24 +1114,27 @@ class NIRCam(JWInstrument):
                     bar_offset = None
 
             optsys.add_image( NIRCam_BandLimitedCoron(name=self.image_mask, module=self.module,
-                    nd_squares=nd_squares, bar_offset=bar_offset, auto_offset=auto_offset),
+                    nd_squares=nd_squares, bar_offset=bar_offset, auto_offset=auto_offset, **shifts),
                     index=2)
             trySAM = False #True FIXME
             SAM_box_size = [5,20]
-        #elif ((self.pupil_mask is not None) and (self.pupil_mask.startswith('MASK'))):
-        else:
+        elif ((self.pupil_mask is not None) and ('LENS' not in self.pupil_mask.upper() )):
             # no occulter selected but coronagraphic mode anyway. E.g. off-axis PSF
             # but don't add this image plane for weak lens calculations
-            #optsys.add_image(poppy.ScalarTransmission(name='No Image Mask Selected!'), index=1)
+            optsys.add_image(poppy.ScalarTransmission(name='No Image Mask Selected!'), index=1)
             trySAM = False
-            SAM_box_size = 1.0 # irrelevant but variable still needs to be set.
+            #SAM_box_size = 1.0 # irrelevant but variable still needs to be set.
+        else:
+            trySAM = False
+            #SAM_box_size = 1.0 # irrelevant but variable still needs to be set.
 
         # add pupil plane mask
         if ('pupil_shift_x' in self.options and self.options['pupil_shift_x'] != 0) or \
            ('pupil_shift_y' in self.options and self.options['pupil_shift_y'] != 0):
-            shift = (self.options['pupil_shift_x'], self.options['pupil_shift_y'])
+           shift = (self.options.get('pupil_shift_x', 0),
+                    self.options.get('pupil_shift_y', 0))
         else: shift = None
-
+        rotation =self.options.get('pupil_rotation', None)
 
         #NIRCam as-built weak lenses, from WSS config file
         WLP4_diversity =  8.27309 # microns
@@ -1130,35 +1142,37 @@ class NIRCam(JWInstrument):
         WLM8_diversity =-16.4143  # microns
         WL_wavelength =   2.12    # microns
 
-        #optsys.add_pupil( name='null for debugging NIRcam _addCoron') # debugging
         if self.pupil_mask == 'CIRCLYOT' or self.pupil_mask=='MASKRND':
             optsys.add_pupil(transmission=self._datapath+"/optics/NIRCam_Lyot_Somb.fits.gz", name=self.pupil_mask,
-                    flip_y=True, shift=shift, index=3)
+                    flip_y=True, shift=shift, rotation=rotation, index=3)
             optsys.planes[-1].wavefront_display_hint='intensity'
         elif self.pupil_mask == 'WEDGELYOT' or self.pupil_mask=='MASKSWB' or self.pupil_mask=='MASKLWB':
             optsys.add_pupil(transmission=self._datapath+"/optics/NIRCam_Lyot_Sinc.fits.gz", name=self.pupil_mask,
-                    flip_y=True, shift=shift, index=3)
+                    flip_y=True, shift=shift, rotation=rotation, index=3)
             optsys.planes[-1].wavefront_display_hint='intensity'
         elif self.pupil_mask == 'WEAK LENS +4' or  self.pupil_mask == 'WLP4':
             optsys.add_pupil(poppy.ThinLens(
                 name='Weak Lens +4',
                 nwaves=WLP4_diversity / WL_wavelength,
                 reference_wavelength=WL_wavelength*1e-6, #convert microns to meters
-                radius=self.pupil_radius
+                radius=self.pupil_radius,
+                shift=shift, rotation=rotation,
             ), index=3)
         elif self.pupil_mask == 'WEAK LENS +8'  or  self.pupil_mask == 'WLP8':
             optsys.add_pupil(poppy.ThinLens(
                 name='Weak Lens +8',
                 nwaves=WLP8_diversity / WL_wavelength,
                 reference_wavelength=WL_wavelength*1e-6,
-                radius=self.pupil_radius
+                radius=self.pupil_radius,
+                shift=shift,rotation=rotation, 
             ), index=3)
         elif self.pupil_mask == 'WEAK LENS -8'  or  self.pupil_mask == 'WLM8':
             optsys.add_pupil(poppy.ThinLens(
                 name='Weak Lens -8',
                 nwaves=WLM8_diversity / WL_wavelength,
                 reference_wavelength=WL_wavelength*1e-6,
-                radius=self.pupil_radius
+                radius=self.pupil_radius,
+                shift=shift,rotation=rotation,
             ), index=3)
         elif self.pupil_mask == 'WEAK LENS +12 (=4+8)'  or  self.pupil_mask == 'WLP12':
             stack = poppy.CompoundAnalyticOptic(name='Weak Lens Pair +12', opticslist=[
@@ -1166,13 +1180,15 @@ class NIRCam(JWInstrument):
                     name='Weak Lens +4',
                     nwaves=WLP4_diversity / WL_wavelength,
                     reference_wavelength=WL_wavelength*1e-6,
-                    radius=self.pupil_radius
+                    radius=self.pupil_radius,
+                    shift=shift, rotation=rotation,
                 ),
                 poppy.ThinLens(
                     name='Weak Lens +8',
                     nwaves=WLP8_diversity / WL_wavelength,
                     reference_wavelength=WL_wavelength*1e-6,
-                    radius=self.pupil_radius
+                    radius=self.pupil_radius,
+                    shift=shift, rotation=rotation,
                 )]
             )
             optsys.add_pupil(stack, index=3)
@@ -1182,13 +1198,15 @@ class NIRCam(JWInstrument):
                     name='Weak Lens +4',
                     nwaves=WLP4_diversity / WL_wavelength,
                     reference_wavelength=WL_wavelength*1e-6,
-                    radius=self.pupil_radius
+                    radius=self.pupil_radius,
+                    shift=shift, rotation=rotation,
                 ),
                 poppy.ThinLens(
                     name='Weak Lens -8',
                     nwaves=WLM8_diversity / WL_wavelength,
                     reference_wavelength=WL_wavelength*1e-6,
-                    radius=self.pupil_radius
+                    radius=self.pupil_radius,
+                    shift=shift, rotation=rotation,
                 )]
             )
             optsys.add_pupil(stack, index=3)
@@ -1196,6 +1214,10 @@ class NIRCam(JWInstrument):
 
         elif (self.pupil_mask is None and self.image_mask is not None):
             optsys.add_pupil(poppy.ScalarTransmission(name='No Lyot Mask Selected!'), index=3)
+        else:
+            optsys.add_pupil(transmission=self._WebbPSF_basepath+"/tricontagon_oversized_4pct.fits.gz", 
+                    name = 'filter stop', shift=shift, rotation=rotation)
+
 
         return (optsys, trySAM, SAM_box_size)
 
