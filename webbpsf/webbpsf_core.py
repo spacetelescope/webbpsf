@@ -155,6 +155,10 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
             filter_list.append(filter_row['filter'])
         return filter_list, filter_info
 
+    def _getDefaultNLambda(self, filtername):
+        """ Return the default # of wavelengths to be used for calculation by a given filter """
+        return self._filters[filtername].default_nlambda
+
     def __init__(self, name="", pixelscale = 0.064):
         self.name = name
 
