@@ -25,7 +25,7 @@ import types
 import glob
 import time
 import six
-from collections import namedtuple
+from collections import namedtuple,OrderedDict
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.interpolate, scipy.ndimage
@@ -355,7 +355,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
         _log.info("Creating optical system model:")
 
-        self._extra_keywords = dict() # Place to save info we later want to put into the FITS header for each PSF.
+        self._extra_keywords = OrderedDict() # Place to save info we later want to put into the FITS header for each PSF.
 
         if options is None: options = self.options
         if detector_oversample is None: detector_oversample = fft_oversample
@@ -438,8 +438,12 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         aberration_optic = self._get_aberrations()
         if aberration_optic is not None:
             optsys.add_pupil(aberration_optic)
-            inst_rms_wfe_nm = np.sqrt(np.mean(aberration_optic.opd[aberration_optic.amplitude==1]**2))*1e9
-            self._extra_keywords['SI_WFE'] = (inst_rms_wfe_nm, '[nm] instrument pupil RMS wavefront error')
+
+            try:
+                inst_rms_wfe_nm = np.sqrt(np.mean(aberration_optic.opd[aberration_optic.amplitude==1]**2))*1e9
+                self._extra_keywords['SI_WFE'] = (inst_rms_wfe_nm, '[nm] instrument pupil RMS wavefront error')
+            except TypeError:
+                pass
 
             if hasattr(aberration_optic, 'header_keywords'):
                 self._extra_keywords.update( aberration_optic.header_keywords() )
@@ -620,7 +624,7 @@ class JWInstrument(SpaceTelescopeInstrument):
         # where is the source on the detector, in 'Science frame' pixels?
         self.detector_position = (1024, 1024)
 
-        self.include_si_wfe = False
+        self.include_si_wfe = True
         """Should calculations include the Science Instrument internal WFE?"""
         self.options['jitter']='gaussian'
         self.options['jitter_sigma']=0.007
@@ -700,8 +704,8 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         # Add JWST-specific V2,V3 focal plane coordinate system.
         v2v3pos = self._tel_coords()
-        result[0].header['DET_V2'] = (v2v3pos[0].value, "[arcmin] Det. pos. in telescope V2,V3 coord sys")
-        result[0].header['DET_V3'] = (v2v3pos[1].value, "[arcmin] Det. pos. in telescope V2,V3 coord sys")
+        result[0].header.insert("DET_Y",  ('DET_V2', v2v3pos[0].value, "[arcmin] Det. pos. in telescope V2,V3 coord sys"), after=True)
+        result[0].header.insert("DET_V2", ('DET_V3', v2v3pos[1].value, "[arcmin] Det. pos. in telescope V2,V3 coord sys"), after=True)
 
 
 class MIRI(JWInstrument):
@@ -815,11 +819,26 @@ class MIRI(JWInstrument):
             or 'force_fqpm_shift' in self.options) :
                 optsys.add_pupil( poppy.FQPM_FFT_aligner() )
 
+        # Allow arbitrary offsets of the focal plane masks with respect to the pixel grid origin;
+        # In most use cases it's better to offset the star away from the mask instead, using
+        # options['source_offset_*'], but doing it this way instead is helpful when generating
+        # the Pandeia ETC reference PSF library.
+        offsets = {'shift_x': self.options.get('coron_offset_x', None),
+                   'shift_y': self.options.get('coron_offset_y', None)}
+
+
+        def make_fqpm_wrapper(name, wavelength):
+            container = poppy.CompoundAnalyticOptic(name = name,
+                opticslist = [  poppy.IdealFQPM(wavelength=wavelength,
+                                    name=self.image_mask,
+                                    **offsets),
+                                poppy.SquareFieldStop(size=24,
+                                    rotation=self._rotation,
+                                    **offsets)])
+            return container
+
         if self.image_mask == 'FQPM1065':
-            container = poppy.CompoundAnalyticOptic(name = "MIRI FQPM 1065",
-                opticslist = [  poppy.IdealFQPM(wavelength=10.65e-6, name=self.image_mask),
-                                poppy.SquareFieldStop(size=24, rotation=self._rotation)])
-            optsys.add_image(container)
+            optsys.add_image( make_fqpm_wrapper( "MIRI FQPM 1065", 10.65e-6) )
             trySAM = False
         elif self.image_mask == 'FQPM1140':
             container = poppy.CompoundAnalyticOptic(name = "MIRI FQPM 1140",
@@ -866,32 +885,31 @@ class MIRI(JWInstrument):
         if ('pupil_shift_x' in self.options and self.options['pupil_shift_x'] != 0) or \
            ('pupil_shift_y' in self.options and self.options['pupil_shift_y'] != 0):
 
-            shift = (self.options['pupil_shift_x'], self.options['pupil_shift_y'])
+            shift = (self.options.get('pupil_shift_x',0),
+                     self.options.get('pupil_shift_y',0))
             _log.info("Setting Lyot pupil shift to %s" % (str(shift)))
         else:
             shift = None
-            #_log.info('no pupil shift!')
-
-
-        #optsys.add_pupil('Circle', radius=6.5/2)
+        rotation =self.options.get('pupil_rotation', None)
 
         if self.pupil_mask == 'MASKFQPM':
             optsys.add_pupil(transmission=self._datapath+"/optics/MIRI_FQPMLyotStop.fits.gz",
                     name=self.pupil_mask,
-                    flip_y=True, shift=shift)
+                    flip_y=True, shift=shift, rotation=rotation)
             optsys.planes[-1].wavefront_display_hint='intensity'
         elif self.pupil_mask == 'MASKLYOT':
             optsys.add_pupil(transmission=self._datapath+"/optics/MIRI_LyotLyotStop.fits.gz",
                     name=self.pupil_mask,
-                    flip_y=True, shift=shift)
+                    flip_y=True, shift=shift, rotation=rotation)
             optsys.planes[-1].wavefront_display_hint='intensity'
         elif self.pupil_mask == 'P750L LRS grating' or self.pupil_mask == 'P750L':
             optsys.add_pupil(transmission=self._datapath+"/optics/MIRI_LRS_Pupil_Stop.fits.gz",
                     name=self.pupil_mask,
-                    flip_y=True, shift=shift)
+                    flip_y=True, shift=shift, rotation=rotation)
             optsys.planes[-1].wavefront_display_hint='intensity'
         else: # all the MIRI filters have a tricontagon outline, even the non-coron ones.
-            optsys.add_pupil(transmission=self._WebbPSF_basepath+"/tricontagon.fits", name = 'filter cold stop', shift=shift)
+            optsys.add_pupil(transmission=self._WebbPSF_basepath+"/tricontagon.fits.gz", 
+                    name = 'filter cold stop', shift=shift, rotation=rotation)
             # FIXME this is probably slightly oversized? Needs to have updated specifications here.
 
 

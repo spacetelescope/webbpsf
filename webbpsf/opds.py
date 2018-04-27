@@ -181,7 +181,7 @@ class OPD(poppy.FITSOpticalElement):
 
         output = self.copy()
         if isinstance(x, OPD):
-            output.opd -= x.data
+            output.opd -= x.opd
             output.name += " - "+x.name
         else:
             output.opd -= x
@@ -1919,8 +1919,8 @@ def setup_image_array(ote, radius=1, size=None, inverted=False, reset=False, ver
     assert isinstance(ote, OTE_Linear_Model_WSS), "First argument has to be a linear optical model instance."
 
 
+    jsc =  ((size =='jsc') or (size=='jsc_compact') or (size=='jsc_inverted'))
     if size is not None:
-        jsc =  ((size =='jsc') or (size=='jsc_compact') or (size=='jsc_inverted'))
         if not jsc:
             nircam_pixelscale = 0.0311
             standard_sizes = {'small': 80*nircam_pixelscale,

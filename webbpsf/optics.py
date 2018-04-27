@@ -1073,14 +1073,20 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
 
         # Determine the pupil sampling of the first aperture in the
         # instrument's optical system
-        if isinstance(instrument.pupil, fits.HDUList):
-            pupilheader = instrument.pupil[0].header
+        if isinstance(instrument.pupil, poppy.OpticalElement):
+            # This branch needed to handle the OTE Linear Model case
+            npix = instrument.pupil.shape[0]
+            self.pixelscale = instrument.pupil.pixelscale
         else:
-            pupilfile = os.path.join(instrument._datapath, "OPD", instrument.pupil)
-            pupilheader = fits.getheader(pupilfile)
+            # these branches to handle FITS files, by name or as an object
+            if isinstance(instrument.pupil, fits.HDUList):
+                pupilheader = instrument.pupil[0].header
+            else:
+                pupilfile = os.path.join(instrument._datapath, "OPD", instrument.pupil)
+                pupilheader = fits.getheader(pupilfile)
 
-        npix = pupilheader['NAXIS1']
-        self.pixelscale = pupilheader['PUPLSCAL'] * units.meter / units.pixel
+            npix = pupilheader['NAXIS1']
+            self.pixelscale = pupilheader['PUPLSCAL'] * units.meter / units.pixel
 
         self.ztable = self.ztable_full[self.ztable_full['instrument'] == lookup_name]
 
@@ -1107,7 +1113,7 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
         for i in range(1,36):
             zkey = 'Zernike_{}'.format(i)
             zvals = self.ztable[zkey]
-            
+
             # Cubic interpolation of of non-uniform 2D grid
             cf = griddata((v2, v3), zvals, (v2_tel, v3_tel), method='cubic').tolist()
             # If outside of grid space, then use nearest neighbor
@@ -1173,10 +1179,13 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
     def header_keywords(self):
         """ Return info we would like to save in FITS header of output PSFs
         """
-        keywords = dict()
-        keywords['SIWFEFPT'] = (self.row['field_point_name'], "SI WFE based on ISIM CV3 meas. at this field pt")
+        from collections import OrderedDict
+        keywords = OrderedDict()
+        keywords['SIWFETYP'] = ("Interpolated", "SI WFE was interpolated between available meas.")
+        keywords['SIWFEFPT'] = (self.row['field_point_name'], "Closest ISIM CV3 WFE meas. field point")
+        for i in range(1,36):
+            keywords['SIZERN{}'.format(i)] = (self.zernike_coeffs[i-1], "[nm] SI WFE coeff for Zernike term {}".format(i))
         return keywords
-
 
 
     # wrapper just to change default vmax
