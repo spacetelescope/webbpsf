@@ -24,7 +24,7 @@ including its Wide Field Instrument and a preliminary version of the Coronagraph
 
 Developed by Marshall Perrin, Joseph Long, Neil Zimmerman, and collaborators, 2010-2017.
 
-Documentation can be found online at https://http://webbpsf.readthedocs.io
+Documentation can be found online at https://webbpsf.readthedocs.io
 
 WebbPSF requires input data for its simulations, including optical path
 difference (OPD) maps, filter transmission curves, and coronagraph Lyot mask
