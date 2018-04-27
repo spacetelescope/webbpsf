@@ -908,7 +908,7 @@ class MIRI(JWInstrument):
                     flip_y=True, shift=shift, rotation=rotation)
             optsys.planes[-1].wavefront_display_hint='intensity'
         else: # all the MIRI filters have a tricontagon outline, even the non-coron ones.
-            optsys.add_pupil(transmission=self._WebbPSF_basepath+"/tricontagon.fits.gz", 
+            optsys.add_pupil(transmission=self._WebbPSF_basepath+"/tricontagon.fits.gz",
                     name = 'filter cold stop', shift=shift, rotation=rotation)
             # FIXME this is probably slightly oversized? Needs to have updated specifications here.
 
@@ -1178,7 +1178,7 @@ class NIRCam(JWInstrument):
                 nwaves=WLP8_diversity / WL_wavelength,
                 reference_wavelength=WL_wavelength*1e-6,
                 radius=self.pupil_radius,
-                shift=shift,rotation=rotation, 
+                shift=shift,rotation=rotation,
             ), index=3)
         elif self.pupil_mask == 'WEAK LENS -8'  or  self.pupil_mask == 'WLM8':
             optsys.add_pupil(poppy.ThinLens(
@@ -1229,7 +1229,7 @@ class NIRCam(JWInstrument):
         elif (self.pupil_mask is None and self.image_mask is not None):
             optsys.add_pupil(poppy.ScalarTransmission(name='No Lyot Mask Selected!'), index=3)
         else:
-            optsys.add_pupil(transmission=self._WebbPSF_basepath+"/tricontagon_oversized_4pct.fits.gz", 
+            optsys.add_pupil(transmission=self._WebbPSF_basepath+"/tricontagon_oversized_4pct.fits.gz",
                     name = 'filter stop', shift=shift, rotation=rotation)
 
 
@@ -1268,12 +1268,12 @@ class NIRSpec(JWInstrument):
         self._rotation = None
         self._rotation = 138.4  # Average for both detectors in SIAF PRDDEVSOC-D-012, 2016 April
         self.filter_list.append("IFU")
-        self._IFU_pixelscale = 0.1 # same.
+        self._IFU_pixelscale = 0.1043 # same.
         self.monochromatic= 3.0
         self.filter = 'F110W' # or is this called F115W to match NIRCam??
 
         # fixed slits
-        self.image_mask_list = ['S200A1','S200A2','S400A1','S1600A1','S200B1', 'MSA all open', 'Single MSA open shutter', 'Three adjacent MSA open shutters']
+        self.image_mask_list = ['S200A1','S200A2','S400A1','S1600A1','S200B1', 'MSA all open', 'Single MSA open shutter', 'Three adjacent MSA open shutters', 'IFU']
         self.pupil_mask_list = ['NIRSpec grating']
         self.image_mask = 'MSA all open'
         self.pupil_mask = self.pupil_mask_list[-1]
@@ -1309,6 +1309,11 @@ class NIRSpec(JWInstrument):
         elif self.image_mask == 'S1600A1':
             # square aperture for exoplanet spectroscopy
             optsys.add_image(optic=poppy.RectangularFieldStop(width=1.6, height=1.6, name= self.image_mask + " square aperture"))
+        elif self.image_mask == 'IFU':
+            # square aperture for the entrance to the slicer.
+            # DOES NOT ACTUALLY MODEL THE SLICER OPTICS AT ALL!
+            # Values talen from pre-flight SIAF, fall 2017
+            optsys.add_image(optic=poppy.RectangularFieldStop(width=3.193, height=3.097, name= "IFU entrance"))
         elif self.image_mask == 'MSA all open':
             # all MSA shutters open
             optsys.add_image(optic=NIRSpec_MSA_open_grid(name= self.image_mask))
