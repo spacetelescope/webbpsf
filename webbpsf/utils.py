@@ -345,8 +345,11 @@ logical=psutil.cpu_count(logical=True),
 freq=psutil.cpu_freq()[0]/1000,
 percent=psutil.cpu_percent())
     except:
-        import multiprocessing
-        cpu_info="  Cores: {}".format(multiprocessing.cpu_cores())
+        try:
+            import multiprocessing
+            cpu_info="  Cores: {}".format(multiprocessing.cpu_count())
+        except:
+            cpu_info = "No CPU info available"
 
     # Get numpy config - the following is a modified version of
     # numpy.__config__.show()
