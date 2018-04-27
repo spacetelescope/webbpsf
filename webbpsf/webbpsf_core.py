@@ -25,6 +25,7 @@ import types
 import glob
 import time
 import six
+import copy
 from collections import namedtuple
 import numpy as np
 import matplotlib.pyplot as plt
@@ -300,9 +301,16 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         result[0].header['DATAVERS'] =(self._data_version, "WebbPSF reference data files version")
 
         result[0].header['DET_NAME'] = (self.detector, "Name of detector on this instrument")
-        dpos = self.detector_position
-        result[0].header['DET_X'] = (dpos[0], "Detector X pixel position")
-        result[0].header['DET_Y'] = (dpos[1], "Detector Y pixel position")
+
+        # Correct detector pixel coordinates to allow for even arrays to be centered on half pixel boundary
+        dpos = np.asarray(self.detector_position, dtype=float)
+        oversamp = result[0].header['OVERSAMP']
+        size = result[0].data.shape[0]
+
+        if size / oversamp % 2 == 0: dpos += 0.5  # even arrays must be at a half pixel
+
+        result[0].header['DET_X'] = (dpos[0], "Detector X pixel position of array center")
+        result[0].header['DET_Y'] = (dpos[1], "Detector Y pixel position of array center")
 
         for key in self._extra_keywords:
             result[0].header[key] = self._extra_keywords[key]
