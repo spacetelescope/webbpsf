@@ -791,12 +791,19 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
             x += float(self.bar_offset)
 
         if self.kind == 'nircamcircular':
-            r = np.sqrt(x ** 2 + y ** 2)
+            r = poppy.accel_math._r(x,y)
             sigmar = self.sigma * r
+
             # clip sigma: The minimum is to avoid divide by zero
             #             the maximum truncates after the first sidelobe to match the hardware
-            sigmar.clip(np.finfo(sigmar.dtype).tiny, 2*np.pi, out=sigmar)  # avoid divide by zero -> NaNs
-            self.transmission = (1 - (2 * scipy.special.jn(1, sigmar) / sigmar) ** 2)
+            bessel_j1_zero2 = scipy.special.jn_zeros(1,2)[1]
+            sigmar.clip(np.finfo(sigmar.dtype).tiny, bessel_j1_zero2, out=sigmar)  # avoid divide by zero -> NaNs
+            if poppy.accel_math._USE_NUMEXPR:
+                import numexpr as ne
+                jn1 = scipy.special.jn(1, sigmar)
+                self.transmission = ne.evaluate("(1 - (2 * jn1 / sigmar) ** 2)")
+            else:
+                self.transmission = (1 - (2 * scipy.special.jn(1, sigmar) / sigmar) ** 2)
             self.transmission[r==0] = 0   # special case center point (value based on L'Hopital's rule)
 
         elif self.kind == 'nircamwedge':
@@ -830,9 +837,9 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
             #             the maximum truncates after the first sidelobe to match the hardware
             sigmar.clip(min=np.finfo(sigmar.dtype).tiny, max=2*np.pi, out=sigmar)
             self.transmission = (1 - (np.sin(sigmar) / sigmar) ** 2)
-            # TODO pattern should be truncated past first sidelobe
             self.transmission[y==0] = 0   # special case center point (value based on L'Hopital's rule)
             # the bar should truncate at +- 10 arcsec:
+
             woutside = np.where(np.abs(x) > 10)
             self.transmission[woutside] = 1.0
 
