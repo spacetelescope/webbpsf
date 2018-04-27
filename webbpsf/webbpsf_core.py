@@ -1147,12 +1147,10 @@ class NIRCam(JWInstrument):
         elif ((self.pupil_mask is not None) and ('LENS' not in self.pupil_mask.upper() )):
             # no occulter selected but coronagraphic mode anyway. E.g. off-axis PSF
             # but don't add this image plane for weak lens calculations
-            optsys.add_image(poppy.ScalarTransmission(name='No Image Mask Selected!'), index=1)
+            optsys.add_image(poppy.ScalarTransmission(name='No Image Mask Selected!'), index=2)
             trySAM = False
-            #SAM_box_size = 1.0 # irrelevant but variable still needs to be set.
         else:
             trySAM = False
-            #SAM_box_size = 1.0 # irrelevant but variable still needs to be set.
 
         # add pupil plane mask
         if ('pupil_shift_x' in self.options and self.options['pupil_shift_x'] != 0) or \
