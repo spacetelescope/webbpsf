@@ -636,7 +636,7 @@ class JWInstrument(SpaceTelescopeInstrument):
         # where is the source on the detector, in 'Science frame' pixels?
         self.detector_position = (1024, 1024)
 
-        self.include_si_wfe = True
+        self.include_si_wfe = False
         """Should calculations include the Science Instrument internal WFE?"""
         self.options['jitter']='gaussian'
         self.options['jitter_sigma']=0.007
