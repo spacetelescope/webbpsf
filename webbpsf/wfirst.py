@@ -348,7 +348,7 @@ class WFI(WFIRSTInstrument):
 
     @pupil_mask.setter
     def pupil_mask(self, name):
-        """ Determine whether to use the pupil mask
+        """ Set the pupil mask
 
         Parameters
         ------------
@@ -357,7 +357,7 @@ class WFI(WFIRSTInstrument):
             Settings:
                 - "AUTO" or "DEFAULT":
                     Automatically select pupil
-                - "COLD_PUPIL" or "COLDPUPIL":
+                - "COLD_PUPIL" or "COLDPUPIL" or "COLD":
                     Masked pupil override
                 - "UNMASKED":
                     Unmasked pupil override
