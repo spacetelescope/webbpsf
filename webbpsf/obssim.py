@@ -151,7 +151,7 @@ class TargetScene(object):
             else:
                 # use the flux level already implicitly set by the source spectrum.
                 # i.e. figure out what the flux of the source is, inside the selected bandpass
-                bp = instrument._getSynphotBandpass()
+                bp = instrument._get_synphot_bandpass()
                 effstim_Jy = pysynphot.Observation(src_spectrum, bp).effstim('Jy')
                 fluxlogstring = "                with effstim = %.3g Jy" % effstim_Jy
                 src_psf[0].data *= effstim_Jy

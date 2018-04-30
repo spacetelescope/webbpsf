@@ -156,7 +156,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
             filter_list.append(filter_row['filter'])
         return filter_list, filter_info
 
-    def _getDefaultNLambda(self, filtername):
+    def _get_default_nlambda(self, filtername):
         """ Return the default # of wavelengths to be used for calculation by a given filter """
         return self._filters[filtername].default_nlambda
 
@@ -178,7 +178,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         assumed to be within the instrument's `data/OPDs/` directory, or an actual fits.HDUList object corresponding to such a file.
         If the file contains a datacube, you may set this to a tuple (filename, slice) to select a given slice, or else
         the first slice will be used."""
-        self.pupil_radius = None  # Set when loading FITS file in _getOpticalSystem
+        self.pupil_radius = None  # Set when loading FITS file in _get_optical_system
 
         self.options = {}  # dict for storing other arbitrary options.
 
@@ -288,9 +288,9 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
         self._detector_position = (int(position[0]),int(position[1]))
 
-    def _getFITSHeader(self, result, options):
+    def _get_fits_header(self, result, options):
         """ populate FITS Header keywords """
-        super(SpaceTelescopeInstrument, self)._getFITSHeader(result, options)
+        super(SpaceTelescopeInstrument, self)._get_fits_header(result, options)
         result[0].header['FILTER'] = (self.filter, 'Filter name')
         if self.image_mask is not None:
             result[0].header['CORONMSK'] = ( self.image_mask, "Image plane mask")
@@ -334,7 +334,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
             poppy.Instrument._calcPSF_format_output(self, result, options)
 
 
-    def _getOpticalSystem(self,fft_oversample=2, detector_oversample = None, fov_arcsec=2, fov_pixels=None, options=None):
+    def _get_optical_system(self,fft_oversample=2, detector_oversample = None, fov_arcsec=2, fov_pixels=None, options=None):
         """ Return an OpticalSystem instance corresponding to the instrument as currently configured.
 
         When creating such an OpticalSystem, you must specify the parameters needed to define the
@@ -534,7 +534,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         """
         raise NotImplementedError("needs to be subclassed.")
 
-    def _getSynphotBandpass(self, filtername):
+    def _get_synphot_bandpass(self, filtername):
         """ Return a pysynphot.ObsBandpass object for the given desired band.
 
         By subclassing this, you can define whatever custom bandpasses are appropriate for
@@ -645,7 +645,7 @@ class JWInstrument(SpaceTelescopeInstrument):
         self._si_wfe_class = optics.WebbFieldDependentAberration
 
 
-    def _getDefaultFOV(self):
+    def _get_default_fov(self):
         """ Return default FOV in arcseconds """
         return 5 # default for all NIR instruments
 
@@ -710,9 +710,9 @@ class JWInstrument(SpaceTelescopeInstrument):
         except KeyError:
             raise ValueError("Not a valid aperture name for {}: {}".format(self.name, aperture_name))
 
-    def _getFITSHeader(self, result, options):
+    def _get_fits_header(self, result, options):
         """ populate FITS Header keywords """
-        super(JWInstrument, self)._getFITSHeader(result, options)
+        super(JWInstrument, self)._get_fits_header(result, options)
 
         # Add JWST-specific V2,V3 focal plane coordinate system.
         v2v3pos = self._tel_coords()
@@ -760,7 +760,7 @@ class MIRI(JWInstrument):
 
         self._si_wfe_class = optics.MIRIFieldDependentAberrationAndObscuration
 
-    def _getDefaultFOV(self):
+    def _get_default_fov(self):
         """ Return default FOV in arcseconds """
         return 12
 
@@ -782,12 +782,12 @@ class MIRI(JWInstrument):
                 self.pupil_mask = None
 
 
-    def _validateConfig(self, **kwargs):
+    def _validate_config(self, **kwargs):
         """Validate instrument config for MIRI
         """
         if self.filter.startswith("MRS-IFU"):
             raise NotImplementedError("The MIRI MRS is not yet implemented.")
-        return super(MIRI, self)._validateConfig(**kwargs)
+        return super(MIRI, self)._validate_config(**kwargs)
 
     def _addAdditionalOptics(self,optsys, oversample=2):
         """Add coronagraphic or spectrographic optics for MIRI.
@@ -935,9 +935,9 @@ class MIRI(JWInstrument):
 
         return (optsys, trySAM, SAM_box_size if trySAM else None)
 
-    def _getFITSHeader(self, hdulist, options):
+    def _get_fits_header(self, hdulist, options):
         """ Format MIRI-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
-        super(MIRI,self)._getFITSHeader(hdulist, options)
+        super(MIRI,self)._get_fits_header(hdulist, options)
 
         hdulist[0].header['GRATNG14'] = ('None', 'MRS Grating for channels 1 and 4')
         hdulist[0].header['GRATNG23'] = ('None', 'MRS Grating for channels 2 and 3')
@@ -1045,7 +1045,7 @@ class NIRCam(JWInstrument):
                               "short wave channel." % self.pixelscale)
 
 
-    def _validateConfig(self, **kwargs):
+    def _validate_config(self, **kwargs):
         """Validate instrument config for NIRCam
 
         For NIRCam, this automatically handles toggling between the short-wave and long-wave channels.
@@ -1061,7 +1061,7 @@ class NIRCam(JWInstrument):
         if self.channel=='long' and np.min(wavelengths) < self.LONG_WAVELENGTH_MIN:
             raise RuntimeError("The requested wavelengths are too short for NIRCam long wave channel.")
 
-        return super(NIRCam, self)._validateConfig(**kwargs)
+        return super(NIRCam, self)._validate_config(**kwargs)
 
     def _addAdditionalOptics(self,optsys, oversample=2):
         """Add coronagraphic optics for NIRCam
@@ -1245,9 +1245,9 @@ class NIRCam(JWInstrument):
 
         return (optsys, trySAM, SAM_box_size)
 
-    def _getFITSHeader(self, hdulist, options):
+    def _get_fits_header(self, hdulist, options):
         """ Format NIRCam-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
-        super(NIRCam,self)._getFITSHeader(hdulist, options)
+        super(NIRCam,self)._get_fits_header(hdulist, options)
 
         hdulist[0].header['MODULE'] = (self.module, 'NIRCam module: A or B')
         hdulist[0].header['CHANNEL'] = ( 'Short' if self.channel  == 'short' else 'Long', 'NIRCam channel: long or short')
@@ -1295,10 +1295,10 @@ class NIRSpec(JWInstrument):
         self._si_wfe_class = optics.NIRSpecFieldDependentAberration  # note we end up adding 2 instances of this.
 
 
-    def _validateConfig(self, **kwargs):
+    def _validate_config(self, **kwargs):
         if self.filter.startswith("IFU"):
             raise NotImplementedError("The NIRSpec IFU is not yet implemented.")
-        return super(NIRSpec, self)._validateConfig(**kwargs)
+        return super(NIRSpec, self)._validate_config(**kwargs)
 
     def _addAdditionalOptics(self,optsys, oversample=2):
         """ Add fixed slit optics for NIRSpec
@@ -1353,9 +1353,9 @@ class NIRSpec(JWInstrument):
 
 
 
-    def _getFITSHeader(self, hdulist, options):
+    def _get_fits_header(self, hdulist, options):
         """ Format NIRSpec-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
-        super(NIRSpec,self)._getFITSHeader(hdulist, options)
+        super(NIRSpec,self)._get_fits_header(hdulist, options)
         hdulist[0].header['GRATING'] = ( 'None', 'NIRSpec grating element name')
         hdulist[0].header['APERTURE'] = ( str(self.image_mask), 'NIRSpec slit aperture name')
 
@@ -1469,9 +1469,9 @@ class NIRISS(JWInstrument):
 
         return (optsys, trySAM, radius+0.05) # always attempt to cast this to a SemiAnalyticCoronagraph
 
-    def _getFITSHeader(self, hdulist, options):
+    def _get_fits_header(self, hdulist, options):
         """ Format NIRISS-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
-        super(NIRISS,self)._getFITSHeader(hdulist, options)
+        super(NIRISS,self)._get_fits_header(hdulist, options)
 
         if self.image_mask is not None:
             hdulist[0].header['CORONPOS'] = ( self.image_mask, 'NIRISS coronagraph spot location')
@@ -1508,7 +1508,7 @@ class NIRISS(JWInstrument):
                 self.pupil_mask = new_pupil_mask
 
 
-    def _validateConfig(self, **kwargs):
+    def _validate_config(self, **kwargs):
         """Validate instrument config for NIRISS
 
         For NIRISS, this optionally adjusts the instrument pupil
@@ -1523,7 +1523,7 @@ class NIRISS(JWInstrument):
                 raise RuntimeError('NRM pupil can only be used with long '
                     'wavelength filters (F277W and longer)')
 
-        return super(NIRISS, self)._validateConfig(**kwargs)
+        return super(NIRISS, self)._validate_config(**kwargs)
 
 
 class FGS(JWInstrument):
@@ -1542,9 +1542,9 @@ class FGS(JWInstrument):
     def _addAdditionalOptics(self,optsys):
         raise NotImplementedError("No user-selectable optics in FGS.")
 
-    def _getFITSHeader(self, hdulist, options):
+    def _get_fits_header(self, hdulist, options):
         """ Format FGS-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
-        super(FGS,self)._getFITSHeader( hdulist, options)
+        super(FGS,self)._get_fits_header(hdulist, options)
         hdulist[0].header['FOCUSPOS'] = (0,'FGS focus mechanism not yet modeled.')
 
 

@@ -252,9 +252,9 @@ class WFIRSTInstrument(webbpsf_core.SpaceTelescopeInstrument):
         optical aberrations. (Called in _getOpticalSystem.)"""
         return self._detectors[self._detector]
 
-    def _getFITSHeader(self, result, options):
+    def _get_fits_header(self, result, options):
         """Populate FITS Header keywords"""
-        super(WFIRSTInstrument, self)._getFITSHeader(result, options)
+        super(WFIRSTInstrument, self)._get_fits_header(result, options)
         result[0].header['DETXPIXL'] = (self.detector_position[0], 'X pixel position (for field dependent aberrations)')
         result[0].header['DETYPIXL'] = (self.detector_position[1], 'Y pixel position (for field dependent aberrations)')
         result[0].header['DETECTOR'] = (self.detector, 'Detector selected')
@@ -292,7 +292,7 @@ class WFI(WFIRSTInstrument):
         self.detector = 'SCA01'
 
         # Paths to the two possible pupils. The correct one is selected based on requested
-        # wavelengths in _validateConfig()
+        # wavelengths in _validate_config()
         self._unmasked_pupil_path = os.path.join(self._WebbPSF_basepath, 'wfc_pupil_rev_mcr.fits')
         self._masked_pupil_path = os.path.join(self._WebbPSF_basepath, 'wfc_pupil_masked_rev_mcr.fits')
 
@@ -314,7 +314,7 @@ class WFI(WFIRSTInstrument):
         ]
         self.pupilopd = self.opd_list[-1]
 
-    def _validateConfig(self, **kwargs):
+    def _validate_config(self, **kwargs):
         """Validates that the WFI is configured sensibly
 
         This mainly consists of selecting the masked or unmasked pupil
@@ -340,7 +340,7 @@ class WFI(WFIRSTInstrument):
             # If the user has set the pupil to a custom value, let them worry about the
             # correct shape it should have
             pass
-        super(WFI, self)._validateConfig(**kwargs)
+        super(WFI, self)._validate_config(**kwargs)
 
     def toggle_pupil_mask(self, set_pupil_mask_on):
         """ Determine whether to use the pupil mask
@@ -581,8 +581,8 @@ class CGI(WFIRSTInstrument):
     def detector_position(self, position):
         raise RuntimeError("Detector position not adjustable for CGI")
 
-    def _validateConfig(self, **kwargs):
-        super(CGI, self)._validateConfig(**kwargs)
+    def _validate_config(self, **kwargs):
+        super(CGI, self)._validate_config(**kwargs)
 
     def _addAdditionalOptics(self, optsys, oversample=4):
         """Add coronagraphic or spectrographic optics for WFIRST CGI."""
@@ -615,9 +615,9 @@ class CGI(WFIRSTInstrument):
         optical aberrations. (Called in _getOpticalSystem.)"""
         return None
 
-    def _getFITSHeader(self, result, options):
+    def _get_fits_header(self, result, options):
         """Populate FITS Header keywords"""
-        super(WFIRSTInstrument, self)._getFITSHeader(result, options)
+        super(WFIRSTInstrument, self)._get_fits_header(result, options)
         pupil_hdr = fits.getheader(self.pupil)
         apodizer_hdr = fits.getheader(self._apodizer_fname)
         fpm_hdr = fits.getheader(self._fpm_fname)
