@@ -299,6 +299,8 @@ class WFI(WFIRSTInstrument):
         # Flag to en-/disable automatic selection of the appropriate pupil_mask
         self.auto_pupil = True
 
+        self._pupil_mask = "AUTO"
+
         self.pupil = self._unmasked_pupil_path
         if set_pupil_mask_on is not None:
             if isinstance(set_pupil_mask_on, bool):
@@ -344,7 +346,7 @@ class WFI(WFIRSTInstrument):
 
     @property
     def pupil_mask(self):
-        return self.pupil
+        return self._pupil_mask
 
     @pupil_mask.setter
     def pupil_mask(self, name):
@@ -383,6 +385,7 @@ class WFI(WFIRSTInstrument):
                 raise ValueError("Instrument {0} doesn't have a pupil mask called '{1}'.".format(self.name, name))
         else:
             raise ValueError("Pupil mask setting is not valid or empty.")
+        self._pupil_mask = name
 
 
 class CGI(WFIRSTInstrument):
