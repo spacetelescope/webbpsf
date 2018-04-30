@@ -357,7 +357,7 @@ class WFI(WFIRSTInstrument):
             Settings:
                 - "AUTO" or "DEFAULT":
                     Automatically select pupil
-                - "COLD_PUPIL" or "COLDPUPIL" or "COLD":
+                - "COLD_PUPIL" or "COLDPUPIL" or "COLD" or "MASKED":
                     Masked pupil override
                 - "UNMASKED":
                     Unmasked pupil override
@@ -370,7 +370,8 @@ class WFI(WFIRSTInstrument):
                 _log.info("Using default pupil mask.")
             elif "COLD_PUPIL" == name or \
                     "COLDPUPIL" == name or \
-                    "COLD" == name:
+                    "COLD" == name or \
+                    "MASKED" == name:
                 self.auto_pupil = False
                 _log.info("Using custom pupil mask: Masked Pupil.")
                 self.pupil = self._masked_pupil_path
