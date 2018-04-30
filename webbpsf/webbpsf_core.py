@@ -1443,22 +1443,26 @@ class NIRISS(JWInstrument):
             radius = 0.0 # irrelevant but variable needs to be initialized
 
         # add pupil plane mask
-        if ('pupil_shift_x' in self.options and self.options['pupil_shift_x'] != 0) or \
-           ('pupil_shift_y' in self.options and self.options['pupil_shift_y'] != 0):
-            shift = (self.options['pupil_shift_x'], self.options['pupil_shift_y'])
-        else:
-            shift = None
+        #if ('pupil_shift_x' in self.options and self.options['pupil_shift_x'] != 0) or \
+           #('pupil_shift_y' in self.options and self.options['pupil_shift_y'] != 0):
+            #shift_x = (self.options['pupil_shift_x'], self.options['pupil_shift_y'])
+        #else:
+            #shift = None
+        shift_x=self.options.get('pupil_shift_x', None)
+        shift_y=self.options.get('pupil_shift_y', None)
         rotation =self.options.get('pupil_rotation', None)
 
+        # Note - the syntax for specifying shifts is different between FITS files and 
+        # AnalyticOpticalElement instances. Annoying but historical.
         if self.pupil_mask == 'MASK_NRM':
             optsys.add_pupil(transmission=self._datapath+"/optics/MASK_NRM.fits.gz", name=self.pupil_mask,
-                    flip_y=True, shift=shift, rotation=rotation)
+                    flip_y=True, shift=(shift_y, shift_y), rotation=rotation)
             optsys.planes[-1].wavefront_display_hint='intensity'
         elif self.pupil_mask == 'CLEARP':
-            optsys.add_pupil(optic = NIRISS_CLEARP(shift=shift, rotation=rotation))
+            optsys.add_pupil(optic = NIRISS_CLEARP(shift_x=shift_x, shift_y=shift_y,  rotation=rotation))
             optsys.planes[-1].wavefront_display_hint='intensity'
         elif self.pupil_mask == 'GR700XD':
-            optsys.add_pupil(optic = NIRISS_GR700XD_Grism(shift=shift, rotation=rotation))
+            optsys.add_pupil(optic = NIRISS_GR700XD_Grism(shift_x=shift_y, shift_y=shift_y, rotation=rotation))
 
         elif (self.pupil_mask  is None and self.image_mask is not None):
             optsys.add_pupil(name='No Lyot Mask Selected!')

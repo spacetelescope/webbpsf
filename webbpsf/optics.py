@@ -396,7 +396,7 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
 
     def __init__(self, name='GR700XD', which='Bach',
             #cylinder_radius=22.85,  cylinder_sag_mm=4.0, rotation_angle=92.25, rotate_mask=False, transmission=None,
-            shift=None):
+            **kwargs):
         # Initialize the base optical element with the pupil transmission and zero OPD
 
 
@@ -407,8 +407,7 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
         else:
             raise NotImplementedError("Unknown grating name:"+which)
 
-        self.shift=shift
-        poppy.AnalyticOpticalElement.__init__(self, name=name, planetype=poppy.poppy_core._PUPIL)
+        poppy.AnalyticOpticalElement.__init__(self, name=name, planetype=poppy.poppy_core._PUPIL, **kwargs)
 
         # UPDATED NUMBERS 2013-07:
         # See Document FGS_TFI_UdM_035_RevD
@@ -645,7 +644,7 @@ class NIRISS_CLEARP(poppy.CompoundAnalyticOptic):
 
     """
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         # CLEARP pupil info from:
         #   MODIFIED CALIBRATION OPTIC HOLDER - NIRISS
         #   DRAWING NO 196847  REV 0  COMDEV
@@ -660,11 +659,14 @@ class NIRISS_CLEARP(poppy.CompoundAnalyticOptic):
         pupil_mag = 6.603464/39.0
         poppy.CompoundAnalyticOptic.__init__( self, (
                 poppy.SecondaryObscuration( secondary_radius = 6.0*pupil_mag,
-                                                      support_width = 2.0*pupil_mag,
-                                                      n_supports = 3,
-                                                      support_angle_offset=90+180), # align first support with +V2 axis
-                                                                                # but invert to match OTE exit pupil
-                poppy.CircularAperture( radius = 39 * pupil_mag /2) ), name = 'CLEARP')
+                                            support_width = 2.0*pupil_mag,
+                                            n_supports = 3,
+                                            support_angle_offset=90+180, # align first support with +V2 axis
+                                                                      # but invert to match OTE exit pupil
+                                            *args, **kwargs),
+                poppy.CircularAperture( radius = 39 * pupil_mag /2,
+                                        *args, **kwargs)),
+                name = 'CLEARP')
 
 
 class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
