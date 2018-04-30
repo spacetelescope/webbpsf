@@ -342,25 +342,46 @@ class WFI(WFIRSTInstrument):
             pass
         super(WFI, self)._validateConfig(**kwargs)
 
-    def toggle_pupil_mask(self, set_pupil_mask_on):
+    @property
+    def pupil_mask(self):
+        return self.pupil
+
+    @pupil_mask.setter
+    def pupil_mask(self, name):
         """ Determine whether to use the pupil mask
 
-             Parameters
-             ------------
-             set_pupil_mask_on : bool or None
-                  Set to True or False to force using or not using the cold pupil mask,
-                  or to None for the automatic behavior.
+        Parameters
+        ------------
+        name : string
+            Name of setting.
+            Settings:
+                - "AUTO" or "DEFAULT":
+                    Automatically select pupil
+                - "COLD_PUPIL" or "COLDPUPIL":
+                    Masked pupil override
+                - "UNMASKED":
+                    Unmasked pupil override
         """
 
-        if set_pupil_mask_on is None:
-            self.auto_pupil = True
-        else:
-            self.auto_pupil = False
-            _log.info("Using custom pupil mask")
-            if set_pupil_mask_on:
+        if name and isinstance(name, str):
+            name = name.upper()
+            if "AUTO" == name or "DEFAULT" == name:
+                self.auto_pupil = True
+                _log.info("Using default pupil mask.")
+            elif "COLD_PUPIL" == name or \
+                    "COLDPUPIL" == name or \
+                    "COLD" == name:
+                self.auto_pupil = False
+                _log.info("Using custom pupil mask: Masked Pupil.")
                 self.pupil = self._masked_pupil_path
-            else:
+            elif "UNMASKED" == name:
+                self.auto_pupil = False
+                _log.info("Using custom pupil mask: Unmasked Pupil.")
                 self.pupil = self._unmasked_pupil_path
+            else:
+                raise ValueError("Instrument {0} doesn't have a pupil mask called '{1}'.".format(self.name, name))
+        else:
+            raise ValueError("Pupil mask setting is not valid or empty.")
 
 
 class CGI(WFIRSTInstrument):
@@ -369,7 +390,7 @@ class CGI(WFIRSTInstrument):
 
     Simulates the PSF of the WFIRST coronagraph.
 
-	Current functionality is limited to the Shaped Pupil Coronagraph (SPC)
+    Current functionality is limited to the Shaped Pupil Coronagraph (SPC)
     observing modes, and these modes are only simulated with static, unaberrated
     wavefronts, without relay optics and without DM control. The design
     respresented here is an approximation to a baseline concept, and will be
