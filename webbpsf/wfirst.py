@@ -300,6 +300,7 @@ class WFI(WFIRSTInstrument):
         self.auto_pupil = True
 
         self._pupil_mask = "AUTO"
+        self.pupil_mask_list = ['AUTO', 'COLD_PUPIL', 'UNMASKED']
 
         self.pupil = self._unmasked_pupil_path
         if set_pupil_mask_on is not None:
@@ -383,6 +384,9 @@ class WFI(WFIRSTInstrument):
         else:
             raise ValueError("Pupil mask setting is not valid or empty.")
         self._pupil_mask = name
+
+    def _addAdditionalOptics(self, optsys, **kwargs):
+        return optsys, False, None
 
 
 class CGI(WFIRSTInstrument):
