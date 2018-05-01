@@ -357,9 +357,9 @@ class WFI(WFIRSTInstrument):
         name : string
             Name of setting.
             Settings:
-                - "AUTO" or "DEFAULT":
+                - "AUTO":
                     Automatically select pupil
-                - "COLD_PUPIL" or "COLDPUPIL" or "COLD" or "MASKED":
+                - "COLD_PUPIL":
                     Masked pupil override
                 - "UNMASKED":
                     Unmasked pupil override
@@ -367,13 +367,10 @@ class WFI(WFIRSTInstrument):
 
         if name and isinstance(name, str):
             name = name.upper()
-            if "AUTO" == name or "DEFAULT" == name:
+            if "AUTO" == name:
                 self.auto_pupil = True
                 _log.info("Using default pupil mask.")
-            elif "COLD_PUPIL" == name or \
-                    "COLDPUPIL" == name or \
-                    "COLD" == name or \
-                    "MASKED" == name:
+            elif "COLD_PUPIL" == name:
                 self.auto_pupil = False
                 _log.info("Using custom pupil mask: Masked Pupil.")
                 self.pupil = self._masked_pupil_path
