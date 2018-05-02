@@ -726,7 +726,6 @@ class MIRI(JWInstrument):
                                       'FQPM1140': 'MIRIM_CORON1140',
                                       'FQPM1550': 'MIRIM_CORON1550',
                                       'LYOT2300': 'MIRIM_CORONLYOT'}
-
         self.monochromatic = 8.0
         self._IFU_pixelscale = {
             'Ch1': (0.18, 0.19),
