@@ -1871,8 +1871,17 @@ def enable_adjustable_ote(instr, jsc=False, **kwargs):
     instcopy = copy.copy(instr)
     if instr.pupilopd is None:
         opdpath = None
+    elif isinstance(instr.pupilopd, fits.HDUList):
+        opdpath = instr.pupilopd
     else:
-        opdpath = os.path.join(instr._datapath, 'OPD', instr.pupilopd)
+        # assume it is a string and try to use as filename
+        # either an absolute or relative directory path if that works,
+        # or else infer that it's a filename in the WebbPSF data directory.
+        if not os.path.exists(instr.pupilopd):
+            opdpath = os.path.join(instr._datapath, 'OPD', instr.pupilopd)
+        else:
+            opdpath = instr.pupilopd
+
     if jsc:
         pupilpath = os.path.join(utils.get_webbpsf_data_path(), "jwst_pupil_JSC_OTIS_Cryo.fits")
     else:
