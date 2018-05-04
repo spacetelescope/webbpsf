@@ -396,7 +396,7 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
 
     def __init__(self, name='GR700XD', which='Bach',
             #cylinder_radius=22.85,  cylinder_sag_mm=4.0, rotation_angle=92.25, rotate_mask=False, transmission=None,
-            shift=None):
+            **kwargs):
         # Initialize the base optical element with the pupil transmission and zero OPD
 
 
@@ -407,8 +407,7 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
         else:
             raise NotImplementedError("Unknown grating name:"+which)
 
-        self.shift=shift
-        poppy.AnalyticOpticalElement.__init__(self, name=name, planetype=poppy.poppy_core._PUPIL)
+        poppy.AnalyticOpticalElement.__init__(self, name=name, planetype=poppy.poppy_core._PUPIL, **kwargs)
 
         # UPDATED NUMBERS 2013-07:
         # See Document FGS_TFI_UdM_035_RevD
@@ -645,7 +644,7 @@ class NIRISS_CLEARP(poppy.CompoundAnalyticOptic):
 
     """
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         # CLEARP pupil info from:
         #   MODIFIED CALIBRATION OPTIC HOLDER - NIRISS
         #   DRAWING NO 196847  REV 0  COMDEV
@@ -660,11 +659,14 @@ class NIRISS_CLEARP(poppy.CompoundAnalyticOptic):
         pupil_mag = 6.603464/39.0
         poppy.CompoundAnalyticOptic.__init__( self, (
                 poppy.SecondaryObscuration( secondary_radius = 6.0*pupil_mag,
-                                                      support_width = 2.0*pupil_mag,
-                                                      n_supports = 3,
-                                                      support_angle_offset=90+180), # align first support with +V2 axis
-                                                                                # but invert to match OTE exit pupil
-                poppy.CircularAperture( radius = 39 * pupil_mag /2) ), name = 'CLEARP')
+                                            support_width = 2.0*pupil_mag,
+                                            n_supports = 3,
+                                            support_angle_offset=90+180, # align first support with +V2 axis
+                                                                      # but invert to match OTE exit pupil
+                                            *args, **kwargs),
+                poppy.CircularAperture( radius = 39 * pupil_mag /2,
+                                        *args, **kwargs)),
+                name = 'CLEARP')
 
 
 class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
@@ -791,12 +793,19 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
             x += float(self.bar_offset)
 
         if self.kind == 'nircamcircular':
-            r = np.sqrt(x ** 2 + y ** 2)
+            r = poppy.accel_math._r(x,y)
             sigmar = self.sigma * r
+
             # clip sigma: The minimum is to avoid divide by zero
             #             the maximum truncates after the first sidelobe to match the hardware
-            sigmar.clip(np.finfo(sigmar.dtype).tiny, 2*np.pi, out=sigmar)  # avoid divide by zero -> NaNs
-            self.transmission = (1 - (2 * scipy.special.jn(1, sigmar) / sigmar) ** 2)
+            bessel_j1_zero2 = scipy.special.jn_zeros(1,2)[1]
+            sigmar.clip(np.finfo(sigmar.dtype).tiny, bessel_j1_zero2, out=sigmar)  # avoid divide by zero -> NaNs
+            if poppy.accel_math._USE_NUMEXPR:
+                import numexpr as ne
+                jn1 = scipy.special.j1(sigmar)
+                self.transmission = ne.evaluate("(1 - (2 * jn1 / sigmar) ** 2)")
+            else:
+                self.transmission = (1 - (2 * scipy.special.j1(sigmar) / sigmar) ** 2)
             self.transmission[r==0] = 0   # special case center point (value based on L'Hopital's rule)
 
         elif self.kind == 'nircamwedge':
@@ -830,9 +839,9 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
             #             the maximum truncates after the first sidelobe to match the hardware
             sigmar.clip(min=np.finfo(sigmar.dtype).tiny, max=2*np.pi, out=sigmar)
             self.transmission = (1 - (np.sin(sigmar) / sigmar) ** 2)
-            # TODO pattern should be truncated past first sidelobe
             self.transmission[y==0] = 0   # special case center point (value based on L'Hopital's rule)
             # the bar should truncate at +- 10 arcsec:
+
             woutside = np.where(np.abs(x) > 10)
             self.transmission[woutside] = 1.0
 
@@ -1066,14 +1075,20 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
 
         # Determine the pupil sampling of the first aperture in the
         # instrument's optical system
-        if isinstance(instrument.pupil, fits.HDUList):
-            pupilheader = instrument.pupil[0].header
+        if isinstance(instrument.pupil, poppy.OpticalElement):
+            # This branch needed to handle the OTE Linear Model case
+            npix = instrument.pupil.shape[0]
+            self.pixelscale = instrument.pupil.pixelscale
         else:
-            pupilfile = os.path.join(instrument._datapath, "OPD", instrument.pupil)
-            pupilheader = fits.getheader(pupilfile)
+            # these branches to handle FITS files, by name or as an object
+            if isinstance(instrument.pupil, fits.HDUList):
+                pupilheader = instrument.pupil[0].header
+            else:
+                pupilfile = os.path.join(instrument._datapath, "OPD", instrument.pupil)
+                pupilheader = fits.getheader(pupilfile)
 
-        npix = pupilheader['NAXIS1']
-        self.pixelscale = pupilheader['PUPLSCAL'] * units.meter / units.pixel
+            npix = pupilheader['NAXIS1']
+            self.pixelscale = pupilheader['PUPLSCAL'] * units.meter / units.pixel
 
         self.ztable = self.ztable_full[self.ztable_full['instrument'] == lookup_name]
 
@@ -1166,10 +1181,13 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
     def header_keywords(self):
         """ Return info we would like to save in FITS header of output PSFs
         """
-        keywords = dict()
-        keywords['SIWFEFPT'] = (self.row['field_point_name'], "SI WFE based on ISIM CV3 meas. at this field pt")
+        from collections import OrderedDict
+        keywords = OrderedDict()
+        keywords['SIWFETYP'] = ("Interpolated", "SI WFE was interpolated between available meas.")
+        keywords['SIWFEFPT'] = (self.row['field_point_name'], "Closest ISIM CV3 WFE meas. field point")
+        for i in range(1,36):
+            keywords['SIZERN{}'.format(i)] = (self.zernike_coeffs[i-1], "[nm] SI WFE coeff for Zernike term {}".format(i))
         return keywords
-
 
 
     # wrapper just to change default vmax

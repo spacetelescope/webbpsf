@@ -252,9 +252,9 @@ class WFIRSTInstrument(webbpsf_core.SpaceTelescopeInstrument):
         optical aberrations. (Called in _getOpticalSystem.)"""
         return self._detectors[self._detector]
 
-    def _getFITSHeader(self, result, options):
+    def _get_fits_header(self, result, options):
         """Populate FITS Header keywords"""
-        super(WFIRSTInstrument, self)._getFITSHeader(result, options)
+        super(WFIRSTInstrument, self)._get_fits_header(result, options)
         result[0].header['DETXPIXL'] = (self.detector_position[0], 'X pixel position (for field dependent aberrations)')
         result[0].header['DETYPIXL'] = (self.detector_position[1], 'Y pixel position (for field dependent aberrations)')
         result[0].header['DETECTOR'] = (self.detector, 'Detector selected')
@@ -292,12 +292,15 @@ class WFI(WFIRSTInstrument):
         self.detector = 'SCA01'
 
         # Paths to the two possible pupils. The correct one is selected based on requested
-        # wavelengths in _validateConfig()
+        # wavelengths in _validate_config()
         self._unmasked_pupil_path = os.path.join(self._WebbPSF_basepath, 'wfc_pupil_rev_mcr.fits')
         self._masked_pupil_path = os.path.join(self._WebbPSF_basepath, 'wfc_pupil_masked_rev_mcr.fits')
 
         # Flag to en-/disable automatic selection of the appropriate pupil_mask
         self.auto_pupil = True
+
+        self._pupil_mask = "AUTO"
+        self.pupil_mask_list = ['AUTO', 'COLD_PUPIL', 'UNMASKED']
 
         self.pupil = self._unmasked_pupil_path
         if set_pupil_mask_on is not None:
@@ -314,7 +317,7 @@ class WFI(WFIRSTInstrument):
         ]
         self.pupilopd = self.opd_list[-1]
 
-    def _validateConfig(self, **kwargs):
+    def _validate_config(self, **kwargs):
         """Validates that the WFI is configured sensibly
 
         This mainly consists of selecting the masked or unmasked pupil
@@ -340,27 +343,50 @@ class WFI(WFIRSTInstrument):
             # If the user has set the pupil to a custom value, let them worry about the
             # correct shape it should have
             pass
-        super(WFI, self)._validateConfig(**kwargs)
+        super(WFI, self)._validate_config(**kwargs)
 
-    def toggle_pupil_mask(self, set_pupil_mask_on):
-        """ Determine whether to use the pupil mask
+    @property
+    def pupil_mask(self):
+        return self._pupil_mask
 
-             Parameters
-             ------------
-             set_pupil_mask_on : bool or None
-                  Set to True or False to force using or not using the cold pupil mask,
-                  or to None for the automatic behavior.
+    @pupil_mask.setter
+    def pupil_mask(self, name):
+        """ Set the pupil mask
+
+        Parameters
+        ------------
+        name : string
+            Name of setting.
+            Settings:
+                - "AUTO":
+                    Automatically select pupil
+                - "COLD_PUPIL":
+                    Masked pupil override
+                - "UNMASKED":
+                    Unmasked pupil override
         """
 
-        if set_pupil_mask_on is None:
-            self.auto_pupil = True
-        else:
-            self.auto_pupil = False
-            _log.info("Using custom pupil mask")
-            if set_pupil_mask_on:
+        if name and isinstance(name, str):
+            name = name.upper()
+            if "AUTO" == name:
+                self.auto_pupil = True
+                _log.info("Using default pupil mask.")
+            elif "COLD_PUPIL" == name:
+                self.auto_pupil = False
+                _log.info("Using custom pupil mask: Masked Pupil.")
                 self.pupil = self._masked_pupil_path
-            else:
+            elif "UNMASKED" == name:
+                self.auto_pupil = False
+                _log.info("Using custom pupil mask: Unmasked Pupil.")
                 self.pupil = self._unmasked_pupil_path
+            else:
+                raise ValueError("Instrument {0} doesn't have a pupil mask called '{1}'.".format(self.name, name))
+        else:
+            raise ValueError("Pupil mask setting is not valid or empty.")
+        self._pupil_mask = name
+
+    def _addAdditionalOptics(self, optsys, **kwargs):
+        return optsys, False, None
 
 
 class CGI(WFIRSTInstrument):
@@ -369,7 +395,7 @@ class CGI(WFIRSTInstrument):
 
     Simulates the PSF of the WFIRST coronagraph.
 
-	Current functionality is limited to the Shaped Pupil Coronagraph (SPC)
+    Current functionality is limited to the Shaped Pupil Coronagraph (SPC)
     observing modes, and these modes are only simulated with static, unaberrated
     wavefronts, without relay optics and without DM control. The design
     respresented here is an approximation to a baseline concept, and will be
@@ -581,8 +607,8 @@ class CGI(WFIRSTInstrument):
     def detector_position(self, position):
         raise RuntimeError("Detector position not adjustable for CGI")
 
-    def _validateConfig(self, **kwargs):
-        super(CGI, self)._validateConfig(**kwargs)
+    def _validate_config(self, **kwargs):
+        super(CGI, self)._validate_config(**kwargs)
 
     def _addAdditionalOptics(self, optsys, oversample=4):
         """Add coronagraphic or spectrographic optics for WFIRST CGI."""
@@ -615,9 +641,9 @@ class CGI(WFIRSTInstrument):
         optical aberrations. (Called in _getOpticalSystem.)"""
         return None
 
-    def _getFITSHeader(self, result, options):
+    def _get_fits_header(self, result, options):
         """Populate FITS Header keywords"""
-        super(WFIRSTInstrument, self)._getFITSHeader(result, options)
+        super(WFIRSTInstrument, self)._get_fits_header(result, options)
         pupil_hdr = fits.getheader(self.pupil)
         apodizer_hdr = fits.getheader(self._apodizer_fname)
         fpm_hdr = fits.getheader(self._fpm_fname)

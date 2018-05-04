@@ -181,7 +181,7 @@ class OPD(poppy.FITSOpticalElement):
 
         output = self.copy()
         if isinstance(x, OPD):
-            output.opd -= x.data
+            output.opd -= x.opd
             output.name += " - "+x.name
         else:
             output.opd -= x
@@ -1248,8 +1248,7 @@ class OTE_Linear_Model_WSS(OPD):
 
         apmask = np.ones_like(Xc) # by construction, we're only evaluating this for the good pixels
 
-        hexikes = zernike.hexike_basis_wss(x=Xc, y=Yc, nterms=len(hexike_coeffs),
-            aperture=apmask)
+        hexikes = zernike.hexike_basis_wss(x=Xc, y=Yc, nterms=len(hexike_coeffs))
 
         # returns a list of hexikes each with the same shape as Xc
         if self.remove_piston_tip_tilt:
@@ -1872,8 +1871,17 @@ def enable_adjustable_ote(instr, jsc=False, **kwargs):
     instcopy = copy.copy(instr)
     if instr.pupilopd is None:
         opdpath = None
+    elif isinstance(instr.pupilopd, fits.HDUList):
+        opdpath = instr.pupilopd
     else:
-        opdpath = os.path.join(instr._datapath, 'OPD', instr.pupilopd)
+        # assume it is a string and try to use as filename
+        # either an absolute or relative directory path if that works,
+        # or else infer that it's a filename in the WebbPSF data directory.
+        if not os.path.exists(instr.pupilopd):
+            opdpath = os.path.join(instr._datapath, 'OPD', instr.pupilopd)
+        else:
+            opdpath = instr.pupilopd
+
     if jsc:
         pupilpath = os.path.join(utils.get_webbpsf_data_path(), "jwst_pupil_JSC_OTIS_Cryo.fits")
     else:
@@ -1919,8 +1927,8 @@ def setup_image_array(ote, radius=1, size=None, inverted=False, reset=False, ver
     assert isinstance(ote, OTE_Linear_Model_WSS), "First argument has to be a linear optical model instance."
 
 
+    jsc =  ((size =='jsc') or (size=='jsc_compact') or (size=='jsc_inverted'))
     if size is not None:
-        jsc =  ((size =='jsc') or (size=='jsc_compact') or (size=='jsc_inverted'))
         if not jsc:
             nircam_pixelscale = 0.0311
             standard_sizes = {'small': 80*nircam_pixelscale,

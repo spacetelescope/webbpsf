@@ -25,7 +25,8 @@ import types
 import glob
 import time
 import six
-from collections import namedtuple
+import copy
+from collections import namedtuple,OrderedDict
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.interpolate, scipy.ndimage
@@ -155,6 +156,10 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
             filter_list.append(filter_row['filter'])
         return filter_list, filter_info
 
+    def _get_default_nlambda(self, filtername):
+        """ Return the default # of wavelengths to be used for calculation by a given filter """
+        return self._filters[filtername].default_nlambda
+
     def __init__(self, name="", pixelscale = 0.064):
         self.name = name
 
@@ -173,7 +178,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         assumed to be within the instrument's `data/OPDs/` directory, or an actual fits.HDUList object corresponding to such a file.
         If the file contains a datacube, you may set this to a tuple (filename, slice) to select a given slice, or else
         the first slice will be used."""
-        self.pupil_radius = None  # Set when loading FITS file in _getOpticalSystem
+        self.pupil_radius = None  # Set when loading FITS file in _get_optical_system
 
         self.options = {}  # dict for storing other arbitrary options.
 
@@ -283,9 +288,9 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
         self._detector_position = (int(position[0]),int(position[1]))
 
-    def _getFITSHeader(self, result, options):
+    def _get_fits_header(self, result, options):
         """ populate FITS Header keywords """
-        super(SpaceTelescopeInstrument, self)._getFITSHeader(result, options)
+        super(SpaceTelescopeInstrument, self)._get_fits_header(result, options)
         result[0].header['FILTER'] = (self.filter, 'Filter name')
         if self.image_mask is not None:
             result[0].header['CORONMSK'] = ( self.image_mask, "Image plane mask")
@@ -296,9 +301,16 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         result[0].header['DATAVERS'] =(self._data_version, "WebbPSF reference data files version")
 
         result[0].header['DET_NAME'] = (self.detector, "Name of detector on this instrument")
-        dpos = self.detector_position
-        result[0].header['DET_X'] = (dpos[0], "Detector X pixel position")
-        result[0].header['DET_Y'] = (dpos[1], "Detector Y pixel position")
+
+        # Correct detector pixel coordinates to allow for even arrays to be centered on half pixel boundary
+        dpos = np.asarray(self.detector_position, dtype=float)
+        oversamp = result[0].header['OVERSAMP']
+        size = result[0].data.shape[0]
+
+        if size / oversamp % 2 == 0: dpos += 0.5  # even arrays must be at a half pixel
+
+        result[0].header['DET_X'] = (dpos[0], "Detector X pixel position of array center")
+        result[0].header['DET_Y'] = (dpos[1], "Detector Y pixel position of array center")
 
         for key in self._extra_keywords:
             result[0].header[key] = self._extra_keywords[key]
@@ -322,7 +334,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
             poppy.Instrument._calcPSF_format_output(self, result, options)
 
 
-    def _getOpticalSystem(self,fft_oversample=2, detector_oversample = None, fov_arcsec=2, fov_pixels=None, options=None):
+    def _get_optical_system(self,fft_oversample=2, detector_oversample = None, fov_arcsec=2, fov_pixels=None, options=None):
         """ Return an OpticalSystem instance corresponding to the instrument as currently configured.
 
         When creating such an OpticalSystem, you must specify the parameters needed to define the
@@ -355,7 +367,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
         _log.info("Creating optical system model:")
 
-        self._extra_keywords = dict() # Place to save info we later want to put into the FITS header for each PSF.
+        self._extra_keywords = OrderedDict() # Place to save info we later want to put into the FITS header for each PSF.
 
         if options is None: options = self.options
         if detector_oversample is None: detector_oversample = fft_oversample
@@ -438,8 +450,12 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         aberration_optic = self._get_aberrations()
         if aberration_optic is not None:
             optsys.add_pupil(aberration_optic)
-            inst_rms_wfe_nm = np.sqrt(np.mean(aberration_optic.opd[aberration_optic.amplitude==1]**2))*1e9
-            self._extra_keywords['SI_WFE'] = (inst_rms_wfe_nm, '[nm] instrument pupil RMS wavefront error')
+
+            try:
+                inst_rms_wfe_nm = np.sqrt(np.mean(aberration_optic.opd[aberration_optic.amplitude==1]**2))*1e9
+                self._extra_keywords['SI_WFE'] = (inst_rms_wfe_nm, '[nm] instrument pupil RMS wavefront error')
+            except TypeError:
+                pass
 
             if hasattr(aberration_optic, 'header_keywords'):
                 self._extra_keywords.update( aberration_optic.header_keywords() )
@@ -518,7 +534,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         """
         raise NotImplementedError("needs to be subclassed.")
 
-    def _getSynphotBandpass(self, filtername):
+    def _get_synphot_bandpass(self, filtername):
         """ Return a pysynphot.ObsBandpass object for the given desired band.
 
         By subclassing this, you can define whatever custom bandpasses are appropriate for
@@ -629,7 +645,7 @@ class JWInstrument(SpaceTelescopeInstrument):
         self._si_wfe_class = optics.WebbFieldDependentAberration
 
 
-    def _getDefaultFOV(self):
+    def _get_default_fov(self):
         """ Return default FOV in arcseconds """
         return 5 # default for all NIR instruments
 
@@ -694,14 +710,14 @@ class JWInstrument(SpaceTelescopeInstrument):
         except KeyError:
             raise ValueError("Not a valid aperture name for {}: {}".format(self.name, aperture_name))
 
-    def _getFITSHeader(self, result, options):
+    def _get_fits_header(self, result, options):
         """ populate FITS Header keywords """
-        super(JWInstrument, self)._getFITSHeader(result, options)
+        super(JWInstrument, self)._get_fits_header(result, options)
 
         # Add JWST-specific V2,V3 focal plane coordinate system.
         v2v3pos = self._tel_coords()
-        result[0].header['DET_V2'] = (v2v3pos[0].value, "[arcmin] Det. pos. in telescope V2,V3 coord sys")
-        result[0].header['DET_V3'] = (v2v3pos[1].value, "[arcmin] Det. pos. in telescope V2,V3 coord sys")
+        result[0].header.insert("DET_Y",  ('DET_V2', v2v3pos[0].value, "[arcmin] Det. pos. in telescope V2,V3 coord sys"), after=True)
+        result[0].header.insert("DET_V2", ('DET_V3', v2v3pos[1].value, "[arcmin] Det. pos. in telescope V2,V3 coord sys"), after=True)
 
 
 class MIRI(JWInstrument):
@@ -743,7 +759,7 @@ class MIRI(JWInstrument):
 
         self._si_wfe_class = optics.MIRIFieldDependentAberrationAndObscuration
 
-    def _getDefaultFOV(self):
+    def _get_default_fov(self):
         """ Return default FOV in arcseconds """
         return 12
 
@@ -765,12 +781,12 @@ class MIRI(JWInstrument):
                 self.pupil_mask = None
 
 
-    def _validateConfig(self, **kwargs):
+    def _validate_config(self, **kwargs):
         """Validate instrument config for MIRI
         """
         if self.filter.startswith("MRS-IFU"):
             raise NotImplementedError("The MIRI MRS is not yet implemented.")
-        return super(MIRI, self)._validateConfig(**kwargs)
+        return super(MIRI, self)._validate_config(**kwargs)
 
     def _addAdditionalOptics(self,optsys, oversample=2):
         """Add coronagraphic or spectrographic optics for MIRI.
@@ -814,11 +830,26 @@ class MIRI(JWInstrument):
             or 'force_fqpm_shift' in self.options) :
                 optsys.add_pupil( poppy.FQPM_FFT_aligner() )
 
+        # Allow arbitrary offsets of the focal plane masks with respect to the pixel grid origin;
+        # In most use cases it's better to offset the star away from the mask instead, using
+        # options['source_offset_*'], but doing it this way instead is helpful when generating
+        # the Pandeia ETC reference PSF library.
+        offsets = {'shift_x': self.options.get('coron_offset_x', None),
+                   'shift_y': self.options.get('coron_offset_y', None)}
+
+
+        def make_fqpm_wrapper(name, wavelength):
+            container = poppy.CompoundAnalyticOptic(name = name,
+                opticslist = [  poppy.IdealFQPM(wavelength=wavelength,
+                                    name=self.image_mask,
+                                    **offsets),
+                                poppy.SquareFieldStop(size=24,
+                                    rotation=self._rotation,
+                                    **offsets)])
+            return container
+
         if self.image_mask == 'FQPM1065':
-            container = poppy.CompoundAnalyticOptic(name = "MIRI FQPM 1065",
-                opticslist = [  poppy.IdealFQPM(wavelength=10.65e-6, name=self.image_mask),
-                                poppy.SquareFieldStop(size=24, rotation=self._rotation)])
-            optsys.add_image(container)
+            optsys.add_image( make_fqpm_wrapper( "MIRI FQPM 1065", 10.65e-6) )
             trySAM = False
         elif self.image_mask == 'FQPM1140':
             container = poppy.CompoundAnalyticOptic(name = "MIRI FQPM 1140",
@@ -865,32 +896,31 @@ class MIRI(JWInstrument):
         if ('pupil_shift_x' in self.options and self.options['pupil_shift_x'] != 0) or \
            ('pupil_shift_y' in self.options and self.options['pupil_shift_y'] != 0):
 
-            shift = (self.options['pupil_shift_x'], self.options['pupil_shift_y'])
+            shift = (self.options.get('pupil_shift_x',0),
+                     self.options.get('pupil_shift_y',0))
             _log.info("Setting Lyot pupil shift to %s" % (str(shift)))
         else:
             shift = None
-            #_log.info('no pupil shift!')
-
-
-        #optsys.add_pupil('Circle', radius=6.5/2)
+        rotation =self.options.get('pupil_rotation', None)
 
         if self.pupil_mask == 'MASKFQPM':
             optsys.add_pupil(transmission=self._datapath+"/optics/MIRI_FQPMLyotStop.fits.gz",
                     name=self.pupil_mask,
-                    flip_y=True, shift=shift)
+                    flip_y=True, shift=shift, rotation=rotation)
             optsys.planes[-1].wavefront_display_hint='intensity'
         elif self.pupil_mask == 'MASKLYOT':
             optsys.add_pupil(transmission=self._datapath+"/optics/MIRI_LyotLyotStop.fits.gz",
                     name=self.pupil_mask,
-                    flip_y=True, shift=shift)
+                    flip_y=True, shift=shift, rotation=rotation)
             optsys.planes[-1].wavefront_display_hint='intensity'
         elif self.pupil_mask == 'P750L LRS grating' or self.pupil_mask == 'P750L':
             optsys.add_pupil(transmission=self._datapath+"/optics/MIRI_LRS_Pupil_Stop.fits.gz",
                     name=self.pupil_mask,
-                    flip_y=True, shift=shift)
+                    flip_y=True, shift=shift, rotation=rotation)
             optsys.planes[-1].wavefront_display_hint='intensity'
         else: # all the MIRI filters have a tricontagon outline, even the non-coron ones.
-            optsys.add_pupil(transmission=self._WebbPSF_basepath+"/tricontagon.fits", name = 'filter cold stop', shift=shift)
+            optsys.add_pupil(transmission=self._WebbPSF_basepath+"/tricontagon.fits.gz",
+                    name = 'filter cold stop', shift=shift, rotation=rotation)
             # FIXME this is probably slightly oversized? Needs to have updated specifications here.
 
 
@@ -904,9 +934,9 @@ class MIRI(JWInstrument):
 
         return (optsys, trySAM, SAM_box_size if trySAM else None)
 
-    def _getFITSHeader(self, hdulist, options):
+    def _get_fits_header(self, hdulist, options):
         """ Format MIRI-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
-        super(MIRI,self)._getFITSHeader(hdulist, options)
+        super(MIRI,self)._get_fits_header(hdulist, options)
 
         hdulist[0].header['GRATNG14'] = ('None', 'MRS Grating for channels 1 and 4')
         hdulist[0].header['GRATNG23'] = ('None', 'MRS Grating for channels 2 and 3')
@@ -1014,7 +1044,7 @@ class NIRCam(JWInstrument):
                               "short wave channel." % self.pixelscale)
 
 
-    def _validateConfig(self, **kwargs):
+    def _validate_config(self, **kwargs):
         """Validate instrument config for NIRCam
 
         For NIRCam, this automatically handles toggling between the short-wave and long-wave channels.
@@ -1030,7 +1060,7 @@ class NIRCam(JWInstrument):
         if self.channel=='long' and np.min(wavelengths) < self.LONG_WAVELENGTH_MIN:
             raise RuntimeError("The requested wavelengths are too short for NIRCam long wave channel.")
 
-        return super(NIRCam, self)._validateConfig(**kwargs)
+        return super(NIRCam, self)._validate_config(**kwargs)
 
     def _addAdditionalOptics(self,optsys, oversample=2):
         """Add coronagraphic optics for NIRCam
@@ -1116,12 +1146,10 @@ class NIRCam(JWInstrument):
         elif ((self.pupil_mask is not None) and ('LENS' not in self.pupil_mask.upper() )):
             # no occulter selected but coronagraphic mode anyway. E.g. off-axis PSF
             # but don't add this image plane for weak lens calculations
-            optsys.add_image(poppy.ScalarTransmission(name='No Image Mask Selected!'), index=1)
+            optsys.add_image(poppy.ScalarTransmission(name='No Image Mask Selected!'), index=2)
             trySAM = False
-            #SAM_box_size = 1.0 # irrelevant but variable still needs to be set.
         else:
             trySAM = False
-            #SAM_box_size = 1.0 # irrelevant but variable still needs to be set.
 
         # add pupil plane mask
         if ('pupil_shift_x' in self.options and self.options['pupil_shift_x'] != 0) or \
@@ -1159,7 +1187,7 @@ class NIRCam(JWInstrument):
                 nwaves=WLP8_diversity / WL_wavelength,
                 reference_wavelength=WL_wavelength*1e-6,
                 radius=self.pupil_radius,
-                shift=shift,rotation=rotation, 
+                shift=shift,rotation=rotation,
             ), index=3)
         elif self.pupil_mask == 'WEAK LENS -8'  or  self.pupil_mask == 'WLM8':
             optsys.add_pupil(poppy.ThinLens(
@@ -1210,15 +1238,15 @@ class NIRCam(JWInstrument):
         elif (self.pupil_mask is None and self.image_mask is not None):
             optsys.add_pupil(poppy.ScalarTransmission(name='No Lyot Mask Selected!'), index=3)
         else:
-            optsys.add_pupil(transmission=self._WebbPSF_basepath+"/tricontagon_oversized_4pct.fits.gz", 
+            optsys.add_pupil(transmission=self._WebbPSF_basepath+"/tricontagon_oversized_4pct.fits.gz",
                     name = 'filter stop', shift=shift, rotation=rotation)
 
 
         return (optsys, trySAM, SAM_box_size)
 
-    def _getFITSHeader(self, hdulist, options):
+    def _get_fits_header(self, hdulist, options):
         """ Format NIRCam-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
-        super(NIRCam,self)._getFITSHeader(hdulist, options)
+        super(NIRCam,self)._get_fits_header(hdulist, options)
 
         hdulist[0].header['MODULE'] = (self.module, 'NIRCam module: A or B')
         hdulist[0].header['CHANNEL'] = ( 'Short' if self.channel  == 'short' else 'Long', 'NIRCam channel: long or short')
@@ -1249,12 +1277,12 @@ class NIRSpec(JWInstrument):
         self._rotation = None
         self._rotation = 138.4  # Average for both detectors in SIAF PRDDEVSOC-D-012, 2016 April
         self.filter_list.append("IFU")
-        self._IFU_pixelscale = 0.1 # same.
+        self._IFU_pixelscale = 0.1043 # same.
         self.monochromatic= 3.0
         self.filter = 'F110W' # or is this called F115W to match NIRCam??
 
         # fixed slits
-        self.image_mask_list = ['S200A1','S200A2','S400A1','S1600A1','S200B1', 'MSA all open', 'Single MSA open shutter', 'Three adjacent MSA open shutters']
+        self.image_mask_list = ['S200A1','S200A2','S400A1','S1600A1','S200B1', 'MSA all open', 'Single MSA open shutter', 'Three adjacent MSA open shutters', 'IFU']
         self.pupil_mask_list = ['NIRSpec grating']
         self.image_mask = 'MSA all open'
         self.pupil_mask = self.pupil_mask_list[-1]
@@ -1266,10 +1294,10 @@ class NIRSpec(JWInstrument):
         self._si_wfe_class = optics.NIRSpecFieldDependentAberration  # note we end up adding 2 instances of this.
 
 
-    def _validateConfig(self, **kwargs):
+    def _validate_config(self, **kwargs):
         if self.filter.startswith("IFU"):
             raise NotImplementedError("The NIRSpec IFU is not yet implemented.")
-        return super(NIRSpec, self)._validateConfig(**kwargs)
+        return super(NIRSpec, self)._validate_config(**kwargs)
 
     def _addAdditionalOptics(self,optsys, oversample=2):
         """ Add fixed slit optics for NIRSpec
@@ -1290,6 +1318,11 @@ class NIRSpec(JWInstrument):
         elif self.image_mask == 'S1600A1':
             # square aperture for exoplanet spectroscopy
             optsys.add_image(optic=poppy.RectangularFieldStop(width=1.6, height=1.6, name= self.image_mask + " square aperture"))
+        elif self.image_mask == 'IFU':
+            # square aperture for the entrance to the slicer.
+            # DOES NOT ACTUALLY MODEL THE SLICER OPTICS AT ALL!
+            # Values talen from pre-flight SIAF, fall 2017
+            optsys.add_image(optic=poppy.RectangularFieldStop(width=3.193, height=3.097, name= "IFU entrance"))
         elif self.image_mask == 'MSA all open':
             # all MSA shutters open
             optsys.add_image(optic=NIRSpec_MSA_open_grid(name= self.image_mask))
@@ -1319,9 +1352,9 @@ class NIRSpec(JWInstrument):
 
 
 
-    def _getFITSHeader(self, hdulist, options):
+    def _get_fits_header(self, hdulist, options):
         """ Format NIRSpec-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
-        super(NIRSpec,self)._getFITSHeader(hdulist, options)
+        super(NIRSpec,self)._get_fits_header(hdulist, options)
         hdulist[0].header['GRATING'] = ( 'None', 'NIRSpec grating element name')
         hdulist[0].header['APERTURE'] = ( str(self.image_mask), 'NIRSpec slit aperture name')
 
@@ -1409,30 +1442,35 @@ class NIRISS(JWInstrument):
             radius = 0.0 # irrelevant but variable needs to be initialized
 
         # add pupil plane mask
-        if ('pupil_shift_x' in self.options and self.options['pupil_shift_x'] != 0) or \
-           ('pupil_shift_y' in self.options and self.options['pupil_shift_y'] != 0):
-            shift = (self.options['pupil_shift_x'], self.options['pupil_shift_y'])
-        else:
-            shift = None
+        #if ('pupil_shift_x' in self.options and self.options['pupil_shift_x'] != 0) or \
+           #('pupil_shift_y' in self.options and self.options['pupil_shift_y'] != 0):
+            #shift_x = (self.options['pupil_shift_x'], self.options['pupil_shift_y'])
+        #else:
+            #shift = None
+        shift_x=self.options.get('pupil_shift_x', None)
+        shift_y=self.options.get('pupil_shift_y', None)
+        rotation =self.options.get('pupil_rotation', None)
 
+        # Note - the syntax for specifying shifts is different between FITS files and 
+        # AnalyticOpticalElement instances. Annoying but historical.
         if self.pupil_mask == 'MASK_NRM':
             optsys.add_pupil(transmission=self._datapath+"/optics/MASK_NRM.fits.gz", name=self.pupil_mask,
-                    flip_y=True, shift=shift)
+                    flip_y=True, shift=(shift_y, shift_y), rotation=rotation)
             optsys.planes[-1].wavefront_display_hint='intensity'
         elif self.pupil_mask == 'CLEARP':
-            optsys.add_pupil(optic = NIRISS_CLEARP())
+            optsys.add_pupil(optic = NIRISS_CLEARP(shift_x=shift_x, shift_y=shift_y,  rotation=rotation))
             optsys.planes[-1].wavefront_display_hint='intensity'
         elif self.pupil_mask == 'GR700XD':
-            optsys.add_pupil(optic = NIRISS_GR700XD_Grism(shift=shift))
+            optsys.add_pupil(optic = NIRISS_GR700XD_Grism(shift_x=shift_y, shift_y=shift_y, rotation=rotation))
 
         elif (self.pupil_mask  is None and self.image_mask is not None):
             optsys.add_pupil(name='No Lyot Mask Selected!')
 
         return (optsys, trySAM, radius+0.05) # always attempt to cast this to a SemiAnalyticCoronagraph
 
-    def _getFITSHeader(self, hdulist, options):
+    def _get_fits_header(self, hdulist, options):
         """ Format NIRISS-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
-        super(NIRISS,self)._getFITSHeader(hdulist, options)
+        super(NIRISS,self)._get_fits_header(hdulist, options)
 
         if self.image_mask is not None:
             hdulist[0].header['CORONPOS'] = ( self.image_mask, 'NIRISS coronagraph spot location')
@@ -1469,7 +1507,7 @@ class NIRISS(JWInstrument):
                 self.pupil_mask = new_pupil_mask
 
 
-    def _validateConfig(self, **kwargs):
+    def _validate_config(self, **kwargs):
         """Validate instrument config for NIRISS
 
         For NIRISS, this optionally adjusts the instrument pupil
@@ -1484,7 +1522,7 @@ class NIRISS(JWInstrument):
                 raise RuntimeError('NRM pupil can only be used with long '
                     'wavelength filters (F277W and longer)')
 
-        return super(NIRISS, self)._validateConfig(**kwargs)
+        return super(NIRISS, self)._validate_config(**kwargs)
 
 
 class FGS(JWInstrument):
@@ -1503,9 +1541,9 @@ class FGS(JWInstrument):
     def _addAdditionalOptics(self,optsys):
         raise NotImplementedError("No user-selectable optics in FGS.")
 
-    def _getFITSHeader(self, hdulist, options):
+    def _get_fits_header(self, hdulist, options):
         """ Format FGS-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
-        super(FGS,self)._getFITSHeader( hdulist, options)
+        super(FGS,self)._get_fits_header(hdulist, options)
         hdulist[0].header['FOCUSPOS'] = (0,'FGS focus mechanism not yet modeled.')
 
 

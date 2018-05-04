@@ -86,7 +86,7 @@ Monochromatic PSFs with steps of 0.1 micron from 5-28.3 micron.
 .. code-block:: python
 
     m = webbpsf.MIRI()
-    m.pupilopd = 'OPD_RevV_miri_421.fits'       # select an OPD
+    m.pupilopd = 'OPD_RevW_ote_for_MIRI_requirements.fits.gz'       # select an OPD
                                                 # looks inside $WEBBPSF_DATA/MIRI/OPD by default
                                                  # or you can specify a full path name.
     m.options['parity'] = 'odd'                 # please make an output PSF with its center
@@ -96,7 +96,7 @@ Monochromatic PSFs with steps of 0.1 micron from 5-28.3 micron.
     #waves = np.linspace(5.0, 28.3, 20)*1e-6     # iterate over wavelengths in meters
 
     for iw, wavelength in enumerate(waves):
-        psffile = 'psf_MIRI_mono_%.1fum_revV_opd1.fits' % (wavelength*1e6)
+        psffile = 'psf_MIRI_mono_%.1fum_opd1.fits' % (wavelength*1e6)
         psf = m.calc_psf(fov_arcsec=30, oversample=4, rebin=True, monochromatic=wavelength, display=False,
                    outfile=psffile)
         ax = plt.subplot(16,16,iw+1)
