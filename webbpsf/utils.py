@@ -46,6 +46,7 @@ def restart_logging(verbose=True):
 
     root_logger = logging.getLogger()
     root_logger.handlers = []
+    
 
     if level in ['DEBUG', 'INFO', 'WARN', 'ERROR', 'CRITICAL']:
         level_id = getattr(logging, level)  # obtain one of the DEBUG, INFO, WARN,
@@ -547,44 +548,5 @@ def annotate_sky_pupil_coords(self, ax, show_NE=False, north_angle=45.):
                 horizontalalignment='center', verticalalignment='center')
 
 
-def interpolate_was_opd(self, array, newdim):
-    dim = array.shape[0]
-    
-    xmax, ymax = dim/2, dim/2
-    x = np.arange(-xmax, xmax, 1)
-    y = np.arange(-ymax, ymax, 1)
-    X, Y = np.meshgrid(x, y)
 
-    interp_spline = sciint.RectBivariateSpline(y, x, array)
 
-    dx, dy = float(dim)/float(newdim), float(dim)/float(newdim)
-
-    x2 = np.arange(-xmax, xmax, dx)
-    y2 = np.arange(-ymax, ymax, dy)
-    X2, Y2 = np.meshgrid(x2,y2)
-    newopd = interp_spline(y2, x2)
-    newopd = np.reshape(newopd,(1,newdim,newdim))
-    
-    return newopd
-        
-        
-def load_was_opd(self, inputWasOpd):
-    wasopd = fits.open(inputWasOpd)
-    arrayOPD = wasopd[1].data
-    dim = arrayOPD.shape[0]
-    hdr = wasopd[0].header
-    print("Converting {:s} from {:d}x{:d} to 1024x1024".format(inputWasOpd, dim, dim))
-
-    arrayOPD = np.flipud( np.fliplr(arrayOPD) )
-
-    hdr["BUNIT"] = 'micron'
-    newopd=interpolate_was_opd(self, arrayOPD, 1024)
-
-    
-
-    outhdu = fits.HDUList()
-    outhdu.append(fits.ImageHDU(newopd, header=hdr))
-    outhdu.writeto('new_was_opd.fits', clobber=True)
-    outhdu.close()
-    
-    return outhdu

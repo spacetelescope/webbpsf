@@ -720,6 +720,88 @@ class JWInstrument(SpaceTelescopeInstrument):
         result[0].header.insert("DET_V2", ('DET_V3', v2v3pos[1].value, "[arcmin] Det. pos. in telescope V2,V3 coord sys"), after=True)
 
 
+
+    def interpolate_was_opd(self, array, newdim):
+        """ Interpolates an input 2D  array to any given size.
+
+        Parameters
+        ----------
+        array: float
+             input array to interpolate
+        newdim: int
+             new size of the 2D square array (newdim x newdim)
+
+        Returns
+        ---------
+        newopd: new array interpolated to (newdim x newdim)
+        
+        """
+        
+        dim = array.shape[0]
+        
+        xmax, ymax = dim/2, dim/2
+        x = np.arange(-xmax, xmax, 1)
+        y = np.arange(-ymax, ymax, 1)
+        X, Y = np.meshgrid(x, y)
+
+        interp_spline = scipy.interpolate.RectBivariateSpline(y, x, array)
+
+        dx, dy = float(dim)/float(newdim), float(dim)/float(newdim)
+
+        x2 = np.arange(-xmax, xmax, dx)
+        y2 = np.arange(-ymax, ymax, dy)
+        X2, Y2 = np.meshgrid(x2,y2)
+        newopd = interp_spline(y2, x2)
+        newopd = np.reshape(newopd,(1,newdim,newdim))
+
+        return newopd
+        
+        
+    def load_was_opd(self, inputWasOpd, size=1024, save=False, filename='new_was_opd.fits'):
+        """ Load and interpolate an OPD from the WAS.
+
+        Ingests a WAS OPD and interpolates it to the proper size for WebbPSF. 
+
+
+        Parameters
+        ----------
+        HDUlist_or_filename : string
+            Either a fits.HDUList object or a filename of a FITS file on disk
+        size: int, optional
+            Desired size of the output OPD. Default is 1024.
+        save: bool, optional
+            Save the interpolated OPD if True. Default is False.
+        filename : string, optional
+            Filename of the output OPD, if 'save' is True. Default is 'new_was_opd.fits'.
+
+        Returns
+        ---------
+        HDUlist : string
+           fits.HDUList object of the interpolated OPD
+
+
+        """
+
+        wasopd = fits.open(inputWasOpd)
+        arrayOPD = wasopd[1].data
+        dim = arrayOPD.shape[0]
+        hdr = wasopd[0].header
+        print("Converting {:s} from {:d}x{:d} to 1024x1024".format(inputWasOpd, dim, dim))
+
+
+        hdr["BUNIT"] = 'micron'
+        newopd=-1.*self.interpolate_was_opd(arrayOPD, size) #negative sign by convention
+
+        if save==True:
+            outhdu = fits.HDUList()
+            outhdu.append(fits.ImageHDU(newopd, header=hdr))
+            outhdu.writeto(filename, clobber=True)
+            outhdu.close()
+
+        return fits.HDUList(fits.ImageHDU(newopd,header=hdr))
+
+    
+
 class MIRI(JWInstrument):
     """ A class modeling the optics of MIRI, the Mid-InfraRed Instrument.
 
