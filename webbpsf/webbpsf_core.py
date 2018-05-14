@@ -959,17 +959,17 @@ class MIRI(JWInstrument):
                                     save_intermediates=save_intermediates,
                                     return_intermediates=return_intermediates, normalize=normalize)
 
-        # Set up new extensions to add distortion to
-        for ext in [0, 1]:
-            fake_data = np.zeros((psf[ext].data.shape[1], psf[ext].data.shape[0]))  # add fake data
-            hdu_new = fits.ImageHDU(fake_data)
-            psf.append(hdu_new)
-            ext_new = ext + 2
-            psf[ext_new].header = copy.deepcopy(psf[ext].header)  # add header from corresponding extension
-            psf[ext_new].header["EXTNAME"] = psf[ext].header["EXTNAME"][0:4] + "DIST"  # change extension name
-
-        # Apply distortion effects to MIRI psf: SIAF and MIRI Scattering
         if add_distortion:
+            # Set up new extensions to add distortion to
+            for ext in [0, 1]:
+                fake_data = np.zeros((psf[ext].data.shape[1], psf[ext].data.shape[0]))  # add fake data
+                hdu_new = fits.ImageHDU(fake_data)
+                psf.append(hdu_new)
+                ext_new = ext + 2
+                psf[ext_new].header = copy.deepcopy(psf[ext].header)  # add header from corresponding extension
+                psf[ext_new].header["EXTNAME"] = psf[ext].header["EXTNAME"][0:4] + "DIST"  # change extension name
+
+            # Apply distortion effects to MIRI psf: SIAF and MIRI Scattering
             psf_siaf = distortion.apply_distortion(psf)  # apply siaf distortion
             psf_distorted = distortion.apply_miri_scattering(psf_siaf)  # apply miri scattering detector_effect
 
@@ -1297,17 +1297,17 @@ class NIRCam(JWInstrument):
                                     save_intermediates=save_intermediates,
                                     return_intermediates=return_intermediates, normalize=normalize)
 
-        # Set up new extensions to add distortion to
-        for ext in [0, 1]:
-            fake_data = np.zeros((psf[ext].data.shape[1], psf[ext].data.shape[0]))  # add fake data
-            hdu_new = fits.ImageHDU(fake_data)
-            psf.append(hdu_new)
-            ext_new = ext + 2
-            psf[ext_new].header = copy.deepcopy(psf[ext].header)  # add header from corresponding extension
-            psf[ext_new].header["EXTNAME"] = psf[ext].header["EXTNAME"][0:4] + "DIST"  # change extension name
-
-        # Apply distortion effects to NIRCam psf: SIAF and Rotation
         if add_distortion:
+            # Set up new extensions to add distortion to
+            for ext in [0, 1]:
+                fake_data = np.zeros((psf[ext].data.shape[1], psf[ext].data.shape[0]))  # add fake data
+                hdu_new = fits.ImageHDU(fake_data)
+                psf.append(hdu_new)
+                ext_new = ext + 2
+                psf[ext_new].header = copy.deepcopy(psf[ext].header)  # add header from corresponding extension
+                psf[ext_new].header["EXTNAME"] = psf[ext].header["EXTNAME"][0:4] + "DIST"  # change extension name
+
+            # Apply distortion effects to NIRCam psf: SIAF and Rotation
             psf_siaf = distortion.apply_distortion(psf)  # apply siaf distortion
             psf_distorted = distortion.apply_rotation(psf_siaf)  # apply rotation
 
@@ -1432,17 +1432,17 @@ class NIRSpec(JWInstrument):
                                     save_intermediates=save_intermediates,
                                     return_intermediates=return_intermediates, normalize=normalize)
 
-        # Set up new extensions to add distortion to
-        for ext in [0, 1]:
-            fake_data = np.zeros((psf[ext].data.shape[1], psf[ext].data.shape[0]))  # add fake data
-            hdu_new = fits.ImageHDU(fake_data)
-            psf.append(hdu_new)
-            ext_new = ext + 2
-            psf[ext_new].header = copy.deepcopy(psf[ext].header)  # add header from corresponding extension
-            psf[ext_new].header["EXTNAME"] = psf[ext].header["EXTNAME"][0:4] + "DIST"  # change extension name
-
-        # Apply distortion effects to NIRSpec psf: SIAF only
         if add_distortion:
+            # Set up new extensions to add distortion to
+            for ext in [0, 1]:
+                fake_data = np.zeros((psf[ext].data.shape[1], psf[ext].data.shape[0]))  # add fake data
+                hdu_new = fits.ImageHDU(fake_data)
+                psf.append(hdu_new)
+                ext_new = ext + 2
+                psf[ext_new].header = copy.deepcopy(psf[ext].header)  # add header from corresponding extension
+                psf[ext_new].header["EXTNAME"] = psf[ext].header["EXTNAME"][0:4] + "DIST"  # change extension name
+
+            # Apply distortion effects to NIRSpec psf: SIAF only
             psf_distorted = distortion.apply_distortion(psf)  # apply siaf distortion
 
         return psf_distorted
@@ -1627,17 +1627,17 @@ class NIRISS(JWInstrument):
                                     save_intermediates=save_intermediates,
                                     return_intermediates=return_intermediates, normalize=normalize)
 
-        # Set up new extensions to add distortion to
-        for ext in [0, 1]:
-            fake_data = np.zeros((psf[ext].data.shape[1], psf[ext].data.shape[0]))  # add fake data
-            hdu_new = fits.ImageHDU(fake_data)
-            psf.append(hdu_new)
-            ext_new = ext + 2
-            psf[ext_new].header = copy.deepcopy(psf[ext].header)  # add header from corresponding extension
-            psf[ext_new].header["EXTNAME"] = psf[ext].header["EXTNAME"][0:4] + "DIST"  # change extension name
-
-        # Apply distortion effects to NIRISS psf: SIAF and Rotation
         if add_distortion:
+            # Set up new extensions to add distortion to
+            for ext in [0, 1]:
+                fake_data = np.zeros((psf[ext].data.shape[1], psf[ext].data.shape[0]))  # add fake data
+                hdu_new = fits.ImageHDU(fake_data)
+                psf.append(hdu_new)
+                ext_new = ext + 2
+                psf[ext_new].header = copy.deepcopy(psf[ext].header)  # add header from corresponding extension
+                psf[ext_new].header["EXTNAME"] = psf[ext].header["EXTNAME"][0:4] + "DIST"  # change extension name
+
+            # Apply distortion effects to NIRISS psf: SIAF and Rotation
             psf_siaf = distortion.apply_distortion(psf)  # apply siaf distortion
             psf_distorted = distortion.apply_rotation(psf_siaf)  # apply rotation
 
@@ -1680,17 +1680,17 @@ class FGS(JWInstrument):
                                     save_intermediates=save_intermediates,
                                     return_intermediates=return_intermediates, normalize=normalize)
 
-        # Set up new extensions to add distortion to
-        for ext in [0, 1]:
-            fake_data = np.zeros((psf[ext].data.shape[1], psf[ext].data.shape[0]))  # add fake data
-            hdu_new = fits.ImageHDU(fake_data)
-            psf.append(hdu_new)
-            ext_new = ext + 2
-            psf[ext_new].header = copy.deepcopy(psf[ext].header)  # add header from corresponding extension
-            psf[ext_new].header["EXTNAME"] = psf[ext].header["EXTNAME"][0:4] + "DIST"  # change extension name
-
-        # Apply distortion effects to FGS psf: SIAF and Rotation
         if add_distortion:
+            # Set up new extensions to add distortion to
+            for ext in [0, 1]:
+                fake_data = np.zeros((psf[ext].data.shape[1], psf[ext].data.shape[0]))  # add fake data
+                hdu_new = fits.ImageHDU(fake_data)
+                psf.append(hdu_new)
+                ext_new = ext + 2
+                psf[ext_new].header = copy.deepcopy(psf[ext].header)  # add header from corresponding extension
+                psf[ext_new].header["EXTNAME"] = psf[ext].header["EXTNAME"][0:4] + "DIST"  # change extension name
+
+            # Apply distortion effects to FGS psf: SIAF and Rotation
             psf_siaf = distortion.apply_distortion(psf)  # apply siaf distortion
             psf_distorted = distortion.apply_rotation(psf_siaf)  # apply rotation
 
