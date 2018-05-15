@@ -6,9 +6,9 @@ import copy
 import pysiaf
 import poppy
 
-import astropy.io.fits as fits
 import numpy as np
 import matplotlib.pyplot as plt
+import astropy.io.fits as fits
 
 from astropy.table import Table
 from scipy.interpolate import griddata
@@ -61,8 +61,9 @@ def _get_default_SIAF(instrument, detector):
 
 def apply_distortion(HDUlist_or_filename=None, fill_value=0):
     """
-    Apply a distortion to the input PSF.This distortion comes from the SIAF 4-5 degree polynomial (depends on the
-    instrument). This function pulls SIAF values using pysiaf, which ensures the most up-to-date values will be called.
+    Apply a distortion to the input PSF. The distortion comes from the SIAF 4-5 degree polynomial (depends on the
+    instrument). This function pulls and applies the SIAF polynomial values using pysiaf, which ensures the most
+    up-to-date values will be called.
 
     Parameters
     ----------
@@ -70,7 +71,7 @@ def apply_distortion(HDUlist_or_filename=None, fill_value=0):
     HDUlist_or_filename :
         A PSF from WebbPSF, either as an HDUlist object or as a filename
     fill_value : float
-        Value used to fill in any blank space by no-longer square PSF. Default = 0
+        Value used to fill in any blank space by the skewed PSF. Default = 0
 
     """
 
@@ -89,20 +90,17 @@ def apply_distortion(HDUlist_or_filename=None, fill_value=0):
     instrument = hdu_list[0].header["INSTRUME"].upper()
     detector = hdu_list[0].header["DET_NAME"].upper()
 
-    # This error is present until Pysiaf is updated for NIRSpec
-    if instrument == 'NIRSpec':
-        raise NotImplementedError('NIRSpec case not yet implemented in pysiaf.')
-
+    # Pull default values
     aper = _get_default_SIAF(instrument, detector)
 
-    for ext in [0, 1]:
+    for ext in [2, 3]:
 
         # Pull PSF header information
         pixelscale = psf[ext].header["PIXELSCL"]  # the pixelscale carries the oversample value
         oversamp = psf[ext].header["OVERSAMP"]  # will be 1 for ext=1
         xpix_center = psf[ext].header["DET_X"]  # center x location in pixels
         ypix_center = psf[ext].header["DET_Y"]  # center y location in pixels
-        length = psf[ext].header["NAXIS1"]  # can assume square
+        length = psf[ext].shape[0]  #psf[ext].header["NAXIS1"]  # can assume square
 
         # Convert the PSF center point from pixels to arcseconds using pysiaf
         xarc_center, yarc_center = aper.sci_to_idl(xpix_center, ypix_center)
@@ -154,12 +152,11 @@ def apply_distortion(HDUlist_or_filename=None, fill_value=0):
                            fill_value=fill_value)
 
         # Apply data to correct extensions
-        ext_new = ext + 2
-        psf[ext_new].data = psf_new
+        psf[ext].data = psf_new
 
         # Set new header keywords
-        psf[ext_new].header["DISTCOEF"] = ("True", "SIAF distortion coefficients applied")
-        psf[ext_new].header["SIAF_PRD"] = (pysiaf.JWST_PRD_VERSION, "SIAF PRD version used")
+        psf[ext].header["DISTORT"] = ("True", "SIAF distortion coefficients applied")
+        psf[ext].header["SIAF_VER"] = (pysiaf.JWST_PRD_VERSION, "SIAF PRD version used")
 
         degree = np.int(getattr(aper, 'Sci2IdlDeg'))
         number_of_coefficients = np.int((degree + 1) * (degree + 2) / 2)
@@ -169,17 +166,17 @@ def apply_distortion(HDUlist_or_filename=None, fill_value=0):
             coeff = np.array([getattr(aper, c) for c in coeff_keys[0:number_of_coefficients]])
             for i in range(len(coeff)):
                 key = "COEF_{}".format(coeff_keys[i][-3:])
-                psf[ext_new].header[key] = (coeff[i], "SIAF distortion coefficient for {}".format(coeff_keys[i]))
+                psf[ext].header[key] = (coeff[i], "SIAF distortion coefficient for {}".format(coeff_keys[i]))
 
     return psf
 
 # #####################################################################################################################
 
 
-def apply_rotation(HDUlist_or_filename=None, rotate_value=None):
+def apply_rotation(HDUlist_or_filename=None, rotate_value=None, crop=True):
     """
     Apply the detector's rotation to the PSF. This is for NIRCam, NIRISS, and FGS. MIRI and NIRSpec's large rotation is
-    already added inside WebbPSF.
+    already added inside WebbPSF's calculations.
 
     Parameters
     ----------
@@ -189,6 +186,9 @@ def apply_rotation(HDUlist_or_filename=None, rotate_value=None):
     rotate_value : float
         Rotation in degrees that PSF needs to be. If set to None, function will pull the most up to date
         SIAF value. Default = None.
+    crop : bool
+        True or False to crop the PSF so it matches the size of the input PSF (e.g. so they could be more easily
+        compared).
 
     """
     # Read in input PSF
@@ -217,15 +217,17 @@ def apply_rotation(HDUlist_or_filename=None, rotate_value=None):
         aper = _get_default_SIAF(instrument, detector)
         rotate_value = getattr(aper, "V3IdlYAngle")  # the angle to rotate the PSF in degrees
 
-    for ext in [0, 1]:
-        psf_new = rotate(psf[ext].data, rotate_value)
+    # If crop = True, then reshape must be False - so invert this keyword
+    reshape = np.invert(crop)
+
+    for ext in [2, 3]:
+        psf_new = rotate(psf[ext].data, rotate_value, reshape=reshape)
 
         # Apply data to correct extensions
-        ext_new = ext + 2
-        psf[ext_new].data = psf_new
+        psf[ext].data = psf_new
 
         # Set new header keyword
-        psf[ext_new].header["ROTATION"] = (rotate_value, "SIAF distortion coefficients applied")
+        psf[ext].header["ROTATION"] = (rotate_value, "PSF rotated to match detector rotation")
 
     return psf
 
@@ -240,6 +242,8 @@ def _get_default_miri(filter):
 
     radius = 200  # radius of kernel profile (in MIRI detector pixels)
 
+    rotate_value = 4.4497  # from SIAF PRDOPSSOC-H-014. Hardcoded here to match hard-coding in webbpsf_core.py
+
     filter_list = ['F560W', 'F770W', 'F1000W', 'F1130W', 'F1280W', 'F1500W', 'F1800W', 'F2100W', 'F2550W',
                    'FND', 'F1065C', 'F1140C', 'F1550C', 'F2300C']
 
@@ -252,7 +256,8 @@ def _get_default_miri(filter):
 
     miri_scattering_default = {
         "radius": radius,
-        "kernel_amp": kernel_amp
+        "kernel_amp": kernel_amp,
+        "rotate_value": rotate_value
     }
 
     return miri_scattering_default
@@ -312,7 +317,7 @@ def _apply_kernel(kernel, image, radius):
     return out_image
 
 
-def apply_miri_scattering(HDUlist_or_filename=None, radius=None, kernel_amp=None):
+def apply_miri_scattering(HDUlist_or_filename=None, radius=None, kernel_amp=None, rotate_value=None):
     """
     Apply a distortion caused by the MIRI scattering cross artifact effect. Description of distortion and code is
     adapted from MIRI-TN-00076-ATC_Imager_PSF_Issue_4.pdf (originally in IDL).
@@ -327,6 +332,8 @@ def apply_miri_scattering(HDUlist_or_filename=None, radius=None, kernel_amp=None
     kernel_amp: float
         Detector scattering kernel amplitude. If set to None, function will pull the value based on best fit analysis
         based on the input PSF's filter. Default = None.
+    rotate_value: float
+        The rotation of the MIRI detector in degrees
 
     """
 
@@ -348,6 +355,7 @@ def apply_miri_scattering(HDUlist_or_filename=None, radius=None, kernel_amp=None
     if instrument != "MIRI":
         raise ValueError("MIRI's Scattering Effect should only be applied to MIRI PSFs")
 
+    # Pull default values
     miri_scattering_default = _get_default_miri(filter)
 
     # Set values if not already set by a keyword argument
@@ -355,10 +363,13 @@ def apply_miri_scattering(HDUlist_or_filename=None, radius=None, kernel_amp=None
         radius = miri_scattering_default["radius"]
     if kernel_amp is None:
         kernel_amp = miri_scattering_default["kernel_amp"]
+    if rotate_value is None:
+        rotate_value = miri_scattering_default["rotate_value"]
 
-    for ext in [0, 1]:
+    for ext in [2, 3]:
 
-        cdp_samp = psf[ext].header["OVERSAMP"]  # the oversample value for this ext. If det, it'll = 1 so no change
+        # Set oversample value
+        cdp_samp = psf[ext].header["OVERSAMP"]  # the oversample value for this ext. If det, it'll = 1 so no effect
 
         # Read in PSF
         in_psf = psf[ext].data
@@ -373,17 +384,20 @@ def apply_miri_scattering(HDUlist_or_filename=None, radius=None, kernel_amp=None
         y_scattered_image_tr = _apply_kernel(kernel, in_psf_tr, radius)
         y_scattered_image = y_scattered_image_tr.T
 
+        # Rotate the scattering images (but keep same size) so they match the PSF
+        x_scattered_image_rot = rotate(x_scattered_image, rotate_value, reshape=False)
+        y_scattered_image_rot = rotate(y_scattered_image, rotate_value, reshape=False)
+
         # Add the vertical/horizontal scattering images to the PSF
-        psf_new = in_psf + x_scattered_image + y_scattered_image
+        psf_new = in_psf + x_scattered_image_rot + y_scattered_image_rot
 
         # Apply data to correct extensions
-        ext_new = ext + 2
-        psf[ext_new].data = psf_new
+        psf[ext].data = psf_new
 
         # Set new header keywords
-        psf[ext_new].header["SCATDIST"] = ("True", "MIRI detector scattering applied")
-        psf[ext_new].header["KERN_AMP"] = (amplitude, "Kernel Amplitude used in kernel exponential")
-        psf[ext_new].header["KERNFOLD"] = (fold, "e-folding length used in kernel exponential")
-        psf[ext_new].header["RADIUS"] = (radius, "Radius of kernel profile (MIRI pixels)")
+        psf[ext].header["MIR_DIST"] = ("True", "MIRI detector scattering applied")
+        psf[ext].header["KERN_AMP"] = (amplitude, "Kernel Amplitude used in kernel exponential")
+        psf[ext].header["KERNFOLD"] = (fold, "e-folding length used in kernel exponential")
+        psf[ext].header["KERN_RAD"] = (radius, "Radius of kernel profile (MIRI pixels)")
 
     return psf

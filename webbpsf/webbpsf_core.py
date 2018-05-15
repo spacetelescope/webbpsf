@@ -951,7 +951,20 @@ class MIRI(JWInstrument):
                  fov_arcsec=None, fov_pixels=None, oversample=None, detector_oversample=None, fft_oversample=None,
                  overwrite=True, display=False, save_intermediates=False, return_intermediates=False,
                  normalize='first', add_distortion=True):
-        # Run poppy calc_psf as one originally would
+        """ Compute a PSF and apply distortion effects.
+
+        Parameters
+        ----------
+        add_distortion : bool
+            If True, will add 2 new extensions to the PSF HDUlist object. The 2nd extension will be a
+            distorted version of the over-sampled PSF and the 3rd extension will be a distorted version of
+            the detector-sampled PSF.
+            For MIRI, the distortions applied to the PSF will be a distortion from the shape and pixel scale variation
+            in the detector and, only if the PSF is an imaging PSF, the MIRI cross-artifact scattering effect.
+
+        """
+
+        # Run poppy calc_psf
         psf = JWInstrument.calc_psf(self, outfile=outfile, source=source, nlambda=nlambda, monochromatic=monochromatic,
                                     fov_arcsec=fov_arcsec, fov_pixels=fov_pixels, oversample=oversample,
                                     detector_oversample=detector_oversample,
@@ -962,20 +975,27 @@ class MIRI(JWInstrument):
         if add_distortion:
             # Set up new extensions to add distortion to
             for ext in [0, 1]:
-                fake_data = np.zeros((psf[ext].data.shape[1], psf[ext].data.shape[0]))  # add fake data
-                hdu_new = fits.ImageHDU(fake_data)
+                hdu_new = fits.ImageHDU(psf[ext].data)  # append the PSFs again, these will be the PSFs that are edited
                 psf.append(hdu_new)
                 ext_new = ext + 2
                 psf[ext_new].header = copy.deepcopy(psf[ext].header)  # add header from corresponding extension
                 psf[ext_new].header["EXTNAME"] = psf[ext].header["EXTNAME"][0:4] + "DIST"  # change extension name
 
-            # Apply distortion effects to MIRI psf: SIAF and MIRI Scattering
+            # Apply distortion effects to MIRI PSF: SIAF and MIRI Scattering
             psf_siaf = distortion.apply_distortion(psf)  # apply siaf distortion
-            psf_distorted = distortion.apply_miri_scattering(psf_siaf)  # apply miri scattering detector_effect
 
-        return psf_distorted
+            # Only apply scattering function to imaging PSFs
+            if self.image_mask is None and self.pupil_mask is None:
+                psf_distorted = distortion.apply_miri_scattering(psf_siaf)  # apply miri scattering detector_effect
+                return psf_distorted
+            else:
+                return psf_siaf
+
+        else:
+            return psf
 
     calcPSF = calc_psf
+    calc_psf.__doc__ += JWInstrument.calc_psf.__doc__
 
 
 class NIRCam(JWInstrument):
@@ -1288,8 +1308,24 @@ class NIRCam(JWInstrument):
     def calc_psf(self, outfile=None, source=None, nlambda=None, monochromatic=None,
                  fov_arcsec=None, fov_pixels=None, oversample=None, detector_oversample=None, fft_oversample=None,
                  overwrite=True, display=False, save_intermediates=False, return_intermediates=False,
-                 normalize='first', add_distortion=True):
-        # Run poppy calc_psf as one originally would
+                 normalize='first', add_distortion=True, crop_psf=True):
+        """ Compute a PSF and apply distortion effects.
+
+        Parameters
+        ----------
+        add_distortion : bool
+            If True, will add 2 new extensions to the PSF HDUlist object. The 2nd extension will be a
+            distorted version of the over-sampled PSF and the 3rd extension will be a distorted version of
+            the detector-sampled PSF.
+            For NIRCam, the distortions applied to the PSF will be a distortion from the shape and pixel scale variation
+            in the detector and a rotation of the PSF to match the detector's rotation in the focal plane.
+        crop_psf : bool
+            If True, when the PSF is rotated to match the detector's rotation in the focal plane, the PSF will be
+            cropped so the shape of the distorted PSF will match it's undistorted counterpart.
+
+        """
+
+        # Run poppy calc_psf
         psf = JWInstrument.calc_psf(self, outfile=outfile, source=source, nlambda=nlambda, monochromatic=monochromatic,
                                     fov_arcsec=fov_arcsec, fov_pixels=fov_pixels, oversample=oversample,
                                     detector_oversample=detector_oversample,
@@ -1300,20 +1336,24 @@ class NIRCam(JWInstrument):
         if add_distortion:
             # Set up new extensions to add distortion to
             for ext in [0, 1]:
-                fake_data = np.zeros((psf[ext].data.shape[1], psf[ext].data.shape[0]))  # add fake data
-                hdu_new = fits.ImageHDU(fake_data)
+                hdu_new = fits.ImageHDU(psf[ext].data)  # append the PSFs again, these will be the PSFs that are edited
                 psf.append(hdu_new)
                 ext_new = ext + 2
                 psf[ext_new].header = copy.deepcopy(psf[ext].header)  # add header from corresponding extension
                 psf[ext_new].header["EXTNAME"] = psf[ext].header["EXTNAME"][0:4] + "DIST"  # change extension name
 
-            # Apply distortion effects to NIRCam psf: SIAF and Rotation
-            psf_siaf = distortion.apply_distortion(psf)  # apply siaf distortion
-            psf_distorted = distortion.apply_rotation(psf_siaf)  # apply rotation
+            # Apply distortion effects to NIRCam PSF: Rotation and Detector Distortion
+            psf_rotated = distortion.apply_rotation(psf, crop=crop_psf)  # apply rotation
+            print(psf_rotated[3].data.shape)
+            psf_distorted = distortion.apply_distortion(psf_rotated)  # apply siaf distortion
 
-        return psf_distorted
+            return psf_distorted
+
+        else:
+            return psf
 
     calcPSF = calc_psf
+    calc_psf.__doc__ += JWInstrument.calc_psf.__doc__
 
 
 class NIRSpec(JWInstrument):
@@ -1424,7 +1464,20 @@ class NIRSpec(JWInstrument):
                  fov_arcsec=None, fov_pixels=None, oversample=None, detector_oversample=None, fft_oversample=None,
                  overwrite=True, display=False, save_intermediates=False, return_intermediates=False,
                  normalize='first', add_distortion=True):
-        # Run poppy calc_psf as one originally would
+        """ Compute a PSF and apply distortion effects.
+
+        Parameters
+        ----------
+        add_distortion : bool
+            If True, will add 2 new extensions to the PSF HDUlist object. The 2nd extension will be a
+            distorted version of the over-sampled PSF and the 3rd extension will be a distorted version of
+            the detector-sampled PSF.
+            For NIRSpec, the distortions applied to the PSF will be a distortion from the shape and pixel scale variation
+            in the detector.
+
+        """
+
+        # Run poppy calc_psf
         psf = JWInstrument.calc_psf(self, outfile=outfile, source=source, nlambda=nlambda, monochromatic=monochromatic,
                                     fov_arcsec=fov_arcsec, fov_pixels=fov_pixels, oversample=oversample,
                                     detector_oversample=detector_oversample,
@@ -1435,8 +1488,7 @@ class NIRSpec(JWInstrument):
         if add_distortion:
             # Set up new extensions to add distortion to
             for ext in [0, 1]:
-                fake_data = np.zeros((psf[ext].data.shape[1], psf[ext].data.shape[0]))  # add fake data
-                hdu_new = fits.ImageHDU(fake_data)
+                hdu_new = fits.ImageHDU(psf[ext].data)  # append the PSFs again, these will be the PSFs that are edited
                 psf.append(hdu_new)
                 ext_new = ext + 2
                 psf[ext_new].header = copy.deepcopy(psf[ext].header)  # add header from corresponding extension
@@ -1445,9 +1497,13 @@ class NIRSpec(JWInstrument):
             # Apply distortion effects to NIRSpec psf: SIAF only
             psf_distorted = distortion.apply_distortion(psf)  # apply siaf distortion
 
-        return psf_distorted
+            return psf_distorted
+
+        else:
+            return psf
 
     calcPSF = calc_psf
+    calc_psf.__doc__ += JWInstrument.calc_psf.__doc__
 
 
 class NIRISS(JWInstrument):
@@ -1618,8 +1674,24 @@ class NIRISS(JWInstrument):
     def calc_psf(self, outfile=None, source=None, nlambda=None, monochromatic=None,
                  fov_arcsec=None, fov_pixels=None, oversample=None, detector_oversample=None, fft_oversample=None,
                  overwrite=True, display=False, save_intermediates=False, return_intermediates=False,
-                 normalize='first', add_distortion=True):
-        # Run poppy calc_psf as one originally would
+                 normalize='first', add_distortion=True, crop_psf=True):
+        """ Compute a PSF and apply distortion effects.
+
+        Parameters
+        ----------
+        add_distortion : bool
+            If True, will add 2 new extensions to the PSF HDUlist object. The 2nd extension will be a
+            distorted version of the over-sampled PSF and the 3rd extension will be a distorted version of
+            the detector-sampled PSF.
+            For NIRISS, the distortions applied to the PSF will be a distortion from the shape and pixel scale variation
+            in the detector and a rotation of the PSF to match the detector's rotation in the focal plane.
+        crop_psf : bool
+            If True, when the PSF is rotated to match the detector's rotation in the focal plane, the PSF will be
+            cropped so the shape of the distorted PSF will match it's undistorted counterpart.
+
+        """
+
+        # Run poppy calc_psf
         psf = JWInstrument.calc_psf(self, outfile=outfile, source=source, nlambda=nlambda, monochromatic=monochromatic,
                                     fov_arcsec=fov_arcsec, fov_pixels=fov_pixels, oversample=oversample,
                                     detector_oversample=detector_oversample,
@@ -1630,20 +1702,23 @@ class NIRISS(JWInstrument):
         if add_distortion:
             # Set up new extensions to add distortion to
             for ext in [0, 1]:
-                fake_data = np.zeros((psf[ext].data.shape[1], psf[ext].data.shape[0]))  # add fake data
-                hdu_new = fits.ImageHDU(fake_data)
+                hdu_new = fits.ImageHDU(psf[ext].data)  # append the PSFs again, these will be the PSFs that are edited
                 psf.append(hdu_new)
                 ext_new = ext + 2
                 psf[ext_new].header = copy.deepcopy(psf[ext].header)  # add header from corresponding extension
                 psf[ext_new].header["EXTNAME"] = psf[ext].header["EXTNAME"][0:4] + "DIST"  # change extension name
 
-            # Apply distortion effects to NIRISS psf: SIAF and Rotation
-            psf_siaf = distortion.apply_distortion(psf)  # apply siaf distortion
-            psf_distorted = distortion.apply_rotation(psf_siaf)  # apply rotation
+            # Apply distortion effects to NIRISS psf: Rotation and Detector Distortion
+            psf_rotated = distortion.apply_rotation(psf, crop=crop_psf)  # apply rotation
+            psf_distorted = distortion.apply_distortion(psf_rotated)  # apply siaf distortion
 
-        return psf_distorted
+            return psf_distorted
+
+        else:
+            return psf
 
     calcPSF = calc_psf
+    calc_psf.__doc__ += JWInstrument.calc_psf.__doc__
 
 
 class FGS(JWInstrument):
@@ -1670,9 +1745,24 @@ class FGS(JWInstrument):
     def calc_psf(self, outfile=None, source=None, nlambda=None, monochromatic=None,
                  fov_arcsec=None, fov_pixels=None, oversample=None, detector_oversample=None, fft_oversample=None,
                  overwrite=True, display=False, save_intermediates=False, return_intermediates=False,
-                 normalize='first', add_distortion=True):
+                 normalize='first', add_distortion=True, crop_psf=True):
+        """ Compute a PSF and apply distortion effects.
 
-        # Run poppy calc_psf as one originally would
+        Parameters
+        ----------
+        add_distortion : bool
+            If True, will add 2 new extensions to the PSF HDUlist object. The 2nd extension will be a
+            distorted version of the over-sampled PSF and the 3rd extension will be a distorted version of
+            the detector-sampled PSF.
+            For FGS, the distortions applied to the PSF will be a distortion from the shape and pixel scale variation
+            in the detector and a rotation of the PSF to match the detector's rotation in the focal plane.
+        crop_psf : bool
+            If True, when the PSF is rotated to match the detector's rotation in the focal plane, the PSF will be
+            cropped so the shape of the distorted PSF will match it's undistorted counterpart.
+
+        """
+
+        # Run poppy calc_psf
         psf = JWInstrument.calc_psf(self, outfile=outfile, source=source, nlambda=nlambda, monochromatic=monochromatic,
                                     fov_arcsec=fov_arcsec, fov_pixels=fov_pixels, oversample=oversample,
                                     detector_oversample=detector_oversample,
@@ -1683,20 +1773,23 @@ class FGS(JWInstrument):
         if add_distortion:
             # Set up new extensions to add distortion to
             for ext in [0, 1]:
-                fake_data = np.zeros((psf[ext].data.shape[1], psf[ext].data.shape[0]))  # add fake data
-                hdu_new = fits.ImageHDU(fake_data)
+                hdu_new = fits.ImageHDU(psf[ext].data)  # append the PSFs again, these will be the PSFs that are edited
                 psf.append(hdu_new)
                 ext_new = ext + 2
                 psf[ext_new].header = copy.deepcopy(psf[ext].header)  # add header from corresponding extension
                 psf[ext_new].header["EXTNAME"] = psf[ext].header["EXTNAME"][0:4] + "DIST"  # change extension name
 
-            # Apply distortion effects to FGS psf: SIAF and Rotation
-            psf_siaf = distortion.apply_distortion(psf)  # apply siaf distortion
-            psf_distorted = distortion.apply_rotation(psf_siaf)  # apply rotation
+            # Apply distortion effects to FGS psf: Rotation and Detector Distortion
+            psf_rotated = distortion.apply_rotation(psf, crop=crop_psf)  # apply rotation
+            psf_distorted = distortion.apply_distortion(psf_rotated)  # apply siaf distortion
 
-        return psf_distorted
+            return psf_distorted
+
+        else:
+            return psf
 
     calcPSF = calc_psf
+    calc_psf.__doc__ += JWInstrument.calc_psf.__doc__
 
 
 ###########################################################################
