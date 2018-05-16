@@ -96,11 +96,11 @@ def apply_distortion(HDUlist_or_filename=None, fill_value=0):
     for ext in [2, 3]:
 
         # Pull PSF header information
-        pixelscale = psf[ext].header["PIXELSCL"]  # the pixelscale carries the oversample value
+        pixelscale = psf[ext].header["PIXELSCL"]  # the pixel scale carries the over-sample value
         oversamp = psf[ext].header["OVERSAMP"]  # will be 1 for ext=1
         xpix_center = psf[ext].header["DET_X"]  # center x location in pixels
         ypix_center = psf[ext].header["DET_Y"]  # center y location in pixels
-        length = psf[ext].shape[0]  #psf[ext].header["NAXIS1"]  # can assume square
+        length = psf[ext].shape[0]  # can assume square
 
         # Convert the PSF center point from pixels to arcseconds using pysiaf
         xarc_center, yarc_center = aper.sci_to_idl(xpix_center, ypix_center)
@@ -368,8 +368,8 @@ def apply_miri_scattering(HDUlist_or_filename=None, radius=None, kernel_amp=None
 
     for ext in [2, 3]:
 
-        # Set oversample value
-        cdp_samp = psf[ext].header["OVERSAMP"]  # the oversample value for this ext. If det, it'll = 1 so no effect
+        # Set over-sample value
+        cdp_samp = psf[ext].header["OVERSAMP"]  # the over-sample value for this ext. If det, it'll = 1 so no effect
 
         # Read in PSF
         in_psf = psf[ext].data

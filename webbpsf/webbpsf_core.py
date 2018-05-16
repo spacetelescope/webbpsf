@@ -986,7 +986,7 @@ class MIRI(JWInstrument):
 
             # Only apply scattering function to imaging PSFs
             if self.image_mask is None and self.pupil_mask is None:
-                psf_distorted = distortion.apply_miri_scattering(psf_siaf)  # apply miri scattering detector_effect
+                psf_distorted = distortion.apply_miri_scattering(psf_siaf)  # apply miri scattering detector effect
                 return psf_distorted
             else:
                 return psf_siaf
@@ -995,7 +995,7 @@ class MIRI(JWInstrument):
             return psf
 
     calcPSF = calc_psf
-    calc_psf.__doc__ += JWInstrument.calc_psf.__doc__
+    calc_psf.__doc__ += JWInstrument.calc_psf.__doc__  # allow users to see poppy calc_psf docstring along with above
 
 
 class NIRCam(JWInstrument):
@@ -1344,7 +1344,6 @@ class NIRCam(JWInstrument):
 
             # Apply distortion effects to NIRCam PSF: Rotation and Detector Distortion
             psf_rotated = distortion.apply_rotation(psf, crop=crop_psf)  # apply rotation
-            print(psf_rotated[3].data.shape)
             psf_distorted = distortion.apply_distortion(psf_rotated)  # apply siaf distortion
 
             return psf_distorted
@@ -1353,7 +1352,7 @@ class NIRCam(JWInstrument):
             return psf
 
     calcPSF = calc_psf
-    calc_psf.__doc__ += JWInstrument.calc_psf.__doc__
+    calc_psf.__doc__ += JWInstrument.calc_psf.__doc__  # allow users to see poppy calc_psf docstring along with above
 
 
 class NIRSpec(JWInstrument):
@@ -1472,8 +1471,8 @@ class NIRSpec(JWInstrument):
             If True, will add 2 new extensions to the PSF HDUlist object. The 2nd extension will be a
             distorted version of the over-sampled PSF and the 3rd extension will be a distorted version of
             the detector-sampled PSF.
-            For NIRSpec, the distortions applied to the PSF will be a distortion from the shape and pixel scale variation
-            in the detector.
+            For NIRSpec, the distortions applied to the PSF will be a distortion from the shape and pixel scale
+            variation in the detector.
 
         """
 
@@ -1503,7 +1502,7 @@ class NIRSpec(JWInstrument):
             return psf
 
     calcPSF = calc_psf
-    calc_psf.__doc__ += JWInstrument.calc_psf.__doc__
+    calc_psf.__doc__ += JWInstrument.calc_psf.__doc__  # allow users to see poppy calc_psf docstring along with above
 
 
 class NIRISS(JWInstrument):
@@ -1718,7 +1717,7 @@ class NIRISS(JWInstrument):
             return psf
 
     calcPSF = calc_psf
-    calc_psf.__doc__ += JWInstrument.calc_psf.__doc__
+    calc_psf.__doc__ += JWInstrument.calc_psf.__doc__  # allow users to see poppy calc_psf docstring along with above
 
 
 class FGS(JWInstrument):
@@ -1789,7 +1788,7 @@ class FGS(JWInstrument):
             return psf
 
     calcPSF = calc_psf
-    calc_psf.__doc__ += JWInstrument.calc_psf.__doc__
+    calc_psf.__doc__ += JWInstrument.calc_psf.__doc__  # allow users to see poppy calc_psf docstring along with above
 
 
 ###########################################################################
