@@ -18,28 +18,8 @@ from decimal import Decimal, ROUND_HALF_UP
 from astropy.modeling.functional_models import Gaussian2D
 
 
-def _get_default_SIAF(instrument, detector):
+def _get_default_SIAF(instrument, aper_name):
     """ Store the default SIAF values for distortion and rotation """
-
-    # SIAF aperture names that correspond to WebbPSF detector names
-    aper_names_dict = {
-        "NIRCAM":  {"NRCA1": "NRCA1_FULL",
-                    "NRCA2": "NRCA2_FULL",
-                    "NRCA3": "NRCA3_FULL",
-                    "NRCA4": "NRCA4_FULL",
-                    "NRCA5": "NRCA5_FULL",
-                    "NRCB1": "NRCB1_FULL",
-                    "NRCB2": "NRCB2_FULL",
-                    "NRCB3": "NRCB3_FULL",
-                    "NRCB4": "NRCB4_FULL",
-                    "NRCB5": "NRCB5_FULL"},
-        "NIRSPEC": {"NRS1" : "NRS1_FULL",
-                    "NRS2" : "NRS2_FULL"},
-        "NIRISS":  {"NIS"  : "NIS_CEN"},
-        "MIRI":    {"MIRIM": "MIRIM_FULL"},
-        "FGS":     {"FGS1" : "FGS1_FULL",
-                    "FGS2" : "FGS2_FULL"}
-    }
 
     # Create new naming because SIAF requires special capitalization
     if instrument == "NIRCAM":
@@ -48,9 +28,6 @@ def _get_default_SIAF(instrument, detector):
         siaf_name = "NIRSpec"
     else:
         siaf_name = instrument
-
-    # Pull correct aperture name
-    aper_name = aper_names_dict[instrument][detector]
 
     # Select a single SIAF aperture
     siaf = pysiaf.Siaf(siaf_name)
@@ -88,73 +65,78 @@ def apply_distortion(HDUlist_or_filename=None, fill_value=0):
 
     # Log instrument and detector names
     instrument = hdu_list[0].header["INSTRUME"].upper()
-    detector = hdu_list[0].header["DET_NAME"].upper()
+    aper_name = hdu_list[0].header["APERNAME"].upper()
 
     # Pull default values
-    aper = _get_default_SIAF(instrument, detector)
+    aper = _get_default_SIAF(instrument, aper_name)
 
+    ext = 2  # edit the oversampled PSF, then bin it down to get the detector sampled PSF
+
+    # Pull PSF header information
+    pixelscale = psf[ext].header["PIXELSCL"]  # the pixel scale carries the over-sample value
+    oversamp = psf[ext].header["OVERSAMP"]  # will be 1 for ext=1
+    xpix_center = psf[ext].header["DET_X"]  # center x location in pixels
+    ypix_center = psf[ext].header["DET_Y"]  # center y location in pixels
+    length = psf[ext].shape[0]  # can assume square
+
+    # Convert the PSF center point from pixels to arcseconds using pysiaf
+    xarc_center, yarc_center = aper.sci_to_idl(xpix_center, ypix_center)
+
+    # ###############################################
+    # Create an array of indices (in pixels) for where the PSF is located on the detector
+    # 1) Set up blank indices (in pixels)
+    ypix, xpix = np.indices((length, length), dtype=float)
+
+    # 2) Shift indices to be centered on (0,0) (starting to transform into the Ideal frame)
+    ypix -= (length - 1.) / 2.
+    xpix -= (length - 1.) / 2.
+
+    # 3) Convert these indices from pixels to arcseconds
+    # Note: This also shifts the oversampled indices so they span the same region as the detector-sampled indices
+    # but the oversampled array is still longer by a factor of the oversample
+    yarc = ypix * pixelscale
+    xarc = xpix * pixelscale
+
+    # 4) Shift the indices so they match where on the detector the PSF is located
+    yidl = yarc + yarc_center
+    xidl = xarc + xarc_center
+
+    # 5) Now that the indices are in the Ideal frame, convert them to the Science Frame using idl_to_sci
+    # Going from Idl to Sci this way allows us to add in the distortion
+    xsci, ysci = aper.idl_to_sci(xidl, yidl)
+
+    # ###############################################
+    # Create an array of indices (in pixels) that the final data will be interpolated on to
+    # 1) Set up blank indices (in pixels)
+    ynew, xnew = np.indices([length, length], dtype=float)
+
+    # 2) Shift indices to be in the Ideal frame (centered on 0)
+    xnew -= (length - 1.) / 2.
+    ynew -= (length - 1.) / 2.
+
+    # 3) Shift the oversampled indices so they span the same region as the detector-sampled indices
+    # Note: the oversampled array is still longer by a factor of the oversample
+    xnew /= oversamp
+    ynew /= oversamp
+
+    # 4) Shift the indices so they match where on the detector the PSF is located
+    xnew += xpix_center
+    ynew += ypix_center
+
+    # ###############################################
+    # Interpolate from the original indices (xsci, ysci) on to new indices (xnew, ynew)
+    psf_new = griddata((xsci.flatten(), ysci.flatten()), psf[ext].data.flatten(), (xnew, ynew),
+                       fill_value=fill_value)
+
+    # Apply data to correct extensions
+    psf[ext].data = psf_new
+
+    # Now bin down over-sampled PSF to be detector-sampled and re-write ext=3
+    detector_oversample = psf[ext].header["DET_SAMP"]
+    psf[3].data = poppy.utils.rebin_array(psf_new, rc=(detector_oversample, detector_oversample))
+
+    # Set new header keywords
     for ext in [2, 3]:
-
-        # Pull PSF header information
-        pixelscale = psf[ext].header["PIXELSCL"]  # the pixel scale carries the over-sample value
-        oversamp = psf[ext].header["OVERSAMP"]  # will be 1 for ext=1
-        xpix_center = psf[ext].header["DET_X"]  # center x location in pixels
-        ypix_center = psf[ext].header["DET_Y"]  # center y location in pixels
-        length = psf[ext].shape[0]  # can assume square
-
-        # Convert the PSF center point from pixels to arcseconds using pysiaf
-        xarc_center, yarc_center = aper.sci_to_idl(xpix_center, ypix_center)
-
-        # ###############################################
-        # Create an array of indices (in pixels) for where the PSF is located on the detector
-        # 1) Set up blank indices (in pixels)
-        ypix, xpix = np.indices((length, length), dtype=float)
-
-        # 2) Shift indices to be centered on (0,0) (starting to transform into the Ideal frame)
-        ypix -= (length - 1.) / 2.
-        xpix -= (length - 1.) / 2.
-
-        # 3) Convert these indices from pixels to arcseconds
-        # Note: This also shifts the oversampled indices so they span the same region as the detector-sampled indices
-        # but the oversampled array is still longer by a factor of the oversample
-        yarc = ypix * pixelscale
-        xarc = xpix * pixelscale
-
-        # 4) Shift the indices so they match where on the detector the PSF is located
-        yidl = yarc + yarc_center
-        xidl = xarc + xarc_center
-
-        # 5) Now that the indices are in the Ideal frame, convert them to the Science Frame using idl_to_sci
-        # Going from Idl to Sci this way allows us to add in the distortion
-        xsci, ysci = aper.idl_to_sci(xidl, yidl)
-
-        # ###############################################
-        # Create an array of indices (in pixels) that the final data will be interpolated on to
-        # 1) Set up blank indices (in pixels)
-        ynew, xnew = np.indices([length, length], dtype=float)
-
-        # 2) Shift indices to be in the Ideal frame (centered on 0)
-        xnew -= (length - 1.) / 2.
-        ynew -= (length - 1.) / 2.
-
-        # 3) Shift the oversampled indices so they span the same region as the detector-sampled indices
-        # Note: the oversampled array is still longer by a factor of the oversample
-        xnew /= oversamp
-        ynew /= oversamp
-
-        # 4) Shift the indices so they match where on the detector the PSF is located
-        xnew += xpix_center
-        ynew += ypix_center
-
-        # ###############################################
-        # Interpolate from the original indices (xsci, ysci) on to new indices (xnew, ynew)
-        psf_new = griddata((xsci.flatten(), ysci.flatten()), psf[ext].data.flatten(), (xnew, ynew),
-                           fill_value=fill_value)
-
-        # Apply data to correct extensions
-        psf[ext].data = psf_new
-
-        # Set new header keywords
         psf[ext].header["DISTORT"] = ("True", "SIAF distortion coefficients applied")
         psf[ext].header["SIAF_VER"] = (pysiaf.JWST_PRD_VERSION, "SIAF PRD version used")
 
@@ -204,7 +186,7 @@ def apply_rotation(HDUlist_or_filename=None, rotate_value=None, crop=True):
 
     # Log instrument and detector names
     instrument = hdu_list[0].header["INSTRUME"].upper()
-    detector = hdu_list[0].header["DET_NAME"].upper()
+    aper_name = hdu_list[0].header["APERNAME"].upper()
 
     if instrument == "MIRI":
         raise ValueError("MIRI's rotation is already included in WebbPSF and shouldn't be added again.")
@@ -214,19 +196,25 @@ def apply_rotation(HDUlist_or_filename=None, rotate_value=None, crop=True):
 
     # Set rotation value if not already set by a keyword argument
     if rotate_value is None:
-        aper = _get_default_SIAF(instrument, detector)
+        aper = _get_default_SIAF(instrument, aper_name)
         rotate_value = getattr(aper, "V3IdlYAngle")  # the angle to rotate the PSF in degrees
 
     # If crop = True, then reshape must be False - so invert this keyword
     reshape = np.invert(crop)
 
+    ext = 2  # edit the oversampled PSF, then bin it down to get the detector sampled PSF
+
+    psf_new = rotate(psf[ext].data, rotate_value, reshape=reshape)
+
+    # Apply data to correct extensions
+    psf[ext].data = psf_new
+
+    # Now bin down over-sampled PSF to be detector-sampled and re-write ext=3
+    detector_oversample = psf[ext].header["DET_SAMP"]
+    psf[3].data = poppy.utils.rebin_array(psf_new, rc=(detector_oversample, detector_oversample))
+
+    # Set new header keyword
     for ext in [2, 3]:
-        psf_new = rotate(psf[ext].data, rotate_value, reshape=reshape)
-
-        # Apply data to correct extensions
-        psf[ext].data = psf_new
-
-        # Set new header keyword
         psf[ext].header["ROTATION"] = (rotate_value, "PSF rotated to match detector rotation")
 
     return psf
@@ -242,7 +230,8 @@ def _get_default_miri(filter):
 
     radius = 200  # radius of kernel profile (in MIRI detector pixels)
 
-    rotate_value = 4.4497  # from SIAF PRDOPSSOC-H-014. Hardcoded here to match hard-coding in webbpsf_core.py
+    aper = pysiaf.Siaf("MIRI").apertures["MIRIM_FULL"]
+    rotate_value = getattr(aper, "V3IdlYAngle")  # = 4.4497  # rotation value pulled from most updated SIAF file
 
     filter_list = ['F560W', 'F770W', 'F1000W', 'F1130W', 'F1280W', 'F1500W', 'F1800W', 'F2100W', 'F2550W',
                    'FND', 'F1065C', 'F1140C', 'F1550C', 'F2300C']
@@ -366,33 +355,39 @@ def apply_miri_scattering(HDUlist_or_filename=None, radius=None, kernel_amp=None
     if rotate_value is None:
         rotate_value = miri_scattering_default["rotate_value"]
 
+    ext = 2
+
+    # Set over-sample value
+    cdp_samp = psf[ext].header["OVERSAMP"]  # the over-sample value for this ext. If det, it'll = 1 so no effect
+
+    # Read in PSF
+    in_psf = psf[ext].data
+
+    # Make the kernel
+    kernel, amplitude, fold = _make_kernel(kernel_amp, radius, cdp_samp)
+
+    # Create scattering images by applying the kernel vertically/horizontally via transposing
+    x_scattered_image = _apply_kernel(kernel, in_psf, radius)
+    kernel[radius] = 0.0
+    in_psf_tr = in_psf.T
+    y_scattered_image_tr = _apply_kernel(kernel, in_psf_tr, radius)
+    y_scattered_image = y_scattered_image_tr.T
+
+    # Rotate the scattering images (but keep same size) so they match the PSF
+    x_scattered_image_rot = rotate(x_scattered_image, rotate_value, reshape=False)
+    y_scattered_image_rot = rotate(y_scattered_image, rotate_value, reshape=False)
+
+    # Add the vertical/horizontal scattering images to the PSF
+    psf_new = in_psf + x_scattered_image_rot + y_scattered_image_rot
+
+    # Apply data to correct extensions
+    psf[ext].data = psf_new
+
+    # Now bin down over-sampled PSF to be detector-sampled and re-write ext=3
+    detector_oversample = psf[ext].header["DET_SAMP"]
+    psf[3].data = poppy.utils.rebin_array(psf_new, rc=(detector_oversample, detector_oversample))
+
     for ext in [2, 3]:
-
-        # Set over-sample value
-        cdp_samp = psf[ext].header["OVERSAMP"]  # the over-sample value for this ext. If det, it'll = 1 so no effect
-
-        # Read in PSF
-        in_psf = psf[ext].data
-
-        # Make the kernel
-        kernel, amplitude, fold = _make_kernel(kernel_amp, radius, cdp_samp)
-
-        # Create scattering images by applying the kernel vertically/horizontally via transposing
-        x_scattered_image = _apply_kernel(kernel, in_psf, radius)
-        kernel[radius] = 0.0
-        in_psf_tr = in_psf.T
-        y_scattered_image_tr = _apply_kernel(kernel, in_psf_tr, radius)
-        y_scattered_image = y_scattered_image_tr.T
-
-        # Rotate the scattering images (but keep same size) so they match the PSF
-        x_scattered_image_rot = rotate(x_scattered_image, rotate_value, reshape=False)
-        y_scattered_image_rot = rotate(y_scattered_image, rotate_value, reshape=False)
-
-        # Add the vertical/horizontal scattering images to the PSF
-        psf_new = in_psf + x_scattered_image_rot + y_scattered_image_rot
-
-        # Apply data to correct extensions
-        psf[ext].data = psf_new
 
         # Set new header keywords
         psf[ext].header["MIR_DIST"] = ("True", "MIRI detector scattering applied")
@@ -401,3 +396,81 @@ def apply_miri_scattering(HDUlist_or_filename=None, radius=None, kernel_amp=None
         psf[ext].header["KERN_RAD"] = (radius, "Radius of kernel profile (MIRI pixels)")
 
     return psf
+    #
+    #
+    #
+    #
+    # for ext in [2, 3]:
+    #
+    #     # Set over-sample value
+    #     cdp_samp = psf[ext].header["OVERSAMP"]  # the over-sample value for this ext. If det, it'll = 1 so no effect
+    #
+    #     # Read in PSF
+    #     in_psf = psf[ext].data
+    #
+    #     # Make the kernel
+    #     kernel, amplitude, fold = _make_kernel(kernel_amp, radius, cdp_samp)
+    #
+    #     # Create scattering images by applying the kernel vertically/horizontally via transposing
+    #     x_scattered_image = _apply_kernel(kernel, in_psf, radius)
+    #     kernel[radius] = 0.0
+    #     in_psf_tr = in_psf.T
+    #     y_scattered_image_tr = _apply_kernel(kernel, in_psf_tr, radius)
+    #     y_scattered_image = y_scattered_image_tr.T
+    #
+    #     # Rotate the scattering images (but keep same size) so they match the PSF
+    #     x_scattered_image_rot = rotate(x_scattered_image, rotate_value, reshape=False)
+    #     y_scattered_image_rot = rotate(y_scattered_image, rotate_value, reshape=False)
+    #
+    #     # Add the vertical/horizontal scattering images to the PSF
+    #     psf_new = in_psf + x_scattered_image_rot + y_scattered_image_rot
+    #
+    #     # Apply data to correct extensions
+    #     psf[ext].data = psf_new
+    #
+    #     # Set new header keywords
+    #     psf[ext].header["MIR_DIST"] = ("True", "MIRI detector scattering applied")
+    #     psf[ext].header["KERN_AMP"] = (amplitude, "Kernel Amplitude used in kernel exponential")
+    #     psf[ext].header["KERNFOLD"] = (fold, "e-folding length used in kernel exponential")
+    #     psf[ext].header["KERN_RAD"] = (radius, "Radius of kernel profile (MIRI pixels)")
+
+
+    # ext = 2
+    #
+    # # Set over-sample value
+    # cdp_samp = psf[ext].header["OVERSAMP"]  # the over-sample value for this ext. If det, it'll = 1 so no effect
+    #
+    # # Read in PSF
+    # in_psf = psf[ext].data
+    #
+    # # Make the kernel
+    # kernel, amplitude, fold = _make_kernel(kernel_amp, radius, cdp_samp)
+    #
+    # # Create scattering images by applying the kernel vertically/horizontally via transposing
+    # x_scattered_image = _apply_kernel(kernel, in_psf, radius)
+    # kernel[radius] = 0.0
+    # in_psf_tr = in_psf.T
+    # y_scattered_image_tr = _apply_kernel(kernel, in_psf_tr, radius)
+    # y_scattered_image = y_scattered_image_tr.T
+    #
+    # # Rotate the scattering images (but keep same size) so they match the PSF
+    # x_scattered_image_rot = rotate(x_scattered_image, rotate_value, reshape=False)
+    # y_scattered_image_rot = rotate(y_scattered_image, rotate_value, reshape=False)
+    #
+    # # Add the vertical/horizontal scattering images to the PSF
+    # psf_new = in_psf + x_scattered_image_rot + y_scattered_image_rot
+    #
+    # # Apply data to correct extensions
+    # psf[ext].data = psf_new
+    #
+    # # Now bin down over-sampled PSF to be detector-sampled and re-write ext=3
+    # detector_oversample = psf[ext].header["DET_SAMP"]
+    # psf[3].data = poppy.utils.rebin_array(psf_new, rc=(detector_oversample, detector_oversample))
+    #
+    # for ext in [2, 3]:
+    #
+    #     # Set new header keywords
+    #     psf[ext].header["MIR_DIST"] = ("True", "MIRI detector scattering applied")
+    #     psf[ext].header["KERN_AMP"] = (amplitude, "Kernel Amplitude used in kernel exponential")
+    #     psf[ext].header["KERNFOLD"] = (fold, "e-folding length used in kernel exponential")
+    #     psf[ext].header["KERN_RAD"] = (radius, "Radius of kernel profile (MIRI pixels)")
