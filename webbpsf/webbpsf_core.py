@@ -38,7 +38,7 @@ import astropy.units as units
 
 import poppy
 
-from jwxml import SIAF
+import pysiaf
 
 from . import conf
 from . import utils
@@ -698,7 +698,7 @@ class JWInstrument(SpaceTelescopeInstrument):
         """ Set the simulated center point of the array based on a named SIAF aperture.
         This will adjust the detector and detector position attributes.
         """
-        siaf = SIAF(self.name)
+        siaf = pysiaf.Siaf(self.name)
         try:
             ap = siaf[aperture_name]
 
@@ -1622,7 +1622,7 @@ class DetectorGeometry(object):
         if shortname is not None:
             self.name = shortname
 
-        self.mysiaf = SIAF(self.instrname)
+        self.mysiaf = pysiaf.Siaf(self.instrname)
         self.aperture = self.mysiaf[aperturename]
 
     @property
@@ -1648,7 +1648,7 @@ class DetectorGeometry(object):
 
     def pix2angle(self, xpix, ypix):
         """ Convert  from detector coordinates to telescope frame coordinates using SIAF transformations
-        See the SIAF code in jwxml for all the full details, or Lallo & Cox Tech Reports
+        See the pysiaf code for all the full details, or Lallo & Cox Tech Reports
 
         Parameters
         ------------
@@ -1665,7 +1665,7 @@ class DetectorGeometry(object):
         """
 
 
-        tel_coords = np.asarray( self.aperture.Sci2Tel(xpix, ypix) )
+        tel_coords = np.asarray( self.aperture.sci_to_tel(xpix, ypix) )
         tel_coords_arcmin = tel_coords / 60. * units.arcmin # arcsec to arcmin
         return tel_coords_arcmin
 
