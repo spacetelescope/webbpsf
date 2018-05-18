@@ -115,7 +115,8 @@ setup(name=PACKAGENAME,
           'scipy>=0.16.0',
           'poppy>=0.6.1',
           'astropy>=1.2.0,<3',
-          'jwxml>=0.3.0'
+          'jwxml>=0.3.0',
+          'pysiaf'
       ],
       provides=[PACKAGENAME],
       author=AUTHOR,
