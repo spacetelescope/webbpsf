@@ -176,7 +176,7 @@ def show_notebook_interface_wfi(instrument):
                 monochromatic=monochromatic_wavelength.value * 1e-6,
                 display=True,
                 outfile=OUTPUT_FILENAME,
-                overwrite=True
+                clobber=True
             )
         else:
             source = poppy.specFromSpectralType(source_selection.value)
@@ -185,7 +185,7 @@ def show_notebook_interface_wfi(instrument):
                 source=source,
                 display=True,
                 outfile=OUTPUT_FILENAME,
-                overwrite=True
+                clobber=True
             )
         fig, (ax_oversamp, ax_detsamp) = plt.subplots(1, 2)
         poppy.display_PSF(psf, ax=ax_oversamp)
@@ -383,7 +383,7 @@ def show_notebook_interface_jwst(instrument):
                 monochromatic=monochromatic_wavelength.value * 1e-6,
                 display=True,
                 outfile=OUTPUT_FILENAME,
-                overwrite=True
+                clobber=True
             )
         else:
             source = poppy.specFromSpectralType(source_selection.value)
@@ -392,7 +392,7 @@ def show_notebook_interface_jwst(instrument):
                 source=source,
                 display=True,
                 outfile=OUTPUT_FILENAME,
-                overwrite=True
+                clobber=True
             )
         fig, (ax_oversamp, ax_detsamp) = plt.subplots(1, 2,figsize=(12, 4))
         title1 = "PSF sim for {}, {}\n".format(instrument.name, instrument.filter)
