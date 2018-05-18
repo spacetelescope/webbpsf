@@ -278,6 +278,9 @@ def _apply_kernel(kernel, image, radius):
     """
     Applies the detector scattering kernel function created in _make_kernel function to an input image. Code is
     from MIRI-TN-00076-ATC_Imager_PSF_Issue_4.pdf (originally in IDL).
+
+    While the current code form isn't as elegant as it could be, it will stay like this for the time being until
+    we can find a convolution method that takes less time to execute than this for loop method.
     """
 
     shape = image.shape
@@ -301,7 +304,7 @@ def _apply_kernel(kernel, image, radius):
             n_right = x_i2 - x
             x_k2 = radius + n_right
 
-            out_image[x_i1:x_i2, y] += image[x, y] * kernel[x_k1: x_k2]
+            out_image[y, x_i1:x_i2] += image[y, x] * kernel[x_k1: x_k2]
 
     return out_image
 
@@ -368,10 +371,11 @@ def apply_miri_scattering(HDUlist_or_filename=None, radius=None, kernel_amp=None
 
     # Create scattering images by applying the kernel vertically/horizontally via transposing
     x_scattered_image = _apply_kernel(kernel, in_psf, radius)
-    kernel[radius] = 0.0
-    in_psf_tr = in_psf.T
-    y_scattered_image_tr = _apply_kernel(kernel, in_psf_tr, radius)
-    y_scattered_image = y_scattered_image_tr.T
+    kernel[radius] = 0.0  # set this value to 0 for the 2nd application so you don't apply this value 2x to 1 point
+
+    in_psf_tr = in_psf.T  # apply the kernel to the y-direction of the images
+    y_scattered_image_tr = _apply_kernel(kernel, in_psf_tr, radius)  # but your output will still be 1D in x-dir
+    y_scattered_image = y_scattered_image_tr.T  # so then make it vertical to be applied later
 
     # Rotate the scattering images (but keep same size) so they match the PSF
     x_scattered_image_rot = rotate(x_scattered_image, rotate_value, reshape=False)
@@ -396,81 +400,3 @@ def apply_miri_scattering(HDUlist_or_filename=None, radius=None, kernel_amp=None
         psf[ext].header["KERN_RAD"] = (radius, "Radius of kernel profile (MIRI pixels)")
 
     return psf
-    #
-    #
-    #
-    #
-    # for ext in [2, 3]:
-    #
-    #     # Set over-sample value
-    #     cdp_samp = psf[ext].header["OVERSAMP"]  # the over-sample value for this ext. If det, it'll = 1 so no effect
-    #
-    #     # Read in PSF
-    #     in_psf = psf[ext].data
-    #
-    #     # Make the kernel
-    #     kernel, amplitude, fold = _make_kernel(kernel_amp, radius, cdp_samp)
-    #
-    #     # Create scattering images by applying the kernel vertically/horizontally via transposing
-    #     x_scattered_image = _apply_kernel(kernel, in_psf, radius)
-    #     kernel[radius] = 0.0
-    #     in_psf_tr = in_psf.T
-    #     y_scattered_image_tr = _apply_kernel(kernel, in_psf_tr, radius)
-    #     y_scattered_image = y_scattered_image_tr.T
-    #
-    #     # Rotate the scattering images (but keep same size) so they match the PSF
-    #     x_scattered_image_rot = rotate(x_scattered_image, rotate_value, reshape=False)
-    #     y_scattered_image_rot = rotate(y_scattered_image, rotate_value, reshape=False)
-    #
-    #     # Add the vertical/horizontal scattering images to the PSF
-    #     psf_new = in_psf + x_scattered_image_rot + y_scattered_image_rot
-    #
-    #     # Apply data to correct extensions
-    #     psf[ext].data = psf_new
-    #
-    #     # Set new header keywords
-    #     psf[ext].header["MIR_DIST"] = ("True", "MIRI detector scattering applied")
-    #     psf[ext].header["KERN_AMP"] = (amplitude, "Kernel Amplitude used in kernel exponential")
-    #     psf[ext].header["KERNFOLD"] = (fold, "e-folding length used in kernel exponential")
-    #     psf[ext].header["KERN_RAD"] = (radius, "Radius of kernel profile (MIRI pixels)")
-
-
-    # ext = 2
-    #
-    # # Set over-sample value
-    # cdp_samp = psf[ext].header["OVERSAMP"]  # the over-sample value for this ext. If det, it'll = 1 so no effect
-    #
-    # # Read in PSF
-    # in_psf = psf[ext].data
-    #
-    # # Make the kernel
-    # kernel, amplitude, fold = _make_kernel(kernel_amp, radius, cdp_samp)
-    #
-    # # Create scattering images by applying the kernel vertically/horizontally via transposing
-    # x_scattered_image = _apply_kernel(kernel, in_psf, radius)
-    # kernel[radius] = 0.0
-    # in_psf_tr = in_psf.T
-    # y_scattered_image_tr = _apply_kernel(kernel, in_psf_tr, radius)
-    # y_scattered_image = y_scattered_image_tr.T
-    #
-    # # Rotate the scattering images (but keep same size) so they match the PSF
-    # x_scattered_image_rot = rotate(x_scattered_image, rotate_value, reshape=False)
-    # y_scattered_image_rot = rotate(y_scattered_image, rotate_value, reshape=False)
-    #
-    # # Add the vertical/horizontal scattering images to the PSF
-    # psf_new = in_psf + x_scattered_image_rot + y_scattered_image_rot
-    #
-    # # Apply data to correct extensions
-    # psf[ext].data = psf_new
-    #
-    # # Now bin down over-sampled PSF to be detector-sampled and re-write ext=3
-    # detector_oversample = psf[ext].header["DET_SAMP"]
-    # psf[3].data = poppy.utils.rebin_array(psf_new, rc=(detector_oversample, detector_oversample))
-    #
-    # for ext in [2, 3]:
-    #
-    #     # Set new header keywords
-    #     psf[ext].header["MIR_DIST"] = ("True", "MIRI detector scattering applied")
-    #     psf[ext].header["KERN_AMP"] = (amplitude, "Kernel Amplitude used in kernel exponential")
-    #     psf[ext].header["KERNFOLD"] = (fold, "e-folding length used in kernel exponential")
-    #     psf[ext].header["KERN_RAD"] = (radius, "Radius of kernel profile (MIRI pixels)")
