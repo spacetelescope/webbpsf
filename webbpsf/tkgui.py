@@ -381,7 +381,7 @@ class WebbPSF_GUI(object):
 
         ax2 = plt.subplot(312, sharex=ax1)
         ax2.set_ybound(0,1.1)
-        band = self.inst._getSynphotBandpass(self.inst.filter) #pysynphot.ObsBandpass(obsname)
+        band = self.inst._get_synphot_bandpass(self.inst.filter) #pysynphot.ObsBandpass(obsname)
         band.name = "%s %s" % (self.iname, self.inst.filter)
         synplot(band) #, **kwargs)
         legend_font = matplotlib.font_manager.FontProperties(size=10)

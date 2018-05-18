@@ -16,13 +16,17 @@ import pytest
 
 
 #------------------    NIRCam Tests    ----------------------------
-from .test_webbpsf import generic_output_test, do_test_source_offset
+from .test_webbpsf import generic_output_test, do_test_source_offset, do_test_set_position_from_siaf
 test_nircam = lambda : generic_output_test('NIRCam')
 test_nircam_source_offset_00 = lambda : do_test_source_offset('NIRCam', theta=0.0, monochromatic=2e-6)
 test_nircam_source_offset_45 = lambda : do_test_source_offset('NIRCam', theta=45.0, monochromatic=2e-6)
 
+test_nircam_set_siaf = lambda : do_test_set_position_from_siaf('NIRCam', 
+        ['NRCA5_SUB160', 'NRCA3_DHSPIL_SUB96','NRCA5_MASKLWB_F300M', 'NRCA2_TAMASK210R'])
+
 test_nircam_blc_circ_45 =  lambda : do_test_nircam_blc(kind='circular', angle=45)
 test_nircam_blc_circ_0 =   lambda : do_test_nircam_blc(kind='circular', angle=0)
+
 
 @pytest.mark.xfail
 def test_nircam_blc_wedge_0():
@@ -125,8 +129,9 @@ def do_test_nircam_blc(clobber=False, kind='circular', angle=0, save=False, disp
         if angle==0:
             expected_total_fluxes=[2.09e-6, .0415, 0.1442]  # Based on a prior calculation with WebbPSF
         elif angle==45 or angle==-45:
-            expected_total_fluxes=[2.09e-6, 0.0219, 0.1176]  # Based on a prior calculation
+            expected_total_fluxes=[2.09e-6, 0.0220, 0.1192]  # Based on a prior calculation
             # Updated 2016-09-29 for Rev W results - slight change from 0.1171 to 0.1176
+            # Updated 2018-02-20 for recoded MASKSWB - changes from 0.0219 to 0.0220; 0.1176 to 0.1192 ??
         else:
             raise ValueError("Don't know how to check fluxes for angle={0}".format(angle))
 
@@ -172,7 +177,7 @@ def test_nircam_get_detector():
     nc=webbpsf_core.NIRCam()
 
     detname = nc.detector
-    assert detname=='A1'
+    assert detname=='NRCA1'
 
 
 
@@ -219,32 +224,32 @@ def test_validate_nircam_wavelengths():
 
     # wavelengths fit on shortwave channel -> no exception
     nc.filter='F200W'
-    nc._validateConfig(wavelengths=np.linspace(nc.SHORT_WAVELENGTH_MIN, nc.SHORT_WAVELENGTH_MAX, 3))
+    nc._validate_config(wavelengths=np.linspace(nc.SHORT_WAVELENGTH_MIN, nc.SHORT_WAVELENGTH_MAX, 3))
     assert nc.pixelscale == nc._pixelscale_short
 
     # short wave is selected but user tries a long wave calculation
     with pytest.raises(RuntimeError) as excinfo:
-        nc._validateConfig(wavelengths=np.linspace(nc.LONG_WAVELENGTH_MIN + 1e-6, nc.LONG_WAVELENGTH_MAX, 3))
+        nc._validate_config(wavelengths=np.linspace(nc.LONG_WAVELENGTH_MIN + 1e-6, nc.LONG_WAVELENGTH_MAX, 3))
     assert _exception_message_starts_with(excinfo,"The requested wavelengths are too long for NIRCam short wave channel")
 
     # wavelengths fit on long channel -> no exception
     nc.filter='F444W'
-    nc._validateConfig(wavelengths=np.linspace(nc.LONG_WAVELENGTH_MIN, nc.LONG_WAVELENGTH_MAX, 3))
+    nc._validate_config(wavelengths=np.linspace(nc.LONG_WAVELENGTH_MIN, nc.LONG_WAVELENGTH_MAX, 3))
     assert nc.pixelscale == nc._pixelscale_long
 
     # long wave is selected but user tries a short  wave calculation
     with pytest.raises(RuntimeError) as excinfo:
-        nc._validateConfig(wavelengths=np.linspace(nc.SHORT_WAVELENGTH_MIN + 1e-8, nc.SHORT_WAVELENGTH_MAX, 3))
+        nc._validate_config(wavelengths=np.linspace(nc.SHORT_WAVELENGTH_MIN + 1e-8, nc.SHORT_WAVELENGTH_MAX, 3))
     assert _exception_message_starts_with(excinfo,"The requested wavelengths are too short for NIRCam long wave channel")
 
 
     # too short or long for NIRCAM at all
     with pytest.raises(RuntimeError) as excinfo:
-        nc._validateConfig(wavelengths=np.linspace(nc.SHORT_WAVELENGTH_MIN - 1e-6, nc.SHORT_WAVELENGTH_MIN, 3))
+        nc._validate_config(wavelengths=np.linspace(nc.SHORT_WAVELENGTH_MIN - 1e-6, nc.SHORT_WAVELENGTH_MIN, 3))
     assert _exception_message_starts_with(excinfo,"The requested wavelengths are too short to be imaged with NIRCam")
 
     with pytest.raises(RuntimeError) as excinfo:
-        nc._validateConfig(wavelengths=np.linspace(nc.LONG_WAVELENGTH_MAX, nc.LONG_WAVELENGTH_MAX + 1e-6, 3))
+        nc._validate_config(wavelengths=np.linspace(nc.LONG_WAVELENGTH_MAX, nc.LONG_WAVELENGTH_MAX + 1e-6, 3))
     assert _exception_message_starts_with(excinfo,"The requested wavelengths are too long to be imaged with NIRCam")
 
 def test_nircam_coron_unocculted(plot=False):

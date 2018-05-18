@@ -168,7 +168,7 @@ MISSING_WEBBPSF_DATA_MESSAGE = """
  *  version of the software requires a newer set of reference files than    *
  *  you have installed.  For more details see:                              *
  *                                                                          *
- *           http://pythonhosted.org/webbpsf/installation.html              *
+ *        https://webbpsf.readthedocs.io/en/stable/installation.html        *
  *                                                                          *
  *  under "Installing the Required Data Files".                             *
  *  WebbPSF will not be able to function properly until the appropriate     *
@@ -220,7 +220,7 @@ def get_webbpsf_data_path(data_version_min=None, return_version=False):
             sys.stderr.write(MISSING_WEBBPSF_DATA_MESSAGE)
             raise EnvironmentError(
                 "Couldn't read the version number from {}. (Do you need to update the WebbPSF "
-                "data? See http://pythonhosted.org/webbpsf/installation.html#data-install "
+                "data? See https://webbpsf.readthedocs.io/en/stable/installation.html#data-install "
                 "for a link to the latest version.)".format(version_file_path)
             )
 
@@ -228,7 +228,7 @@ def get_webbpsf_data_path(data_version_min=None, return_version=False):
             sys.stderr.write(MISSING_WEBBPSF_DATA_MESSAGE)
             raise EnvironmentError(
                 "WebbPSF data package has version {cur}, but {min} is needed. "
-                "See http://pythonhosted.org/webbpsf/installation.html#data-install "
+                "See https://webbpsf.readthedocs.io/en/stable/installation.html#data-install "
                 "for a link to the latest version.".format(
                     cur=version_contents,
                     min='{}.{}.{}'.format(*data_version_min)
@@ -243,22 +243,35 @@ def get_webbpsf_data_path(data_version_min=None, return_version=False):
 
 DIAGNOSTIC_REPORT = """
 OS: {os}
+CPU: {cpu}
 Python version: {python}
 numpy version: {numpy}
+scipy version: {scipy}
+astropy version: {astropy}
+pysynphot version: {pysyn}
+
+numexpr version: {numexpr}
+pyFFTW version: {pyfftw}
+Anaconda Accelerate version: {accelerate}
+
 poppy version: {poppy}
 webbpsf version: {webbpsf}
 
 tkinter version: {tkinter}
 wxpython version: {wxpython}
 
-astropy version: {astropy}
-pysynphot version: {pysyn}
-pyFFTW version: {pyfftw}
 
+***************************************************************
 Floating point type information for numpy.float:
 {finfo_float}
 Floating point type information for numpy.complex:
 {finfo_complex}
+
+***************************************************************
+Numpy compilation and linking:
+
+{numpyconfig}
+
 """
 
 def system_diagnostic():
@@ -274,6 +287,7 @@ def system_diagnostic():
     import os
     import poppy
     import numpy
+    import scipy
     from .version import version
     try:
         import ttk
@@ -306,6 +320,53 @@ def system_diagnostic():
     except ImportError:
         astropy_version = 'not found'
 
+    try:
+        import numexpr
+        numexpr_version = numexpr.__version__
+    except ImportError:
+        numexpr_version = 'not found'
+
+    try:
+        import accelerate
+        accelerate_version = accelerate.__version__
+    except ImportError:
+        accelerate_version = 'not found'
+
+
+    try:
+        import psutil
+        cpu_info = """
+  Hardware cores: {hw}
+  Logical core: {logical}
+  Frequency: {freq} GHz
+  Currently {percent}% utilized.
+""".format(hw=psutil.cpu_count(logical=False),
+logical=psutil.cpu_count(logical=True),
+freq=psutil.cpu_freq()[0]/1000,
+percent=psutil.cpu_percent())
+    except:
+        try:
+            import multiprocessing
+            cpu_info="  Cores: {}".format(multiprocessing.cpu_count())
+        except:
+            cpu_info = "No CPU info available"
+
+    # Get numpy config - the following is a modified version of
+    # numpy.__config__.show()
+
+    numpyconfig = ""
+    for name,info_dict in numpy.__config__.__dict__.items():
+        if name[0] == "_" or type(info_dict) is not type({}): continue
+        numpyconfig += name + ":\n"
+        if not info_dict:
+            numpyconfig += "  NOT AVAILABLE\n"
+        for k,v in info_dict.items():
+            v = str(v)
+            if k == "sources" and len(v) > 200:
+                v = v[:60] + " ...\n... " + v[-60:]
+            numpyconfig += "    %s = %s\n" % (k,v)
+
+
     result = DIAGNOSTIC_REPORT.format(
         os=platform.platform(),
         numpy=numpy.__version__,
@@ -319,6 +380,11 @@ def system_diagnostic():
         astropy=astropy_version,
         finfo_float=numpy.finfo(numpy.float),
         finfo_complex=numpy.finfo(numpy.complex),
+        numexpr=numexpr_version,
+        scipy=scipy.__version__,
+        accelerate=accelerate_version,
+        numpyconfig=numpyconfig,
+        cpu=cpu_info
     )
     return result
 

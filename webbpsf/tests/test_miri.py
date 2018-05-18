@@ -14,12 +14,14 @@ import poppy
 
 #------------------    MIRI Tests    ----------------------------
 
-from .test_webbpsf import generic_output_test, do_test_source_offset
+from .test_webbpsf import generic_output_test, do_test_source_offset, do_test_set_position_from_siaf
 
 test_miri= lambda : generic_output_test('MIRI')
 test_miri_source_offset_00 = lambda : do_test_source_offset('MIRI', theta=0.0, monochromatic=8e-6)
 test_miri_source_offset_45 = lambda : do_test_source_offset('MIRI', theta=45.0, monochromatic=8e-6)
 
+test_miri_set_siaf = lambda : do_test_set_position_from_siaf('MIRI',
+        ['MIRIM_SUB128','MIRIM_FP1MIMF','MIRIM_BRIGHTSKY', 'MIRIM_TASLITLESSPRISM',])
 
 def do_test_miri_fqpm(nlambda=1, clobber=True, angle=0.0, offset=0.0, oversample=2, outputdir=None, display=False, save=False):
     miri = webbpsf_core.MIRI()

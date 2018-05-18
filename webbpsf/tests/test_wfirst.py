@@ -61,8 +61,8 @@ def test_WFI_chooses_pupil_masks():
 
     def autopupil():
         """Helper to trigger pupil selection in testing"""
-        wavelengths, _ = wfi._getWeights()
-        wfi._validateConfig(wavelengths=wavelengths)
+        wavelengths, _ = wfi._get_weights()
+        wfi._validate_config(wavelengths=wavelengths)
     wfi.filter = 'Z087'
     autopupil()
     assert wfi.pupil == wfi._unmasked_pupil_path, "WFI did not select unmasked pupil for Z087"

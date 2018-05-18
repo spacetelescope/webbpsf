@@ -13,11 +13,13 @@ import poppy
 
 #------------------    NIRISS Tests    ----------------------------
 
-from .test_webbpsf import generic_output_test, do_test_source_offset
+from .test_webbpsf import generic_output_test, do_test_source_offset, do_test_set_position_from_siaf
 test_niriss= lambda : generic_output_test('NIRISS')
 test_niriss_source_offset_00 = lambda : do_test_source_offset('NIRISS', theta=0.0, monochromatic=3.0e-6)
 test_niriss_source_offset_45 = lambda : do_test_source_offset('NIRISS', theta=45.0, monochromatic=3.0e-6)
 
+test_niriss_set_siaf = lambda : do_test_set_position_from_siaf('NIRISS', 
+        ['NIS_FP1MIMF', 'NIS_SUB64', 'NIS_SOSSFULL','NIS_SOSSTA','NIS_AMI1'])
 
 def test_niriss_auto_pupil():
     """ Test switching between CLEAR and CLEARP

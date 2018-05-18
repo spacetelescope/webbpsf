@@ -2,7 +2,7 @@ language: python
 
 python:
     - 2.7
-    - 3.5
+    - 3.6
 
 # Setting sudo to false opts in to Travis-CI container-based builds.
 sudo: false
@@ -27,7 +27,7 @@ env:
         - NUMPY_VERSION=stable
         - ASTROPY_VERSION=stable
         - SETUP_CMD='test'
-        - PIP_DEPENDENCIES='git+https://github.com/mperrin/poppy.git#egg=poppy jwxml'
+        - PIP_DEPENDENCIES='git+https://github.com/mperrin/poppy.git#egg=poppy jwxml pysiaf'
         - CONDA_DEPENDENCIES='scipy matplotlib six'
 
         # For headless testing of code that imports PyPlot:
@@ -36,8 +36,6 @@ env:
 matrix:
     include:
         # do the actual tests against dev version of POPPY
-        # - python: 2.7
-        # - python: 3.5
 
         # Do a coverage test in Python 3.
         - python: 3.6
@@ -97,13 +95,13 @@ before_script:
     - export WEBBPSF_PATH=$PWD/webbpsf-data
 
 script:
-    - python setup.py $SETUP_CMD
+   - python setup.py $SETUP_CMD
 
 after_success:
     # coveralls.io integration
-    - if [[ $SETUP_CMD == 'test --coverage' && TRAVIS_REPO_SLUG == "mperrin/webbpsf" ]]; then coveralls --rcfile='webbpsf/tests/coveragerc'; fi
+    # - if [[ $SETUP_CMD == 'test --coverage' && TRAVIS_REPO_SLUG == "mperrin/webbpsf" ]]; then coveralls --rcfile='webbpsf/tests/coveragerc'; fi
+    - if [[ $SETUP_CMD == 'test --coverage' ]]; then coveralls --rcfile='webbpsf/tests/coveragerc'; fi
 
 notifications:
-    email:
-        - mperrin@stsci.edu
-        - jlong@stsci.edu
+  email:
+    - mperrin@stsci.edu
