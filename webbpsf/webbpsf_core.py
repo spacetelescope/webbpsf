@@ -803,7 +803,7 @@ class MIRI(JWInstrument):
         self.auto_pupil=True
         JWInstrument.__init__(self, "MIRI")
         self.pixelscale = 0.1110  # Source: SIAF PRDDEVSOC-D-012, 2016 April
-        self._rotation = 5.0152 # Source: SIAF PRDDEVSOC-D-012, 2016 April
+        self._rotation = 4.4497 # Source: SIAF PRDOPSSOC-H-014
 
         self.image_mask_list = ['FQPM1065', 'FQPM1140', 'FQPM1550', 'LYOT2300', 'LRS slit']
         self.pupil_mask_list = ['MASKFQPM', 'MASKLYOT', 'P750L LRS grating']
@@ -1345,8 +1345,7 @@ class NIRSpec(JWInstrument):
         JWInstrument.__init__(self, "NIRSpec")
         self.pixelscale = 0.1043 # Average over both detectors.  SIAF PRDDEVSOC-D-012, 2016 April
                                  # Microshutters are 0.2x0.46 but we ignore that here.
-        self._rotation = None
-        self._rotation = 138.4  # Average for both detectors in SIAF PRDDEVSOC-D-012, 2016 April
+        self._rotation = 138.4  # Average for both detectors in SIAF PRDOPSSOC-H-014
         self.filter_list.append("IFU")
         self._IFU_pixelscale = 0.1043 # same.
         self.monochromatic= 3.0
