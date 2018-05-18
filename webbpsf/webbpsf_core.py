@@ -750,6 +750,9 @@ class JWInstrument(SpaceTelescopeInstrument):
                                                 save_intermediates=save_intermediates,
                                                 return_intermediates=return_intermediates, normalize=normalize)
 
+        if return_intermediates:
+            psf, intermediates = psf
+
         # If chosen to add distortion
         if add_distortion:
 
@@ -779,15 +782,16 @@ class JWInstrument(SpaceTelescopeInstrument):
                 psf_distorted.writeto(outfile, overwrite=True, output_verify='ignore')  # already created in the 1st calc_psf
                 _log.info("Re-saved result with distortion to " + outfile)
 
-            return psf_distorted
+            psf = psf_distorted
+
+        if return_intermediates:
+            return psf, intermediates
 
         else:
             return psf
 
-
     calcPSF = calc_psf
     calc_psf.__doc__ += SpaceTelescopeInstrument.calc_psf.__doc__  # allow users to see poppy calc_psf docstring too
-
 
 
 class MIRI(JWInstrument):

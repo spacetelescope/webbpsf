@@ -77,7 +77,8 @@ def apply_distortion(HDUlist_or_filename=None, fill_value=0):
     oversamp = psf[ext].header["OVERSAMP"]  # will be 1 for ext=1
     xpix_center = psf[ext].header["DET_X"]  # center x location in pixels
     ypix_center = psf[ext].header["DET_Y"]  # center y location in pixels
-    length = psf[ext].shape[0]  # can assume square
+    len_y = psf[ext].shape[0]
+    len_x = psf[ext].shape[1]
 
     # Convert the PSF center point from pixels to arcseconds using pysiaf
     xarc_center, yarc_center = aper.sci_to_idl(xpix_center, ypix_center)
@@ -85,11 +86,11 @@ def apply_distortion(HDUlist_or_filename=None, fill_value=0):
     # ###############################################
     # Create an array of indices (in pixels) for where the PSF is located on the detector
     # 1) Set up blank indices (in pixels)
-    ypix, xpix = np.indices((length, length), dtype=float)
+    ypix, xpix = np.indices((len_y, len_x), dtype=float)
 
     # 2) Shift indices to be centered on (0,0) (starting to transform into the Ideal frame)
-    ypix -= (length - 1.) / 2.
-    xpix -= (length - 1.) / 2.
+    ypix -= (len_y - 1.) / 2.
+    xpix -= (len_x - 1.) / 2.
 
     # 3) Convert these indices from pixels to arcseconds
     # Note: This also shifts the oversampled indices so they span the same region as the detector-sampled indices
@@ -108,11 +109,11 @@ def apply_distortion(HDUlist_or_filename=None, fill_value=0):
     # ###############################################
     # Create an array of indices (in pixels) that the final data will be interpolated on to
     # 1) Set up blank indices (in pixels)
-    ynew, xnew = np.indices([length, length], dtype=float)
+    ynew, xnew = np.indices([len_y, len_x], dtype=float)
 
     # 2) Shift indices to be in the Ideal frame (centered on 0)
-    xnew -= (length - 1.) / 2.
-    ynew -= (length - 1.) / 2.
+    xnew -= (len_x - 1.) / 2.
+    ynew -= (len_y - 1.) / 2.
 
     # 3) Shift the oversampled indices so they span the same region as the detector-sampled indices
     # Note: the oversampled array is still longer by a factor of the oversample
