@@ -721,7 +721,6 @@ class JWInstrument(SpaceTelescopeInstrument):
         result[0].header.insert("DET_V2", ('DET_V3', v2v3pos[1].value, "[arcmin] Det. pos. in telescope V2,V3 coord sys"), after=True)
         result[0].header["APERNAME"] = (self._detectors[self._detector], "SIAF aperture name")
 
-
     def calc_psf(self, outfile=None, source=None, nlambda=None, monochromatic=None,
                  fov_arcsec=None, fov_pixels=None, oversample=None, detector_oversample=None, fft_oversample=None,
                  overwrite=True, display=False, save_intermediates=False, return_intermediates=False,
@@ -731,13 +730,13 @@ class JWInstrument(SpaceTelescopeInstrument):
         Parameters
         ----------
         add_distortion : bool
-            If True, will add 2 new extensions to the PSF HDUlist object. The 2nd extension will be a
-            distorted version of the over-sampled PSF and the 3rd extension will be a distorted version of
-            the detector-sampled PSF.
+            If True, will add 2 new extensions to the PSF HDUlist object. The 2nd extension
+            will be a distorted version of the over-sampled PSF and the 3rd extension will
+            be a distorted version of bthe detector-sampled PSF.
         crop_psf : bool
-            If True, when the PSF is rotated to match the detector's rotation in the focal plane, the PSF will be
-            cropped so the shape of the distorted PSF will match it's undistorted counterpart. This will only be used
-            for NIRCam, NIRISS, and FGS PSFs.
+            If True, when the PSF is rotated to match the detector's rotation in the focal
+            plane, the PSF will be cropped so the shape of the distorted PSF will match it's
+            undistorted counterpart. This will only be used for NIRCam, NIRISS, and FGS PSFs.
 
         """
 
@@ -791,7 +790,12 @@ class JWInstrument(SpaceTelescopeInstrument):
             return psf
 
     calcPSF = calc_psf
-    calc_psf.__doc__ += SpaceTelescopeInstrument.calc_psf.__doc__  # allow users to see poppy calc_psf docstring too
+
+    # Allow users to see poppy calc_psf docstring too
+    ind0 = calc_psf.__doc__.index("add_distortion")  # pull the new parameters
+    ind1 = SpaceTelescopeInstrument.calc_psf.__doc__.index("Returns")  # pull where the parameters list ends
+    calc_psf.__doc__ = SpaceTelescopeInstrument.calc_psf.__doc__[0:ind1] + calc_psf.__doc__[ind0:] +\
+                       SpaceTelescopeInstrument.calc_psf.__doc__[ind1:]
 
 
 class MIRI(JWInstrument):
