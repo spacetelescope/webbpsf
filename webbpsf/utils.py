@@ -5,6 +5,8 @@ import astropy.io.fits as fits
 import numpy as np
 import matplotlib.pyplot as plt
 
+import scipy.interpolate as sciint
+
 import logging
 _log = logging.getLogger('webbpsf')
 
@@ -44,6 +46,7 @@ def restart_logging(verbose=True):
 
     root_logger = logging.getLogger()
     root_logger.handlers = []
+    
 
     if level in ['DEBUG', 'INFO', 'WARN', 'ERROR', 'CRITICAL']:
         level_id = getattr(logging, level)  # obtain one of the DEBUG, INFO, WARN,
@@ -543,3 +546,7 @@ def annotate_sky_pupil_coords(self, ax, show_NE=False, north_angle=45.):
                 horizontalalignment='center', verticalalignment='center')
         ax.text(-loc+0.5-1.3*dy, -loc-1.3*dx, 'E', color=color2, size='small',
                 horizontalalignment='center', verticalalignment='center')
+
+
+
+
