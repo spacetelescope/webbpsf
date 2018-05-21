@@ -21,9 +21,9 @@ WebbPSF is a Python package that computes simulated PSFs for the JWST instrument
 
 **What this software does:**
 
-* Uses OPD map(s) precomputed by detailed optical simulations of these telescopes.
-* Computes from those PSF images with requested properties for any of JWST's instruments
-* Supports imaging, coronagraphy, and most spectrographic modes with all of JWST's instruments. IFUs are yet to come.
+* Uses OPD map(s) precomputed by detailed optical simulations of JWST and WFIRST, and in the case of JWST models
+  informed by instrument and telescope cryo-vacuum testing of the flight hardware.
+* For JWST, computes PSF images with requested properties for any of JWST's instruments. Supports imaging, coronagraphy, and most spectrographic modes with all of JWST's instruments. IFUs are yet to come.
 * For WFIRST, computes PSFs with the Wide Field Imager, based on recent GSFC optical models, including field- and wavelength-dependent aberrations. 
   A preliminary version of the Coronagraph Instrument is also available.
 * Provides a suite of tools for quantifying PSF properties such as FWHM, Strehl ratio, etc.
@@ -32,8 +32,11 @@ WebbPSF is a Python package that computes simulated PSFs for the JWST instrument
 
 * Contain in itself any detailed thermal or optical model of JWST or WFIRST. For the results of end-to-end integrated simulations of JWST, see for instance `Predicted JWST imaging performance (Knight, Lightsey, & Barto; Proc. SPIE 2012) <http://proceedings.spiedigitallibrary.org/proceeding.aspx?articleid=1362264>`_. For WFIRST modeling, see `the WFIRST Reference Info page <http://wfirst.gsfc.nasa.gov/science/Instrument_Reference_Information.html>`_
 * Model spectrally dispersed PSFs produced by any of the spectrograph gratings. It does, however, let you produce monochromatic PSFs in these modes, suitable for stitching together into spectra using some other software.
-* Model any detector effects such as pixel MTF, intrapixel sensitivity variations, interpixel capacitance, or any noise sources. Add those separately with your favorite detector model code.
+* Model detector effects such as pixel MTF, intrapixel sensitivity variations, interpixel capacitance, or any noise sources. Add those separately with your favorite detector model code. (\*Note, one particularly significant
+  detector scattering for MIRI imaging has now been added.)
 
+**Contributors:**
+WebbPSF has been developed by Marshall Perrin, Joseph Long, Neil Zimmerman, Robel Geda, Shannon Osborne, and Marcio Melendez Hernandez, with contributions from Jarron Leisenring, Ewan Douglas, Charles Lajoie, Megan Sosey, and the developers of  the astropy-helpers template framework.
 
 Getting Started with WebbPSF
 ----------------------------
@@ -61,7 +64,7 @@ The WebbPSF software system is composed of two Python packages: a lower-level op
 
 .. admonition:: Getting Help
 
-   For help using or installing webbpsf, you can contact the STScI Help Desk, help@stsci.edu. Note that WebbPSF is included in the `Ureka <http://ssb.stsci.edu/ureka>`_ python distribution, as well as being installable via :ref:`standard Python packaging tools <installation>`. For detailed aspects of the JWST models, contact Marshall Perrin at STScI; for WFIRST, contact Joseph Long at STScI.
+   For help using or installing webbpsf, you can contact the STScI Help Desk, help@stsci.edu. Note that WebbPSF is included in the Astroconda  python distribution, as well as being installable via :ref:`standard Python packaging tools <installation>`..
 
 Advanced Usage
 --------------

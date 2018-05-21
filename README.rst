@@ -22,7 +22,8 @@ imaging and coronagraphic modes.
 WebbPSF also supports simulating PSFs for the upcoming Wide Field Infrared Survey Telescope (WFIRST),
 including its Wide Field Instrument and a preliminary version of the Coronagraph Instrument.
 
-Developed by Marshall Perrin, Joseph Long, Neil Zimmerman, and collaborators, 2010-2017.
+Developed by Marshall Perrin, Joseph Long, Neil Zimmerman, Robel Geda, Shannon
+Osborne, Marcio Melendez Hernandez, and collaborators, 2010-2018.
 
 Documentation can be found online at https://webbpsf.readthedocs.io
 
