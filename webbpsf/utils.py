@@ -5,6 +5,8 @@ import astropy.io.fits as fits
 import numpy as np
 import matplotlib.pyplot as plt
 
+import scipy.interpolate as sciint
+
 import logging
 _log = logging.getLogger('webbpsf')
 
@@ -44,6 +46,7 @@ def restart_logging(verbose=True):
 
     root_logger = logging.getLogger()
     root_logger.handlers = []
+    
 
     if level in ['DEBUG', 'INFO', 'WARN', 'ERROR', 'CRITICAL']:
         level_id = getattr(logging, level)  # obtain one of the DEBUG, INFO, WARN,
@@ -642,3 +645,4 @@ nlambda={nlambda:d}""".format(nlambda=nlambda))
             'numexpr': time_numexpr,
             'cuda': time_cuda,
             'opencl': time_opencl}
+
