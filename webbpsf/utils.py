@@ -543,3 +543,102 @@ def annotate_sky_pupil_coords(self, ax, show_NE=False, north_angle=45.):
                 horizontalalignment='center', verticalalignment='center')
         ax.text(-loc+0.5-1.3*dy, -loc-1.3*dx, 'E', color=color2, size='small',
                 horizontalalignment='center', verticalalignment='center')
+
+
+def benchmark_imaging(iterations=1, nlambda=1):
+    """ Performance benchmark function for standard imaging """
+    import poppy
+    import timeit
+
+    timer = timeit.Timer("psf = nc.calc_psf(nlambda=nlambda)",
+            setup="""
+import webbpsf
+nc = webbpsf.NIRCam()
+nc.filter='F360M'
+nlambda={nlambda:d}""".format(nlambda=nlambda))
+    print("Timing performance of NIRCam F360M with {} wavelengths".format(nlambda))
+
+    defaults = (poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.use_cuda, poppy.conf.use_opencl)
+
+    # Time baseline performance in numpy
+    print("Timing performance in plain numpy:")
+    poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.use_cuda, poppy.conf.use_opencl = (False, False, False, False)
+    time_numpy = timer.timeit(number=iterations)
+    print("  {:.2f} s}".format(time_numpy))
+
+    if poppy.accel_math._NUMEXPR_AVAILABLE:
+        poppy.conf.use_numexpr = True
+        time_numexpr = timer.timeit(number=iterations)
+        print("  {:.2f} s}".format(time_numexpr))
+    else:
+        time_numexpr = NaN
+
+    poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.use_cuda, poppy.conf.use_opencl = defaults
+
+
+
+def benchmark_coronagraphy(iterations=1, nlambda=1):
+    """ Performance benchmark function for standard imaging """
+    import poppy
+    import timeit
+
+    timer = timeit.Timer("psf = miri.calc_psf(nlambda=nlambda)",
+            setup="""
+import webbpsf
+miri = webbpsf.MIRI()
+miri.filter='F1065C'
+miri.image_mask='FQPM1065'
+miri.pupil_mask='MASKFQPM'
+nlambda={nlambda:d}""".format(nlambda=nlambda))
+    print("Timing performance of MIRI F1065C with {} wavelengths".format(nlambda))
+
+    defaults = (poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.use_cuda, poppy.conf.use_opencl)
+
+    # Time baseline performance in numpy
+    print("Timing performance in plain numpy:")
+    poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.use_cuda, poppy.conf.use_opencl = (False, False, False, False)
+    time_numpy = timer.timeit(number=iterations)
+    print("  {:.2f} s".format(time_numpy))
+
+    if poppy.accel_math._FFTW_AVAILABLE:
+        print("Timing performance with FFTW:")
+        poppy.conf.use_fftw = True
+        time_fftw = timer.timeit(number=iterations)
+        print("  {:.2f} s".format(time_fftw))
+    else:
+        time_fftw = np.NaN
+
+    if poppy.accel_math._NUMEXPR_AVAILABLE:
+        print("Timing performance with Numexpr:")
+        poppy.conf.use_numexpr = True
+        time_numexpr = timer.timeit(number=iterations)
+        print("  {:.2f} s".format(time_numexpr))
+    else:
+        time_numexpr = np.NaN
+
+    if poppy.accel_math._CUDA_AVAILABLE:
+        print("Timing performance with CUDA:")
+        poppy.conf.use_cuda = True
+        poppy.conf.use_opencl = False
+        time_cuda = timer.timeit(number=iterations)
+        print("  {:.2f} s".format(time_cuda))
+    else:
+        time_cuda = np.NaN
+
+    if poppy.accel_math._OPENCL_AVAILABLE:
+        print("Timing performance with OpenCL:")
+        poppy.conf.use_opencl = True
+        poppy.conf.use_cuda = False
+        time_opencl = timer.timeit(number=iterations)
+        print("  {:.2f} s".format(time_opencl))
+    else:
+        time_opencl = np.NaN
+
+
+    poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.use_cuda, poppy.conf.use_opencl = defaults
+
+    return {'numpy': time_numpy,
+            'fftw': time_fftw,
+            'numexpr': time_numexpr,
+            'cuda': time_cuda,
+            'opencl': time_opencl}
