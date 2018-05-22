@@ -76,13 +76,13 @@ Version 0.7.0
   potential small variations in PSFs across the field of view might look like, in broad trends. However it should _not_ be taken as precise guarantee of the exact amplitudes or
   patterns of those variations. The WFE was measured at a handful of particular field points during CV3, and the resulting Zernike coefficients are interpolated to 
   produce _estimated_ wavefront maps at all other field points across the focal planes.  Density and precision of the available measurements vary substantially between instruments.
-  [@mperrin, with contributions from @josephoenix in prior releases, and from @robelgeda and @JarronL for the interpolation between field points. [#121, #187]
+  [@mperrin, with contributions from @josephoenix in prior releases, and from @robelgeda and @JarronL for the interpolation between field points. [`#121 <https://github.com/mperrin/webbpsf/pull/121`_, `#187 <https://github.com/mperrin/webbpsf/pull/187`_]
 - Added new capabilities for modeling distortions of the image planes, which cause slight deflections in the angles of diffractive features. This effect is 
   largest for FGS, and fairly small but noticeable for the other SIs. The distortion information is taken from the Science Instrument Aperture file (SIAF) 
-  reference data maintained at STScI. As a result the ``pysiaf`` package is a new dependency required for using ``webbpsf``.  [@shanosborne]
+  reference data maintained at STScI. As a result the ``pysiaf`` package is a new dependency required for using ``webbpsf``.  [ `#209, <https://github.com/mperrin/webbpsf/pull/209>`_, @shanosborne]
 - For MIRI only, added new capability for modeling blurring from scattering of light within the MIRI imager detector substrate. This acts as a cross-shaped 
   convolution kernel, strongest at the shortest wavelengths. See MIRI document MIRI-TN-00076-ATC for details on the relevant physics and detector calibration. 
-  [@shanosborne]
+  [`#209, <https://github.com/mperrin/webbpsf/pull/209>`_, @shanosborne]
 - Added new capabilities for modeling mirror moves of the JWST primary segments and 
   secondary mirror, using a linear optical model to adjust OPDs. Added a 
   new `notebook demonstrating these capabilities <https://github.com/mperrin/webbpsf/blob/master/notebooks/Simulated%20OTE%20Mirror%20Move%20Demo.ipynb>`_. 
@@ -98,20 +98,21 @@ Version 0.7.0
   `here <https://github.com/mperrin/webbpsf/pull/184>`_. [`#184 <https://github.com/mperrin/webbpsf/pull/184>`_, @robelgeda]
 - Added R062 filter. 
 - Updated ``pupil_mask`` attribute for toggling between the masked and non-masked pupils now works the same way as that attribute does for the JWST instrument 
-  classes. Note, most users will not need to deal with this manually as the WFI class will by default automatically select the correct pupil based on the selected filter.
+  classes. Note, most users will not need to deal with this manually as the WFI class will by default automatically select the correct pupil based on the selected filter. [`#203, <https://github.com/mperrin/webbpsf/issue/203>`_, @robelgeda]
 
 
 **Bug fixes and minor changes:**
+
 - All JWST instruments: Added new feature for importing OPD files produced with the JWST Wavefront Analysis System software [`#208 <https://github.com/mperrin/webbpsf/pull/208>`, @skyhawk172] 
-- All JWST instruments: Fix to generalize OPD loading code to handle either compressed or uncompressed OPDs [#173, @JarronL]
+- All JWST instruments: Fix to generalize OPD loading code to handle either compressed or uncompressed OPDs [`#173 <https://github.com/mperrin/webbpsf/pull/173`, @JarronL]
 - All JWST instruments: Fix to properly load the default number of wavelengths per calculation from the filters.tsv file, rather than defaulting to 10 wavelengths regardless. [@shanosborne])
-- All JWST instrument: Fix to more correctly handle non-integer-pixel positions of the PSF when writing DET_X and DET_Y header keywords (#205, @shanosborne]
-- NIRCam and MIRI coronagraphy: Automatically set the detector coordinates and SI WFE maps based on the location of a selected coronagraph occulter. [#181, @mperrin]
-- NIRCam coronagraphy: Fix a sign error in offsets for the NIRCam coronagraph SWB occulters [#172, @mperrin]. 
-- NIRCam coronagraphy: Fix a half-percent throughput error in the round occulter masks [#206, @mperrin]
-- NIRCam coronagraphy: Fix an issue with transmission of the coronagraph bars precisely along the y axis, due to a typo [#190, @JarronL]
+- All JWST instrument: Fix to more correctly handle non-integer-pixel positions of the PSF when writing DET_X and DET_Y header keywords (`#205 <<https://github.com/mperrin/webbpsf/pull/205>`_, @shanosborne]
+- NIRCam and MIRI coronagraphy: Automatically set the detector coordinates and SI WFE maps based on the location of a selected coronagraph occulter. [`#181 <https://github.com/mperrin/webbpsf/pull/181>`_, @mperrin]
+- NIRCam coronagraphy: Fix a sign error in offsets for the NIRCam coronagraph SWB occulters [`#172 <https://github.com/mperrin/webbpsf/issue/172>`_, @mperrin]. 
+- NIRCam coronagraphy: Fix a half-percent throughput error in the round occulter masks [`#206  <https://github.com/mperrin/webbpsf/issue/206>`_, @mperrin]
+- NIRCam coronagraphy: Fix an issue with transmission of the coronagraph bars precisely along the y axis, due to a typo [`#190  <https://github.com/mperrin/webbpsf/issue/190>`_, @JarronL]
 - NIRCam coronagraphy: New option for shifting the coronagraph masks relative to the source, rather than vice versa. This is mostly of use for edge cases such as PSF library generation for the ETC, and is probably not of widespread utility. [#191, @mperrin]
-- NIRISS: Fix the `pupil_rotation` option so it works for NIRISS too, in particular for NRM/AMI. [#118, @mperrin]
+- NIRISS: Fix the `pupil_rotation` option so it works for NIRISS too, in particular for NRM/AMI. [`#118  <https://github.com/mperrin/webbpsf/issue/118>`_, @mperrin]
 - NIRSpec: Very incomplete initial rudimentary support for the NIRSpec IFU, specifically just implementing the field stop for the IFU aperture. [@mperrin]
 - Updated to newer version of the astropy_helpers package infrastructure [@sosey]
 - Various smaller code cleanup and doc improvements [@mperrin, @shanosborne, @robelgeda, @douglase]
