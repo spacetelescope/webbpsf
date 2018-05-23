@@ -151,7 +151,7 @@ def test_apply_miri_scattering():
 
     # Create a PSF
     mir = webbpsf_core.MIRI()
-    mir.filter = "F1000W"
+    mir.filter = "F560W"  # this filter has a strong cross added
     psf = mir.calc_psf()
 
     # Because calc_psf automatically applies distortions to ext 2 and 3, we'll overwrite these with the undistorted PSFs
@@ -166,7 +166,7 @@ def test_apply_miri_scattering():
         diff = psf_cross[ext].data - psf[ext].data
 
         # Test that the 4 corners of the box contain very small (close to 0) values
-        xlen, ylen = diff.shape
+        ylen, xlen = diff.shape
 
         # Choose the start/stop points for these squares (each will take up 1/3 of the total array)
         first = 0
@@ -182,7 +182,7 @@ def test_apply_miri_scattering():
 
         # What value it is compared to depends on the sampling since the range varies by a factor of the oversampling
         if ext == 2:
-            value = 1e-8
+            value = 5e-7
         else:
             value = 1e-6
 
@@ -199,8 +199,9 @@ def test_apply_miri_scattering():
         ycen = int(ylen / 2)
 
         # Pull 20 values along the cross in both the x and y direction to check
+        # shift up 20 pixels to ignore 0s near center
         cross_values_list = []
-        for i in range(20):
+        for i in np.arange(20) + 20:
             cross_values_list.append(diff[xcen + i, ycen])
             cross_values_list.append(diff[xcen, ycen + i])
 
@@ -212,6 +213,7 @@ def test_apply_miri_scattering():
         assert avg_cross > avg_edge, "The avg value of the cross should be larger than the avg value of the surrounding"
         assert avg_cross / 100 > avg_edge, "The avg value of the cross should be larger than the avg value of the " \
                                            "surrounding by a factor of 100"
+
 
 # @pytest.mark.skip()
 def test_miri_conservation_energy():
