@@ -754,6 +754,8 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         # If chosen to add distortion
         if add_distortion:
+            if self.image_mask == "LRS slit" and self.pupil_mask == "P750L LRS grating":
+                raise NotImplementedError("Distortion is not implemented yet for MIRI LRS mode.")
 
             # Set up new extensions to add distortion to
             for ext in [0, 1]:
