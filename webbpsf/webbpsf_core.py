@@ -45,6 +45,7 @@ from . import utils
 from . import version
 from . import optics
 from . import DATA_VERSION_MIN
+from . import distortion
 
 try:
     import pysynphot
@@ -718,6 +719,85 @@ class JWInstrument(SpaceTelescopeInstrument):
         v2v3pos = self._tel_coords()
         result[0].header.insert("DET_Y",  ('DET_V2', v2v3pos[0].value, "[arcmin] Det. pos. in telescope V2,V3 coord sys"), after=True)
         result[0].header.insert("DET_V2", ('DET_V3', v2v3pos[1].value, "[arcmin] Det. pos. in telescope V2,V3 coord sys"), after=True)
+        result[0].header["APERNAME"] = (self._detectors[self._detector], "SIAF aperture name")
+
+    def calc_psf(self, outfile=None, source=None, nlambda=None, monochromatic=None,
+                 fov_arcsec=None, fov_pixels=None, oversample=None, detector_oversample=None, fft_oversample=None,
+                 overwrite=True, display=False, save_intermediates=False, return_intermediates=False,
+                 normalize='first', add_distortion=True, crop_psf=True):
+        """ Compute a PSF and apply distortion effects.
+
+        Parameters
+        ----------
+        add_distortion : bool
+            If True, will add 2 new extensions to the PSF HDUlist object. The 2nd extension
+            will be a distorted version of the over-sampled PSF and the 3rd extension will
+            be a distorted version of bthe detector-sampled PSF.
+        crop_psf : bool
+            If True, when the PSF is rotated to match the detector's rotation in the focal
+            plane, the PSF will be cropped so the shape of the distorted PSF will match it's
+            undistorted counterpart. This will only be used for NIRCam, NIRISS, and FGS PSFs.
+
+        """
+
+        # Run poppy calc_psf
+        psf = SpaceTelescopeInstrument.calc_psf(self, outfile=outfile, source=source, nlambda=nlambda,
+                                                monochromatic=monochromatic, fov_arcsec=fov_arcsec,
+                                                fov_pixels=fov_pixels, oversample=oversample,
+                                                detector_oversample=detector_oversample, fft_oversample=fft_oversample,
+                                                overwrite=overwrite, display=display,
+                                                save_intermediates=save_intermediates,
+                                                return_intermediates=return_intermediates, normalize=normalize)
+
+        if return_intermediates:
+            psf, intermediates = psf
+
+        # If chosen to add distortion
+        if add_distortion:
+            if self.image_mask == "LRS slit" and self.pupil_mask == "P750L LRS grating":
+                raise NotImplementedError("Distortion is not implemented yet for MIRI LRS mode.")
+
+            # Set up new extensions to add distortion to
+            for ext in [0, 1]:
+                hdu_new = fits.ImageHDU(psf[ext].data)  # append the PSFs again, these will be the PSFs that are edited
+                psf.append(hdu_new)
+                ext_new = ext + 2
+                psf[ext_new].header = copy.deepcopy(psf[ext].header)  # add header from corresponding extension
+                psf[ext_new].header["EXTNAME"] = psf[ext].header["EXTNAME"][0:4] + "DIST"  # change extension name
+
+            # Apply distortions based on the instrument
+            if self.name in ["NIRCam", "NIRISS", "FGS"]:
+                # Apply distortion effects: Rotation and Detector Distortion
+                psf_rotated = distortion.apply_rotation(psf, crop=crop_psf)  # apply rotation
+                psf_distorted = distortion.apply_distortion(psf_rotated)  # apply siaf distortion
+            elif self.name == "MIRI":
+                # Apply distortion effects to MIRI psf: SIAF and MIRI Scattering
+                psf_siaf = distortion.apply_distortion(psf)  # apply siaf distortion
+                psf_distorted = distortion.apply_miri_scattering(psf_siaf)  # apply miri scattering detector_effect
+            elif self.name == "NIRSpec":
+                # Apply distortion effects to NIRSpec psf: SIAF only
+                psf_distorted = distortion.apply_distortion(psf)  # apply siaf distortion
+
+            # If keyword set, save out the PSF object again, with all it's extensions
+            if outfile is not None:
+                psf_distorted.writeto(outfile, overwrite=True, output_verify='ignore')  # already created in the 1st calc_psf
+                _log.info("Re-saved result with distortion to " + outfile)
+
+            psf = psf_distorted
+
+        if return_intermediates:
+            return psf, intermediates
+
+        else:
+            return psf
+
+    calcPSF = calc_psf
+
+    # Allow users to see poppy calc_psf docstring too
+    ind0 = calc_psf.__doc__.index("add_distortion")  # pull the new parameters
+    ind1 = SpaceTelescopeInstrument.calc_psf.__doc__.index("Returns")  # pull where the parameters list ends
+    calc_psf.__doc__ = SpaceTelescopeInstrument.calc_psf.__doc__[0:ind1] + calc_psf.__doc__[ind0:] +\
+                       SpaceTelescopeInstrument.calc_psf.__doc__[ind1:]
 
 
 
@@ -815,7 +895,7 @@ class MIRI(JWInstrument):
         self.auto_pupil=True
         JWInstrument.__init__(self, "MIRI")
         self.pixelscale = 0.1110  # Source: SIAF PRDDEVSOC-D-012, 2016 April
-        self._rotation = 5.0152 # Source: SIAF PRDDEVSOC-D-012, 2016 April
+        self._rotation = 4.4497 # Source: SIAF PRDOPSSOC-H-014
 
         self.image_mask_list = ['FQPM1065', 'FQPM1140', 'FQPM1550', 'LYOT2300', 'LRS slit']
         self.pupil_mask_list = ['MASKFQPM', 'MASKLYOT', 'P750L LRS grating']
@@ -1356,8 +1436,7 @@ class NIRSpec(JWInstrument):
         JWInstrument.__init__(self, "NIRSpec")
         self.pixelscale = 0.1043 # Average over both detectors.  SIAF PRDDEVSOC-D-012, 2016 April
                                  # Microshutters are 0.2x0.46 but we ignore that here.
-        self._rotation = None
-        self._rotation = 138.4  # Average for both detectors in SIAF PRDDEVSOC-D-012, 2016 April
+        self._rotation = 138.4  # Average for both detectors in SIAF PRDOPSSOC-H-014
         self.filter_list.append("IFU")
         self._IFU_pixelscale = 0.1043 # same.
         self.monochromatic= 3.0
