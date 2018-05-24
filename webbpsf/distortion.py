@@ -1,25 +1,19 @@
 from __future__ import division, print_function, absolute_import, unicode_literals
-import os, sys
-import six
+
 import copy
 
-import pysiaf
-import poppy
-
-import numpy as np
-import matplotlib.pyplot as plt
-import astropy.io.fits as fits
 import astropy.convolution
-
-from astropy.table import Table
+import astropy.io.fits as fits
+import numpy as np
+import pysiaf
+import six
 from scipy.interpolate import griddata
 from scipy.ndimage.interpolation import rotate
-from scipy.ndimage.filters import uniform_filter
-from decimal import Decimal, ROUND_HALF_UP
-from astropy.modeling.functional_models import Gaussian2D
+
+import poppy
 
 
-def _get_default_SIAF(instrument, aper_name):
+def _get_default_siaf(instrument, aper_name):
     """ Store the default SIAF values for distortion and rotation """
 
     # Create new naming because SIAF requires special capitalization
@@ -37,7 +31,7 @@ def _get_default_SIAF(instrument, aper_name):
     return aper
 
 
-def apply_distortion(HDUlist_or_filename=None, fill_value=0):
+def apply_distortion(hdulist_or_filename=None, fill_value=0):
     """
     Apply a distortion to the input PSF. The distortion comes from the SIAF 4-5 degree polynomial (depends on the
     instrument). This function pulls and applies the SIAF polynomial values using pysiaf, which ensures the most
@@ -46,7 +40,7 @@ def apply_distortion(HDUlist_or_filename=None, fill_value=0):
     Parameters
     ----------
 
-    HDUlist_or_filename :
+    hdulist_or_filename :
         A PSF from WebbPSF, either as an HDUlist object or as a filename
     fill_value : float
         Value used to fill in any blank space by the skewed PSF. Default = 0
@@ -54,10 +48,10 @@ def apply_distortion(HDUlist_or_filename=None, fill_value=0):
     """
 
     # Read in input PSF
-    if isinstance(HDUlist_or_filename, six.string_types):
-        hdu_list = fits.open(HDUlist_or_filename)
-    elif isinstance(HDUlist_or_filename, fits.HDUList):
-        hdu_list = HDUlist_or_filename
+    if isinstance(hdulist_or_filename, six.string_types):
+        hdu_list = fits.open(hdulist_or_filename)
+    elif isinstance(hdulist_or_filename, fits.HDUList):
+        hdu_list = hdulist_or_filename
     else:
         raise ValueError("input must be a filename or HDUlist")
 
@@ -69,7 +63,7 @@ def apply_distortion(HDUlist_or_filename=None, fill_value=0):
     aper_name = hdu_list[0].header["APERNAME"].upper()
 
     # Pull default values
-    aper = _get_default_SIAF(instrument, aper_name)
+    aper = _get_default_siaf(instrument, aper_name)
 
     ext = 2  # edit the oversampled PSF, then bin it down to get the detector sampled PSF
 
@@ -127,6 +121,7 @@ def apply_distortion(HDUlist_or_filename=None, fill_value=0):
 
     # ###############################################
     # Interpolate from the original indices (xsci, ysci) on to new indices (xnew, ynew)
+    # noinspection PyTypeChecker
     psf_new = griddata((xsci.flatten(), ysci.flatten()), psf[ext].data.flatten(), (xnew, ynew),
                        fill_value=fill_value)
 
@@ -157,7 +152,7 @@ def apply_distortion(HDUlist_or_filename=None, fill_value=0):
 # #####################################################################################################################
 
 
-def apply_rotation(HDUlist_or_filename=None, rotate_value=None, crop=True):
+def apply_rotation(hdulist_or_filename=None, rotate_value=None, crop=True):
     """
     Apply the detector's rotation to the PSF. This is for NIRCam, NIRISS, and FGS. MIRI and NIRSpec's large rotation is
     already added inside WebbPSF's calculations.
@@ -165,7 +160,7 @@ def apply_rotation(HDUlist_or_filename=None, rotate_value=None, crop=True):
     Parameters
     ----------
 
-    HDUlist_or_filename :
+    hdulist_or_filename :
         A PSF from WebbPSF, either as an HDUlist object or as a filename
     rotate_value : float
         Rotation in degrees that PSF needs to be. If set to None, function will pull the most up to date
@@ -176,10 +171,10 @@ def apply_rotation(HDUlist_or_filename=None, rotate_value=None, crop=True):
 
     """
     # Read in input PSF
-    if isinstance(HDUlist_or_filename, six.string_types):
-        hdu_list = fits.open(HDUlist_or_filename)
-    elif isinstance(HDUlist_or_filename, fits.HDUList):
-        hdu_list = HDUlist_or_filename
+    if isinstance(hdulist_or_filename, six.string_types):
+        hdu_list = fits.open(hdulist_or_filename)
+    elif isinstance(hdulist_or_filename, fits.HDUList):
+        hdu_list = hdulist_or_filename
     else:
         raise ValueError("input must be a filename or HDUlist")
 
@@ -198,7 +193,7 @@ def apply_rotation(HDUlist_or_filename=None, rotate_value=None, crop=True):
 
     # Set rotation value if not already set by a keyword argument
     if rotate_value is None:
-        aper = _get_default_SIAF(instrument, aper_name)
+        aper = _get_default_siaf(instrument, aper_name)
         rotate_value = getattr(aper, "V3IdlYAngle")  # the angle to rotate the PSF in degrees
 
     # If crop = True, then reshape must be False - so invert this keyword
@@ -224,7 +219,7 @@ def apply_rotation(HDUlist_or_filename=None, rotate_value=None, crop=True):
 # #####################################################################################################################
 
 
-def _make_kernel(image, amplitude, nsamples):
+def _make_miri_scattering_kernel(image, amplitude, nsamples):
     """
     Creates a detector scatter kernel function. For simplicity, we assume a simple exponential dependence. Code is
     adapted from MIRI-TN-00076-ATC_Imager_PSF_Issue_4.pdf (originally in IDL).
@@ -244,7 +239,7 @@ def _make_kernel(image, amplitude, nsamples):
     return kernel_x
 
 
-def _apply_kernel(in_psf, kernel_x, oversample):
+def _apply_miri_scattering_kernel(in_psf, kernel_x, oversample):
     """
     Applies the detector scattering kernel function created in _make_kernel function to an input image. Code is
     adapted from MIRI-TN-00076-ATC_Imager_PSF_Issue_4.pdf (originally in IDL).
@@ -266,7 +261,7 @@ def _apply_kernel(in_psf, kernel_x, oversample):
     return im_conv_both
 
 
-def apply_miri_scattering(HDUlist_or_filename=None, kernel_amp=None):
+def apply_miri_scattering(hdulist_or_filename=None, kernel_amp=None):
     """
     Apply a distortion caused by the MIRI scattering cross artifact effect. In short we convolve a 2D
     exponentially decaying cross to the PSF where the amplitude of the exponential function is determined
@@ -276,7 +271,7 @@ def apply_miri_scattering(HDUlist_or_filename=None, kernel_amp=None):
     Parameters
     ----------
 
-    HDUlist_or_filename :
+    hdulist_or_filename :
         A PSF from WebbPSF, either as an HDUlist object or as a filename
     kernel_amp: float
         Detector scattering kernel amplitude. If set to None, function will pull the value based on best fit analysis
@@ -285,10 +280,10 @@ def apply_miri_scattering(HDUlist_or_filename=None, kernel_amp=None):
     """
 
     # Read in input PSF
-    if isinstance(HDUlist_or_filename, six.string_types):
-        hdu_list = fits.open(HDUlist_or_filename)
-    elif isinstance(HDUlist_or_filename, fits.HDUList):
-        hdu_list = HDUlist_or_filename
+    if isinstance(hdulist_or_filename, six.string_types):
+        hdu_list = fits.open(hdulist_or_filename)
+    elif isinstance(hdulist_or_filename, fits.HDUList):
+        hdu_list = hdulist_or_filename
     else:
         raise ValueError("input must be a filename or HDUlist")
 
@@ -320,10 +315,10 @@ def apply_miri_scattering(HDUlist_or_filename=None, kernel_amp=None):
     in_psf = psf[ext].data
 
     # Make the kernel
-    kernel_x = _make_kernel(in_psf, kernel_amp, oversample)
+    kernel_x = _make_miri_scattering_kernel(in_psf, kernel_amp, oversample)
 
     # Apply the kernel via convolution in both the X and Y direction to produce a 2D output
-    im_conv_both = _apply_kernel(in_psf, kernel_x, oversample)
+    im_conv_both = _apply_miri_scattering_kernel(in_psf, kernel_x, oversample)
 
     # Add this 2D scattered light output to the PSF
     psf_new = in_psf + im_conv_both

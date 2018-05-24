@@ -8,13 +8,14 @@ import matplotlib.pyplot as plt
 import scipy.interpolate as sciint
 
 import logging
+
 _log = logging.getLogger('webbpsf')
 
 from . import conf
 
 _DISABLE_FILE_LOGGING_VALUE = 'none'
 
-_Strehl_perfect_cache = {} # dict for caching perfect images used in Strehl calcs.
+_Strehl_perfect_cache = {}  # dict for caching perfect images used in Strehl calcs.
 
 
 ### Helper routines for logging: ###
@@ -23,6 +24,7 @@ class FilterLevelRange(object):
     def __init__(self, min_level, max_level):
         self.min_level = min_level
         self.max_level = max_level
+
     def filter(self, record):
         if record.levelno >= self.min_level and record.levelno <= self.max_level:
             return 1
@@ -46,11 +48,10 @@ def restart_logging(verbose=True):
 
     root_logger = logging.getLogger()
     root_logger.handlers = []
-    
 
     if level in ['DEBUG', 'INFO', 'WARN', 'ERROR', 'CRITICAL']:
         level_id = getattr(logging, level)  # obtain one of the DEBUG, INFO, WARN,
-                                            # or ERROR constants
+        # or ERROR constants
         if verbose:
             print("WebbPSF log messages of level {0} and above will be shown.".format(level))
     elif level == 'NONE':
@@ -62,7 +63,6 @@ def restart_logging(verbose=True):
     for name in lognames:
         logger = logging.getLogger(name)
         logger.setLevel(level_id)
-
 
     # set up screen logging
     stdout_handler = logging.StreamHandler(stream=sys.stdout)
@@ -160,6 +160,7 @@ def setup_logging(level='INFO', filename=None):
 
     conf.logging_filename = filename
     restart_logging(verbose=True)
+
 
 ### Helper routines for data handling and system setup: ###
 
@@ -277,6 +278,7 @@ Numpy compilation and linking:
 
 """
 
+
 def system_diagnostic():
     """ return various helpful/informative information about the
     current system. For instance versions of python & available packages.
@@ -316,7 +318,6 @@ def system_diagnostic():
     except ImportError:
         pysynphot_version = 'not found'
 
-
     try:
         import astropy
         astropy_version = astropy.__version__
@@ -335,7 +336,6 @@ def system_diagnostic():
     except ImportError:
         accelerate_version = 'not found'
 
-
     try:
         import psutil
         cpu_info = """
@@ -344,13 +344,13 @@ def system_diagnostic():
   Frequency: {freq} GHz
   Currently {percent}% utilized.
 """.format(hw=psutil.cpu_count(logical=False),
-logical=psutil.cpu_count(logical=True),
-freq=psutil.cpu_freq()[0]/1000,
-percent=psutil.cpu_percent())
+           logical=psutil.cpu_count(logical=True),
+           freq=psutil.cpu_freq()[0] / 1000,
+           percent=psutil.cpu_percent())
     except:
         try:
             import multiprocessing
-            cpu_info="  Cores: {}".format(multiprocessing.cpu_count())
+            cpu_info = "  Cores: {}".format(multiprocessing.cpu_count())
         except:
             cpu_info = "No CPU info available"
 
@@ -358,17 +358,16 @@ percent=psutil.cpu_percent())
     # numpy.__config__.show()
 
     numpyconfig = ""
-    for name,info_dict in numpy.__config__.__dict__.items():
+    for name, info_dict in numpy.__config__.__dict__.items():
         if name[0] == "_" or type(info_dict) is not type({}): continue
         numpyconfig += name + ":\n"
         if not info_dict:
             numpyconfig += "  NOT AVAILABLE\n"
-        for k,v in info_dict.items():
+        for k, v in info_dict.items():
             v = str(v)
             if k == "sources" and len(v) > 200:
                 v = v[:60] + " ...\n... " + v[-60:]
-            numpyconfig += "    %s = %s\n" % (k,v)
-
+            numpyconfig += "    %s = %s\n" % (k, v)
 
     result = DIAGNOSTIC_REPORT.format(
         os=platform.platform(),
@@ -444,49 +443,47 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, displa
         HDUlist = fits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
-    else: raise ValueError("input must be a filename or HDUlist")
+    else:
+        raise ValueError("input must be a filename or HDUlist")
 
     image = HDUlist[ext].data
     header = HDUlist[ext].header
 
-    if image.ndim >=3:  # handle datacubes gracefully
-        image = image[slice,:,:]
-
+    if image.ndim >= 3:  # handle datacubes gracefully
+        image = image[slice, :, :]
 
     if center is None:
         # get exact center of image
-        #center = (image.shape[1]/2, image.shape[0]/2)
-        center = tuple( (a-1)/2.0 for a in image.shape[::-1])
-
-
+        # center = (image.shape[1]/2, image.shape[0]/2)
+        center = tuple((a - 1) / 2.0 for a in image.shape[::-1])
 
     # Compute a comparison image
     _log.info("Now computing image with zero OPD for comparison...")
     inst = Instrument(header['INSTRUME'])
     inst.filter = header['FILTER']
-    inst.pupilopd = None # perfect image
-    inst.include_si_wfe = False # perfect image
-    inst.pixelscale = header['PIXELSCL'] * header['OVERSAMP'] # same pixel scale pre-oversampling
-    cache_key = (header['INSTRUME'], header['FILTER'], header['PIXELSCL'], header['OVERSAMP'],  header['FOV'],header['NWAVES'])
+    inst.pupilopd = None  # perfect image
+    inst.include_si_wfe = False  # perfect image
+    inst.pixelscale = header['PIXELSCL'] * header['OVERSAMP']  # same pixel scale pre-oversampling
+    cache_key = (header['INSTRUME'], header['FILTER'], header['PIXELSCL'], header['OVERSAMP'], header['FOV'], header['NWAVES'])
     try:
         comparison_psf = _Strehl_perfect_cache[cache_key]
     except KeyError:
-        comparison_psf = inst.calcPSF(fov_arcsec = header['FOV'], oversample=header['OVERSAMP'], nlambda=header['NWAVES'])
-        if cache_perfect: _Strehl_perfect_cache[cache_key ] = comparison_psf
+        comparison_psf = inst.calcPSF(fov_arcsec=header['FOV'], oversample=header['OVERSAMP'], nlambda=header['NWAVES'])
+        if cache_perfect: _Strehl_perfect_cache[cache_key] = comparison_psf
 
     comparison_image = comparison_psf[0].data
 
     if (int(center[1]) == center[1]) and (int(center[0]) == center[0]):
         # individual pixel
-        meas_peak =           image[center[1], center[0]]
+        meas_peak = image[center[1], center[0]]
         ref_peak = comparison_image[center[1], center[0]]
     else:
         # average across a group of 4
         bot = [int(np.floor(f)) for f in center]
-        top = [int(np.ceil(f)+1) for f in center]
-        meas_peak =           image[bot[1]:top[1], bot[0]:top[0]].mean()
+        top = [int(np.ceil(f) + 1) for f in center]
+        meas_peak = image[bot[1]:top[1], bot[0]:top[0]].mean()
         ref_peak = comparison_image[bot[1]:top[1], bot[0]:top[0]].mean()
-    strehl = (meas_peak/ref_peak)
+    strehl = (meas_peak / ref_peak)
 
     if display:
         plt.clf()
@@ -495,7 +492,6 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, displa
         plt.subplot(122)
         display_PSF(comparison_psf, title="Perfect PSF")
         plt.gcf().suptitle("Strehl ratio = %.3f" % strehl)
-
 
     if verbose:
         print("Measured peak:  {0:.3g}".format(meas_peak))
@@ -511,40 +507,41 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, displa
 
 def annotate_ote_entrance_coords(self, ax):
     """ Draw OTE V frame axes on first optical plane """
-    color='yellow'
+    color = 'yellow'
     loc = 3
-    ax.arrow(-loc,-loc, .2, 0, color=color, width=0.005)
-    ax.arrow(-loc,-loc, 0, .2, color=color, width=0.005)
-    ax.text(-loc, -loc+0.4, '+V3', color=color, size='small',
+    ax.arrow(-loc, -loc, .2, 0, color=color, width=0.005)
+    ax.arrow(-loc, -loc, 0, .2, color=color, width=0.005)
+    ax.text(-loc, -loc + 0.4, '+V3', color=color, size='small',
             horizontalalignment='center', verticalalignment='bottom')
-    ax.text(-loc+0.4, -loc, '+V2', color=color,size='small',
+    ax.text(-loc + 0.4, -loc, '+V2', color=color, size='small',
             horizontalalignment='left', verticalalignment='center')
+
 
 def annotate_sky_pupil_coords(self, ax, show_NE=False, north_angle=45.):
     """ Draw OTE V frame axes projected onto the sky
     Optionally also draw a compass for north and east at some given
     position angle
     """
-    color='yellow'
+    color = 'yellow'
     loc = 2.9
-    ax.arrow(-loc+0.5,-loc, -.2, 0, color=color, width=0.005)
-    ax.arrow(-loc+0.5,-loc, 0, .2, color=color, width=0.005)
-    ax.text(-loc+0.5, -loc+0.3, '+V3 on sky', color=color, size='small',
+    ax.arrow(-loc + 0.5, -loc, -.2, 0, color=color, width=0.005)
+    ax.arrow(-loc + 0.5, -loc, 0, .2, color=color, width=0.005)
+    ax.text(-loc + 0.5, -loc + 0.3, '+V3 on sky', color=color, size='small',
             horizontalalignment='center', verticalalignment='bottom')
-    ax.text(-loc+0.5+0.3, -loc, '+V2 on sky', color=color, size='small',
+    ax.text(-loc + 0.5 + 0.3, -loc, '+V2 on sky', color=color, size='small',
             horizontalalignment='left', verticalalignment='center')
 
     if show_NE:
-        color2='cyan'
-        angle = np.deg2rad(north_angle) # arbitrary
+        color2 = 'cyan'
+        angle = np.deg2rad(north_angle)  # arbitrary
         dl = 0.3
-        dx = np.sin(angle)*dl
-        dy = np.cos(angle)*dl
-        ax.arrow(-loc+0.5,-loc, -dx, dy, color=color2, width=0.005)
-        ax.arrow(-loc+0.5,-loc, -dy, -dx, color=color2, width=0.005)
-        ax.text(-loc+0.5-2.3*dx, -loc+2.3*dy, 'N', color=color2, size='small',
+        dx = np.sin(angle) * dl
+        dy = np.cos(angle) * dl
+        ax.arrow(-loc + 0.5, -loc, -dx, dy, color=color2, width=0.005)
+        ax.arrow(-loc + 0.5, -loc, -dy, -dx, color=color2, width=0.005)
+        ax.text(-loc + 0.5 - 2.3 * dx, -loc + 2.3 * dy, 'N', color=color2, size='small',
                 horizontalalignment='center', verticalalignment='center')
-        ax.text(-loc+0.5-1.3*dy, -loc-1.3*dx, 'E', color=color2, size='small',
+        ax.text(-loc + 0.5 - 1.3 * dy, -loc - 1.3 * dx, 'E', color=color2, size='small',
                 horizontalalignment='center', verticalalignment='center')
 
 
@@ -554,7 +551,7 @@ def benchmark_imaging(iterations=1, nlambda=1):
     import timeit
 
     timer = timeit.Timer("psf = nc.calc_psf(nlambda=nlambda)",
-            setup="""
+                         setup="""
 import webbpsf
 nc = webbpsf.NIRCam()
 nc.filter='F360M'
@@ -579,14 +576,13 @@ nlambda={nlambda:d}""".format(nlambda=nlambda))
     poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.use_cuda, poppy.conf.use_opencl = defaults
 
 
-
 def benchmark_coronagraphy(iterations=1, nlambda=1):
     """ Performance benchmark function for standard imaging """
     import poppy
     import timeit
 
     timer = timeit.Timer("psf = miri.calc_psf(nlambda=nlambda)",
-            setup="""
+                         setup="""
 import webbpsf
 miri = webbpsf.MIRI()
 miri.filter='F1065C'
@@ -637,7 +633,6 @@ nlambda={nlambda:d}""".format(nlambda=nlambda))
     else:
         time_opencl = np.NaN
 
-
     poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.use_cuda, poppy.conf.use_opencl = defaults
 
     return {'numpy': time_numpy,
@@ -645,4 +640,3 @@ nlambda={nlambda:d}""".format(nlambda=nlambda))
             'numexpr': time_numexpr,
             'cuda': time_cuda,
             'opencl': time_opencl}
-
