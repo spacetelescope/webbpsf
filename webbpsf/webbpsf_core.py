@@ -95,7 +95,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         Position angle for that offset, in degrees CCW.
     pupil_shift_x, pupil_shift_y : float
         Relative shift of the intermediate (coronagraphic) pupil in X and Y 
-        relative to the telescope entrace pupil, expressed as a decimal between 0.0-1.0
+        relative to the telescope entrance pupil, expressed as a decimal between -1.0-1.0
         Note that shifting an array too much will wrap around to the other side unphysically, but
         for reasonable values of shift this is a non-issue.  This option only has an effect for optical models that
         have something at an intermediate pupil plane between the telescope aperture and the detector.
@@ -920,6 +920,9 @@ class MIRI(JWInstrument):
         self.pixelscale = 0.1110  # Source: SIAF PRDDEVSOC-D-012, 2016 April
         self._rotation = 4.4497  # Source: SIAF PRDOPSSOC-H-014
 
+        self.options['pupil_shift_x'] = -0.0069 # CV3 on-orbit estimate (RPT028027) + OTIS delta from predicted (037134)
+        self.options['pupil_shift_y'] = -0.0027
+
         self.image_mask_list = ['FQPM1065', 'FQPM1140', 'FQPM1550', 'LYOT2300', 'LRS slit']
         self.pupil_mask_list = ['MASKFQPM', 'MASKLYOT', 'P750L LRS grating']
 
@@ -1159,6 +1162,9 @@ class NIRCam(JWInstrument):
         self._pixelscale_short = 0.0311  # for short-wavelen channels, SIAF PRDDEVSOC-D-012, 2016 April
         self._pixelscale_long = 0.0630  # for long-wavelen channels,  SIAF PRDDEVSOC-D-012, 2016 April
         self.pixelscale = self._pixelscale_short
+
+        self.options['pupil_shift_x'] = 0  # Set to 0 since NIRCam FAM corrects for PM shear in flight
+        self.options['pupil_shift_y'] = 0
 
         # need to set up a bunch of stuff here before calling superclass __init__
         # so the overridden filter setter will work successfully inside that.
@@ -1465,6 +1471,9 @@ class NIRSpec(JWInstrument):
         self.monochromatic = 3.0
         self.filter = 'F110W'  # or is this called F115W to match NIRCam??
 
+        self.options['pupil_shift_x'] = 0.0115  # CV3 on-orbit estimate (RPT028027) + OTIS delta from predicted (037134)
+        self.options['pupil_shift_y'] = -0.0157
+
         # fixed slits
         self.image_mask_list = ['S200A1', 'S200A2', 'S400A1', 'S1600A1', 'S200B1',
                                 'MSA all open', 'Single MSA open shutter',
@@ -1588,6 +1597,9 @@ class NIRISS(JWInstrument):
         self.auto_pupil = auto_pupil
         JWInstrument.__init__(self, "NIRISS")
         self.pixelscale = 0.0656  # SIAF PRDDEVSOC-D-012, 2016 April
+
+        self.options['pupil_shift_x'] = 0.0243  # CV3 on-orbit estimate (RPT028027) + OTIS delta from predicted (037134)
+        self.options['pupil_shift_y'] = -0.0141
 
         self.image_mask_list = ['CORON058', 'CORON075', 'CORON150', 'CORON200']  # available but unlikely to be used...
         self.pupil_mask_list = ['CLEARP', 'MASK_NRM', 'GR700XD']
@@ -1716,6 +1728,9 @@ class FGS(JWInstrument):
     def __init__(self):
         JWInstrument.__init__(self, "FGS")
         self.pixelscale = 0.0691  # SIAF PRDDEVSOC-D-012, 2016 April
+
+        self.options['pupil_shift_x'] = 0.0041  # CV3 on-orbit estimate (RPT028027) + OTIS delta from predicted (037134)
+        self.options['pupil_shift_y'] = -0.0023
 
         self._detectors = {'FGS1': 'FGS1_FULL', 'FGS2': 'FGS2_FULL'}
         self.detector = self.detector_list[0]
