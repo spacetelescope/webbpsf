@@ -20,8 +20,7 @@ __all__ = (
     'SEGNAMES_WSS'
 )
 
-
-SEGNAMES = tuple([letter+str(number) for letter in ['A','B','C'] for number in range(1,7)])
+SEGNAMES = tuple([letter + str(number) for letter in ['A', 'B', 'C'] for number in range(1, 7)])
 
 #
 # JWST Primary segment and obscuration shapes and centers
@@ -170,7 +169,7 @@ SEGNAMES_WSS = tuple(name for name, arr in JWST_PRIMARY_SEGMENTS)
 
 # Sort same names by another order: A1-6,B1,C1,B2,C2,etc
 SEGNAMES_WSS_ORDER = tuple(np.asarray(SEGNAMES_WSS)[
-   np.argsort([int(a.split('-')[1]) for a in SEGNAMES_WSS]) ])
+                               np.argsort([int(a.split('-')[1]) for a in SEGNAMES_WSS])])
 
 JWST_PRIMARY_STRUTS = (
     ("strut1", np.array([
@@ -242,4 +241,4 @@ JWST_PRIMARY_SEGMENT_CENTERS = (
 
 JWST_SEGMENT_RADIUS = 1.517 / 2
 JWST_CIRCUMSCRIBED_DIAMETER = 6.603464  # meters. Outer corners of B segments
-JWST_INSCRIBED_DIAMETER = 5.47334 # meters. Middle corners of C segments
+JWST_INSCRIBED_DIAMETER = 5.47334  # meters. Middle corners of C segments

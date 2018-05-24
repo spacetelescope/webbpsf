@@ -205,6 +205,7 @@ class WebbOTEPupil(poppy.FITSOpticalElement):
 
             # TODO apply that to as a modification to the OPD array.
 
+
 #######  Custom Optics used in JWInstrument classes  #####
 
 
@@ -226,14 +227,14 @@ class NIRSpec_three_MSA_shutters(poppy.AnalyticOpticalElement):
             raise ValueError("get_transmission must be called with a Wavefront to define the spacing")
         assert (wave.planetype == poppy.poppy_core._IMAGE)
 
-        y, x= wave.coordinates()
+        y, x = wave.coordinates()
 
         self.transmission = np.zeros(wave.shape)
         # get the innermost shutter than spans the Y axis
-        w_inside_1 = np.where( (abs(y) < (msa_height/2))  & (abs(x) < (msa_width/2)))
+        w_inside_1 = np.where((abs(y) < (msa_height / 2)) & (abs(x) < (msa_width / 2)))
         self.transmission[w_inside_1] = 1
         # get the adjacent shutters one above and one below.
-        w_inside_2 = np.where( (abs(y) > (msa_height/2)+msa_wall) & (abs(y) < msa_height*1.5+msa_wall)  & (abs(x) < (msa_width/2)))
+        w_inside_2 = np.where((abs(y) > (msa_height / 2) + msa_wall) & (abs(y) < msa_height * 1.5 + msa_wall) & (abs(x) < (msa_width / 2)))
         self.transmission[w_inside_2] = 1
 
         return self.transmission
@@ -259,15 +260,13 @@ class NIRSpec_MSA_open_grid(poppy.AnalyticOpticalElement):
             raise ValueError("get_transmission must be called with a Wavefront to define the spacing")
         assert (wave.planetype == poppy.poppy_core._IMAGE)
 
-        y, x= wave.coordinates()
-        #xnew =  x*np.cos(np.deg2rad(self.angle)) + y*np.sin(np.deg2rad(self.angle))
-        #ynew = -x*np.sin(np.deg2rad(self.angle)) + y*np.cos(np.deg2rad(self.angle))
-        #x,y = xnew, ynew
+        y, x = wave.coordinates()
+        # xnew =  x*np.cos(np.deg2rad(self.angle)) + y*np.sin(np.deg2rad(self.angle))
+        # ynew = -x*np.sin(np.deg2rad(self.angle)) + y*np.cos(np.deg2rad(self.angle))
+        # x,y = xnew, ynew
 
-        mask_vert_walls  = np.abs(np.mod(np.abs(x), msa_x_pitch) - (msa_x_pitch/2)) < msa_wall/2
-        mask_horz_walls  = np.abs(np.mod(np.abs(y), msa_y_pitch) - (msa_y_pitch/2)) < msa_wall/2
-
-
+        mask_vert_walls = np.abs(np.mod(np.abs(x), msa_x_pitch) - (msa_x_pitch / 2)) < msa_wall / 2
+        mask_horz_walls = np.abs(np.mod(np.abs(y), msa_y_pitch) - (msa_y_pitch / 2)) < msa_wall / 2
 
         self.transmission = np.ones(wave.shape)
         self.transmission[mask_vert_walls] = 0
@@ -395,17 +394,16 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
     #        prism, true for expected spare replacement.
 
     def __init__(self, name='GR700XD', which='Bach',
-            #cylinder_radius=22.85,  cylinder_sag_mm=4.0, rotation_angle=92.25, rotate_mask=False, transmission=None,
-            **kwargs):
+                 # cylinder_radius=22.85,  cylinder_sag_mm=4.0, rotation_angle=92.25, rotate_mask=False, transmission=None,
+                 **kwargs):
         # Initialize the base optical element with the pupil transmission and zero OPD
 
-
-        if which=='LLNL':
+        if which == 'LLNL':
             raise NotImplementedError("Rotated field mask for LLNL grism not yet implemented!")
-        elif which=='Bach':
-            transmission=os.path.join( utils.get_webbpsf_data_path(), "NIRISS/optics/MASKGR700XD.fits.gz")
+        elif which == 'Bach':
+            transmission = os.path.join(utils.get_webbpsf_data_path(), "NIRISS/optics/MASKGR700XD.fits.gz")
         else:
-            raise NotImplementedError("Unknown grating name:"+which)
+            raise NotImplementedError("Unknown grating name:" + which)
 
         poppy.AnalyticOpticalElement.__init__(self, name=name, planetype=poppy.poppy_core._PUPIL, **kwargs)
 
@@ -413,22 +411,22 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
         # See Document FGS_TFI_UdM_035_RevD
 
         _log.debug("Computing properties for {0} grism".format(which))
-        if which =='Bach':
-            #---- Phase properties ---------------
+        if which == 'Bach':
+            # ---- Phase properties ---------------
             # 3.994 microns P-V over 27.02 mm measured (Loic's email)
             # This is **surface sag**, corresponding to P-V of 6.311 waves at lambda=632.8 nm.
             # should correspond to 3.698 microns over 26 mm clear aperture.
-            self.prism_size = 0.02702 # 27.02 millimeters for the physical prism
-            self.prism_clear_aperture = 0.0260 # 26 mm clear aperture for the prism + mount
-            self.cylinder_rotation_angle = 2 # was 2.25
+            self.prism_size = 0.02702  # 27.02 millimeters for the physical prism
+            self.prism_clear_aperture = 0.0260  # 26 mm clear aperture for the prism + mount
+            self.cylinder_rotation_angle = 2  # was 2.25
 
-            #self.cylinder_radius = 22.85 # radius of curvature  ; Nominal
+            # self.cylinder_radius = 22.85 # radius of curvature  ; Nominal
             # but they discarded that and used 25.3 instead
             # From Lafreniere's wfe_cylindricallens.pro:
             #  "OVERRIDE PREVIOUS CASES AFTER CV1RR RESULTS:"
-            self.cylinder_radius = 25.3 # radius of curvature
+            self.cylinder_radius = 25.3  # radius of curvature
 
-            #---- Amplitude Transmission / Pupil shape ---------------
+            # ---- Amplitude Transmission / Pupil shape ---------------
             self.pupil_size_mm = 26.0
             # Note that the IDL code says 26 mm is 683.75 pixels using the assumed demagnification
             self.pupil_rotation_angle = 2.0
@@ -436,9 +434,9 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
         else:
             # 5.8 microns P-V over 32.15 mm (Loic's email)
             # should correspond to 4.38 microns over 28 mm clear aperture
-            self.cylinder_radius = 22.39 # radius of curvature
-            self.prism_size = 0.03215 # millimeters for the physical prism
-            self.prism_clear_aperture = 0.0280 # clear aperture for the prism + mount
+            self.cylinder_radius = 22.39  # radius of curvature
+            self.prism_size = 0.03215  # millimeters for the physical prism
+            self.prism_clear_aperture = 0.0280  # clear aperture for the prism + mount
             self.cylinder_rotation_angle = 2.25
 
         # We need to know the magnification scale of the NIRISS reimaged pupil
@@ -454,12 +452,12 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
         # but, double wait, it's actually more like 687 pixels across rather than 699 so that makes it 170 again.
 
         # therefore the magnification is 0.1708 meters projected on the primary / mm in the NIRISS pupil
-        #self.pupil_demagnification =  170.8367 # meters on the primary / meters in the NIRISS pupil
-        #self.pupil_demagnification =  173.56 # meters on the primary / meters in the NIRISS pupil
+        # self.pupil_demagnification =  170.8367 # meters on the primary / meters in the NIRISS pupil
+        # self.pupil_demagnification =  173.56 # meters on the primary / meters in the NIRISS pupil
 
         # Anand says:
         #  nominally the circumscribing circle at the PW of NIRISS is ~40mm.  I use 39mm for the nrm, but it's slightly field-dependent.  Compare that to the 6.6... PM circle?
-        self.pupil_demagnification = 6.6 / 0.040 # about 165
+        self.pupil_demagnification = 6.6 / 0.040  # about 165
 
         # perform an initial population of the OPD array for display etc.
         tmp = self.get_phasor(poppy.Wavefront(2e-6))
@@ -470,33 +468,33 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
         """
 
         if isinstance(wave, poppy.Wavefront):
-            wavelength=wave.wavelength
+            wavelength = wave.wavelength
         else:
-            wavelength=float(wave)
-            wave =  poppy.Wavefront(wavelength=wave)
+            wavelength = float(wave)
+            wave = poppy.Wavefront(wavelength=wave)
 
         # compute indices in pixels, relative to center of plane, with rotation
         # units of these are meters
         y, x = wave.coordinates()
 
-        ang = np.deg2rad(self.cylinder_rotation_angle )
-        x = np.cos(ang)*x - np.sin(ang)*y
-        y = np.sin(ang)*x + np.cos(ang)*y
+        ang = np.deg2rad(self.cylinder_rotation_angle)
+        x = np.cos(ang) * x - np.sin(ang) * y
+        y = np.sin(ang) * x + np.cos(ang) * y
 
         _log.debug(" Rotating local grism axes by {0} degrees".format(self.cylinder_rotation_angle))
 
         # From IDL code by David Lafreniere:
         #  ;the cylindrical defocus
-        #x=(dindgen(pupdim)-pupdim/2)#replicate(1,pupdim)
-        #y0=(rpuppix^2+sag[s]^2)/(2*sag[s])
-        #wfe1=y0-sqrt(y0^2-x^2)
-        #if sag[s] lt 1.e-5 then wfe1=0.d0
+        # x=(dindgen(pupdim)-pupdim/2)#replicate(1,pupdim)
+        # y0=(rpuppix^2+sag[s]^2)/(2*sag[s])
+        # wfe1=y0-sqrt(y0^2-x^2)
+        # if sag[s] lt 1.e-5 then wfe1=0.d0
 
         # Here I will just translate that to Python exactly, making use of the
         # variables here:
 
         # rpuppix = radius of pupil in pixels
-        #rpuppix = self.amplitude_header['DIAM'] / self.amplitude_header['PUPLSCAL'] / 2
+        # rpuppix = self.amplitude_header['DIAM'] / self.amplitude_header['PUPLSCAL'] / 2
         # Calculate the radius of curvature of the cylinder, bsaed on
         # the chord length and height
 
@@ -506,44 +504,44 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
         #  * projected primary scale at NIRISS = ?
 
         _log.debug(" Computing GR700XD cylinder based on RoC: {0:.3g} meters".format(self.cylinder_radius))
-        _log.debug(" Computing GR700XD cylinder based on pupil demagnification: {0:.3g} primary to grism".format(self.pupil_demagnification))
-
+        _log.debug(
+            " Computing GR700XD cylinder based on pupil demagnification: {0:.3g} primary to grism".format(self.pupil_demagnification))
 
         # Compute the overall sag of the cylinder lens at its outer edge. This is not actually used, it's
         # just for cross-check of the values
         # the sag will depend on half the pupil size since that's the offset from center to edge
-        sag0 = np.sqrt(self.cylinder_radius**2 - (self.prism_size/2)**2) - self.cylinder_radius
+        sag0 = np.sqrt(self.cylinder_radius ** 2 - (self.prism_size / 2) ** 2) - self.cylinder_radius
         _log.debug(" Computed GR700XD cylinder sag at lens outer edge (for cross check only): {0:.3g} meters".format(sag0))
 
         # now compute the spatially dependent sag of the cylinder, as projected onto the primary
 
         # what is the pupil scale at the *reimaged pupil* of the grism?
-        pupil_scale_m_per_pix = 38.0255e-6 # Based on UdeM info in wfe_cylindricallens.pro
-        #sag = np.sqrt(self.cylinder_radius**2 - (x*self.amplitude_header['PUPLSCAL']/self.pupil_demagnification)**2) - self.cylinder_radius
-        sag = np.sqrt(self.cylinder_radius**2 - (x/self.pupil_demagnification)**2) - self.cylinder_radius
-        #sag = self.cylinder_radius -  np.sqrt(self.cylinder_radius**2 - (x * pupil_scale_m_per_pix )**2 )
-
+        pupil_scale_m_per_pix = 38.0255e-6  # Based on UdeM info in wfe_cylindricallens.pro
+        # sag = np.sqrt(self.cylinder_radius**2 - (x*self.amplitude_header['PUPLSCAL']/self.pupil_demagnification)**2) - self.cylinder_radius
+        sag = np.sqrt(self.cylinder_radius ** 2 - (x / self.pupil_demagnification) ** 2) - self.cylinder_radius
+        # sag = self.cylinder_radius -  np.sqrt(self.cylinder_radius**2 - (x * pupil_scale_m_per_pix )**2 )
 
         # what we really want to do is take the physical properties of the as-built optic, and interpolate into that
         # to compute the OPD after remapping based on the pupil scale (and distortion?)
-        #y0=(rpuppix**2+self.cylinder_sag**2)/(2*self.cylinder_sag)
-        #wfe1=y0-np.sqrt(y0**2-x**2)
+        # y0=(rpuppix**2+self.cylinder_sag**2)/(2*self.cylinder_sag)
+        # wfe1=y0-np.sqrt(y0**2-x**2)
 
-        _log.debug(" Cylinder P-V: {0:.4g} meters physical sag across full array".format(sag.max()-sag.min()) )
+        _log.debug(" Cylinder P-V: {0:.4g} meters physical sag across full array".format(sag.max() - sag.min()))
 
         # no OPD in opaque regions (makes no difference in propagation but improves display)
         if self._transmission.shape != sag.shape:
-            tmp = self.get_transmission() # Update the ._transmission attribute
+            tmp = self.get_transmission()  # Update the ._transmission attribute
         sag[self._transmission == 0] = 0
-        wnz = np.where(self._transmission != 0) # use this just for display of the log messages:
-        _log.debug(" Cylinder P-V: {0:.4g} meters physical sag across clear aperture".format(sag[wnz].max()-sag[wnz].min()) )
-
+        wnz = np.where(self._transmission != 0)  # use this just for display of the log messages:
+        _log.debug(" Cylinder P-V: {0:.4g} meters physical sag across clear aperture".format(sag[wnz].max() - sag[wnz].min()))
 
         # scale for index of refraction
         index = self.ZnS_index(wavelength)
-        opd = sag *  ( index-1)
-        _log.debug(" Scaling for ZnS index of refraction {0} at {1:.3g} microns".format(index, wavelength*1e6))
-        _log.debug(" Cylinder P-V: {0:.4g} meters optical sag at {1:.3g} microns across clear aperture".format(opd[wnz].max()-opd[wnz].min(), wavelength*1e6) )
+        opd = sag * (index - 1)
+        _log.debug(" Scaling for ZnS index of refraction {0} at {1:.3g} microns".format(index, wavelength * 1e6))
+        _log.debug(
+            " Cylinder P-V: {0:.4g} meters optical sag at {1:.3g} microns across clear aperture".format(opd[wnz].max() - opd[wnz].min(),
+                                                                                                        wavelength * 1e6))
         return opd
 
     def get_transmission(self, wave):
@@ -551,23 +549,23 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
         """
 
         if isinstance(wave, poppy.Wavefront):
-            wavelength=wave.wavelength
+            wavelength = wave.wavelength
         else:
-            wavelength=float(wave)
-            wave =  poppy.Wavefront(wavelength=wave)
+            wavelength = float(wave)
+            wave = poppy.Wavefront(wavelength=wave)
         y, x = wave.coordinates()
-        ang = np.deg2rad(self.pupil_rotation_angle )
-        x = np.cos(ang)*x - np.sin(ang)*y
-        y = np.sin(ang)*x + np.cos(ang)*y
+        ang = np.deg2rad(self.pupil_rotation_angle)
+        x = np.cos(ang) * x - np.sin(ang) * y
+        y = np.sin(ang) * x + np.cos(ang) * y
 
         _log.debug("Rotating local pupil mask axes by {0} degrees".format(self.cylinder_rotation_angle))
 
-        pupil_halfsize_m = self.pupil_size_mm / 2  / 1000 * self.pupil_demagnification
+        pupil_halfsize_m = self.pupil_size_mm / 2 / 1000 * self.pupil_demagnification
         pupilmask = np.ones_like(x)
         pupilmask[np.abs(x) > pupil_halfsize_m] = 0
         pupilmask[np.abs(y) > pupil_halfsize_m] = 0
 
-        self._transmission=pupilmask
+        self._transmission = pupilmask
 
         return pupilmask
 
@@ -584,31 +582,30 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
         lambda_micron = wavelength.to(units.micron).value
 
         # Sellmeier dispersion model
-        #From Leviton & Frey measurements (SPIE preprint) (assumes lambda in microns)
-        S_1 = np.asarray([[3.35933,-5.12262e-4,1.01086e-5,-4.14798e-8,6.91051e-11]])
-        S_2 = np.asarray([[0.706131,4.89603e-4,-8.91159e-6,3.81621e-8,-6.54805e-11]])
-        S_3 = np.asarray([[4.02154,-2.93193e-2,2.31080e-4,-7.57289e-07,8.31188e-10]])
-        S_ij = np.concatenate( (S_1,S_2,S_3), axis=0)
+        # From Leviton & Frey measurements (SPIE preprint) (assumes lambda in microns)
+        S_1 = np.asarray([[3.35933, -5.12262e-4, 1.01086e-5, -4.14798e-8, 6.91051e-11]])
+        S_2 = np.asarray([[0.706131, 4.89603e-4, -8.91159e-6, 3.81621e-8, -6.54805e-11]])
+        S_3 = np.asarray([[4.02154, -2.93193e-2, 2.31080e-4, -7.57289e-07, 8.31188e-10]])
+        S_ij = np.concatenate((S_1, S_2, S_3), axis=0)
         lambda_1 = np.array([[0.161151, -8.93057E-06, 2.73286E-07, -1.23408E-09, 2.29917E-12]])
         lambda_2 = np.array([[0.282427, -4.66636E-05, 7.55906E-07, -2.77513E-09, 4.35237E-12]])
         lambda_3 = np.array([[41.1590, -0.161010, 1.23906E-03, -3.95895E-06, 4.16370E-09]])
-        lambda_ij = np.concatenate((lambda_1,lambda_2,lambda_3))
-
+        lambda_ij = np.concatenate((lambda_1, lambda_2, lambda_3))
 
         n2minus1 = 0.0
-        T=temperature
+        T = temperature
         for i in range(3):
-            S_i =       S_ij[i,0]      + S_ij[i,1]     *T + S_ij[i,2]     *T**2.0 + S_ij[i,3]     *T**3.0 + S_ij[i,4]     *T**4.0
-            lambda_i =  lambda_ij[i,0] + lambda_ij[i,1]*T + lambda_ij[i,2]*T**2.0 + lambda_ij[i,3]*T**3.0 + lambda_ij[i,4]*T**4.0
-            n2minus1 += S_i*lambda_micron**2.0/(lambda_micron**2.0 - lambda_i**2.0)
+            S_i = S_ij[i, 0] + S_ij[i, 1] * T + S_ij[i, 2] * T ** 2.0 + S_ij[i, 3] * T ** 3.0 + S_ij[i, 4] * T ** 4.0
+            lambda_i = lambda_ij[i, 0] + lambda_ij[i, 1] * T + lambda_ij[i, 2] * T ** 2.0 + lambda_ij[i, 3] * T ** 3.0 + lambda_ij[
+                i, 4] * T ** 4.0
+            n2minus1 += S_i * lambda_micron ** 2.0 / (lambda_micron ** 2.0 - lambda_i ** 2.0)
 
         cleartran_index = np.sqrt(1.0 + n2minus1)
         return cleartran_index
 
-
     def display(self, opd_vmax=6e-6, *args, **kwargs):
         "Same as regular display for any other optical element, except opd_vmax default changed"
-        poppy.AnalyticOpticalElement.display(self,*args, opd_vmax=opd_vmax, **kwargs)
+        poppy.AnalyticOpticalElement.display(self, *args, opd_vmax=opd_vmax, **kwargs)
 
 
 class NIRISS_CLEARP(poppy.CompoundAnalyticOptic):
@@ -656,17 +653,17 @@ class NIRISS_CLEARP(poppy.CompoundAnalyticOptic):
         # Note the circumscribing pupil of JWST is 6603.464 mm in diameter
         #  (Ball SER on geometric optics model: BALL-JWST-SYST-05-003)
 
-        pupil_mag = 6.603464/39.0
-        poppy.CompoundAnalyticOptic.__init__( self, (
-                poppy.SecondaryObscuration( secondary_radius = 6.0*pupil_mag,
-                                            support_width = 2.0*pupil_mag,
-                                            n_supports = 3,
-                                            support_angle_offset=90+180, # align first support with +V2 axis
-                                                                      # but invert to match OTE exit pupil
-                                            *args, **kwargs),
-                poppy.CircularAperture( radius = 39 * pupil_mag /2,
-                                        *args, **kwargs)),
-                name = 'CLEARP')
+        pupil_mag = 6.603464 / 39.0
+        poppy.CompoundAnalyticOptic.__init__(self, (
+            poppy.SecondaryObscuration(secondary_radius=6.0 * pupil_mag,
+                                       support_width=2.0 * pupil_mag,
+                                       n_supports=3,
+                                       support_angle_offset=90 + 180,  # align first support with +V2 axis
+                                       # but invert to match OTE exit pupil
+                                       *args, **kwargs),
+            poppy.CircularAperture(radius=39 * pupil_mag / 2,
+                                   *args, **kwargs)),
+                                             name='CLEARP')
 
 
 class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
@@ -703,45 +700,44 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
     # Offsets along the bar occulters are based on
     # outputs from John Stansberry's filt_baroffset.pro
     # See https://github.com/mperrin/webbpsf/issues/63
-    offset_swb = {"F182M":  -1.856,
-        "F187N": -1.571,
-        "F210M": -0.071,
-        "F212N":  0.143,
-        "F200W":  0.232,
-        'narrow':-8.00}
+    offset_swb = {"F182M": -1.856,
+                  "F187N": -1.571,
+                  "F210M": -0.071,
+                  "F212N": 0.143,
+                  "F200W": 0.232,
+                  'narrow': -8.00}
     """ Offsets per filter along SWB occulter for module A, in arcsec"""
 
-    offset_lwb = {"F250M":  6.846,
-        "F300M":  5.249,
-        "F277W":  5.078,
-        "F335M":  4.075,
-        "F360M":  3.195,
-        "F356W":  2.455,
-        "F410M":  1.663,
-        "F430M":  1.043,
-        "F460M": -0.098,
-        "F480M": -0.619,
-        "F444W": -0.768,
-        'narrow': 8.0}
+    offset_lwb = {"F250M": 6.846,
+                  "F300M": 5.249,
+                  "F277W": 5.078,
+                  "F335M": 4.075,
+                  "F360M": 3.195,
+                  "F356W": 2.455,
+                  "F410M": 1.663,
+                  "F430M": 1.043,
+                  "F460M": -0.098,
+                  "F480M": -0.619,
+                  "F444W": -0.768,
+                  'narrow': 8.0}
     """ Offsets per filter along LWB occulter for module A, in arcsec"""
 
-
-    def __init__(self, name="unnamed BLC", kind='nircamcircular',  module='A', nd_squares=True,
-            bar_offset=None, auto_offset=None, **kwargs):
+    def __init__(self, name="unnamed BLC", kind='nircamcircular', module='A', nd_squares=True,
+                 bar_offset=None, auto_offset=None, **kwargs):
         super(NIRCam_BandLimitedCoron, self).__init__(name=name, kind=kind, **kwargs)
-        if module not in ['A','B']:
+        if module not in ['A', 'B']:
             raise ValueError("module parameter must be 'A' or 'B'.")
-        self.module=module
+        self.module = module
         self.nd_squares = nd_squares
 
-        if self.name=='MASK210R':
+        if self.name == 'MASK210R':
             self.sigma = 5.253
             self.kind = 'nircamcircular'
-        elif self.name=='MASK335R':
-            self.sigma=3.2927866
+        elif self.name == 'MASK335R':
+            self.sigma = 3.2927866
             self.kind = 'nircamcircular'
-        elif self.name=='MASK430R':
-            self.sigma=2.58832
+        elif self.name == 'MASK430R':
+            self.sigma = 2.58832
             self.kind = 'nircamcircular'
         elif self.name == 'MASKSWB':
             self.kind = 'nircamwedge'
@@ -750,15 +746,15 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
             self.kind = 'nircamwedge'
             # coeffs set in lookup table inside getPhasor
         else:
-            raise NotImplementedError("invalid name for NIRCam occulter: "+self.name)
+            raise NotImplementedError("invalid name for NIRCam occulter: " + self.name)
 
         if bar_offset is None and auto_offset is not None:
-            offsets = self.offset_swb if self.name.lower()=='maskswb' else self.offset_lwb
+            offsets = self.offset_swb if self.name.lower() == 'maskswb' else self.offset_lwb
             try:
                 bar_offset = offsets[auto_offset]
                 _log.debug("Set bar offset to {} based on requested filter {} on {}.".format(bar_offset, auto_offset, self.name))
             except:
-                raise ValueError("Filter {} does not have a defined nominal offset position along {}".format(auto_offset,self.name))
+                raise ValueError("Filter {} does not have a defined nominal offset position along {}".format(auto_offset, self.name))
 
         if bar_offset is not None:
             if self.kind == 'nircamcircular':
@@ -767,7 +763,6 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
             _log.debug("Set offset along {} to {} arcsec.".format(self.name, self.bar_offset))
         else:
             self.bar_offset = None
-
 
     def get_transmission(self, wave):
         """ Compute the amplitude transmission appropriate for a BLC for some given pixel spacing
@@ -793,12 +788,12 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
             x += float(self.bar_offset)
 
         if self.kind == 'nircamcircular':
-            r = poppy.accel_math._r(x,y)
+            r = poppy.accel_math._r(x, y)
             sigmar = self.sigma * r
 
             # clip sigma: The minimum is to avoid divide by zero
             #             the maximum truncates after the first sidelobe to match the hardware
-            bessel_j1_zero2 = scipy.special.jn_zeros(1,2)[1]
+            bessel_j1_zero2 = scipy.special.jn_zeros(1, 2)[1]
             sigmar.clip(np.finfo(sigmar.dtype).tiny, bessel_j1_zero2, out=sigmar)  # avoid divide by zero -> NaNs
             if poppy.accel_math._USE_NUMEXPR:
                 import numexpr as ne
@@ -806,7 +801,7 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
                 self.transmission = ne.evaluate("(1 - (2 * jn1 / sigmar) ** 2)")
             else:
                 self.transmission = (1 - (2 * scipy.special.j1(sigmar) / sigmar) ** 2)
-            self.transmission[r==0] = 0   # special case center point (value based on L'Hopital's rule)
+            self.transmission[r == 0] = 0  # special case center point (value based on L'Hopital's rule)
 
         elif self.kind == 'nircamwedge':
             # This is hard-coded to the wedge-plus-flat-regions shape for NIRCAM
@@ -814,18 +809,18 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
             # the scale fact should depend on X coord in arcsec, scaling across a 20 arcsec FOV.
             # map flat regions to 2.5 arcsec each
             # map -7.5 to 2, +7.5 to 6. slope is 4/15, offset is +9.5
-            wedgesign = 1 if self.name=='MASKSWB' else -1 # wide ends opposite for SW and LW
+            wedgesign = 1 if self.name == 'MASKSWB' else -1  # wide ends opposite for SW and LW
 
-            scalefact = (2 + (x*wedgesign + 7.5) * 4 / 15).clip(2, 6)
+            scalefact = (2 + (x * wedgesign + 7.5) * 4 / 15).clip(2, 6)
 
             # Working out the sigma parameter vs. wavelength to get that wedge pattern is non trivial
             # This is NOT a linear relationship. See calc_blc_wedge helper fn below.
 
-            if self.name == 'MASKSWB': #np.abs(self.wavelength - 2.1e-6) < 0.1e-6:
+            if self.name == 'MASKSWB':  # np.abs(self.wavelength - 2.1e-6) < 0.1e-6:
                 polyfitcoeffs = np.array([2.01210737e-04, -7.18758337e-03, 1.12381516e-01,
                                           -1.00877701e+00, 5.72538509e+00, -2.12943497e+01,
                                           5.18745152e+01, -7.97815606e+01, 7.02728734e+01])
-            elif self.name == 'MASKLWB': #elif np.abs(self.wavelength - 4.6e-6) < 0.1e-6:
+            elif self.name == 'MASKLWB':  # elif np.abs(self.wavelength - 4.6e-6) < 0.1e-6:
                 polyfitcoeffs = np.array([9.16195583e-05, -3.27354831e-03, 5.11960734e-02,
                                           -4.59674047e-01, 2.60963397e+00, -9.70881273e+00,
                                           2.36585911e+01, -3.63978587e+01, 3.20703511e+01])
@@ -837,9 +832,9 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
             sigmar = sigmas * np.abs(y)
             # clip sigma: The minimum is to avoid divide by zero
             #             the maximum truncates after the first sidelobe to match the hardware
-            sigmar.clip(min=np.finfo(sigmar.dtype).tiny, max=2*np.pi, out=sigmar)
+            sigmar.clip(min=np.finfo(sigmar.dtype).tiny, max=2 * np.pi, out=sigmar)
             self.transmission = (1 - (np.sin(sigmar) / sigmar) ** 2)
-            self.transmission[y==0] = 0   # special case center point (value based on L'Hopital's rule)
+            self.transmission[y == 0] = 0  # special case center point (value based on L'Hopital's rule)
             # the bar should truncate at +- 10 arcsec:
 
             woutside = np.where(np.abs(x) > 10)
@@ -851,50 +846,50 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
             # corongraph regions
             # Note: 180 deg rotation needed relative to Krist's figures for the flight SCI orientation:
 
-            if ((self.module=='A' and self.name=='MASKLWB') or
-                (self.module=='B' and self.name=='MASK210R')):
+            if ((self.module == 'A' and self.name == 'MASKLWB') or
+                    (self.module == 'B' and self.name == 'MASK210R')):
                 # left edge:
                 # has one fully in the corner and one half in the other corner, half outside the 10x10 box
                 wnd_5 = np.where(
-                    ((y < -5)&(y>-10)) &
+                    ((y < -5) & (y > -10)) &
                     (
-                        ((x > 5) & (x < 10)) |
-                        ((x < -7.5) & (x > -12.5))
+                            ((x > 5) & (x < 10)) |
+                            ((x < -7.5) & (x > -12.5))
                     )
                 )
                 wnd_2 = np.where(
-                    ((y <  10)&(y> 8)) &
+                    ((y < 10) & (y > 8)) &
                     (
-                        ((x > 8) & (x < 10)) |
-                        ((x < -9) & (x > -11))
+                            ((x > 8) & (x < 10)) |
+                            ((x < -9) & (x > -11))
                     )
                 )
-            elif ((self.module=='A' and self.name=='MASK210R') or
-                  (self.module=='B' and self.name=='MASKSWB')):
+            elif ((self.module == 'A' and self.name == 'MASK210R') or
+                  (self.module == 'B' and self.name == 'MASKSWB')):
                 # right edge
                 wnd_5 = np.where(
-                    ((y < -5)&(y>-10)) &
+                    ((y < -5) & (y > -10)) &
                     (
-                        ((x < 12.5) & (x > 7.5)) |
-                        ((x < -5) & (x > -10))
+                            ((x < 12.5) & (x > 7.5)) |
+                            ((x < -5) & (x > -10))
                     )
                 )
                 wnd_2 = np.where(
-                    ((y < 10)&(y>8)) &
+                    ((y < 10) & (y > 8)) &
                     (
-                        ((x < 11) & (x > 9)) |
-                        ((x < -8) & (x > -10))
+                            ((x < 11) & (x > 9)) |
+                            ((x < -8) & (x > -10))
                     )
                 )
             else:
                 # the others have two, one in each corner, both halfway out of the 10x10 box.
                 wnd_5 = np.where(
-                    ((y < -5)&(y > -10)) &
+                    ((y < -5) & (y > -10)) &
                     (np.abs(x) > 7.5) &
                     (np.abs(x) < 12.5)
                 )
                 wnd_2 = np.where(
-                    ((y < 10)&(y > 8)) &
+                    ((y < 10) & (y > 8)) &
                     (np.abs(x) > 9) &
                     (np.abs(x) < 11)
                 )
@@ -903,13 +898,13 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
             self.transmission[wnd_2] = np.sqrt(1e-3)
 
             # Add in the opaque border of the coronagraph mask holder.
-            if ((self.module=='A' and self.name=='MASKLWB') or
-                (self.module=='B' and self.name=='MASK210R')):
+            if ((self.module == 'A' and self.name == 'MASKLWB') or
+                    (self.module == 'B' and self.name == 'MASK210R')):
                 # left edge
-                woutside = np.where((x > 10) & (y > -11.5 ))
+                woutside = np.where((x > 10) & (y > -11.5))
                 self.transmission[woutside] = 0.0
-            elif ((self.module=='A' and self.name=='MASK210R') or
-                  (self.module=='B' and self.name=='MASKSWB')):
+            elif ((self.module == 'A' and self.name == 'MASK210R') or
+                  (self.module == 'B' and self.name == 'MASKSWB')):
                 # right edge
                 woutside = np.where((x < -10) & (y > -11.5))
                 self.transmission[woutside] = 0.0
@@ -923,20 +918,19 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
             # The following is just a temporary placeholder with no quantitative accuracy.
             # but this is outside the coronagraph FOV so that's fine - this only would matter in
             # modeling atypical/nonstandard calibration exposures.
-            wedge = np.where(( y < -11.5) & (y > -13))
+            wedge = np.where((y < -11.5) & (y > -13))
             self.transmission[wedge] = 0.7
 
         if not np.isfinite(self.transmission.sum()):
-            #stop()
+            # stop()
             _log.warn("There are NaNs in the BLC mask - correcting to zero. (DEBUG LATER?)")
             self.transmission[np.where(np.isfinite(self.transmission) == False)] = 0
         return self.transmission
 
-
     def display(self, annotate=False, annotate_color='cyan', annotate_text_color=None, grid_size=20, *args, **kwargs):
         """Same as regular display for any other optical element, except adds annotate option
         for the LWB offsets """
-        poppy.AnalyticOpticalElement.display(self, grid_size=grid_size, *args,  **kwargs)
+        poppy.AnalyticOpticalElement.display(self, grid_size=grid_size, *args, **kwargs)
         if annotate:
 
             shift_dx = getattr(self, 'shift_x', 0) - getattr(self, 'bar_offset', 0)
@@ -944,20 +938,20 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
 
             if annotate_text_color is None:
                 annotate_text_color = annotate_color
-            if self.name.lower()=='maskswb' or self.name.lower() =='masklwb':
-                offset = self.offset_swb if self.name.lower()=='maskswb' else self.offset_lwb
+            if self.name.lower() == 'maskswb' or self.name.lower() == 'masklwb':
+                offset = self.offset_swb if self.name.lower() == 'maskswb' else self.offset_lwb
                 for filt, offset in offset.items():
                     if 'W' in filt:
                         horiz, vert, voffset = 'right', 'top', -0.5
                     else:
                         horiz, vert, voffset = 'left', 'bottom', +0.5
-                    matplotlib.pyplot.plot(offset+shift_dx, shift_dy, marker='+', color=annotate_color, clip_on=True)
-                    matplotlib.pyplot.text(offset+shift_dx, voffset+shift_dy, filt, color=annotate_text_color, rotation=75,
-                        horizontalalignment=horiz, verticalalignment=vert, clip_on=True)
+                    matplotlib.pyplot.plot(offset + shift_dx, shift_dy, marker='+', color=annotate_color, clip_on=True)
+                    matplotlib.pyplot.text(offset + shift_dx, voffset + shift_dy, filt, color=annotate_text_color, rotation=75,
+                                           horizontalalignment=horiz, verticalalignment=vert, clip_on=True)
             ax = matplotlib.pyplot.gca()
             # Fix the axis scaling if any of the overplots exceeded it
-            ax.set_xlim(-grid_size/2, grid_size/2)
-            ax.set_ylim(-grid_size/2, grid_size/2)
+            ax.set_xlim(-grid_size / 2, grid_size / 2)
+            ax.set_ylim(-grid_size / 2, grid_size / 2)
 
 
 # Helper functions for NIRcam occulters.
@@ -1015,7 +1009,7 @@ def _calc_blc_wedge(deg=4, wavelength=2.1e-6):
     """
     import scipy
     r = np.linspace(2, 6, 161)
-    difflim = wavelen / 6.5 * 180.*60*60/np.pi
+    difflim = wavelen / 6.5 * 180. * 60 * 60 / np.pi
     sigs = [_width_blc(difflim * ri) for ri in r]
 
     pcs = scipy.polyfit(r, sigs, deg)
@@ -1066,7 +1060,7 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
         self.tel_coords = instrument._tel_coords()
 
         # load the Zernikes table here
-        zernike_file = os.path.join(utils.get_webbpsf_data_path(),'si_zernikes_isim_cv3.fits')
+        zernike_file = os.path.join(utils.get_webbpsf_data_path(), 'si_zernikes_isim_cv3.fits')
 
         if not os.path.exists(zernike_file):
             raise RuntimeError("Could not find Zernike coefficients file in WebbPSF data directory")
@@ -1119,7 +1113,7 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
             cf = griddata((v2, v3), zvals, (v2_tel, v3_tel), method='cubic').tolist()
             if np.isnan(cf):
                 cf = self.row[zkey]
-                
+
             coeffs.append(cf)
 
         self.zernike_coeffs = coeffs
@@ -1185,10 +1179,9 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
         keywords = OrderedDict()
         keywords['SIWFETYP'] = ("Interpolated", "SI WFE was interpolated between available meas.")
         keywords['SIWFEFPT'] = (self.row['field_point_name'], "Closest ISIM CV3 WFE meas. field point")
-        for i in range(1,36):
-            keywords['SIZERN{}'.format(i)] = (self.zernike_coeffs[i-1], "[nm] SI WFE coeff for Zernike term {}".format(i))
+        for i in range(1, 36):
+            keywords['SIZERN{}'.format(i)] = (self.zernike_coeffs[i - 1], "[nm] SI WFE coeff for Zernike term {}".format(i))
         return keywords
-
 
     # wrapper just to change default vmax
     def display(self, *args, **kwargs):
@@ -1312,15 +1305,15 @@ class NIRCamFieldAndWavelengthDependentAberration(WebbFieldDependentAberration):
             # inputs. This is required to support the full range of the LW channel.
             if wave_um < focusmodel.x[0]:
                 focus_at_wave = (
-                    focusmodel.y[0] +
-                    (wave_um - focusmodel.x[0]) * (focusmodel.y[0] - focusmodel.y[1]) /
-                    (focusmodel.x[0] - focusmodel.x[1])
+                        focusmodel.y[0] +
+                        (wave_um - focusmodel.x[0]) * (focusmodel.y[0] - focusmodel.y[1]) /
+                        (focusmodel.x[0] - focusmodel.x[1])
                 )
             else:
                 focus_at_wave = (
-                    focusmodel.y[-1] +
-                    (wave_um - focusmodel.x[-1]) * (focusmodel.y[-1] - focusmodel.y[-2]) /
-                    (focusmodel.x[-1] - focusmodel.x[-2])
+                        focusmodel.y[-1] +
+                        (wave_um - focusmodel.x[-1]) * (focusmodel.y[-1] - focusmodel.y[-2]) /
+                        (focusmodel.x[-1] - focusmodel.x[-2])
                 )
 
         deltafocus = focus_at_wave - focusmodel(opd_ref_wave)
@@ -1337,7 +1330,6 @@ class NIRCamFieldAndWavelengthDependentAberration(WebbFieldDependentAberration):
         _log.info("  Resulting OPD has {:.3f} nm rms".format(rms * 1e9))
 
         return mod_opd
-
 
 
 class MIRIFieldDependentAberrationAndObscuration(WebbFieldDependentAberration):
