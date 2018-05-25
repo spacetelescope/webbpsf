@@ -94,7 +94,10 @@ handled automatically if you use `conda`, otherwise you will need to download an
   <http://www.stsci.edu/hst/acs/documents/handbooks/current/c05_imaging7.html#357374>`_
   for examples of what this looks like for Hubble PSFs) For the JWST
   instruments, this effect is largest for FGS, and fairly small but noticeable
-  for the other SIs. The distortion information is taken from the Science
+  for the other SIs. See `this Jupyter notebook <https://github.com/mperrin/webbpsf/blob/master/notebooks/Distortion_examples.ipynb>`_ for 
+  examples of the effect on JWST PSFs. Note that the distorted PSFs are added as *additional extensions*
+  in the output FITS file, so you will need to read from extension 2 or 3 if you want the
+  PSF with the distortion included; extensions 0 and 1 remain consistent with prior versions.  The distortion information is taken from the Science
   Instrument Aperture file (SIAF) reference data maintained at STScI. As a
   result the ``pysiaf`` package is a new dependency required for using
   ``webbpsf``.  [ `#209 <https://github.com/mperrin/webbpsf/pull/209>`_,
@@ -116,7 +119,9 @@ handled automatically if you use `conda`, otherwise you will need to download an
   *scattering of light within the MIRI imager detector substrate itself*. This
   acts as a cross-shaped convolution kernel, strongest at the shortest
   wavelengths. See MIRI document MIRI-TN-00076-ATC for details on the relevant
-  physics and detector calibration.  [`#209,
+  physics and detector calibration.   This is implemented as part of the distortion framework, though
+  it is different physics. See See `this Jupyter notebook <https://github.com/mperrin/webbpsf/blob/master/notebooks/Distortion_examples.ipynb>`_ for
+  example output. For F560W through F1000W this is a much more obvious effect than the subtle distortions. [`#209,
   <https://github.com/mperrin/webbpsf/pull/209>`_, @shanosborne]
 - *Added new capabilities for modeling mirror moves of the JWST primary
   segments and secondary mirror*, using a linear optical model to adjust OPDs.
@@ -126,10 +131,10 @@ handled automatically if you use `conda`, otherwise you will need to download an
   simplified linear range, and relies on user judgement what those mirror
   motions should be; it is not a detailed rigorous optomechanical model of the
   observatory.  [Code by @mperrin, with some fixes by Geda in <`#185
-  <https://github.com/mperrin/webbpsf/pull/185>`_] - All the instrument+filter
-  relative spectral response functions have been updated to values derived from
-  the official validated JWST ETC reference data, using the Pandeia ETC release
-  version 1.2.2. [@mperrin]
+  <https://github.com/mperrin/webbpsf/pull/185>`_] 
+- All the instrument+filter relative spectral response functions have been
+  updated to values derived from the official validated JWST ETC reference
+  data, using the Pandeia ETC release version 1.2.2. [@mperrin]
 
 
 **WFIRST optical model improvements:**
@@ -164,6 +169,11 @@ handled automatically if you use `conda`, otherwise you will need to download an
 - Updated to newer version of the astropy_helpers package infrastructure [@sosey]
 - Various smaller code cleanup and doc improvements, including code cleanup for better Python PEP8 style guide compliance [@mperrin, @shanosborne, @robelgeda, @douglase]
 - The ``utils.system_diagnostic`` function now checks and reports on a few more things that might be useful in diagnosing performance issues. 
+
+
+--------
+
+
 
 .. _rel0.6.0:
 
