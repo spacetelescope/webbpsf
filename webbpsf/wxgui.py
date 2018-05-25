@@ -156,7 +156,7 @@ class WebbPSF_GUI(wx.Frame):
         self.Bind(wx.EVT_MENU, self.ev_Preferences, id=menuBar.ids['preferences'])
         self.Bind(wx.EVT_MENU, self.ev_SaveAs, id=menuBar.ids['save_psf'])
         self.Bind(wx.EVT_MENU, self.ev_SaveProfiles, id=menuBar.ids['save_profile'])
-        self.Bind(wx.EVT_MENU, self.ev_calcPSF, id=menuBar.ids['calcPSF'])
+        self.Bind(wx.EVT_MENU, self.ev_calc_psf, id=menuBar.ids['calc_psf'])
         self.Bind(wx.EVT_MENU, self.ev_options, id=menuBar.ids['calc_options'])
         self.Bind(wx.EVT_MENU, self.ev_showDocs, id=menuBar.ids['documentation'])
         self.Bind(wx.EVT_MENU, self.ev_plotspectrum, id=menuBar.ids['display_spectrum'])
@@ -355,7 +355,7 @@ class WebbPSF_GUI(wx.Frame):
         bbarSizer.Add(self.ButtonQuit, 1, flag=wx.ALL | wx.EXPAND, border=3)
         bbar.SetSizerAndFit(bbarSizer)
 
-        self.Bind(wx.EVT_BUTTON, self.ev_calcPSF, self.ButtonCompute)
+        self.Bind(wx.EVT_BUTTON, self.ev_calc_psf, self.ButtonCompute)
         self.Bind(wx.EVT_BUTTON, self.ev_displayPSF, self.ButtonDisplayPSF)
         self.Bind(wx.EVT_BUTTON, self.ev_displayProfiles, self.ButtonDisplayProf)
         self.Bind(wx.EVT_BUTTON, self.ev_SaveAs, self.ButtonSavePSF)
@@ -532,7 +532,7 @@ class WebbPSF_GUI(wx.Frame):
         self._refresh_window()
         self.log("Spectrum displayed")
 
-    def ev_calcPSF(self, event):
+    def ev_calc_psf(self, event):
         "Event handler for PSF Calculations"
         self._updateFromGUI()
         self.log("Starting PSF calculation...")
@@ -544,7 +544,7 @@ class WebbPSF_GUI(wx.Frame):
         self.calcthread = PSFCalcThread()
         self.calcthread.runPSFCalc(self.inst, self)
 
-    #        self.PSF_HDUlist = self.inst.calcPSF(source=source,
+    #        self.PSF_HDUlist = self.inst.calc_psf(source=source,
     #                detector_oversample= self.detector_oversampling,
     #                fft_oversample=self.fft_oversampling,
     #                fov_arcsec = self.FOV,  nlambda = self.nlambda, display=True)
@@ -826,7 +826,7 @@ class PSFCalcThread(Thread):
             fov_arcsec = None
             fov_pixels = masterapp.FOV
 
-        PSF_HDUlist = instrument.calcPSF(source=source,
+        PSF_HDUlist = instrument.calc_psf(source=source,
                                          detector_oversample=masterapp.detector_oversampling,
                                          fft_oversample=masterapp.fft_oversampling,
                                          fov_arcsec=fov_arcsec, fov_pixels=fov_pixels,
@@ -861,7 +861,7 @@ class ResultEvent(wx.PyEvent):
 class WebbPSFMenuBar(wx.MenuBar):
     def __init__(self, parent):
         wx.MenuBar.__init__(self)
-        item_keys = ['save_psf', 'save_profile', 'documentation', 'preferences', 'calc_options', 'calcPSF',
+        item_keys = ['save_psf', 'save_profile', 'documentation', 'preferences', 'calc_options', 'calc_psf',
                      'display_spectrum', 'display_optics', 'display_opd', 'display_psf', 'display_profiles']
 
         self.ids = {}
@@ -889,7 +889,7 @@ class WebbPSFMenuBar(wx.MenuBar):
 
         # Calculation Menu
         calcmenu = wx.Menu()
-        calcmenu.Append(self.ids['calcPSF'], 'Compute PSF')
+        calcmenu.Append(self.ids['calc_psf'], 'Compute PSF')
         self.Preferences = calcmenu.Append(self.ids['calc_options'], 'More Options...')
         calcmenu.AppendSeparator()
         calcmenu.Append(self.ids['display_spectrum'], 'Display Spectrum')

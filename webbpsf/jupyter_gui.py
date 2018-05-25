@@ -172,7 +172,7 @@ def show_notebook_interface_wfi(instrument):
     def calc(*args):
         progress.visible = True
         if monochromatic_toggle.value is True:
-            psf = instrument.calcPSF(
+            psf = instrument.calc_psf(
                 monochromatic=monochromatic_wavelength.value * 1e-6,
                 display=True,
                 outfile=OUTPUT_FILENAME,
@@ -181,7 +181,7 @@ def show_notebook_interface_wfi(instrument):
         else:
             source = poppy.specFromSpectralType(source_selection.value)
             _log.debug("Got source type {}: {}".format(source_selection.value, source))
-            psf = instrument.calcPSF(
+            psf = instrument.calc_psf(
                 source=source,
                 display=True,
                 outfile=OUTPUT_FILENAME,
@@ -379,7 +379,7 @@ def show_notebook_interface_jwst(instrument):
     def calc(*args):
         progress.visible = True
         if monochromatic_toggle.value is True:
-            psf = instrument.calcPSF(
+            psf = instrument.calc_psf(
                 monochromatic=monochromatic_wavelength.value * 1e-6,
                 display=True,
                 outfile=OUTPUT_FILENAME,
@@ -388,7 +388,7 @@ def show_notebook_interface_jwst(instrument):
         else:
             source = poppy.specFromSpectralType(source_selection.value)
             _log.debug("Got source type {}: {}".format(source_selection.value, source))
-            psf = instrument.calcPSF(
+            psf = instrument.calc_psf(
                 source=source,
                 display=True,
                 outfile=OUTPUT_FILENAME,

@@ -327,7 +327,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         for key in self._extra_keywords:
             result[0].header[key] = self._extra_keywords[key]
 
-    def _calcPSF_format_output(self, result, options):
+    def _calc_psf_format_output(self, result, options):
         """ Apply desired formatting to output file:
                  - rebin to detector pixel scale if desired
                  - set up FITS extensions if desired
@@ -342,7 +342,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
             # then call mockdms routines to embed in larger detector etc
             raise NotImplementedError('Not implemented yet')
         else:
-            poppy.Instrument._calcPSF_format_output(self, result, options)
+            poppy.Instrument._calc_psf_format_output(self, result, options)
 
     def _get_optical_system(self, fft_oversample=2, detector_oversample=None,
                             fov_arcsec=2, fov_pixels=None, options=None):
@@ -1780,7 +1780,7 @@ def Instrument(name):
 Instrument.list = ['nircam', 'nirspec', 'niriss', 'miri']  # useful list for iteration
 
 
-def calc_or_load_PSF(filename, inst, clobber=False, **kwargs):
+def calc_or_load_PSF(filename, inst, overwrite=False, **kwargs):
     """ Utility function for loading a precomputed PSF from disk, or else
     if that files does not exist, then compute it and save to disk.
 
@@ -1802,10 +1802,11 @@ def calc_or_load_PSF(filename, inst, clobber=False, **kwargs):
     helper function.
 
     """
-    if os.path.exists(filename) and not clobber:
+    if os.path.exists(filename) and not overwrite:
+        _log.info("Already exists, no need to recalculate: "+filename)
         return fits.open(filename)
     else:
-        return inst.calcPSF(outfile=filename, **kwargs)
+        return inst.calc_psf(outfile=filename, **kwargs)
 
 
 #########################

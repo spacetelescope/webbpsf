@@ -61,7 +61,7 @@ class TargetScene(object):
 
 
         How normalization works:
-            First the PSF for that source is calculated, using calcPSF(norm='first')
+            First the PSF for that source is calculated, using calc_psf(norm='first')
             i.e. the input intensity through the telescope pupil is set to 1.
             The resulting output PSF total counts will be proportional to the
             throughput through the OTE+SI (including filters, coronagraphs etc)
@@ -92,7 +92,7 @@ class TargetScene(object):
         outfile : str
             filename to save to
         rebin : bool
-            passed to calcPSF
+            passed to calc_psf
         PA : float
             postion angle for +Y direction in the output image
         offset_r, offset_PA : float
@@ -104,7 +104,7 @@ class TargetScene(object):
             overwrite existing files? default True
 
 
-        It may also be useful to pass arguments to the calcPSF() call, which is supported through the **kwargs
+        It may also be useful to pass arguments to the calc_psf() call, which is supported through the **kwargs
         mechanism. Such arguments might include fov_arcsec, fov_pixels, oversample, etc.
         """
 
@@ -137,7 +137,7 @@ class TargetScene(object):
             _log.info('  post-offset & rot pos: %.3f  at %.1f deg' % (instrument.options['source_offset_r'], instrument.options['source_offset_theta']))
 
 
-            src_psf =  instrument.calcPSF(source = src_spectrum, outfile=None, save_intermediates=False, rebin=rebin,
+            src_psf =  instrument.calc_psf(source = src_spectrum, outfile=None, save_intermediates=False, rebin=rebin,
                 **kwargs)
 
             # figure out the flux ratio

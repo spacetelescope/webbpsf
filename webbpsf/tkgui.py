@@ -321,7 +321,7 @@ class WebbPSF_GUI(object):
                 self.widgets[text].state(['disabled'])
 
 
-        addbutton(self,lf,'Compute PSF', self.ev_calcPSF, 0)
+        addbutton(self,lf,'Compute PSF', self.ev_calc_psf, 0)
         addbutton(self,lf,'Display PSF', self.ev_displayPSF, 1, disabled=True)
         addbutton(self,lf,'Display profiles', self.ev_displayProfiles, 2, disabled=True)
         addbutton(self,lf,'Save PSF As...', self.ev_SaveAs, 3, disabled=True)
@@ -425,7 +425,7 @@ class WebbPSF_GUI(object):
         if StrictVersion(matplotlib.__version__) >= StrictVersion('1.1'):
             plt.show(block=False)
 
-    def ev_calcPSF(self):
+    def ev_calc_psf(self):
         "Event handler for PSF Calculations"
         self._updateFromGUI()
 
@@ -434,7 +434,7 @@ class WebbPSF_GUI(object):
         else:
             source=None # generic flat spectrum
 
-        self.PSF_HDUlist = self.inst.calcPSF(source=source,
+        self.PSF_HDUlist = self.inst.calc_psf(source=source,
                 detector_oversample= self.detector_oversampling,
                 fft_oversample=self.fft_oversampling,
                 fov_arcsec = self.FOV,  nlambda = self.nlambda, display=True)

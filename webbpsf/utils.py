@@ -468,7 +468,7 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, displa
     try:
         comparison_psf = _Strehl_perfect_cache[cache_key]
     except KeyError:
-        comparison_psf = inst.calcPSF(fov_arcsec=header['FOV'], oversample=header['OVERSAMP'], nlambda=header['NWAVES'])
+        comparison_psf = inst.calc_psf(fov_arcsec=header['FOV'], oversample=header['OVERSAMP'], nlambda=header['NWAVES'])
         if cache_perfect: _Strehl_perfect_cache[cache_key] = comparison_psf
 
     comparison_image = comparison_psf[0].data
