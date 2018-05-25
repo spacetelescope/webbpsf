@@ -116,7 +116,9 @@ setup(name=PACKAGENAME,
           'poppy>=0.6.1',
           'astropy>=1.2.0',
           'jwxml>=0.3.0',
-          'pysiaf', 'six'
+          'pysiaf', 'six',
+          'pytest'  # unlisted requirement for pysiaf - see https://github.com/spacetelescope/pysiaf/issues/16
+                    # Remove this requirement once that issue is addressed.
       ],
       provides=[PACKAGENAME],
       author=AUTHOR,
