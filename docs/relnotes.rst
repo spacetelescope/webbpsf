@@ -13,28 +13,19 @@ See https://github.com/mperrin/webbpsf/issues for currently open issues and enha
   show numerical artifacts from Fourier aliasing and the implicit repetition of
   the pupil entrance aperture in the discrete Fourier transform. If you need
   accurate PSF information at such large radii, please contact Marshall Perrin
-  for higher resolution pupil data.
-
+  or Marcio Melendez for higher resolution pupil data.
 
 **The following factors are NOT included in these simulations:**
 
-* Wavefront error (OPD) variations across the field of view of any JWST instrument (though each one has its own distinct OPDs for the center of its FOV).
-  Field-dependent aberrations *are* included for WFIRST WFI.
-* Optical distortions.
-* Instrumental wavefront errors are not modeled separately, though they are included in some of the supplied RevV OPDs.
 * Coronagraphic masks are assumed to be perfect (i.e. the masks exactly match their design parameters.)
-* No edge effects near the center of the FQPMs. (However, these are believed to be negligible in practice based on detailed simulations by Remi Soummer.)
-* Any and all detector effects, including intrapixel sensitivity variations. There is no plan to include these at any point in WebbPSF itself.  Generate a subsampled PSF and use a separate detector model code instead.
+* Most detector effects, such as intrapixel sensitivity variations or interpixel capacitance. There are currently no plans to include these WebbPSF itself.  Generate a subsampled PSF and use a separate detector model code instead. The one exception is a scattering artifact in the MIRI imager detector substrate. 
 
 Road Map for Future Releases
 --------------------------------
-* Updates to JWST instrument and telecope models based on as-built cryotest data (expected mid 2016).
-* Field dependence of PSFs over JWST instrument fields of view based on ISIM CV test data.
-* Web interface based on Jupyter Notebook servers (first version available already for WFIRST)
-* Improved spectroscopic simulations including prism/grating dispersions.
-* Support for the NIRSpec and MIRI IFUs may be added in a future release, level of detail is still TBD.
-* Improved models for pointing jitter.
-* Possibly: separate handling of pre- and post- coronagraphic WFE in instruments, if this appears likely to be significant.
+* Continued validation and updates as needed based on further analyses of instrument and telescope hardware test data. 
+* Support for the NIRSpec and MIRI IFUs may be added in a future release; level of detail is still TBD.
+* Improved models for telescope WFE evolution over time. 
+* Possibly: separate handling of pre- and post- coronagraphic WFE in instruments, or pre- and post- NIRSpec MSA plane WFE; pending receipt of test data and models from the instrument teams.  
 
 .. _whatsnew:
 
@@ -61,44 +52,95 @@ Version 0.7.0
 
 **General:**
 
-- Improved numerical performance in calculations, using new accelerated math functions in ``poppy``. It is highly recommended that
-  users install the ``numexpr`` package, which enables significant speed boosts in typical propagations. ``numexpr`` is easily installable
-  via Anaconda. Some use cases, particularly for coronagraphy or slit spectroscopy, can also benefit from GPU acceleration. See the latest
-  ``poppy`` release notes for more.
+- Improved numerical performance in calculations  using new accelerated
+  math functions in ``poppy``. It is highly recommended that users install the
+  ``numexpr`` package, which enables significant speed boosts in typical
+  propagations. ``numexpr`` is easily installable via Anaconda. Some use cases,
+  particularly for coronagraphy or slit spectroscopy, can also benefit from GPU
+  acceleration. See the latest ``poppy`` release notes for more.
 
 **JWST optical model improvements:**
 
 
-- *Models of field-dependent wavefront error are now included for all the SIs.* The OPD information is derived from the ISIM CV3 test campaign
-  at Goddard, and is described extensively in David Aronstein et al. "Science Instrument Wavefront Error and Focus: Results Summary from the ISIM Cryogenic Vacuum Tests:",
-  JWST-RPT-032131. (See also `the SPIE paper version <http://adsabs.harvard.edu/abs/2016SPIE.9904E..09A>`_. The measured SI wavefront errors are small,
-  some tens of nanometers, and is in general less than the telescope WFE at a given location. This information is provided to help inform modeling for what
-  potential small variations in PSFs across the field of view might look like, in broad trends. However it should not be taken as precise guarantee of the exact amplitudes or
-  patterns of those variations. The WFE was measured at a handful of particular field points during CV3, and the resulting Zernike coefficients are interpolated to 
-  produce _estimated_ wavefront maps at all other field points across the focal planes.  Density and precision of the available measurements vary substantially between instruments.
-  [@mperrin, with contributions from @josephoenix in prior releases, and from @robelgeda and @JarronL for the interpolation between field points. [`#121 <https://github.com/mperrin/webbpsf/pull/121>`_, `#187 <https://github.com/mperrin/webbpsf/pull/187>`_]
-- *Added new capabilities for modeling distortions of the image planes*, which cause slight deflections in the angles of diffractive features. This effect is 
-  largest for FGS, and fairly small but noticeable for the other SIs. The distortion information is taken from the Science Instrument Aperture file (SIAF) 
-  reference data maintained at STScI. As a result the ``pysiaf`` package is a new dependency required for using ``webbpsf``.  [ `#209 <https://github.com/mperrin/webbpsf/pull/209>`_, @shanosborne]
-- *For MIRI only*, added new capability for modeling blurring due to *scattering of light within the MIRI imager detector substrate itself*. This acts as a cross-shaped 
-  convolution kernel, strongest at the shortest wavelengths. See MIRI document MIRI-TN-00076-ATC for details on the relevant physics and detector calibration. 
-  [`#209, <https://github.com/mperrin/webbpsf/pull/209>`_, @shanosborne]
-- *Added new capabilities for modeling mirror moves of the JWST primary segments and 
-  secondary mirror*, using a linear optical model to adjust OPDs. Added a 
-  new `notebook demonstrating these capabilities <https://github.com/mperrin/webbpsf/blob/master/notebooks/Simulated%20OTE%20Mirror%20Move%20Demo.ipynb>`_. 
-  Note this code allows simulation of arbitrary mirror motions within a simplified linear range, and relies on user judgement what those mirror motions should be; it is
-  not a detailed rigorous optomechanical model of the observatory.  [Code by @mperrin, with some fixes by Geda in <`#185 <https://github.com/mperrin/webbpsf/pull/185>`_]
-- All the instrument+filter relative spectral response functions have been updated to values derived from the official validated JWST ETC reference data,
-  using the Pandeia ETC release version 1.2.2. [@mperrin]
+- *Models of field-dependent wavefront error are now included for all the SIs.*
+  The OPD information is derived from the ISIM CV3 test campaign at Goddard, as
+  described extensively in David Aronstein et al. "Science Instrument Wavefront
+  Error and Focus: Results Summary from the ISIM Cryogenic Vacuum Tests:",
+  JWST-RPT-032131. (See also `the SPIE paper version
+  <http://adsabs.harvard.edu/abs/2016SPIE.9904E..09A>`_.) The measured SI
+  wavefront errors are small, some tens of nanometers, and are in general less
+  than the telescope WFE at given location. This information on SI WFE is
+  provided to help inform modeling for what potential variations in PSFs
+  across the field of view might look like, in broad trends. However it should
+  _not_ be taken as precise guarantee of the exact amplitudes or functional form of
+  those variations. The WFE was measured at a small handful of particular field
+  points during CV3, and the resulting Zernike coefficients are interpolated to
+  produce _estimated_ wavefront maps at all other field points across the focal
+  planes.  Density and precision of the available measurements vary
+  substantially between instruments.  [@mperrin, with contributions from
+  @josephoenix in prior releases, and from @robelgeda and @JarronL for the
+  interpolation between field points. [`#121
+  <https://github.com/mperrin/webbpsf/pull/121>`_, `#187
+  <https://github.com/mperrin/webbpsf/pull/187>`_]
+- *Added new capabilities for modeling distortions of the image planes*, which
+  cause slight deflections in the angles of diffractive features.  The result
+  of geometric distortion is that detector pixels are not ideal square sections
+  of the sky; they're slightly skewed parallelograms.  (See `the ACS handbook
+  <http://www.stsci.edu/hst/acs/documents/handbooks/current/c05_imaging7.html#357374>`_
+  for examples of what this looks like for Hubble PSFs) For the JWST
+  instruments, this effect is largest for FGS, and fairly small but noticeable
+  for the other SIs. The distortion information is taken from the Science
+  Instrument Aperture file (SIAF) reference data maintained at STScI. As a
+  result the ``pysiaf`` package is a new dependency required for using
+  ``webbpsf``.  [ `#209 <https://github.com/mperrin/webbpsf/pull/209>`_,
+  @shanosborne]
+- *Added small nonzero pupil shears* for most instruments, based on measurements
+  from the ISIM CV3 and OTIS cryo tests, adjusted for gravity release to produce
+  predicted on-orbit pupil shears. See JWST-RPT-028027 and JWST-RPT-037134. For most
+  imaging mode PSFs, this has _no_ practical effect because the SI internal pupils are
+  oversized to provide tolerance, and the measured shears are well below that amount. 
+  It has a small but nonzero effect for long-wave NIRISS filters with the CLEARP pupil
+  obscuration.  The greatest effect is for MIRI coronagraphy since MIRI's Lyot stops were
+  not undersized to allow for pupil shear, but even so the impact is small for the < 1% 
+  expected shift.  Note that for NIRCam, the expected pupil shear is set to precisely 
+  zero, given the expectation that NIRCam's steerable pickoff mirror will be used in flight 
+  to achieve precise pupil alignment. 
+  [`#212, <https://github.com/mperrin/webbpsf/pull/212>`_, @shanosborne, with inputs from
+  Melendez, Telfer, and Hartig]
+- *For MIRI only*, added new capability for modeling blurring due to
+  *scattering of light within the MIRI imager detector substrate itself*. This
+  acts as a cross-shaped convolution kernel, strongest at the shortest
+  wavelengths. See MIRI document MIRI-TN-00076-ATC for details on the relevant
+  physics and detector calibration.  [`#209,
+  <https://github.com/mperrin/webbpsf/pull/209>`_, @shanosborne]
+- *Added new capabilities for modeling mirror moves of the JWST primary
+  segments and secondary mirror*, using a linear optical model to adjust OPDs.
+  Added a new `notebook demonstrating these capabilities
+  <https://github.com/mperrin/webbpsf/blob/master/notebooks/Simulated%20OTE%20Mirror%20Move%20Demo.ipynb>`_.
+  Note this code allows simulation of arbitrary mirror motions within a
+  simplified linear range, and relies on user judgement what those mirror
+  motions should be; it is not a detailed rigorous optomechanical model of the
+  observatory.  [Code by @mperrin, with some fixes by Geda in <`#185
+  <https://github.com/mperrin/webbpsf/pull/185>`_] - All the instrument+filter
+  relative spectral response functions have been updated to values derived from
+  the official validated JWST ETC reference data, using the Pandeia ETC release
+  version 1.2.2. [@mperrin]
 
 
 **WFIRST optical model improvements:**
 
-- *The WFI optical model has been updated to use optical data from the Cycle 7 design revision for WFI*. This includes a change in the instrument field of view layout relative to the axes, as shown
-  `here <https://github.com/mperrin/webbpsf/pull/184>`_. [`#184 <https://github.com/mperrin/webbpsf/pull/184>`_, @robelgeda]
+- *The WFI optical model has been updated to use optical data from the Cycle 7
+  design revision for WFI*. This includes a change in the instrument field of
+  view layout relative to the axes, as shown `here
+  <https://github.com/mperrin/webbpsf/pull/184>`_. [`#184
+  <https://github.com/mperrin/webbpsf/pull/184>`_, @robelgeda]
 - Added R062 filter. 
-- Updated ``pupil_mask`` attribute for toggling between the masked and non-masked pupils now works the same way as that attribute does for the JWST instrument 
-  classes. Note, most users will not need to deal with this manually as the WFI class will by default automatically select the correct pupil based on the selected filter. [`#203 <https://github.com/mperrin/webbpsf/issue/203>`_, @robelgeda]
+- Updated ``pupil_mask`` attribute for toggling between the masked and
+  non-masked pupils now works the same way as that attribute does for the JWST
+  instrument classes. Note, most users will not need to deal with this manually
+  as the WFI class will by default automatically select the correct pupil based
+  on the selected filter. [`#203
+  <https://github.com/mperrin/webbpsf/issue/203>`_, @robelgeda]
 
 
 **Bug fixes and minor changes:**
@@ -115,7 +157,7 @@ Version 0.7.0
 - NIRISS: Fix the `pupil_rotation` option so it works for NIRISS too, in particular for NRM/AMI. [`#118  <https://github.com/mperrin/webbpsf/issue/118>`_, @mperrin]
 - NIRSpec: Very incomplete initial rudimentary support for the NIRSpec IFU, specifically just implementing the field stop for the IFU aperture. [@mperrin]
 - Updated to newer version of the astropy_helpers package infrastructure [@sosey]
-- Various smaller code cleanup and doc improvements [@mperrin, @shanosborne, @robelgeda, @douglase]
+- Various smaller code cleanup and doc improvements, including code cleanup for better Python PEP8 style guide compliance [@mperrin, @shanosborne, @robelgeda, @douglase]
 - The ``utils.system_diagnostic`` function now checks and reports on a few more things that might be useful in diagnosing performance issues. 
 
 .. _rel0.6.0:

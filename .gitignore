@@ -25,6 +25,7 @@ docs/_build
 .settings
 
 # Packages/installer info
+.eggs
 *.egg
 *.egg-info
 dist
@@ -62,7 +63,7 @@ distribute-*.tar.gz
 
 # Other
 .*.swp
-.*.sw[poq]
+.*.sw[pnoq]
 *~
 
 # Mac OSX
