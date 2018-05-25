@@ -37,14 +37,19 @@ Version 0.7.0
 
 *2018 June 1*
 
-.. admonition:: Python version support
 
-    Please note, this is the _final_ release of WebbPSF to support Python 2.7. All
+Note, when upgrading to this version you will need to update to the latest data files as well. This is
+handled automatically if you use `conda`, otherwise you will need to download and install the data from:
+`webbpsf-data-0.7.0.tar.gz <http://www.stsci.edu/~mperrin/software/webbpsf/webbpsf-data-0.7.0.tar.gz>`_.
+
+.. admonition:: Python version support: Future releases will require Python 3.
+
+    Please note, this is the *final* release of WebbPSF to support Python 2.7. All
     future releases will require Python 3.5+. See `here <https://python3statement.org>`_ for more information on migrating to Python 3.
 
-.. admonition:: Deprecated function names
+.. admonition:: Deprecated function names will go away in next release.
 
-    This is also the _final_ release of WebbPSF to support the older, deprecated
+    This is also the *final* release of WebbPSF to support the older, deprecated
     function names with mixed case that are not compatible with the Python PEP8
     style guide (e.g. ``calcPSF`` instead of ``calc_psf``, etc). Future versions will
     require the use of the newer syntax.

@@ -21,8 +21,8 @@ WebbPSF is a Python package that computes simulated PSFs for the JWST instrument
 
 **What this software does:**
 
-* Uses OPD map(s) precomputed by detailed optical simulations of JWST and WFIRST, and in the case of JWST models
-  informed by instrument and telescope cryo-vacuum testing of the flight hardware.
+* Uses OPD maps precomputed by detailed optical simulations of JWST and WFIRST, and in the case of JWST
+  based on instrument and telescope flight hardware cryo-vacuum test results.
 * For JWST, computes PSF images with requested properties for any of JWST's instruments. Supports imaging, coronagraphy, and most spectrographic modes with all of JWST's instruments. IFUs are yet to come.
 * For WFIRST, computes PSFs with the Wide Field Imager, based on recent GSFC optical models, including field- and wavelength-dependent aberrations. 
   A preliminary version of the Coronagraph Instrument is also available.
@@ -43,9 +43,9 @@ Getting Started with WebbPSF
 
 The WebbPSF software system is composed of two Python packages: a lower-level optical propagation library (:py:mod:`POPPY <poppy>`) plus an implementation of the JWST instruments using that library (:py:mod:`WebbPSF <webbpsf>`).  This documentation explains the programming interfaces and graphical user interface of WebbPSF, as well as providing a :ref:`quick overview <poppy_overiew>` of POPPY.
 
-.. admonition:: Quickstart IPython Notebook
+.. admonition:: Quickstart Jupyter Notebook
 
-   This documentation is complemented by an `Jupyter (IPython) Notebook format quickstart tutorial <http://nbviewer.jupyter.org/github/mperrin/webbpsf/blob/master/notebooks/WebbPSF_tutorial.ipynb>`_. Downloading and running that notebook is a great way to get started using WebbPSF.
+   This documentation is complemented by an `Jupyter Notebook format quickstart tutorial <http://nbviewer.jupyter.org/github/mperrin/webbpsf/blob/master/notebooks/WebbPSF_tutorial.ipynb>`_. Downloading and running that notebook is a great way to get started using WebbPSF.
 
 :ref:`What's new in the latest release? <whatsnew>`
 
