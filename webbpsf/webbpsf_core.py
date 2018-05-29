@@ -785,10 +785,9 @@ class JWInstrument(SpaceTelescopeInstrument):
 
             # Set up new extensions to add distortion to
             for ext in [0, 1]:
-                hdu_new = fits.ImageHDU(psf[ext].data)  # append the PSFs again, these will be the PSFs that are edited
+                hdu_new = fits.ImageHDU(psf[ext].data, psf[ext].header)  # these will be the PSFs that are edited
                 psf.append(hdu_new)
                 ext_new = ext + 2
-                psf[ext_new].header = copy.deepcopy(psf[ext].header)  # add header from corresponding extension
                 psf[ext_new].header["EXTNAME"] = psf[ext].header["EXTNAME"][0:4] + "DIST"  # change extension name
 
             # Apply distortions based on the instrument
