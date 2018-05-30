@@ -35,7 +35,7 @@ Version History and Change Log
 Version 0.7.0
 =============
 
-*2018 June 1*
+*2018 May 30*
 
 
 Note, when upgrading to this version you will need to update to the latest data files as well. This is
