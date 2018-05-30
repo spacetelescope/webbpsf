@@ -1136,7 +1136,14 @@ class NIRCam(JWInstrument):
 
     The NIRCam class is smart enough to automatically select the appropriate
     pixel scale for the short or long wavelength channel
-    based on whether you request a short or long wavelength filter.
+    based on the selected detector (NRCA1 vs NRCA5, etc), and also on
+    whether you request a short or long wavelength filter. The auto-selection
+    based on filter name can be disabled, if necessary, by setting `.auto_channel = False`.
+    Setting the detector name always toggles the channel regardless of `auto_channel`.
+
+    Note, if you use the `monochromatic` option for calculating PSFs, that does not
+    invoke the automatic channel selection. Make sure to set the correct channel *prior*
+    to calculating any monochromatic PSFs.
 
     Special Options:
     The 'bar_offset' option allows specification of an offset position
@@ -1191,7 +1198,7 @@ class NIRCam(JWInstrument):
         self._detectors = dict()
         det_list = ['A1', 'A2', 'A3', 'A4', 'A5', 'B1', 'B2', 'B3', 'B4', 'B5']
         for name in det_list: self._detectors["NRC{0}".format(name)] = 'NRC{0}_FULL'.format(name)
-        self.detector = self.detector_list[0]
+        self._detector = self.detector_list[0]
 
         self._si_wfe_class = optics.NIRCamFieldAndWavelengthDependentAberration
 
@@ -1208,6 +1215,55 @@ class NIRCam(JWInstrument):
     def channel(self, value):
         raise RuntimeError("NIRCam channel is not directly settable; set filter or detector instead.")
 
+    @property
+    def detector(self):
+        """Detector selected for simulated PSF
+
+        Used in calculation of field-dependent aberrations. Must be
+        selected from detectors in the `detector_list` attribute.
+
+        For NIRCam, setting detector will also auto-toggle the channel between
+        SW and LW, assuming auto_channel is True.
+        """
+        return self._detector
+
+    @detector.setter
+    def detector(self, value):
+        if value.upper() not in self.detector_list:
+            raise ValueError("Invalid detector. Valid detector names are: {}".format(', '.join(self.detector_list)))
+        # set the channel based on the requested detector
+        new_channel = 'long' if value[-1] == '5' else 'short'
+        self._switch_channel(new_channel)
+        self._detector = value.upper()
+
+    def _switch_channel(self,channel):
+        """ Toggle to either SW or LW channel.
+        This changes the detector name and the pixel scale,
+        unless the user has set a custom/nonstandard pixel scale manually.
+        """
+        if self.channel == channel:
+            return # nothing to do
+        _log.debug("Automatically changing NIRCam channel SW/LW to "+channel)
+        if channel=='long':
+            # ensure long wave by switching to detector 5
+            self._detector = self._detector[0:4] + '5'
+            if self.pixelscale == self._pixelscale_short:
+                self.pixelscale = self._pixelscale_long
+                _log.info("NIRCam pixel scale switched to %f arcsec/pixel for the "
+                          "long wave channel." % self.pixelscale)
+        elif channel=='short':
+            # only change detector if the detector was already LW;
+            # don't override selection of a particular SW SCA otherwise
+            if self._detector[-1] == '5':
+                self._detector = self._detector[0:4] + '1'
+            if self.pixelscale == self._pixelscale_long:
+                self.pixelscale = self._pixelscale_short
+                _log.info("NIRCam pixel scale switched to %f arcsec/pixel for the "
+                          "short wave channel." % self.pixelscale)
+        else:
+            raise ValueError("Invalid NIRCam channel name: {}".format(channel))
+
+
     @JWInstrument.filter.setter
     def filter(self, value):
         super(NIRCam, self.__class__).filter.__set__(self, value)
@@ -1215,22 +1271,8 @@ class NIRCam(JWInstrument):
         if self.auto_channel:
             # set the channel (via setting the detector) based on filter
             wlnum = int(self.filter[1:4])
-            if wlnum >= 250:
-                # ensure long wave by switching to detector 5
-                self.detector = self.detector[0:4] + '5'
-                if self.pixelscale == self._pixelscale_short:
-                    self.pixelscale = self._pixelscale_long
-                    _log.info("NIRCam pixel scale switched to %f arcsec/pixel for the "
-                              "long wave channel." % self.pixelscale)
-            else:
-                # only change if the detector was already LW;
-                # don't override selection of a particular SW SCA otherwise
-                if self.detector[-1] == '5':
-                    self.detector = self.detector[0:4] + '1'
-                if self.pixelscale == self._pixelscale_long:
-                    self.pixelscale = self._pixelscale_short
-                    _log.info("NIRCam pixel scale switched to %f arcsec/pixel for the "
-                              "short wave channel." % self.pixelscale)
+            new_channel = 'long' if wlnum >= 250 else 'short'
+            self._switch_channel(new_channel)
 
     def _validate_config(self, **kwargs):
         """Validate instrument config for NIRCam

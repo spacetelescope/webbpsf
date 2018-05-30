@@ -210,13 +210,32 @@ def test_nircam_auto_pixelscale():
     assert nc.pixelscale == nc._pixelscale_short
     assert nc.channel == 'short'
 
+    # And test we can switch based on detector names too
+    nc.detector ='NRCA5'
+    assert nc.pixelscale == nc._pixelscale_long
+    assert nc.channel == 'long'
+
+    nc.detector ='NRCB1'
+    assert nc.pixelscale == nc._pixelscale_short
+    assert nc.channel == 'short'
+
+    nc.detector ='NRCA3'
+    assert nc.pixelscale == nc._pixelscale_short
+    assert nc.channel == 'short'
+
+
     nc.auto_channel = False
     # now we can switch filters and nothing else should change:
     nc.filter='F480M'
     assert nc.pixelscale == nc._pixelscale_short
     assert nc.channel == 'short'
 
+    # but changing the detector explicitly always updates pixelscale, regardless
+    # of auto_channel being False
 
+    nc.detector = 'NRCA5'
+    assert nc.pixelscale == nc._pixelscale_long
+    assert nc.channel == 'long'
 
 
 def test_validate_nircam_wavelengths():
