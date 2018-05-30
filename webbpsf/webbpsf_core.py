@@ -696,6 +696,13 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         return optic
 
+    @SpaceTelescopeInstrument.detector.setter  # override setter in this subclass
+    def detector(self, value):
+        if value.upper() not in self.detector_list:
+            raise ValueError("Invalid detector. Valid detector names are: {}".format(', '.join(self.detector_list)))
+        self._detector = value.upper()
+        self._detector_geom_info = DetectorGeometry(self.name, self._detectors[self._detector])
+
     def _tel_coords(self):
         """ Convert from detector pixel coordinates to SIAF aperture coordinates,
 
@@ -703,8 +710,7 @@ class JWInstrument(SpaceTelescopeInstrument):
         Note that the astropy.units framework is used to return the result as a
         dimensional Quantity. """
 
-        siaf_geom = DetectorGeometry(self.name, self._detectors[self._detector])
-        return siaf_geom.pix2angle(self.detector_position[0], self.detector_position[1])
+        return self._detector_geom_info.pix2angle(self.detector_position[0], self.detector_position[1])
 
     def _xan_yan_coords(self):
         """ Convert from detector pixel coordinates to the XAN, YAN coordinate syste
@@ -728,7 +734,7 @@ class JWInstrument(SpaceTelescopeInstrument):
 
             self.detector_position = (ap.XDetRef, ap.YDetRef)
             detname = aperture_name.split('_')[0]
-            self.detector = detname
+            self.detector = detname # As a side effect this auto reloads SIAF info, see detector.setter
             _log.debug("From {} set det. pos. to {} {}".format(aperture_name, detname, self.detector_position))
 
         except KeyError:
@@ -1179,6 +1185,8 @@ class NIRCam(JWInstrument):
         self._detector = 'NRCA1'
 
         JWInstrument.__init__(self, "NIRCam")  # do this after setting the long & short scales.
+        self._detector = 'NRCA1' # Must re-do this after superclass init since that sets it to None.
+                                 # This is an annoying workaround to ensure all the auto-channel stuff is ok
 
         self.pixelscale = self._pixelscale_short  # need to redo 'cause the __init__ call will reset it to zero
         self._filter = 'F200W'  # likewise need to redo
@@ -1198,7 +1206,7 @@ class NIRCam(JWInstrument):
         self._detectors = dict()
         det_list = ['A1', 'A2', 'A3', 'A4', 'A5', 'B1', 'B2', 'B3', 'B4', 'B5']
         for name in det_list: self._detectors["NRC{0}".format(name)] = 'NRC{0}_FULL'.format(name)
-        self._detector = self.detector_list[0]
+        self.detector = self.detector_list[0]
 
         self._si_wfe_class = optics.NIRCamFieldAndWavelengthDependentAberration
 
@@ -1215,26 +1223,17 @@ class NIRCam(JWInstrument):
     def channel(self, value):
         raise RuntimeError("NIRCam channel is not directly settable; set filter or detector instead.")
 
-    @property
-    def detector(self):
-        """Detector selected for simulated PSF
-
-        Used in calculation of field-dependent aberrations. Must be
-        selected from detectors in the `detector_list` attribute.
-
-        For NIRCam, setting detector will also auto-toggle the channel between
-        SW and LW, assuming auto_channel is True.
-        """
-        return self._detector
-
-    @detector.setter
+    @JWInstrument.detector.setter # override setter in this subclass
     def detector(self, value):
+        """ Set detector, including reloading the relevant info from SIAF """
         if value.upper() not in self.detector_list:
             raise ValueError("Invalid detector. Valid detector names are: {}".format(', '.join(self.detector_list)))
         # set the channel based on the requested detector
         new_channel = 'long' if value[-1] == '5' else 'short'
         self._switch_channel(new_channel)
         self._detector = value.upper()
+
+        self._detector_geom_info = DetectorGeometry(self.name, self._detectors[self._detector])
 
     def _switch_channel(self,channel):
         """ Toggle to either SW or LW channel.
@@ -1262,7 +1261,6 @@ class NIRCam(JWInstrument):
                           "short wave channel." % self.pixelscale)
         else:
             raise ValueError("Invalid NIRCam channel name: {}".format(channel))
-
 
     @JWInstrument.filter.setter
     def filter(self, value):

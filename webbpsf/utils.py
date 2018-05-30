@@ -576,7 +576,7 @@ def _run_benchmark(timer, iterations=1):
         time_numexpr = np.NaN
 
     if poppy.accel_math._CUDA_AVAILABLE:
-        print("Timing performance with CUDA:")
+        print("Timing performance with CUDA + Numexpr:")
         poppy.conf.use_cuda = True
         poppy.conf.use_opencl = False
         time_cuda = timer.timeit(number=iterations) / iterations
@@ -585,7 +585,7 @@ def _run_benchmark(timer, iterations=1):
         time_cuda = np.NaN
 
     if poppy.accel_math._OPENCL_AVAILABLE:
-        print("Timing performance with OpenCL:")
+        print("Timing performance with OpenCL + Numexpr:")
         poppy.conf.use_opencl = True
         poppy.conf.use_cuda = False
         time_opencl = timer.timeit(number=iterations) / iterations
@@ -602,12 +602,12 @@ def _run_benchmark(timer, iterations=1):
             'opencl': time_opencl}
 
 
-def benchmark_imaging(iterations=1, nlambda=1):
+def benchmark_imaging(iterations=1, nlambda=1, add_distortion=True):
     """ Performance benchmark function for standard imaging """
     import poppy
     import timeit
 
-    timer = timeit.Timer("psf = nc.calc_psf(nlambda=nlambda)",
+    timer = timeit.Timer("psf = nc.calc_psf(nlambda=nlambda, add_distortion={})".format(add_distortion),
                          setup="""
 import webbpsf
 nc = webbpsf.NIRCam()
@@ -619,12 +619,12 @@ nlambda={nlambda:d}""".format(nlambda=nlambda))
     return _run_benchmark(timer, iterations=iterations)
 
 
-def benchmark_nircam_coronagraphy(iterations=1, nlambda=1):
+def benchmark_nircam_coronagraphy(iterations=1, nlambda=1, add_distortion=True):
     """ Performance benchmark function for standard imaging """
     import poppy
     import timeit
 
-    timer = timeit.Timer("psf = nc.calc_psf(nlambda=nlambda)",
+    timer = timeit.Timer("psf = nc.calc_psf(nlambda=nlambda, add_distortion={})".format(add_distortion),
                          setup="""
 import webbpsf
 nc = webbpsf.NIRCam()

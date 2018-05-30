@@ -100,7 +100,8 @@ handled automatically if you use `conda`, otherwise you will need to download an
   PSF with the distortion included; extensions 0 and 1 remain consistent with prior versions.  The distortion information is taken from the Science
   Instrument Aperture file (SIAF) reference data maintained at STScI. As a
   result the ``pysiaf`` package is a new dependency required for using
-  ``webbpsf``.  [ `#209 <https://github.com/mperrin/webbpsf/pull/209>`_,
+  ``webbpsf``.  The distortion calculations can add 1-3 seconds to each PSF calculation, and double the size of the output FITS files;
+  if modeling distortion is not needed for your use case, you can deactivate this by setting ``add_distortion=False`` in calls to ``calc_psf``.  [ `#209 <https://github.com/mperrin/webbpsf/pull/209>`_,
   @shanosborne]
 - *Added small nonzero pupil shears* for most instruments, based on measurements
   from the ISIM CV3 and OTIS cryo tests, adjusted for gravity release to produce
@@ -120,7 +121,7 @@ handled automatically if you use `conda`, otherwise you will need to download an
   acts as a cross-shaped convolution kernel, strongest at the shortest
   wavelengths. See MIRI document MIRI-TN-00076-ATC for details on the relevant
   physics and detector calibration.   This is implemented as part of the distortion framework, though
-  it is different physics. See See `this Jupyter notebook <https://github.com/mperrin/webbpsf/blob/master/notebooks/Distortion_examples.ipynb>`_ for
+  it is different physics. See `this Jupyter notebook <https://github.com/mperrin/webbpsf/blob/master/notebooks/Distortion_examples.ipynb>`_ for
   example output. For F560W through F1000W this is a much more obvious effect than the subtle distortions. [`#209,
   <https://github.com/mperrin/webbpsf/pull/209>`_, @shanosborne]
 - *Added new capabilities for modeling mirror moves of the JWST primary
