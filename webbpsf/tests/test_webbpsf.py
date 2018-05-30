@@ -56,6 +56,11 @@ def generic_output_test(iname):
     PSF = inst.calc_psf(nlambda=1, fov_arcsec = fov_arcsec, oversample=3)
     assert( np.remainder(PSF[0].data.shape[0],2) == 1)
 
+    import tempfile
+    outputdir = tempfile.gettempdir()
+    PSF.writeto(os.path.join(outputdir, 'test_write.fits'), overwrite=True)
+
+
 def do_test_source_offset(iname, distance=0.5,  nsteps=1, theta=0.0, tolerance=0.05, monochromatic=None, display=False):
     """ Test source offsets
     Does the star PSF center end up in the desired location?
