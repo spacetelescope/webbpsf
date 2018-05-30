@@ -1308,7 +1308,7 @@ class OTE_Linear_Model_WSS(OPD):
         Parameters
         -----------
         segment : str
-            Segment name, e.g. 'A1'. Use 'SM' for the secondary mirror.
+            Segment name, e.g. 'A1'.
         xtilt, ytilt, clocking : floats
             Tilt angle, in microradians by default. 'xtilt' means tilt *around the X axis*, and similarly for ytilt.
         radial, ytrans,xtrans : floats
@@ -1334,6 +1334,9 @@ class OTE_Linear_Model_WSS(OPD):
             moving a whole bunch of segments at once. Incompatible with display=True.
 
         """
+
+        if segment == 'SM':
+            raise ValueError("SM not supported by move_seg_local. Use move_sm_local instead.")
 
         # Handle tilts and clocking
         tilts = np.array([xtilt, ytilt, clocking], dtype=float)
@@ -1546,10 +1549,11 @@ class OTE_Linear_Model_WSS(OPD):
     def move_sm_local(self, xtilt=0.0, ytilt=0.0, rot_unit='urad',
                       xtrans=0.0, ytrans=0.0, piston=0.0, trans_unit='micron', display=False,
                       delay_update=False):
-        """ Move a segment in pose and/or ROC, using segment-local control coordinates.
+        """ Move the secondary mirror in pose, using segment-local control coordinates.
 
         These motions are always commanded in the segment-local "Control" coordinate systems,
-        which are distinct for each segment.
+        which are distinct for each segment. The SM is also handled a bit differently than all the
+        PMSAs in terms of its local coordinate system, which this function handles behind the scenes.
 
         Parameters
         -----------
