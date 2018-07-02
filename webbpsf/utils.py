@@ -437,7 +437,7 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, displa
     """
 
     from .webbpsf_core import Instrument
-    from poppy import display_PSF
+    from poppy import display_psf
 
     if isinstance(HDUlist_or_filename, six.string_types):
         HDUlist = fits.open(HDUlist_or_filename)
