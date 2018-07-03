@@ -132,6 +132,6 @@ def test_CGI_psf(display=False):
     #print('Reading instrument data from {:s}'.format(charspc._WebbPSF_basepath)
     #print('Filter list: {:}'.format(charspc.filter_list))
 
-    monopsf = char_spc.calcPSF(nlambda=1, display=False)
+    monopsf = char_spc.calc_psf(nlambda=1, display=False)
     if display:
-        wfirst.poppy.display_PSF(monopsf)
+        wfirst.poppy.display_psf(monopsf)
