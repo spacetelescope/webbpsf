@@ -86,7 +86,6 @@ if not _ASTROPY_SETUP_:
         restart_logging(verbose=True)
 
 from poppy import ( display_psf, display_psf_difference, display_ee, measure_ee, # current names
-        display_PSF, display_PSF_difference, display_EE, measure_EE,  # older non-PEP8 names for back compatibility
         display_profiles, radial_profile,
         measure_radial, measure_fwhm, measure_sharpness, measure_centroid,
         specFromSpectralType, fwcentroid)
