@@ -65,7 +65,7 @@ def apply_distortion(hdulist_or_filename=None, fill_value=0):
     # Pull default values
     aper = _get_default_siaf(instrument, aper_name)
 
-    ext = 2  # edit the oversampled PSF, then bin it down to get the detector sampled PSF
+    ext = 1  # edit the oversampled PSF
 
     # Pull PSF header information
     pixelscale = psf[ext].header["PIXELSCL"]  # the pixel scale carries the over-sample value
@@ -128,24 +128,19 @@ def apply_distortion(hdulist_or_filename=None, fill_value=0):
     # Apply data to correct extensions
     psf[ext].data = psf_new
 
-    # Now bin down over-sampled PSF to be detector-sampled and re-write ext=3
-    detector_oversample = psf[ext].header["DET_SAMP"]
-    psf[3].data = poppy.utils.rebin_array(psf_new, rc=(detector_oversample, detector_oversample))
-
     # Set new header keywords
-    for ext in [2, 3]:
-        psf[ext].header["DISTORT"] = ("True", "SIAF distortion coefficients applied")
-        psf[ext].header["SIAF_VER"] = (pysiaf.JWST_PRD_VERSION, "SIAF PRD version used")
+    psf[ext].header["DISTORT"] = ("True", "SIAF distortion coefficients applied")
+    psf[ext].header["SIAF_VER"] = (pysiaf.JWST_PRD_VERSION, "SIAF PRD version used")
 
-        degree = np.int(getattr(aper, 'Sci2IdlDeg'))
-        number_of_coefficients = np.int((degree + 1) * (degree + 2) / 2)
-        all_keys = aper.__dict__.keys()
-        for axis in ['X', 'Y']:
-            coeff_keys = np.sort(np.array([c for c in all_keys if 'Idl2Sci' + axis in c]))
-            coeff = np.array([getattr(aper, c) for c in coeff_keys[0:number_of_coefficients]])
-            for i in range(len(coeff)):
-                key = "COEF_{}".format(coeff_keys[i][-3:])
-                psf[ext].header[key] = (coeff[i], "SIAF distortion coefficient for {}".format(coeff_keys[i]))
+    degree = np.int(getattr(aper, 'Sci2IdlDeg'))
+    number_of_coefficients = np.int((degree + 1) * (degree + 2) / 2)
+    all_keys = aper.__dict__.keys()
+    for axis in ['X', 'Y']:
+        coeff_keys = np.sort(np.array([c for c in all_keys if 'Idl2Sci' + axis in c]))
+        coeff = np.array([getattr(aper, c) for c in coeff_keys[0:number_of_coefficients]])
+        for i in range(len(coeff)):
+            key = "COEF_{}".format(coeff_keys[i][-3:])
+            psf[ext].header[key] = (coeff[i], "SIAF distortion coefficient for {}".format(coeff_keys[i]))
 
     return psf
 
@@ -199,20 +194,15 @@ def apply_rotation(hdulist_or_filename=None, rotate_value=None, crop=True):
     # If crop = True, then reshape must be False - so invert this keyword
     reshape = np.invert(crop)
 
-    ext = 2  # edit the oversampled PSF, then bin it down to get the detector sampled PSF
+    ext = 1  # edit the oversampled PSF
 
     psf_new = rotate(psf[ext].data, rotate_value, reshape=reshape)
 
     # Apply data to correct extensions
     psf[ext].data = psf_new
 
-    # Now bin down over-sampled PSF to be detector-sampled and re-write ext=3
-    detector_oversample = psf[ext].header["DET_SAMP"]
-    psf[3].data = poppy.utils.rebin_array(psf_new, rc=(detector_oversample, detector_oversample))
-
     # Set new header keyword
-    for ext in [2, 3]:
-        psf[ext].header["ROTATION"] = (rotate_value, "PSF rotated to match detector rotation")
+    psf[ext].header["ROTATION"] = (rotate_value, "PSF rotated to match detector rotation")
 
     return psf
 
@@ -306,7 +296,7 @@ def apply_miri_scattering(hdulist_or_filename=None, kernel_amp=None):
     if kernel_amp is None:
         kernel_amp = kernel_amp_dict[filt]
 
-    ext = 2
+    ext = 1
 
     # Set over-sample value
     oversample = psf[ext].header["DET_SAMP"]
@@ -329,13 +319,9 @@ def apply_miri_scattering(hdulist_or_filename=None, kernel_amp=None):
     # Apply data to correct extensions
     psf[ext].data = psf_new
 
-    # Now bin down over-sampled PSF to be detector-sampled and re-write ext=3
-    psf[3].data = poppy.utils.rebin_array(psf_new, rc=(oversample, oversample))
-
-    for ext in [2, 3]:
-        # Set new header keywords
-        psf[ext].header["MIR_DIST"] = ("True", "MIRI detector scattering applied")
-        psf[ext].header["KERN_AMP"] = (kernel_amp, "Amplitude (A) in kernel function A*exp(-x/B)")
-        psf[ext].header["KERNFOLD"] = (25, "e-folding length (B) in kernel func A*exp(-x/B)")
+    # Set new header keywords
+    psf[ext].header["MIR_DIST"] = ("True", "MIRI detector scattering applied")
+    psf[ext].header["KERN_AMP"] = (kernel_amp, "Amplitude (A) in kernel function A*exp(-x/B)")
+    psf[ext].header["KERNFOLD"] = (25, "e-folding length (B) in kernel func A*exp(-x/B)")
 
     return psf
