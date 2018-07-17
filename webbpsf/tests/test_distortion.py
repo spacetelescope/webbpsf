@@ -1,5 +1,6 @@
 import pytest
 import numpy as np
+from astropy.io import fits
 
 from .. import distortion
 from .. import webbpsf_core
@@ -19,17 +20,23 @@ def test_apply_distortion_skew():
     # Create a baseline PSF to have shape/header keywords correct
     fgs = webbpsf_core.FGS()
     fgs.detector = "FGS1"
-    psf = fgs.calc_psf()
+    fgs.options["output_mode"] = "Oversampled image"
+    psf = fgs.calc_psf(add_distortion=False)
 
-    # Re-write PSF with fake data: An array of 0s with a horizontal rectangle of 1s spanning the entire x axis
-    for ext in np.arange(4):
-        y = psf[ext].data.shape[0]
-        x = psf[ext].data.shape[1]
-        psf[ext].data = np.zeros((y, x))
-        psf[ext].data[10:30, :] = np.ones((20, x))
+    # Set up new extensions (from webbpsf_core.JWInstrument._calc_psf_format_output)
+    n_exts = len(psf)
+    for ext in np.arange(n_exts):
+        hdu_new = fits.ImageHDU(psf[ext].data, psf[ext].header)  # these will be the PSFs that are edited
+        psf.append(hdu_new)
+        ext_new = ext + n_exts
+        psf[ext_new].header["EXTNAME"] = psf[ext].header["EXTNAME"][0:4] + "DIST"  # change extension name
 
     # Run data through the distortion function
     psf_siaf = distortion.apply_distortion(psf)
+
+    # Rebin data to get 3rd extension
+    fgs.options["output_mode"] = "Both extensions"
+    webbpsf_core.SpaceTelescopeInstrument._calc_psf_format_output(fgs, result=psf_siaf, options=fgs.options)
 
     # Test the slope of the rectangle
     for ext in [2, 3]:
@@ -67,18 +74,23 @@ def test_apply_distortion_pixel_scale():
     # Create a baseline PSF to have shape/header keywords correct
     fgs = webbpsf_core.FGS()
     fgs.detector = "FGS1"
-    psf = fgs.calc_psf()
+    fgs.options["output_mode"] = "Oversampled image"
+    psf = fgs.calc_psf(add_distortion=False)
 
-    # Re-write PSF with fake data: An array with rows of constant value (a row of 0s, row of 1s, row of 2s, etc)
-    for ext in np.arange(4):
-        size = psf[ext].data.shape[0]
-        arr = np.zeros((size, size))
-        for i in range(size):
-            arr[i] = np.full((1, size), i)
-        psf[ext].data = arr
+    # Set up new extensions (from webbpsf_core.JWInstrument._calc_psf_format_output)
+    n_exts = len(psf)
+    for ext in np.arange(n_exts):
+        hdu_new = fits.ImageHDU(psf[ext].data, psf[ext].header)  # these will be the PSFs that are edited
+        psf.append(hdu_new)
+        ext_new = ext + n_exts
+        psf[ext_new].header["EXTNAME"] = psf[ext].header["EXTNAME"][0:4] + "DIST"  # change extension name
 
     # Run data through the distortion function
     psf_siaf = distortion.apply_distortion(psf)
+
+    # Rebin data to get 3rd extension
+    fgs.options["output_mode"] = "Both extensions"
+    webbpsf_core.SpaceTelescopeInstrument._calc_psf_format_output(fgs, result=psf_siaf, options=fgs.options)
 
     # Test that the change caused by the pixel distortion is approximately constant along the row
     # Choosing to check the 20th row.
@@ -105,7 +117,8 @@ def test_apply_distortion_pixel_scale():
         b = final[i + 1]
 
         # This is the same as assert round(a - b, 1) == 0
-        assert pytest.approx(a, 0.1) == b, "FGS PSF does not have expected pixel scale distortion for adjacent pixels"
+        assert pytest.approx(a, abs=0.1) == b, \
+            "FGS PSF does not have expected pixel scale distortion for adjacent pixels"
 
     # Check that the difference between the first and last value is also the same to 1 decimal
     assert pytest.approx(final[-1], 0.1) == final[0], "FGS PSF does not have expected pixel scale distortion in the " \
@@ -149,21 +162,31 @@ def test_apply_miri_scattering():
     along where the cross-shape would lie: i.e. lined up with the image's center.
     """
 
-    # Create a PSF
+    # Create a baseline PSF to have shape/header keywords correct
     mir = webbpsf_core.MIRI()
     mir.filter = "F560W"  # this filter has a strong cross added
-    psf = mir.calc_psf()
+    mir.options["output_mode"] = "Oversampled image"
+    psf = mir.calc_psf(add_distortion=False)
 
-    # Because calc_psf automatically applies distortions to ext 2 and 3, we'll overwrite these with the undistorted PSFs
-    psf[2].data = psf[0].data
-    psf[3].data = psf[1].data
+    # Set up new extensions (from webbpsf_core.JWInstrument._calc_psf_format_output)
+    n_exts = len(psf)
+    for ext in np.arange(n_exts):
+        hdu_new = fits.ImageHDU(psf[ext].data, psf[ext].header)  # these will be the PSFs that are edited
+        psf.append(hdu_new)
+        ext_new = ext + n_exts
+        psf[ext_new].header["EXTNAME"] = psf[ext].header["EXTNAME"][0:4] + "DIST"  # change extension name
 
     # Run it through just the apply_miri_scattering function
     psf_cross = distortion.apply_miri_scattering(psf)
 
+    # Rebin data to get 3rd extension
+    mir.options["output_mode"] = "Both extensions"
+    webbpsf_core.SpaceTelescopeInstrument._calc_psf_format_output(mir, result=psf_cross, options=mir.options)
+
+    # Test distortion function
     for ext in [2, 3]:
         # Find the difference between the before and after PSF
-        diff = psf_cross[ext].data - psf[ext].data
+        diff = psf_cross[ext].data - psf_cross[ext - 2].data
 
         # Test that the 4 corners of the box contain very small (close to 0) values
         ylen, xlen = diff.shape
@@ -172,7 +195,7 @@ def test_apply_miri_scattering():
         first = 0
         second = int(0.33 * xlen)
         third = int(0.67 * xlen)
-        fourth = xlen-1
+        fourth = xlen - 1
 
         # Pull these squares out of the data
         square1 = diff[first:second, first:second]
@@ -225,20 +248,30 @@ def test_miri_conservation_energy():
     edges in some cases, so we will add in a tolerance of 0.005).
     """
 
-    # Create a PSF
+    # Create a baseline PSF to have shape/header keywords correct
     mir = webbpsf_core.MIRI()
     mir.filter = "F1000W"
-    psf = mir.calc_psf()
+    mir.options["output_mode"] = "Oversampled image"
+    psf = mir.calc_psf(add_distortion=False)
 
-    # Because calc_psf automatically applies distortions to ext 2 and 3, we'll overwrite these with the undistorted PSFs
-    psf[2].data = psf[0].data
-    psf[3].data = psf[1].data
+    # Set up new extensions (from webbpsf_core.JWInstrument._calc_psf_format_output)
+    n_exts = len(psf)
+    for ext in np.arange(n_exts):
+        hdu_new = fits.ImageHDU(psf[ext].data, psf[ext].header)  # these will be the PSFs that are edited
+        psf.append(hdu_new)
+        ext_new = ext + n_exts
+        psf[ext_new].header["EXTNAME"] = psf[ext].header["EXTNAME"][0:4] + "DIST"  # change extension name
 
     # Run it through just the apply_miri_scattering function
     psf_cross = distortion.apply_miri_scattering(psf)
 
+    # Rebin data to get 3rd extension
+    mir.options["output_mode"] = "Both extensions"
+    webbpsf_core.SpaceTelescopeInstrument._calc_psf_format_output(mir, result=psf_cross, options=mir.options)
+
+    # Test distortion function
     for ext in [2, 3]:
-        psf_sum = np.sum(psf[ext].data.flatten())
+        psf_sum = np.sum(psf_cross[ext - 2].data.flatten())
         psf_cross_sum = np.sum(psf_cross[ext].data.flatten())
 
         assert pytest.approx(psf_sum, 0.005) == psf_cross_sum, "The energy conversation of the PSF before/after the " \

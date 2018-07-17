@@ -756,14 +756,14 @@ class JWInstrument(SpaceTelescopeInstrument):
                  fov_arcsec=None, fov_pixels=None, oversample=None, detector_oversample=None, fft_oversample=None,
                  overwrite=True, display=False, save_intermediates=False, return_intermediates=False,
                  normalize='first', add_distortion=True, crop_psf=True):
-        """ Compute a PSF and apply distortion effects.
+        """ Compute a PSF
 
         Parameters
         ----------
        add_distortion : bool
             If True, will add 2 new extensions to the PSF HDUlist object. The 2nd extension
             will be a distorted version of the over-sampled PSF and the 3rd extension will
-            be a distorted version of bthe detector-sampled PSF.
+            be a distorted version of the detector-sampled PSF.
         crop_psf : bool
             If True, when the PSF is rotated to match the detector's rotation in the focal
             plane, the PSF will be cropped so the shape of the distorted PSF will match it's
@@ -771,6 +771,10 @@ class JWInstrument(SpaceTelescopeInstrument):
 
 
         """
+
+        # Save new keyords to the options dictionary
+        self.options['add_distortion'] = add_distortion
+        self.options['crop_psf'] = crop_psf
 
         # Run poppy calc_psf
         psf = SpaceTelescopeInstrument.calc_psf(self, outfile=outfile, source=source, nlambda=nlambda,
@@ -781,47 +785,69 @@ class JWInstrument(SpaceTelescopeInstrument):
                                                 save_intermediates=save_intermediates,
                                                 return_intermediates=return_intermediates, normalize=normalize)
 
-        if return_intermediates:
-            psf, intermediates = psf
+        return psf
 
-        # If chosen to add distortion
+    # Allow users to see poppy calc_psf docstring too
+    ind0 = calc_psf.__doc__.index("add_distortion")  # pull the new parameters
+    ind1 = SpaceTelescopeInstrument.calc_psf.__doc__.index("Returns")  # pull where the parameters list ends
+    calc_psf.__doc__ = SpaceTelescopeInstrument.calc_psf.__doc__[0:ind1] + calc_psf.__doc__[ind0:] + \
+                       SpaceTelescopeInstrument.calc_psf.__doc__[ind1:]
+
+    def _calc_psf_format_output(self, result, options):
+        """
+        Add distortion to the created 1-extension PSF
+
+        Apply desired formatting to output file:
+                 - rebin to detector pixel scale if desired
+                 - set up FITS extensions if desired
+                 - output either the oversampled, rebinned, or both
+        Which image(s) get output depends on the value of the options['output_mode']
+        parameter. It may be set to 'Oversampled image' to output just the oversampled image,
+        'Detector sampled image' to output just the image binned down onto detector pixels, or
+        'Both as FITS extensions' to output the oversampled image as primary HDU and the
+        rebinned image as the first image extension. For convenience, the option can be set
+        to just 'oversampled', 'detector', or 'both'.
+
+        Modifies the 'result' HDUList object.
+
+        """
+        # Pull values from options dictionary
+        add_distortion = options.get('add_distortion', True)
+        crop_psf = options.get('crop_psf', True)
+
+        # Add distortion if set in calc_psf
         if add_distortion:
             if self.image_mask == "LRS slit" and self.pupil_mask == "P750L LRS grating":
                 raise NotImplementedError("Distortion is not implemented yet for MIRI LRS mode.")
 
-            # Set up new extensions to add distortion to
-            for ext in [0, 1]:
-                hdu_new = fits.ImageHDU(psf[ext].data, psf[ext].header)  # these will be the PSFs that are edited
-                psf.append(hdu_new)
-                ext_new = ext + 2
-                psf[ext_new].header["EXTNAME"] = psf[ext].header["EXTNAME"][0:4] + "DIST"  # change extension name
+            # Set up new extensions to add distortion to:
+            n_exts = len(result)
+            for ext in np.arange(n_exts):
+                hdu_new = fits.ImageHDU(result[ext].data, result[ext].header)  # these will be the PSFs that are edited
+                result.append(hdu_new)
+                ext_new = ext + n_exts
+                result[ext_new].header["EXTNAME"] = result[ext].header["EXTNAME"][0:4] + "DIST"  # change extension name
 
             # Apply distortions based on the instrument
             if self.name in ["NIRCam", "NIRISS", "FGS"]:
                 # Apply distortion effects: Rotation and Detector Distortion
-                psf_rotated = distortion.apply_rotation(psf, crop=crop_psf)  # apply rotation
+                psf_rotated = distortion.apply_rotation(result, crop=crop_psf)  # apply rotation
                 psf_distorted = distortion.apply_distortion(psf_rotated)  # apply siaf distortion
             elif self.name == "MIRI":
                 # Apply distortion effects to MIRI psf: SIAF and MIRI Scattering
-                psf_siaf = distortion.apply_distortion(psf)  # apply siaf distortion
-                psf_distorted = distortion.apply_miri_scattering(psf_siaf)  # apply miri scattering detector_effect
+                psf_siaf = distortion.apply_distortion(result)  # apply siaf distortion
+                psf_distorted = distortion.apply_miri_scattering(psf_siaf)  # apply scattering effect
             elif self.name == "NIRSpec":
                 # Apply distortion effects to NIRSpec psf: SIAF only
-                psf_distorted = distortion.apply_distortion(psf)  # apply siaf distortion
+                psf_distorted = distortion.apply_distortion(result)  # apply siaf distortion
 
-            # If keyword set, save out the PSF object again, with all it's extensions
-            if outfile is not None:
-                psf_distorted.writeto(outfile, overwrite=True, output_verify='ignore')
-                # already created in the 1st calc_psf
-                _log.info("Re-saved result with distortion to " + outfile)
+            # Edit the variable to match if input didn't request distortion
+            # (cannot set result = psf_distorted due to return method)
+            [result.append(fits.ImageHDU()) for i in np.arange(len(psf_distorted) - len(result))]
+            for ext in np.arange(len(psf_distorted)): result[ext] = psf_distorted[ext]
 
-            psf = psf_distorted
-
-        if return_intermediates:
-            return psf, intermediates
-
-        else:
-            return psf
+        # Rewrite result variable based on output_mode set:
+        SpaceTelescopeInstrument._calc_psf_format_output(self, result, options)
 
     # Allow users to see poppy calc_psf docstring too
     ind0 = calc_psf.__doc__.index("add_distortion")  # pull the new parameters

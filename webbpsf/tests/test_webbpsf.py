@@ -218,6 +218,20 @@ def do_test_set_position_from_siaf(iname, more_apertures=[]):
     for apname in more_apertures:
         inst.set_position_from_aperture_name(apname)
 
+
+def test_calc_psf_format_output():
+    """Test that requesting only the detector sampled
+    PSF returns the correct number of extensions
+    """
+    nir = webbpsf_core.NIRCam()
+    nir.options['output_mode'] = 'Detector sampled Image'
+
+    psf = nir.calc_psf(add_distortion=False)
+    assert len(psf) == 1
+
+    psf_dist = nir.calc_psf(add_distortion=True)
+    assert len(psf_dist) == 2
+
 #------------------    Utility Function Tests    ----------------------------
 
 
