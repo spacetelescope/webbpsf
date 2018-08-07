@@ -39,7 +39,7 @@ import pysiaf
 
 from . import conf
 from . import utils
-from . import version
+#from . import version
 from . import optics
 from . import DATA_VERSION_MIN
 from . import distortion
@@ -92,15 +92,15 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
     source_offset_theta : float
         Position angle for that offset, in degrees CCW.
     pupil_shift_x, pupil_shift_y : float
-        Relative shift of the intermediate (coronagraphic) pupil in X and Y 
+        Relative shift of the intermediate (coronagraphic) pupil in X and Y
         relative to the telescope entrance pupil, expressed as a decimal between -1.0-1.0
         Note that shifting an array too much will wrap around to the other side unphysically, but
         for reasonable values of shift this is a non-issue.  This option only has an effect for optical models that
         have something at an intermediate pupil plane between the telescope aperture and the detector.
     pupil_rotation : float
-        Relative rotation of the intermediate (coronagraphic) pupil relative to 
+        Relative rotation of the intermediate (coronagraphic) pupil relative to
         the telescope entrace pupil, expressed in degrees counterclockwise.
-        This option only has an effect for optical models that have something at 
+        This option only has an effect for optical models that have something at
         an intermediate pupil plane between the telescope aperture and the detector.
     rebin : bool
         For output files, write an additional FITS extension including a version of the output array
@@ -120,10 +120,10 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         to intermediate pupil and image planes whether or not they contain any actual optics, rather than
         taking the straight-to-MFT shortcut)
     no_sam : bool
-        Set this to prevent the SemiAnalyticMethod coronagraph mode from being 
-        used when possible, and instead do the brute-force FFT calculations. 
+        Set this to prevent the SemiAnalyticMethod coronagraph mode from being
+        used when possible, and instead do the brute-force FFT calculations.
         This is usually not what you want to do, but is available for comparison tests.
-        The SAM code will in general be much faster than the FFT method, 
+        The SAM code will in general be much faster than the FFT method,
         particularly for high oversampling.
 
     """
@@ -183,9 +183,9 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         """Filename *or* fits.HDUList for pupil OPD.
 
         This can be either a full absolute filename, or a relative name in which case it is
-        assumed to be within the instrument's `data/OPDs/` directory, or an actual 
-        fits.HDUList object corresponding to such a file. If the file contains a 
-        datacube, you may set this to a tuple (filename, slice) to select a 
+        assumed to be within the instrument's `data/OPDs/` directory, or an actual
+        fits.HDUList object corresponding to such a file. If the file contains a
+        datacube, you may set this to a tuple (filename, slice) to select a
         given slice, or else the first slice will be used."""
         self.pupil_radius = None  # Set when loading FITS file in _get_optical_system
 
@@ -627,10 +627,10 @@ class JWInstrument(SpaceTelescopeInstrument):
     pupilopd = None
     """Filename *or* fits.HDUList for JWST pupil OPD.
 
-    This can be either a full absolute filename, or a relative name in which 
-    case it is assumed to be within the instrument's `data/OPDs/` directory, 
-    or an actual fits.HDUList object corresponding to such a file. If the file 
-    contains a datacube, you may set this to a tuple (filename, slice) to 
+    This can be either a full absolute filename, or a relative name in which
+    case it is assumed to be within the instrument's `data/OPDs/` directory,
+    or an actual fits.HDUList object corresponding to such a file. If the file
+    contains a datacube, you may set this to a tuple (filename, slice) to
     select a given slice, or else the first slice will be used."""
 
     def __init__(self, *args, **kwargs):
@@ -2108,4 +2108,3 @@ def one_segment_pupil(segmentname):
 
     newpupil[0].header['SEGMENT'] = segment_official_name
     return newpupil
-
