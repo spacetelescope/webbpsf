@@ -801,12 +801,6 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         return psf
 
-    # # Allow users to see poppy calc_psf docstring too
-    # ind0 = calc_psf.__doc__.index("add_distortion")  # pull the new parameters
-    # ind1 = SpaceTelescopeInstrument.calc_psf.__doc__.index("Returns")  # pull where the parameters list ends
-    # calc_psf.__doc__ = SpaceTelescopeInstrument.calc_psf.__doc__[0:ind1] + calc_psf.__doc__[ind0:] + \
-    #                    SpaceTelescopeInstrument.calc_psf.__doc__[ind1:]
-
     def _calc_psf_format_output(self, result, options):
         """
         Add distortion to the created 1-extension PSF
