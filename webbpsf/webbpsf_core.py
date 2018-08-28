@@ -608,16 +608,18 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         return band
 
     @staticmethod
-    def include_other_docstrings():
+    def combine_docstrings():
+        """ Combine the docstrings of a method and earlier implementations of the same method in parent classes """
+
         def wrapper(func):
-            # Allow users to see poppy calc_psf docstring too
+            # Allow users to see Poppy calc_psf docstring along with the JWInstrument version
             if func.__name__ == "calc_psf":
                 ind0 = func.__doc__.index("add_distortion")  # pull the new parameters
                 ind1 = getattr(SpaceTelescopeInstrument, func.__name__).__doc__.index("Returns")  # end of parameters
                 func.__doc__ = getattr(SpaceTelescopeInstrument, func.__name__).__doc__[0:ind1] + func.__doc__[ind0:] \
                                + getattr(SpaceTelescopeInstrument, func.__name__).__doc__[ind1:]
-
             return func
+
         return wrapper
 
 
@@ -765,7 +767,7 @@ class JWInstrument(SpaceTelescopeInstrument):
                                            "[arcmin] Det. pos. in telescope V2,V3 coord sys"), after=True)
         result[0].header["APERNAME"] = (self._detectors[self._detector], "SIAF aperture name")
 
-    @SpaceTelescopeInstrument.include_other_docstrings()
+    @SpaceTelescopeInstrument.combine_docstrings()
     def calc_psf(self, outfile=None, source=None, nlambda=None, monochromatic=None,
                  fov_arcsec=None, fov_pixels=None, oversample=None, detector_oversample=None, fft_oversample=None,
                  overwrite=True, display=False, save_intermediates=False, return_intermediates=False,
