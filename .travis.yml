@@ -1,17 +1,13 @@
 language: python
 
 python:
-    - 2.7
     - 3.6
 
 # Setting sudo to false opts in to Travis-CI container-based builds.
 sudo: false
 
-# The apt packages below are needed for sphinx builds. A full list of packages
-# that can be included can be found here:
-#
-# https://github.com/travis-ci/apt-package-whitelist/blob/master/ubuntu-precise
-
+# The apt packages below are needed for sphinx builds, which can no longer
+# be installed with sudo apt-get.
 addons:
     apt:
         packages:
@@ -27,13 +23,17 @@ env:
         - NUMPY_VERSION=stable
         - ASTROPY_VERSION=stable
         - SETUP_CMD='test'
-        - PIP_DEPENDENCIES='git+https://github.com/mperrin/poppy.git#egg=poppy jwxml git+https://github.com/spacetelescope/pysiaf.git#egg=pysiaf'
+        - PIP_DEPENDENCIES='git+https://github.com/mperrin/poppy.git#egg=poppy jwxml git+https://github.com/spacetelescope/pysiaf.git#egg=pysiaf nbsphinx'
         - CONDA_DEPENDENCIES='scipy matplotlib six'
 
         # For headless testing of code that imports PyPlot:
         - MPLBACKEND=Agg
 
 matrix:
+
+    # Don't wait for allowed failures
+    fast_finish: true
+
     include:
         # do the actual tests against dev version of POPPY
 
@@ -50,9 +50,9 @@ matrix:
           env: SETUP_CMD='test' ASTROPY_VERSION=development
 
         # Try older numpy versions
-        - python: 2.7
+        - python: 3.4
           env: SETUP_CMD='test' NUMPY_VERSION=1.12
-        - python: 2.7
+        - python: 3.4
           env: SETUP_CMD='test' NUMPY_VERSION=1.11
 
         # Try released POPPY
