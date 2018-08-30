@@ -119,6 +119,10 @@ def apply_distortion(hdulist_or_filename=None, fill_value=0):
     xnew += xpix_center
     ynew += ypix_center
 
+    # 5) Shift the new indices so the center matches the sci indices
+    xnew += np.mean(xsci) - np.mean(xnew)
+    ynew += np.mean(ysci) - np.mean(ynew)
+
     # ###############################################
     # Interpolate from the original indices (xsci, ysci) on to new indices (xnew, ynew)
     # noinspection PyTypeChecker
