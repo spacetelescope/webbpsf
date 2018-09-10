@@ -1737,10 +1737,15 @@ class OTE_Linear_Model_WSS(OPD):
                     raise NotImplementedError("Only moves of type='pose' or 'roc' are supported.")
         self.update_opd()
 
+    def thermal_something(self, delta_time=0, start_angle=-5,
+                          end_angle=45, scaling=None, delay_update=False):
+        self.delta_time = delta_time
+
+        if not delay_update:
+            self.update_opd(display=display)
 
 
-    def update_opd(self, display=False, verbose=False, delta_time=0, start_angle=-5,
-                   end_angle=45, scaling=None):
+    def update_opd(self, display=False, verbose=False):
         """ Update the OPD based on the current linear model values.
 
         Users typically only need to call this directly if they have set the
@@ -1757,7 +1762,7 @@ class OTE_Linear_Model_WSS(OPD):
 
         for iseg, segname in enumerate(self.segnames[0:18]):
             pose_coeffs = self.segment_state[iseg].copy()
-            if np.all(pose_coeffs == 0) and np.all(sm_pose_coeffs == 0):
+            if np.all(pose_coeffs == 0) and np.all(sm_pose_coeffs == 0) and self.delta_time==0:
                 continue
             else:
 
@@ -1771,8 +1776,8 @@ class OTE_Linear_Model_WSS(OPD):
                 sm_sensitivities = self._get_seg_sensitivities_from_sm(segname)
                 hexike_coeffs_from_sm = sm_sensitivities * sm_pose_coeffs  # will be 5,9 array
                 hexike_coeffs_from_sm = hexike_coeffs_from_sm.sum(axis=0)  # sum to get 9
-                hexike_coeffs_from_thermal = thermal_slew_opd(delta_time, start_angle, end_angle, scaling) #KJB Spring 2018
-                hexike_coeffs_combined = hexike_coeffs + hexike_coeffs_from_sm #+ hexike_coeffs_from_thermal #FIXME until it's clear what format is needed, leave this commented out
+                hexike_coeffs_from_thermal = thermal_slew_opd(self.delta_time, self.start_angle, self.end_angle, self.scaling) #KJB Spring 2018
+                hexike_coeffs_combined = hexike_coeffs + hexike_coeffs_from_sm + hexike_coeffs_from_thermal #FIXME until it's clear what format is needed, leave this commented out
 
                 if verbose:
                     print("Need to move segment {} by {} ".format(segname, pose_coeffs.flatten()))
@@ -2197,6 +2202,8 @@ def thermal_slew_opd(delta_time, start_angle=-5., end_angle=45., scaling=None):
     end_angle: float
         The ending angle of the slew in DEGREES
     '''
+    if delta_time==0:
+        return np.zeros(size_of_coeffs)
     if not scaling:
         scaling = np.cos(np.radians(end_angle) - np.radians(start_angle)) / np.cos(np.radians(45.) - np.radians(-5.))
 
@@ -2234,7 +2241,7 @@ class OteThermalModel(object):
         # load fitting values table:
         mypath = os.path.dirname(os.path.abspath( __file__ ))+os.sep
         self._fit_data = fits.getdata(os.path.join(mypath, 'otelm',
-                                          'thermal_slew_OPD_per_seg_gn_tau_9z.fits'))
+                                          'thermal_slew_OPD_per_seg_gn_tau_9h.fits'))
         # grab the coefficients at this delta time
         if delta_time[0] == 0.0:
             self.coeffs = np.zeros(len(self.segids)*9) # 9 terms / segment
@@ -2279,7 +2286,7 @@ class OteThermalModel(object):
         for segid in self.segids:
             for i, (gain, tau) in enumerate(zip(self._fit_data[self._fit_data['segs'] == segid]['G_n'],
                                               self._fit_data[self._fit_data['segs'] == segid]['tau'])):
-                if self._fit_data['zs' == i]:
+                if self._fit_data['Hs' == i]:
                     coeffs.append(OteThermalModel.thermal_response_func(self.delta_time.value,
                                                                         tau, gain))
         return np.asarray(coeffs)
