@@ -1783,7 +1783,7 @@ class OTE_Linear_Model_WSS(OPD):
                                                                                          self.start_angle,
                                                                                          self.end_angle,
                                                                                          self.scaling) #KJB Spring 2018
-                self._global_zernike_coeffs[5] = global_focus_from_thermal
+                self._global_zernike_coeffs[5] = (global_focus_from_thermal * u.micrometer).to(u.meter) #FIXME units conversion based on Issue #225
                 hexike_coeffs_combined = hexike_coeffs + hexike_coeffs_from_sm + hexike_coeffs_from_thermal
 
                 if verbose:
