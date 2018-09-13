@@ -101,6 +101,10 @@ def apply_distortion(hdulist_or_filename=None, fill_value=0):
     # Going from Idl to Sci this way allows us to add in the distortion
     xsci, ysci = aper.idl_to_sci(xidl, yidl)
 
+    # 6) Shift the sci indices so they match the PSF's position again (moved slightly off from pysiaf calculation)
+    xsci += xpix_center - np.median(xsci)
+    ysci += ypix_center - np.median(ysci)
+
     # ###############################################
     # Create an array of indices (in pixels) that the final data will be interpolated on to
     # 1) Set up blank indices (in pixels)
@@ -118,10 +122,6 @@ def apply_distortion(hdulist_or_filename=None, fill_value=0):
     # 4) Shift the indices so they match where on the detector the PSF is located
     xnew += xpix_center
     ynew += ypix_center
-
-    # 5) Shift the new indices so the center matches the sci indices
-    xnew += np.mean(xsci) - np.mean(xnew)
-    ynew += np.mean(ysci) - np.mean(ynew)
 
     # ###############################################
     # Interpolate from the original indices (xsci, ysci) on to new indices (xnew, ynew)
