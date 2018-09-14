@@ -38,7 +38,6 @@ import astropy.table
 import astropy.io.fits as fits
 import astropy.units as u
 import logging
-import six
 
 import poppy
 import poppy.zernike as zernike
@@ -62,6 +61,7 @@ because of small differences in the parameter ranges used when
 deriving the linear approximations.
 
 """
+__location__ = os.path.dirname(os.path.abspath(__file__)) + os.sep
 
 
 ################################################################################
@@ -107,7 +107,6 @@ class OPD(poppy.FITSOpticalElement):
             slice of a datacube to load OPD from, if the selected extension contains a datacube.
 
         """
-        mypath = os.path.dirname(os.path.abspath(__file__)) + os.sep
         if opd is None and transmission is None:
             _log.debug('Neither a pupil mask nor OPD were specified. Using the default JWST pupil.')
             transmission = os.path.join(utils.get_webbpsf_data_path(), "jwst_pupil_RevW_npix1024.fits.gz")
@@ -387,7 +386,8 @@ class OPD(poppy.FITSOpticalElement):
 
         offset = 0.2 if show_axes else 0
 
-        if ax is None: ax = plt.gca()
+        if ax is None:
+            ax = plt.gca()
         label = ax.text(cx + offset, cy + offset, segment, color=color, horizontalalignment='center', verticalalignment='center')
 
         if show_axes:
@@ -581,13 +581,13 @@ class OTE_Linear_Model_Elliott(OPD):
 
         OPD.__init__(self, opd=opd, opd_index=opd_index, transmission=transmission)
 
-        mypath = os.path.dirname(os.path.abspath(__file__)) + os.sep
-        self._sensitivities = astropy.table.Table.read(os.path.join(mypath, 'otelm', 'seg_sens.txt'), format='ascii', delimiter='\t')
+        self._sensitivities = astropy.table.Table.read(os.path.join(__location__, 'otelm', 'seg_sens.txt'), format='ascii', delimiter='\t')
         self.state = {}
         self.remove_piston_tip_tilt = rm_ptt
 
         self._opd_original = self.opd.copy()
-        if zero: self.zero()
+        if zero:
+            self.zero()
 
     # ---- overall state manipulation
 
@@ -832,7 +832,8 @@ class OTE_Linear_Model_Elliott(OPD):
             self._record(segment, type, vector)
             self._apply_zernikes_to_seg(segment, zernike_coeffs)
 
-            if display: self.display()
+            if display:
+                self.display()
 
     def tilt(self, segment, tiltX=0.0, tiltY=0.0, tiltZ=0.0, unit='urad', display=False, coordsys='elliott'):
         """ Tilt/rotate a segment some angle around X, Y, or Z.
@@ -869,7 +870,8 @@ class OTE_Linear_Model_Elliott(OPD):
 
         # new sensitivity matrices are in urad for  alpha and beta, mrad for gamma.
         # first just convert all to urad.
-        if unit.endswith('s'): unit = unit[:-1]
+        if unit.endswith('s'):
+            unit = unit[:-1]
         unit = unit.lower()
         if unit == 'urad':
             pass
@@ -927,7 +929,8 @@ class OTE_Linear_Model_Elliott(OPD):
         vector = np.array([distX, distY, distZ])
 
         self.opd_header.add_history('Displacement: %s %s' % (str(tuple(vector)), unit))
-        if unit.endswith('s'): unit = unit[:-1]
+        if unit.endswith('s'):
+            unit = unit[:-1]
         unit = unit.lower()
         if unit == 'micron' or unit == 'um':
             pass
@@ -978,7 +981,8 @@ class OTE_Linear_Model_Elliott(OPD):
 
         _log.info("added sine wave: (%.2f, %.2f, %.2f)" % (cyclesX, cyclesY, amplitude))
 
-        if display: self.display()
+        if display:
+            self.display()
 
     def perturb_all(self, display=True, verbose=True, **kwargs):
         """ Randomly perturb all segments
@@ -1073,9 +1077,8 @@ class OTE_Linear_Model_WSS(OPD):
 
         OPD.__init__(self, name=name, opd=opd, opd_index=opd_index, transmission=transmission, segment_mask_file=segment_mask_file)
 
-        mypath = os.path.dirname(os.path.abspath(__file__)) + os.sep
         # load influence function table:
-        self._influence_fns = astropy.table.Table.read(os.path.join(mypath, 'otelm', 'JWST_influence_functions_control_with_sm.fits'))
+        self._influence_fns = astropy.table.Table.read(os.path.join(__location__, 'otelm', 'JWST_influence_functions_control_with_sm.fits'))
         self._control_modes = ['Xtilt', 'Ytilt', 'Piston', 'Clocking', 'Radial', 'ROC']
         self._sm_control_modes = ['Xtilt', 'Ytilt', 'Xtrans', 'Ytrans', 'Piston']
         # controllable modes in WAS order; yes it's not an obvious ordering but that's the order of the
@@ -1098,7 +1101,8 @@ class OTE_Linear_Model_WSS(OPD):
                                            [-0.382703, -1.96286],  # Secs ABC4
                                            [-1.52316, 1.342146]])  # Segs ABC6
             self._jsc_acf_centers_pixels = self.shape[0] / 2 + self._jsc_acf_cens / self.pixelscale.value
-        if zero: self.zero()
+        if zero:
+            self.zero()
 
     # ---- overall state manipulation
 
@@ -1167,7 +1171,8 @@ class OTE_Linear_Model_WSS(OPD):
         assert len(table) == len(self._control_modes), 'Got wrong number of expected records from the table'
 
         for i, label in enumerate(self._control_modes):
-            if table[i]['control_mode'] != self._control_modes[i]: raise RuntimeError("Influence function table has unexpected ordering")
+            if table[i]['control_mode'] != self._control_modes[i]:
+                raise RuntimeError("Influence function table has unexpected ordering")
             for h in range(nhexike):
                 coeffs[i, h] = table[i]['Hexike_{}'.format(h)]
 
@@ -1194,7 +1199,8 @@ class OTE_Linear_Model_WSS(OPD):
         assert len(table) == len(self._sm_control_modes), 'Got wrong number of expected records from the table'
 
         for i, label in enumerate(self._sm_control_modes):
-            if table[i]['control_mode'] != self._sm_control_modes[i]: raise RuntimeError("Influence function table has unexpected ordering")
+            if table[i]['control_mode'] != self._sm_control_modes[i]:
+                raise RuntimeError("Influence function table has unexpected ordering")
             for h in range(nhexike):
                 coeffs[i, h] = table[i]['Hexike_{}'.format(h)]
 
@@ -1345,7 +1351,8 @@ class OTE_Linear_Model_WSS(OPD):
 
             # sensitivity matrices are in microns per microradian
             # so convert all to urad.
-            if rot_unit.endswith('s'): rot_unit = rot_unit[:-1]
+            if rot_unit.endswith('s'):
+                rot_unit = rot_unit[:-1]
             rot_unit = rot_unit.lower()
             if rot_unit == 'urad':
                 pass
@@ -1380,7 +1387,8 @@ class OTE_Linear_Model_WSS(OPD):
         vector = np.asarray([piston, radial], dtype=float)
         if np.abs(vector).sum() > 0:
             # influence functions are in microns WFE per micron, so convert all to microns
-            if trans_unit.endswith('s'): trans_unit = trans_unit[:-1]
+            if trans_unit.endswith('s'):
+                trans_unit = trans_unit[:-1]
             trans_unit = trans_unit.lower()
             if trans_unit == 'micron' or trans_unit == 'um':
                 pass
@@ -1480,7 +1488,8 @@ class OTE_Linear_Model_WSS(OPD):
 
             # sensitivity matrices are in microns per microradian
             # so convert all to urad.
-            if rot_unit.endswith('s'): rot_unit = rot_unit[:-1]
+            if rot_unit.endswith('s'):
+                rot_unit = rot_unit[:-1]
             rot_unit = rot_unit.lower()
             if rot_unit == 'urad':
                 pass
@@ -1515,7 +1524,8 @@ class OTE_Linear_Model_WSS(OPD):
         vector = np.asarray([piston, radial], dtype=float)
         if np.abs(vector).sum() > 0:
             # influence functions are in microns WFE per micron, so convert all to microns
-            if trans_unit.endswith('s'): trans_unit = trans_unit[:-1]
+            if trans_unit.endswith('s'):
+                trans_unit = trans_unit[:-1]
             trans_unit = trans_unit.lower()
             if trans_unit == 'micron' or trans_unit == 'um':
                 pass
@@ -1581,7 +1591,8 @@ class OTE_Linear_Model_WSS(OPD):
 
             # sensitivity matrices are in microns per microradian
             # so convert all to urad.
-            if rot_unit.endswith('s'): rot_unit = rot_unit[:-1]
+            if rot_unit.endswith('s'):
+                rot_unit = rot_unit[:-1]
             rot_unit = rot_unit.lower()
             if rot_unit == 'urad':
                 pass
@@ -1602,7 +1613,8 @@ class OTE_Linear_Model_WSS(OPD):
         vector = np.asarray([xtrans, ytrans, piston])
         if np.abs(vector).sum() > 0:
 
-            if trans_unit.endswith('s'): trans_unit = trans_unit[:-1]
+            if trans_unit.endswith('s'):
+                trans_unit = trans_unit[:-1]
             trans_unit = trans_unit.lower()
             if trans_unit == 'micron' or trans_unit == 'um':
                 pass
@@ -1664,7 +1676,8 @@ class OTE_Linear_Model_WSS(OPD):
 
         vector = np.asarray(zvector)
         # Convert to meters, since that's what the OPDs are in
-        if unit.endswith('s'): unit = unit[:-1]
+        if unit.endswith('s'):
+            unit = unit[:-1]
         unit = unit.lower()
         if unit == 'micron' or unit == 'um':
             vector *= 1e-6
@@ -1701,7 +1714,7 @@ class OTE_Linear_Model_WSS(OPD):
                         raise NotImplementedError("Only local moves supported!")
 
                     # FIXME - consider whether we should check for
-                    # heterogenous sets of units here...
+                    # heterogeneous sets of units here...
                     rot_unit = update.units['X_TILT']
                     trans_unit = update.units['X_TRANS']
 
@@ -1789,7 +1802,7 @@ def enable_adjustable_ote(instr, jsc=False):
     Set up a WebbPSF instrument instance to have a modifiable OTE
     wavefront error OPD via an OTE linear optical model (LOM).
 
-    Paramters
+    Parameters
     ---------
     inst : WebbPSF Instrument instance
         an instance of one of the WebbPSF instrument classes.
@@ -1798,7 +1811,7 @@ def enable_adjustable_ote(instr, jsc=False):
 
     Returns
     --------
-    a modified copy of that instrumet set up to use the LOM, and
+    a modified copy of that instrument set up to use the LOM, and
     the associated instance of the LOM.
 
     """
@@ -2037,8 +2050,10 @@ def segment_primary(infile='JWpupil.fits'):
         plt.text(mx, my, str(i), color='k')
 
     segs = ['A' + str(i + 1) for i in range(6)]
-    for i in range(6): segs.append('B' + str(i + 1))
-    for i in range(6): segs.append('C' + str(i + 1))
+    for i in range(6):
+        segs.append('B' + str(i + 1))
+    for i in range(6):
+        segs.append('C' + str(i + 1))
     seg_inds = [9, 18, 10, 4, 8, 17, 15, 14, 5, 1, 3, 11, 13, 7, 2, 0, 6, 12]
 
     result = np.zeros_like(res3)
@@ -2052,7 +2067,8 @@ def segment_primary(infile='JWpupil.fits'):
 
     plt.subplot(122)
     plt.imshow(result)
-    for i in range(18): plt.text(mxs[i], mys[i], segs[i], color='k', horizontalalignment='center', verticalalignment='center')
+    for i in range(18):
+        plt.text(mxs[i], mys[i], segs[i], color='k', horizontalalignment='center', verticalalignment='center')
 
     hdu = fits.PrimaryHDU((result * im).astype(np.uint8))
     for i in range(18):
