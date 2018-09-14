@@ -110,7 +110,7 @@ class OPD(poppy.FITSOpticalElement):
         mypath = os.path.dirname(os.path.abspath(__file__)) + os.sep
         if opd is None and transmission is None:
             _log.debug('Neither a pupil mask nor OPD were specified. Using the default JWST pupil.')
-            transmission = os.path.join(utils.get_webbpsf_data_path(), "jwst_pupil_revW_npix1024.fits.gz")
+            transmission = os.path.join(utils.get_webbpsf_data_path(), "jwst_pupil_RevW_npix1024.fits.gz")
 
         super(OPD, self).__init__(name='Modified OPD',
                                   opd=opd, transmission=transmission,
