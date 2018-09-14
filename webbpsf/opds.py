@@ -186,7 +186,7 @@ class OPD(poppy.FITSOpticalElement):
         return output
 
     def as_fits(self, include_pupil=True):
-        """ Return an OPD as a fits.HDUList object
+        """ Return the OPD as a fits.HDUList object
 
         Parameters
         -----------
@@ -194,14 +194,14 @@ class OPD(poppy.FITSOpticalElement):
             Include the pupil mask as a FITS extension?
         """
 
-        output = fits.HDUList([self._opdHDU])
-        output[0].header.update('EXTNAME', 'OPD')
+        output = fits.HDUList([fits.ImageHDU(self.opd)])
+        output[0].header['EXTNAME'] = 'OPD'
+        output[0].header['BUNIT'] = 'meter'  # Will this always be the case?
+
         if include_pupil:
-            # puphdu= fits.ImageHDU(self._pupilHDU, name='PUPIL')
-            self.amplitude_header.update('EXTNAME', 'PUPIL')
+            self.amplitude_header['EXTNAME'] = 'PUPIL'
             output.append(fits.ImageHDU(self.amplitude, self.amplitude_header))
-            # hdus.append(puphdu)
-            # hdus[0].header.update("EXTEND",'True', 'File may contain extensions')
+
         return output
 
     def writeto(self, outname, clobber=True, **kwargs):
