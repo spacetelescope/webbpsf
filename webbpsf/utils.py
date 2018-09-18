@@ -655,3 +655,22 @@ nlambda={nlambda:d}""".format(nlambda=nlambda))
 
 
     return _run_benchmark(timer, iterations=iterations)
+
+
+def combine_docstrings(cls):
+    """ Combine the docstrings of a method and earlier implementations of the same method in parent classes """
+    for name, func in cls.__dict__.items():
+
+        # Allow users to see the Poppy calc_psf docstring along with the JWInstrument version
+        if name == 'calc_psf':
+            jwinstrument_class = cls
+            spacetelescope_class = cls.__base__
+
+            ind0 = getattr(jwinstrument_class, 'calc_psf').__doc__.index("add_distortion")  # pull the new parameters
+            ind1 = getattr(spacetelescope_class, 'calc_psf').__doc__.index("Returns")  # end of parameters
+
+            func.__doc__ = getattr(spacetelescope_class, 'calc_psf').__doc__[0:ind1] + \
+                           getattr(jwinstrument_class, 'calc_psf').__doc__[ind0:] + \
+                           getattr(spacetelescope_class, 'calc_psf').__doc__[ind1:]
+
+    return cls

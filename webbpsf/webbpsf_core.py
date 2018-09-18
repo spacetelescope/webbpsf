@@ -607,25 +607,10 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         filterfits.close()
         return band
 
-    @staticmethod
-    def combine_docstrings():
-        """ Combine the docstrings of a method and earlier implementations of the same method in parent classes """
-
-        def wrapper(func):
-            # Allow users to see Poppy calc_psf docstring along with the JWInstrument version
-            if func.__name__ == "calc_psf":
-                ind0 = func.__doc__.index("add_distortion")  # pull the new parameters
-                ind1 = getattr(SpaceTelescopeInstrument, func.__name__).__doc__.index("Returns")  # end of parameters
-                func.__doc__ = getattr(SpaceTelescopeInstrument, func.__name__).__doc__[0:ind1] + func.__doc__[ind0:] \
-                               + getattr(SpaceTelescopeInstrument, func.__name__).__doc__[ind1:]
-            return func
-
-        return wrapper
-
 
 #######  JWInstrument classes  #####
 
-
+@utils.combine_docstrings
 class JWInstrument(SpaceTelescopeInstrument):
     """ Superclass for all JWST instruments
 
@@ -767,7 +752,6 @@ class JWInstrument(SpaceTelescopeInstrument):
                                            "[arcmin] Det. pos. in telescope V2,V3 coord sys"), after=True)
         result[0].header["APERNAME"] = (self._detectors[self._detector], "SIAF aperture name")
 
-    @SpaceTelescopeInstrument.combine_docstrings()
     def calc_psf(self, outfile=None, source=None, nlambda=None, monochromatic=None,
                  fov_arcsec=None, fov_pixels=None, oversample=None, detector_oversample=None, fft_oversample=None,
                  overwrite=True, display=False, save_intermediates=False, return_intermediates=False,
@@ -858,12 +842,6 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         # Rewrite result variable based on output_mode set:
         SpaceTelescopeInstrument._calc_psf_format_output(self, result, options)
-
-    # Allow users to see poppy calc_psf docstring too
-    ind0 = calc_psf.__doc__.index("add_distortion")  # pull the new parameters
-    ind1 = SpaceTelescopeInstrument.calc_psf.__doc__.index("Returns")  # pull where the parameters list ends
-    calc_psf.__doc__ = SpaceTelescopeInstrument.calc_psf.__doc__[0:ind1] + calc_psf.__doc__[ind0:] + \
-                       SpaceTelescopeInstrument.calc_psf.__doc__[ind1:]
 
     def interpolate_was_opd(self, array, newdim):
         """ Interpolates an input 2D  array to any given size.
