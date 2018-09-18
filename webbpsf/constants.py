@@ -1,4 +1,3 @@
-from __future__ import division, print_function, absolute_import, unicode_literals
 # This file contains constants and data that do not fit in the data
 # package for one reason or another. It could be that they are in a
 # data structure that doesn't serialize well or they're too small to
