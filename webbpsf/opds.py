@@ -2301,5 +2301,4 @@ class OteThermalModel(object):
         global_focus = OteThermalModel.thermal_response_func(self.delta_time,
                                                              self._fit_data[self._fit_data['segs'] == "SM"]['tau'],
                                                              self._fit_data[self._fit_data['segs'] == "SM"]['G_n'])
-        #FIXME units conversion based on Issue #225 UNITS????
         return coeffs_seg, global_focus
