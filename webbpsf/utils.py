@@ -1,6 +1,4 @@
-from __future__ import division, print_function, absolute_import, unicode_literals
 import os, sys
-import six
 import astropy.io.fits as fits
 import numpy as np
 import matplotlib.pyplot as plt
@@ -439,7 +437,7 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, displa
     from .webbpsf_core import Instrument
     from poppy import display_psf
 
-    if isinstance(HDUlist_or_filename, six.string_types):
+    if isinstance(HDUlist_or_filename, str):
         HDUlist = fits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename

@@ -1,4 +1,3 @@
-from __future__ import division, print_function, absolute_import, unicode_literals
 import os
 from astropy.io import fits
 import numpy as N
