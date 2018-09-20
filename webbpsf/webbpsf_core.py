@@ -760,7 +760,7 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         Parameters
         ----------
-       add_distortion : bool
+        add_distortion : bool
             If True, will add 2 new extensions to the PSF HDUlist object. The 2nd extension
             will be a distorted version of the over-sampled PSF and the 3rd extension will
             be a distorted version of the detector-sampled PSF.
