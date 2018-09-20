@@ -22,7 +22,6 @@ Code by Marshall Perrin <mperrin@stsci.edu>
 import os
 import glob
 import time
-import six
 import copy
 from collections import namedtuple, OrderedDict
 import numpy as np
@@ -401,10 +400,10 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
             optsys.source_offset_theta = options['source_offset_theta']
 
         # ---- set pupil OPD
-        if isinstance(self.pupilopd, six.string_types):  # simple filename
+        if isinstance(self.pupilopd, str):  # simple filename
             opd_map = self.pupilopd if os.path.exists(self.pupilopd) else \
                       os.path.join(self._datapath, "OPD", self.pupilopd)
-        elif hasattr(self.pupilopd, '__getitem__') and isinstance(self.pupilopd[0], six.string_types):
+        elif hasattr(self.pupilopd, '__getitem__') and isinstance(self.pupilopd[0], str):
             # tuple with filename and slice
             opd_map = (self.pupilopd[0] if os.path.exists(self.pupilopd[0])
                        else os.path.join(self._datapath, "OPD", self.pupilopd[0]),
@@ -425,7 +424,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
             pupil_optic = optsys.add_pupil(self.pupil)
         else:
             # wrap in an optic and supply to POPPY
-            if isinstance(self.pupil, six.string_types):  # simple filename
+            if isinstance(self.pupil, str):  # simple filename
                 if os.path.exists(self.pupil):
                     pupil_transmission = self.pupil
                 else:
