@@ -1769,6 +1769,13 @@ class OTE_Linear_Model_WSS(OPD):
         sm_pose_coeffs = self.segment_state[sm].copy()[0:5]  # 6th row is n/a for SM
         sm_pose_coeffs.shape = (5, 1)  # to allow broadcasting below
 
+        #FIXME This is here because there is no condition if we dont do thermal slew... YET
+        try:
+            self.delta_time
+        except AttributeError:
+            self.delta_time = 0.0
+
+
         for iseg, segname in enumerate(self.segnames[0:18]):
             pose_coeffs = self.segment_state[iseg].copy()
             if np.all(pose_coeffs == 0) and np.all(sm_pose_coeffs == 0) and self.delta_time==0:
@@ -1800,7 +1807,8 @@ class OTE_Linear_Model_WSS(OPD):
 
                 self._apply_hexikes_to_seg(segname, hexike_coeffs_combined)
         #  Add global focus term from time-variant max thermal slew OPDs
-        self._global_zernike_coeffs[5] = global_focus_from_thermal
+        # FIXME this wont work if thermal_slew hasn't been called.
+        #self._global_zernike_coeffs[5] = global_focus_from_thermal
 
         # Apply Global Zernikes
         if not np.all(self._global_zernike_coeffs == 0):
