@@ -849,12 +849,6 @@ class JWInstrument(SpaceTelescopeInstrument):
         # Rewrite result variable based on output_mode set:
         SpaceTelescopeInstrument._calc_psf_format_output(self, result, options)
 
-    # Allow users to see poppy calc_psf docstring too
-    ind0 = calc_psf.__doc__.index("add_distortion")  # pull the new parameters
-    ind1 = SpaceTelescopeInstrument.calc_psf.__doc__.index("Returns")  # pull where the parameters list ends
-    calc_psf.__doc__ = SpaceTelescopeInstrument.calc_psf.__doc__[0:ind1] + calc_psf.__doc__[ind0:] + \
-                       SpaceTelescopeInstrument.calc_psf.__doc__[ind1:]
-
     def interpolate_was_opd(self, array, newdim):
         """ Interpolates an input 2D  array to any given size.
 
