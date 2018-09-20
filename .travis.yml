@@ -49,10 +49,10 @@ matrix:
         - python: 3.6
           env: SETUP_CMD='test' ASTROPY_VERSION=development
 
-        # Try older numpy versions
-        - python: 3.4
+        # Try minimum supported versions
+        - python: 3.5
           env: SETUP_CMD='test' NUMPY_VERSION=1.12
-        - python: 3.4
+        - python: 3.5
           env: SETUP_CMD='test' NUMPY_VERSION=1.11
 
         # Try released POPPY
