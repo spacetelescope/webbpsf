@@ -1,6 +1,4 @@
-from __future__ import division, print_function, absolute_import, unicode_literals
 import os, sys
-import six
 import astropy.io.fits as fits
 import numpy as np
 import matplotlib.pyplot as plt
@@ -439,7 +437,7 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, displa
     from .webbpsf_core import Instrument
     from poppy import display_psf
 
-    if isinstance(HDUlist_or_filename, six.string_types):
+    if isinstance(HDUlist_or_filename, str):
         HDUlist = fits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
@@ -655,3 +653,22 @@ nlambda={nlambda:d}""".format(nlambda=nlambda))
 
 
     return _run_benchmark(timer, iterations=iterations)
+
+
+def combine_docstrings(cls):
+    """ Combine the docstrings of a method and earlier implementations of the same method in parent classes """
+    for name, func in cls.__dict__.items():
+
+        # Allow users to see the Poppy calc_psf docstring along with the JWInstrument version
+        if name == 'calc_psf':
+            jwinstrument_class = cls
+            spacetelescope_class = cls.__base__
+
+            ind0 = getattr(jwinstrument_class, 'calc_psf').__doc__.index("add_distortion")  # pull the new parameters
+            ind1 = getattr(spacetelescope_class, 'calc_psf').__doc__.index("Returns")  # end of parameters
+
+            func.__doc__ = getattr(spacetelescope_class, 'calc_psf').__doc__[0:ind1] + \
+                           getattr(jwinstrument_class, 'calc_psf').__doc__[ind0:] + \
+                           getattr(spacetelescope_class, 'calc_psf').__doc__[ind1:]
+
+    return cls
