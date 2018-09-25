@@ -1,12 +1,9 @@
-from __future__ import division, print_function, absolute_import, unicode_literals
-
 import copy
 
 import astropy.convolution
 import astropy.io.fits as fits
 import numpy as np
 import pysiaf
-import six
 from scipy.interpolate import griddata
 from scipy.ndimage.interpolation import rotate
 
@@ -48,7 +45,7 @@ def apply_distortion(hdulist_or_filename=None, fill_value=0):
     """
 
     # Read in input PSF
-    if isinstance(hdulist_or_filename, six.string_types):
+    if isinstance(hdulist_or_filename, str):
         hdu_list = fits.open(hdulist_or_filename)
     elif isinstance(hdulist_or_filename, fits.HDUList):
         hdu_list = hdulist_or_filename
@@ -170,7 +167,7 @@ def apply_rotation(hdulist_or_filename=None, rotate_value=None, crop=True):
 
     """
     # Read in input PSF
-    if isinstance(hdulist_or_filename, six.string_types):
+    if isinstance(hdulist_or_filename, str):
         hdu_list = fits.open(hdulist_or_filename)
     elif isinstance(hdulist_or_filename, fits.HDUList):
         hdu_list = hdulist_or_filename
@@ -274,7 +271,7 @@ def apply_miri_scattering(hdulist_or_filename=None, kernel_amp=None):
     """
 
     # Read in input PSF
-    if isinstance(hdulist_or_filename, six.string_types):
+    if isinstance(hdulist_or_filename, str):
         hdu_list = fits.open(hdulist_or_filename)
     elif isinstance(hdulist_or_filename, fits.HDUList):
         hdu_list = hdulist_or_filename

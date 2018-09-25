@@ -1,4 +1,3 @@
-from __future__ import division, print_function, absolute_import, unicode_literals
 import os
 import poppy
 import poppy.utils

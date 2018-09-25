@@ -49,10 +49,10 @@ matrix:
         - python: 3.6
           env: SETUP_CMD='test' ASTROPY_VERSION=development
 
-        # Try older numpy versions
-        - python: 3.4
+        # Try minimum supported versions
+        - python: 3.5
           env: SETUP_CMD='test' NUMPY_VERSION=1.12
-        - python: 3.4
+        - python: 3.5
           env: SETUP_CMD='test' NUMPY_VERSION=1.11
 
         # Try released POPPY
@@ -99,7 +99,6 @@ script:
 
 after_success:
     # coveralls.io integration
-    # - if [[ $SETUP_CMD == 'test --coverage' && TRAVIS_REPO_SLUG == "mperrin/webbpsf" ]]; then coveralls --rcfile='webbpsf/tests/coveragerc'; fi
     - if [[ $SETUP_CMD == 'test --coverage' ]]; then coveralls --rcfile='webbpsf/tests/coveragerc'; fi
 
 notifications:
