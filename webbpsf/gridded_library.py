@@ -296,18 +296,19 @@ class CreatePSFLibrary:
             # Set filter
             self.webb.filter = filt
 
-            # Create an array to fill ([SCA, j, i, y, x])
-            psf_size = self.fov_pixels * self.oversample
-            psf_arr = np.empty((self.length, self.length, psf_size, psf_size))
-
             # For every detector
             for k, det in enumerate(det_list):
                 print("  Running detector: {}".format(det))
 
+                # Create an array to fill ([SCA, j, i, y, x])
+                psf_size = self.fov_pixels * self.oversample
+                psf_arr = np.empty((self.length, self.length, psf_size, psf_size))
+
                 self.webb.detector = det
 
                 # For each of the 9 locations on the detector (loc = tuple = (x,y))
-                for (i, j), loc in zip(self.ij_list, self.location_list):
+                for i, loc in enumerate(self.location_list):
+                    print(loc)
                     self.webb.detector_position = loc  # (X,Y) - line 286 in webbpsf_core.py
 
                     # Create PSF
@@ -319,7 +320,7 @@ class CreatePSFLibrary:
                     psf_conv = astropy.convolution.convolve(psf[ext].data, kernel)
 
                     # Add PSF to 5D array
-                    psf_arr[j, i, :, :] = psf_conv
+                    psf_arr[i, :, :] = psf_conv
 
                 # Write header
                 header = fits.Header()
@@ -335,10 +336,8 @@ class CreatePSFLibrary:
                 header["OVERSAMP"] = (self.oversample, "Oversampling factor for FFTs in computation")
                 header["NWAVES"] = (psf[ext].header["NWAVES"], "Number of wavelengths used in calculation")
 
-                for h, ij in enumerate(self.ij_list):  # these were originally written out in (i,j) and (x,y)
-                    header["DET_JI{}".format(h)] = (str((ij[1], ij[0])),
-                                                    "The #{} PSF's (j,i) detector position".format(h))
-                    header["DET_YX{}".format(h)] = (str((self.location_list[h][1], self.location_list[h][0])),
+                for h, loc in enumerate(self.location_list):  # these were originally written out in (i,j) and (x,y)
+                    header["DET_YX{}".format(h)] = (str((loc[1], loc[0])),
                                                     "The #{} PSF's (y,x) detector pixel position".format(h))
 
                 header["NUM_PSFS"] = (self.num_psfs, "The total number of fiducial PSFs")
