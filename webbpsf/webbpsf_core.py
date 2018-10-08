@@ -46,6 +46,7 @@ from . import version
 from . import optics
 from . import DATA_VERSION_MIN
 from . import distortion
+from . import gridded_library
 
 try:
     import pysynphot
@@ -919,6 +920,28 @@ class JWInstrument(SpaceTelescopeInstrument):
             outhdu.close()
 
         return fits.HDUList(fits.ImageHDU(newopd, header=hdr))
+
+    def psf_grid(self, filters=None, detectors=None, num_psfs=16, psf_location=(1024, 1024),
+                 add_distortion=True, fov_pixels=101, oversample=5, opd_type="requirements", opd_number=0,
+                 save=True, fileloc=None, filename=None, overwrite=True, **kwargs):
+        """Create a grid of PSFs to be used XXX
+        Use combine_docstrings method here???? That would be a long docstring here otherwise..."""
+
+        # Keywords that could be set before the method call
+        if filters is None:
+            filters = self.filter
+        if detectors is None:
+            detectors = self.detector
+
+        inst = gridded_library.CreatePSFLibrary(webbinst=self, filters=filters, detectors=detectors,
+                                                num_psfs=num_psfs, psf_location=psf_location,
+                                                add_distortion=add_distortion, fov_pixels=fov_pixels,
+                                                oversample=oversample, opd_type=opd_type, opd_number=opd_number,
+                                                save=save, fileloc=fileloc, filename=filename, overwrite=overwrite,
+                                                **kwargs)
+        grid = inst.create_files()
+
+        return grid
 
 
 class MIRI(JWInstrument):
