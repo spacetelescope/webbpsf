@@ -334,25 +334,11 @@ class CreatePSFLibrary:
                 header["OVERSAMP"] = (self.oversample, "Oversampling factor for FFTs in computation")
                 header["NWAVES"] = (psf[ext].header["NWAVES"], "Number of wavelengths used in calculation")
 
-                for h, loc in enumerate(self.location_list):  # these were originally written out in (i,j) and (x,y)
+                for h, loc in enumerate(self.location_list):  # these were originally written out in (x,y)
                     header["DET_YX{}".format(h)] = (str((loc[1], loc[0])),
                                                     "The #{} PSF's (y,x) detector pixel position".format(h))
 
                 header["NUM_PSFS"] = (self.num_psfs, "The total number of fiducial PSFs")
-
-                # The range of location values
-                if self.num_psfs == 1:
-                    # In this case, loc_list is the single x and y value (x may not equal y)
-                    header["I0_X"] = (self.loc_list[0], "The x pixel value for i=0 (AXIS4)")
-                    header["J0_Y"] = (self.loc_list[1], "The y pixel value for j=0 (AXIS3)")
-                else:
-                    last = len(self.loc_list) - 1
-                    header["I0_X"] = (self.loc_list[0], "The x pixel value for i=0 (AXIS4)")
-                    header["I{}_X".format(last)] = (self.loc_list[-1],
-                                                    "The x pixel value for i={} (final value; AXIS4)".format(last))
-                    header["J0_Y"] = (self.loc_list[0], "The y pixel value for j=0 (AXIS3)")
-                    header["J{}_Y".format(last)] = (self.loc_list[-1],
-                                                    "The y pixel value for j={} (final value; AXIS3)".format(last))
 
                 # Distortion information
                 if self.add_distortion:
@@ -379,11 +365,10 @@ class CreatePSFLibrary:
                 header["DATAVERS"] = (psf[ext].header["DATAVERS"], "WebbPSF reference data files version ")
 
                 # Add descriptor for how the file was made
-                header["COMMENT"] = "For a given instrument, 1 file per filter in the form [SCA, j, i, y, x]"
-                header["COMMENT"] = "where (j,i) is the PSF position on the detector grid (integer "
-                header["COMMENT"] = "positions) and (y,x) is the 2D PSF. The order of the detectors can be "
-                header["COMMENT"] = "found under the  header DETNAME* keywords and the order of the fiducial "
-                header["COMMENT"] = "PSFs ((j,i) and (y,x)) under the header DET_JI*/DET_YX* keywords"
+                header["COMMENT"] = "For a given instrument, filter, and detector 1 file is produced in "
+                header["COMMENT"] = "the form [i, y, x] where i is the PSF position on the detector grid "
+                header["COMMENT"] = "and (y,x) is the 2D PSF. The order of PSFs can be found under the "
+                header["COMMENT"] = "header DET_YX* keywords"
 
                 # Add header labels
                 header.insert("INSTRUME", ('', ''))
