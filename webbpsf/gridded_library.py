@@ -302,7 +302,7 @@ class CreatePSFLibrary:
 
                 # Create an array to fill ([SCA, j, i, y, x])
                 psf_size = self.fov_pixels * self.oversample
-                psf_arr = np.empty((self.length, self.length, psf_size, psf_size))
+                psf_arr = np.empty((self.length**2, psf_size, psf_size))
 
                 self.webb.detector = det
 
