@@ -921,7 +921,7 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         return fits.HDUList(fits.ImageHDU(newopd, header=hdr))
 
-    def psf_grid(self, filters=None, detectors=None, num_psfs=16, psf_location=(1024, 1024),
+    def psf_grid(self, filters=None, detectors=None, num_psfs=16, psf_location=None,
                  add_distortion=True, fov_pixels=101, oversample=5, opd_type="requirements", opd_number=0,
                  save=True, fileloc=None, filename=None, overwrite=True, **kwargs):
         """Create a grid of PSFs to be used XXX
@@ -932,6 +932,8 @@ class JWInstrument(SpaceTelescopeInstrument):
             filters = self.filter
         if detectors is None:
             detectors = self.detector
+        if psf_location is None:
+            psf_location = (int(self._detector_npixels / 2), int(self._detector_npixels / 2)) # center point for instr
 
         inst = gridded_library.CreatePSFLibrary(webbinst=self, filters=filters, detectors=detectors,
                                                 num_psfs=num_psfs, psf_location=psf_location,

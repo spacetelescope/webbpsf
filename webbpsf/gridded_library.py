@@ -35,8 +35,7 @@ class CreatePSFLibrary:
     -----------
     instrument: str
         The name of the instrument you want to run. Can be any capitalization. Can
-        only run 1 instrument at a time. Right now this class is only set up for NIRCam,
-        NIRISS, and FGS (they are 2048x2048)
+        only run 1 instrument at a time.
 
     filters: str or list
         Which filter(s) you want to create a library for.
@@ -61,7 +60,7 @@ class CreatePSFLibrary:
 
     psf_location: tuple
         If num_psfs = 1, then this is used to set the (y,x) location of that PSF.
-        Default is (1024,1024).
+        Default is the center point for the detector.
 
     add_distortion: bool
         If True, the PSF will have distortions applied: the geometric distortion from
@@ -189,10 +188,10 @@ class CreatePSFLibrary:
         raise ValueError(message + "Please change these entries so the filter falls within the detector band.")
 
     def _set_psf_locations(self, num_psfs, psf_location):
-        """ Set the locations on the detector of the fiducial PSFs. Assumes a 2048x2048 detector"""
+        """ Set the locations on the detector of the fiducial PSFs"""
 
-        # The locations these PSFs should be centered on for a 2048x2048 detector
         self.num_psfs = num_psfs
+        maxind = self.webb._detector_npixels - 1
 
         if np.sqrt(self.num_psfs).is_integer():
             self.length = int(np.sqrt(self.num_psfs))
@@ -207,12 +206,12 @@ class CreatePSFLibrary:
             location_list = [(psf_location[1], psf_location[0])]  # tuple of (x,y)
         else:
             ij_list = list(itertools.product(range(self.length), range(self.length)))
-            loc_list = [int(round(num * 2047)) for num in np.linspace(0, 1, self.length, endpoint=True)]
+            loc_list = [int(round(num * maxind)) for num in np.linspace(0, 1, self.length, endpoint=True)]
             location_list = list(itertools.product(loc_list, loc_list))  # list of tuples (x,y) (for webbpsf)
 
         return location_list
 
-    def __init__(self, webbinst, filters="all", detectors="all", num_psfs=16, psf_location=(1024, 1024),
+    def __init__(self, webbinst, filters="all", detectors="all", num_psfs=16, psf_location=None,
                  add_distortion=True, fov_pixels=101, oversample=5, opd_type="requirements", opd_number=0,
                  save=True, fileloc=None, filename=None, overwrite=True,
                  **kwargs):
@@ -220,6 +219,10 @@ class CreatePSFLibrary:
         # Pull webbpsf instance and instrument name
         self.webb = webbinst
         self.instr = webbinst.name
+
+        # Set psf_location if not already set
+        if psf_location is None:
+            psf_location = (int(self.webb._detector_npixels / 2), int(self.webb._detector_npixels / 2))
 
         # Set the filters and detectors based on the inputs
         self.filter_input = filters
@@ -342,13 +345,22 @@ class CreatePSFLibrary:
 
                 # Distortion information
                 if self.add_distortion:
-                    header["ROTATION"] = (psf[ext].header["ROTATION"], "PSF rotated to match detector rotation")
                     header["DISTORT"] = (psf[ext].header["DISTORT"], "SIAF distortion coefficients applied")
                     header["SIAF_VER"] = (psf[ext].header["SIAF_VER"], "SIAF PRD version used")
 
                     for key in list(psf[ext].header.keys()):
                         if "COEF_" in key:
                             header[key] = (psf[ext].header[key], "SIAF distortion coefficient for {}".format(key))
+
+                    if self.instr in ["NIRCam", "NIRISS", "FGS"]:
+                        header["ROTATION"] = (psf[ext].header["ROTATION"], "PSF rotated to match detector rotation")
+
+                    if self.instr is "MIRI":
+                        header["MIR_DIST"] = (psf[ext].header["MIR_DIST"], "MIRI detector scattering applied")
+                        header["KERN_AMP"] = (psf[ext].header["KERN_AMP"],
+                                              "Amplitude(A) in kernel function A * exp(-x / B)")
+                        header["KERNFOLD"] = (psf[ext].header["KERNFOLD"],
+                                              "e - folding length(B) in kernel func A * exp(-x / B)")
 
                 # Pull values from the last made psf
                 header["WAVELEN"] = (psf[ext].header["WAVELEN"], "Weighted mean wavelength in meters")
