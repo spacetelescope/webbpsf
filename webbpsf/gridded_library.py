@@ -210,7 +210,7 @@ class CreatePSFLibrary:
             loc_list = [int(round(num * 2047)) for num in np.linspace(0, 1, self.length, endpoint=True)]
             location_list = list(itertools.product(loc_list, loc_list))  # list of tuples (x,y) (for webbpsf)
 
-        return ij_list, loc_list, location_list
+        return location_list
 
     def __init__(self, webbinst, filters="all", detectors="all", num_psfs=16, psf_location=(1024, 1024),
                  add_distortion=True, fov_pixels=101, oversample=5, opd_type="requirements", opd_number=0,
@@ -230,7 +230,7 @@ class CreatePSFLibrary:
         self.detector_list = [self._set_detectors(filter) for filter in self.filter_list]
 
         # Set the locations on the detector of the fiducial PSFs
-        self.ij_list, self.loc_list, self.location_list = self._set_psf_locations(num_psfs, psf_location)
+        self.location_list = self._set_psf_locations(num_psfs, psf_location)
 
         # For NIRCam: Check if filters/detectors match in terms of if they are longwave/shortwave
         if self.instr == "NIRCam":
@@ -389,7 +389,7 @@ class CreatePSFLibrary:
                     # Set file information
                     if self.fileloc is None:
                         #self.fileloc = os.path.expandvars('$MIRAGE_DATA/{}/test_webbpsf_library'.format(self.instr.lower()))
-                        self.fileloc = "/Users/sosborne/Desktop/"
+                        self.fileloc = ""
 
                     if self.filename is None:
                         # E.g. filename: nircam_nrca1_f090w_fovp1000_samp5_npsf16.fits
