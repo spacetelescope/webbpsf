@@ -308,11 +308,9 @@ class CreatePSFLibrary:
 
                 # For each of the 9 locations on the detector (loc = tuple = (x,y))
                 for i, loc in enumerate(self.location_list):
-                    print(loc)
                     self.webb.detector_position = loc  # (X,Y) - line 286 in webbpsf_core.py
 
                     # Create PSF
-                    print(self.webb.filter, self.webb.detector, self.webb.detector_position)
                     psf = self.webb.calc_psf(add_distortion=self.add_distortion,
                                              fov_pixels=self.fov_pixels, oversample=self.oversample, **self._kwargs)
 
