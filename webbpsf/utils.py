@@ -12,6 +12,7 @@ import logging
 _log = logging.getLogger('webbpsf')
 
 from . import conf
+from . import gridded_library
 
 _DISABLE_FILE_LOGGING_VALUE = 'none'
 
@@ -672,5 +673,17 @@ def combine_docstrings(cls):
             func.__doc__ = getattr(spacetelescope_class, 'calc_psf').__doc__[0:ind1] + \
                            getattr(jwinstrument_class, 'calc_psf').__doc__[ind0:] + \
                            getattr(spacetelescope_class, 'calc_psf').__doc__[ind1:]
+
+        if name == 'psf_grid':
+            jwinstrument_class = cls
+
+            ind0 = getattr(jwinstrument_class, 'psf_grid').__doc__.index("Parameters:")  # end of intro
+            ind1 = getattr(gridded_library.CreatePSFLibrary, '__init__').__doc__.index("Parameters:")  # start of parameters
+            ind2 = getattr(gridded_library.CreatePSFLibrary, '__init__').__doc__.index("Use:")  # end of parameters
+            ind3 = getattr(jwinstrument_class, 'psf_grid').__doc__.index("Use:")  # start of use
+
+            func.__doc__ = getattr(jwinstrument_class, 'psf_grid').__doc__[0:ind0] + \
+                           getattr(gridded_library.CreatePSFLibrary, '__init__').__doc__[ind1:ind2] + \
+                           getattr(jwinstrument_class, 'psf_grid').__doc__[ind3:]
 
     return cls

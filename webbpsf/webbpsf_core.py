@@ -924,8 +924,29 @@ class JWInstrument(SpaceTelescopeInstrument):
     def psf_grid(self, filters=None, detectors=None, num_psfs=16, psf_location=None,
                  add_distortion=True, fov_pixels=101, oversample=5, opd_type="requirements", opd_number=0,
                  save=True, fileloc=None, filename=None, overwrite=True, **kwargs):
-        """Create a grid of PSFs to be used XXX
-        Use combine_docstrings method here???? That would be a long docstring here otherwise..."""
+        """
+        Create a PSF library in the form of a grid of PSFs across the detector based on the specified instrument,
+        filter, and detector. The output file is of the form [i, y, x] where i is the PSF position on the detector
+        grid and (y,x) is the 2D PSF.
+
+        Parameters:
+        ----------
+        See list in gridded_library.py
+
+        Use:
+        ----
+        fgs = webbpsf.FGS()
+        fgs.psf_grid(filters="all", detectors="all")
+
+        nis = webbpsf.NIRISS()
+        nis.psf_grid(filters="F090W", detectors="NIS")
+
+        nir = webbpsf.NIRCam()
+        nir.filter = "F090W"
+        nir.detector = "NRCA1"
+        nir.psf_grid()
+
+        """
 
         # Keywords that could be set before the method call
         if filters is None:
