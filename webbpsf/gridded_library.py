@@ -244,7 +244,7 @@ class CreatePSFLibrary:
         """ Set the locations on the detector of the fiducial PSFs"""
 
         self.num_psfs = num_psfs
-        maxind = self.webb._detector_npixels - 1
+        max_size = self.webb._detector_npixels - 1
 
         if np.sqrt(self.num_psfs).is_integer():
             self.length = int(np.sqrt(self.num_psfs))
@@ -254,13 +254,10 @@ class CreatePSFLibrary:
         # Set the values
         if num_psfs == 1:
             # Want this case to be at the specified location
-            ij_list = [(0, 0)]
-            loc_list = [psf_location[1], psf_location[0]]  # list of x,y location
             location_list = [(psf_location[1], psf_location[0])]  # tuple of (x,y)
         else:
-            ij_list = list(itertools.product(range(self.length), range(self.length)))
-            loc_list = [int(round(num * maxind)) for num in np.linspace(0, 1, self.length, endpoint=True)]
-            location_list = list(itertools.product(loc_list, loc_list))  # list of tuples (x,y) (for webbpsf)
+            loc_list = [int(round(num * max_size)) for num in np.linspace(0, 1, self.length, endpoint=True)]
+            location_list = list(itertools.product(loc_list, loc_list))  # list of tuples (x,y) (for WebbPSF)
 
         return location_list
 
@@ -309,13 +306,13 @@ class CreatePSFLibrary:
             for k, det in enumerate(det_list):
                 print("  Running detector: {}".format(det))
 
-                # Create an array to fill ([SCA, j, i, y, x])
+                # Create an array to fill ([i, y, x])
                 psf_size = self.fov_pixels * self.oversample
                 psf_arr = np.empty((self.length**2, psf_size, psf_size))
 
                 self.webb.detector = det
 
-                # For each of the 9 locations on the detector (loc = tuple = (x,y))
+                # For each of the locations on the detector (loc = tuple = (x,y))
                 for i, loc in enumerate(self.location_list):
                     self.webb.detector_position = loc  # (X,Y) - line 286 in webbpsf_core.py
 
@@ -406,7 +403,6 @@ class CreatePSFLibrary:
 
                     # Set file information
                     if self.fileloc is None:
-                        #self.fileloc = os.path.expandvars('$MIRAGE_DATA/{}/test_webbpsf_library'.format(self.instr.lower()))
                         self.fileloc = ""
 
                     if self.filename is None:
