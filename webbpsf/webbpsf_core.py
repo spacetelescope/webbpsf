@@ -956,7 +956,7 @@ class JWInstrument(SpaceTelescopeInstrument):
         if psf_location is None:
             psf_location = (int(self._detector_npixels / 2), int(self._detector_npixels / 2)) # center point for instr
 
-        inst = gridded_library.CreatePSFLibrary(webbinst=self, filters=filters, detectors=detectors,
+        inst = gridded_library.CreatePSFLibrary(instrument=self, filters=filters, detectors=detectors,
                                                 num_psfs=num_psfs, psf_location=psf_location,
                                                 add_distortion=add_distortion, fov_pixels=fov_pixels,
                                                 oversample=oversample, opd_type=opd_type, opd_number=opd_number,
