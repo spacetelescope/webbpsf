@@ -5,9 +5,6 @@ import numpy as np
 import astropy.convolution
 from astropy.io import fits
 
-#from . import webbpsf_core
-#class CreatePSFLibrary(webbpsf_core.MIRI):
-
 
 class CreatePSFLibrary:
 
@@ -76,27 +73,13 @@ class CreatePSFLibrary:
         oversample: int
             The oversampling factor used by WebbPSF when creating the PSFs. Default is 5.
 
-        opd_type: str
-            The type of OPD map you would like to use to create the PSFs. Options are
-            "predicted" or "requirements" where the predicted map is of the expected
-            WFE and the requirements map is slightly more conservative (has slightly
-            larger WFE). Default is "requirements"
-
-        opd_number: int
-            The realization of the OPD map pulled from the OPD file. Options are an
-            integer from 0 to 9, one for each of the 10 Monte Carlo realizations of
-            the telescope included in the OPD map file. Default is 0.
-
         save: bool
             True/False boolean if you want to save your file
 
-        fileloc: str
-            Where to save your file if "save" keyword is set to True. Default of None
-            will save in the current directory
-
         filename: str
-            The name to save your current file under if "save" keyword is set to True.
-            Default of None will save it as: instr_det_filt_fovp#_samp#_npsf#.fits
+            If "save" keyword is set to True, your current file will be saved under
+            "{filename}_det_filt.fits". Default of None will save it in the current
+            directory as: instr_det_filt_fovp#_samp#_npsf#.fits
 
         overwrite: bool
             True/False boolean to overwrite the output file if it already exists. Default

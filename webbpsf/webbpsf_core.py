@@ -929,17 +929,49 @@ class JWInstrument(SpaceTelescopeInstrument):
         filter, and detector. The output file is of the form [i, y, x] where i is the PSF position on the detector
         grid and (y,x) is the 2D PSF.
 
-        Parameters:
+        Parameters
         ----------
-        See list in gridded_library.py
+        all_detectors: bool
+            If True, run all detectors for the instrument. If False, run for the detector set in
+            the instance. Default is True
+        num_psfs: int
+            The total number of fiducial PSFs to be created and saved in the files. This
+            number must be a square number. Default is 16.
+            E.g. num_psfs = 16 will create a 4x4 grid of fiducial PSFs.
+        single_psf_centered: tuple
+            If num_psfs = 1, then this is used to set the (y,x) location of that PSF.
+            Default is the center point for the detector.
+        add_distortion: bool
+            If True, the PSF will have distortions applied. Default is True.
+        fov_pixels : int
+            field of view in pixels. This is an alternative to fov_arcsec.
+        oversample, detector_oversample, fft_oversample : int
+            How much to oversample. Default=4. By default the same factor is used for final output
+            pixels and intermediate optical planes, but you may optionally use different factors
+            if so desired.
+        save: bool
+            True/False boolean if you want to save your file. Default is False.
+        outfile: str
+            The name to save your current file under if "save" keyword is set to True.
+            Default of None will save it as: instr_det_filt_fovp#_samp#_npsf#.fits
+        overwrite : bool
+            True/False boolean to overwrite the output file if it already exists. Default
+            is True.
+        **kwargs:
+            This can be used to add any extra arguments to the WebbPSF calc_psf() method
+            call.
 
-        Use:
+        Returns
+        -------
+        grid : fits.HDUList or list
+            Returns and/or saves 3D fits.HDUlist object (1 per instrument, detector, and filter)
+            or a list of fits.HDUlist objects if more than one detector is specified
+
+        Use
         ----
-        fgs = webbpsf.FGS()
-        fgs.psf_grid(filters="all", detectors="all")
-
         nis = webbpsf.NIRISS()
-        nis.psf_grid(filters="F090W", detectors="NIS")
+        nis.filter = "F090W"
+        nis.psf_grid(all_detectors=True)
 
         nir = webbpsf.NIRCam()
         nir.filter = "F090W"
@@ -2050,3 +2082,4 @@ def one_segment_pupil(segmentname):
 
     newpupil[0].header['SEGMENT'] = segment_official_name
     return newpupil
+
