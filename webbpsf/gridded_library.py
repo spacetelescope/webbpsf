@@ -18,8 +18,7 @@ class CreatePSFLibrary:
     nrca_long_detectors = ['NRCA5', 'NRCB5']
 
     def __init__(self, instrument, filters="all", detectors="all", num_psfs=16, psf_location=None,
-                 add_distortion=True, fov_pixels=101, oversample=5, opd_type="requirements", opd_number=0,
-                 save=True, fileloc=None, filename=None, overwrite=True,
+                 add_distortion=True, fov_pixels=101, oversample=5, save=True, filename=None, overwrite=True,
                  **kwargs):
         """
         Description:
@@ -115,8 +114,6 @@ class CreatePSFLibrary:
 
         """
 
-        #JWInstrument.__init__(self, "CreatePSFLibrary")
-
         # Pull WebbPSF instance
         self.webb = instrument
         self.instr = instrument.name
@@ -149,14 +146,11 @@ class CreatePSFLibrary:
         self.add_distortion = add_distortion
         self.fov_pixels = fov_pixels
         self.oversample = oversample
-        self.opd_type = opd_type
-        self.opd_number = opd_number
         self._kwargs = kwargs
 
         # Set saving attributes
         self.save = save
         self.overwrite = overwrite
-        self.fileloc = fileloc
         self.filename = filename
 
     def _set_filters(self):
@@ -270,13 +264,6 @@ class CreatePSFLibrary:
         # Set output mode
         self.webb.options['output_mode'] = 'Oversampled Image'
 
-        # Set OPD Map (pull most recent version with self.webb.opd_list call) - always predicted then requirements
-        if self.opd_type.lower() == "requirements":
-            opd = self.webb.opd_list[1]
-        elif self.opd_type.lower() == "predicted":
-            opd = self.webb.opd_list[0]
-        self.webb.pupilopd = (opd, self.opd_number)
-
         # For every filter
         final_list = []
         for filt, det_list in zip(self.filter_list, self.detector_list):
@@ -385,23 +372,25 @@ class CreatePSFLibrary:
                 if self.save:
 
                     # Set file information
-                    if self.fileloc is None:
-                        self.fileloc = ""
-
                     if self.filename is None:
+                        path = ""
+
                         # E.g. filename: nircam_nrca1_f090w_fovp1000_samp5_npsf16.fits
                         name = "{}_{}_{}_fovp{}_samp{}_npsf{}.fits".format(self.instr.lower(), det.lower(),
                                                                            filt.lower(), self.fov_pixels,
                                                                            self.oversample, self.num_psfs)
-                        self.filepath = os.path.join(self.fileloc, name)
+                        file = os.path.join(path, name)
                     else:
-                        self.filepath = os.path.join(self.fileloc, self.filename)
+                        file = self.filename.split(".")[0]+"_{}_{}.fits".format(det.lower(),filt.lower())
 
-                    print("  Saving file: {}".format(self.filepath))
+                    print("  Saving file: {}".format(file))
 
-                    hdu.writeto(self.filepath, overwrite=self.overwrite)
+                    hdu.writeto(file, overwrite=self.overwrite)
 
-                # Create something to return
                 final_list.append(hdu)
 
-        return final_list
+        # If only 1 hdulist object created, only return that. Else, return list of objects
+        if len(self.filter_list) == 1 and len(self.detector_list[0]) == 1:
+            return final_list[0]
+        else:
+            return final_list

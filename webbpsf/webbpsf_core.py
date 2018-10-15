@@ -921,9 +921,8 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         return fits.HDUList(fits.ImageHDU(newopd, header=hdr))
 
-    def psf_grid(self, filters=None, detectors=None, num_psfs=16, psf_location=None,
-                 add_distortion=True, fov_pixels=101, oversample=5, opd_type="requirements", opd_number=0,
-                 save=True, fileloc=None, filename=None, overwrite=True, **kwargs):
+    def psf_grid(self, all_detectors=True, num_psfs=16, single_psf_centered=True, add_distortion=True, fov_pixels=101,
+                 oversample=5, save=False, outfile=None, overwrite=True, **kwargs):
         """
         Create a PSF library in the form of a grid of PSFs across the detector based on the specified instrument,
         filter, and detector. The output file is of the form [i, y, x] where i is the PSF position on the detector
@@ -981,19 +980,23 @@ class JWInstrument(SpaceTelescopeInstrument):
         """
 
         # Keywords that could be set before the method call
-        if filters is None:
-            filters = self.filter
-        if detectors is None:
+        filters = self.filter
+
+        if all_detectors is True:
+            detectors = "all"
+        else:
             detectors = self.detector
-        if psf_location is None:
-            psf_location = (int(self._detector_npixels / 2), int(self._detector_npixels / 2)) # center point for instr
+
+        if single_psf_centered is True:
+            psf_location = (int(self._detector_npixels / 2), int(self._detector_npixels / 2))  # center point
+        else:
+            psf_location = (self.detector_position[1], self.detector_position[0])  # (y,x)
 
         inst = gridded_library.CreatePSFLibrary(instrument=self, filters=filters, detectors=detectors,
                                                 num_psfs=num_psfs, psf_location=psf_location,
                                                 add_distortion=add_distortion, fov_pixels=fov_pixels,
-                                                oversample=oversample, opd_type=opd_type, opd_number=opd_number,
-                                                save=save, fileloc=fileloc, filename=filename, overwrite=overwrite,
-                                                **kwargs)
+                                                oversample=oversample, save=save, filename=outfile,
+                                                overwrite=overwrite, **kwargs)
         grid = inst.create_files()
 
         return grid
