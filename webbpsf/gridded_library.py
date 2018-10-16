@@ -18,8 +18,7 @@ class CreatePSFLibrary:
     nrca_long_detectors = ['NRCA5', 'NRCB5']
 
     def __init__(self, instrument, filters="all", detectors="all", num_psfs=16, psf_location=None,
-                 add_distortion=True, fov_pixels=101, oversample=5, save=True, filename=None, overwrite=True,
-                 **kwargs):
+                 use_detsampled_psf=False, save=True, filename=None, overwrite=True, **kwargs):
         """
         Description:
         ------------
@@ -59,18 +58,10 @@ class CreatePSFLibrary:
             If num_psfs = 1, then this is used to set the (y,x) location of that PSF.
             Default is the center point for the detector.
 
-        add_distortion: bool
-            If True, the PSF will have distortions applied: the geometric distortion from
-            the detectors (using data from SIAF) for all instruments, the rotation of the
-            detectors with respect to the focal plane for NIRCam, NIRISS, and FGS, and the
-            scattering effect for MIRI. Default is True.
-
-        fov_pixels: int
-            The field of view in undersampled detector pixels used by WebbPSF when
-            creating the PSFs. Default is 101 pixels.
-
-        oversample: int
-            The oversampling factor used by WebbPSF when creating the PSFs. Default is 5.
+        use_detsampled_psf: bool
+            If True, the grid of PSFs returned will be detector sampled (made by binning down the
+            oversampled PSF). If False, the PSFs will be oversampled by the factor defined by the
+            oversample/detector_oversample/fft_oversample keywords. Default is False.
 
         save: bool
             True/False boolean if you want to save your file
@@ -142,10 +133,38 @@ class CreatePSFLibrary:
                     elif "5" not in det and filt in CreatePSFLibrary.nrca_long_filters:
                         self._raise_value_error("long filter", det, filt)
 
-        # Set PSF attributes
-        self.add_distortion = add_distortion
-        self.fov_pixels = fov_pixels
-        self.oversample = oversample
+        # Set PSF attributes for the 3 that will be used before the calc_psf call
+        if "add_distortion" in kwargs:
+            self.add_distortion = kwargs["add_distortion"]
+        else:
+            self.add_distortion = True
+            kwargs["add_distortion"] = self.add_distortion
+
+        if "oversample" in kwargs:
+            self.oversample = kwargs["oversample"]
+        elif len({"detector_oversample", "fft_oversample"}.intersection(kwargs.keys())) == 2:
+            self.oversample = kwargs["detector_oversample"]
+        elif len({"detector_oversample", "fft_oversample"}.intersection(kwargs.keys())) == 1:
+            raise ValueError("Must pass either oversample keyword or detector_sample and fft_oversample keywords")
+        else:
+            self.oversample = 5
+            kwargs["oversample"] = self.oversample
+
+        if "fov_pixels" in kwargs:  # fov_pixels overrides fov_arcsec if both set -> same as in calc_psf
+            self.fov_pixels = kwargs["fov_pixels"]
+        elif "fov_arcsec" in kwargs:
+            # From poppy.instrument.get_optical_system() -> line 581
+            self.fov_pixels = int(np.round(kwargs["fov_arcsec"] / self.webb.pixelscale))
+            if 'parity' in self.webb.options:
+                if self.webb.options['parity'].lower() == 'odd' and np.remainder(self.fov_pixels, 2) == 0:
+                    self.fov_pixels += 1
+                if self.webb.options['parity'].lower() == 'even' and np.remainder(self.fov_pixels, 2) == 1:
+                    self.fov_pixels += 1
+        else:
+            self.fov_pixels = 101
+            kwargs["fov_pixels"] = self.fov_pixels
+
+        self.use_detsampled_psf = use_detsampled_psf
         self._kwargs = kwargs
 
         # Set saving attributes
@@ -254,15 +273,27 @@ class CreatePSFLibrary:
 
         """
 
-        # Set extension to read based on distortion choice
-        if self.add_distortion: ext = "OVERDIST"
-        else: ext = "OVERSAMP"
+        # Set output mode and extension to use
+        if self.use_detsampled_psf is True:
+            self.webb.options['output_mode'] = 'Detector sampled image'
+            self.oversample = 1
+            if self.add_distortion:
+                ext = "DET_DIST"
+            else:
+                ext = "DET_SAMP"
+        elif self.use_detsampled_psf is False:
+            self.webb.options['output_mode'] = 'Oversampled image'
+            if self.add_distortion:
+                ext = "OVERDIST"
+            else:
+                ext = "OVERSAMP"
+
+        print(self.fov_pixels, self.oversample, self.add_distortion, self.use_detsampled_psf)
+        print(self._kwargs)
+        print(self)
 
         # Create kernel to smooth pixel based on oversample
         kernel = astropy.convolution.Box2DKernel(width=self.oversample)
-
-        # Set output mode
-        self.webb.options['output_mode'] = 'Oversampled Image'
 
         # For every filter
         final_list = []
@@ -287,8 +318,7 @@ class CreatePSFLibrary:
                     self.webb.detector_position = loc  # (X,Y) - line 286 in webbpsf_core.py
 
                     # Create PSF
-                    psf = self.webb.calc_psf(add_distortion=self.add_distortion,
-                                             fov_pixels=self.fov_pixels, oversample=self.oversample, **self._kwargs)
+                    psf = self.webb.calc_psf(**self._kwargs)
 
                     # Convolve PSF with a square kernel
                     psf_conv = astropy.convolution.convolve(psf[ext].data, kernel)
@@ -302,12 +332,12 @@ class CreatePSFLibrary:
                 header["INSTRUME"] = (self.instr, "Instrument name")
                 header["DETECTOR"] = (det, "Detector name")
                 header["FILTER"] = (filt, "Filter name")
-                header["PUPILOPD"] = (self.webb.pupilopd[0], "Pupil OPD source name")
-                header["OPD_REAL"] = (self.webb.pupilopd[1], "Pupil OPD source realization from file")
+                header["PUPILOPD"] = (self.webb.pupilopd, "Pupil OPD source name")
 
                 header["FOVPIXEL"] = (self.fov_pixels, "Field of view in pixels (full array)")
                 header["FOV"] = (psf[ext].header["FOV"], "Field of view in arcsec (full array) ")
-                header["OVERSAMP"] = (self.oversample, "Oversampling factor for FFTs in computation")
+                header["OVERSAMP"] = (psf[ext].header["OVERSAMP"], "Oversampling factor for FFTs in computation")
+                header["DET_SAMP"] = (psf[ext].header["DET_SAMP"], "Oversampling factor for MFT to detector plane")
                 header["NWAVES"] = (psf[ext].header["NWAVES"], "Number of wavelengths used in calculation")
 
                 for h, loc in enumerate(self.location_list):  # these were originally written out in (x,y)

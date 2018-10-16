@@ -921,8 +921,8 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         return fits.HDUList(fits.ImageHDU(newopd, header=hdr))
 
-    def psf_grid(self, all_detectors=True, num_psfs=16, single_psf_centered=True, add_distortion=True, fov_pixels=101,
-                 oversample=5, save=False, outfile=None, overwrite=True, **kwargs):
+    def psf_grid(self, all_detectors=True, num_psfs=16, single_psf_centered=True, use_detsampled_psf=False,
+                 save=False, outfile=None, overwrite=True, **kwargs):
         """
         Create a PSF library in the form of a grid of PSFs across the detector based on the specified instrument,
         filter, and detector. The output file is of the form [i, y, x] where i is the PSF position on the detector
@@ -933,32 +933,33 @@ class JWInstrument(SpaceTelescopeInstrument):
         all_detectors: bool
             If True, run all detectors for the instrument. If False, run for the detector set in
             the instance. Default is True
+        use_detsampled_psf: bool
+            If True, the grid of PSFs returned will be detector sampled (made by binning down the
+            oversampled PSF). If False, the PSFs will be oversampled by the factor defined by the
+            oversample/detector_oversample/fft_oversample keywords. Default is False.
         num_psfs: int
             The total number of fiducial PSFs to be created and saved in the files. This
             number must be a square number. Default is 16.
             E.g. num_psfs = 16 will create a 4x4 grid of fiducial PSFs.
-        single_psf_centered: tuple
-            If num_psfs = 1, then this is used to set the (y,x) location of that PSF.
-            Default is the center point for the detector.
-        add_distortion: bool
-            If True, the PSF will have distortions applied. Default is True.
-        fov_pixels : int
-            field of view in pixels. This is an alternative to fov_arcsec.
-        oversample, detector_oversample, fft_oversample : int
-            How much to oversample. Default=4. By default the same factor is used for final output
-            pixels and intermediate optical planes, but you may optionally use different factors
-            if so desired.
+        single_psf_centered: bool
+            If num_psfs is set to 1, this defines where that psf is located. If True it will be the
+            center of the detector, if False it will be the location defined in the wWebbPSF
+            attribute detector_position (reminder - detector_position is (x,y))
         save: bool
             True/False boolean if you want to save your file. Default is False.
         outfile: str
-            The name to save your current file under if "save" keyword is set to True.
-            Default of None will save it as: instr_det_filt_fovp#_samp#_npsf#.fits
+            If "save" keyword is set to True, your current file will be saved under
+            "{outfile}_det_filt.fits". Default of None will save it in the current
+            directory as: instr_det_filt_fovp#_samp#_npsf#.fits
         overwrite : bool
             True/False boolean to overwrite the output file if it already exists. Default
             is True.
         **kwargs:
-            This can be used to add any extra arguments to the WebbPSF calc_psf() method
-            call.
+            Add any extra arguments to the WebbPSF calc_psf() method call. This includes
+            the following kwargs (and their default values): source(=None), nlambda(=None),
+            monochromatic(=None), fov_arcsec(=None), fov_pixels(=101), oversample(=5),
+            detector_oversample(=None), fft_oversample(=None), normalize(='first'),
+            add_distortion(=True), and crop_psf(=True)
 
         Returns
         -------
@@ -968,14 +969,14 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         Use
         ----
-        nis = webbpsf.NIRISS()
-        nis.filter = "F090W"
-        nis.psf_grid(all_detectors=True)
+        nir = webbpsf.NIRCam()
+        nir.filter = "F090W"
+        nir.psf_grid(all_detectors=True, num_psfs=4)
 
         nir = webbpsf.NIRCam()
         nir.filter = "F090W"
-        nir.detector = "NRCA1"
-        nir.psf_grid()
+        nir.detector = "NRCA2"
+        nir.psf_grid(oversample=5, fov_pixels=101)
 
         """
 
@@ -992,11 +993,12 @@ class JWInstrument(SpaceTelescopeInstrument):
         else:
             psf_location = (self.detector_position[1], self.detector_position[0])  # (y,x)
 
+        # Call CreatePSFLibrary class
         inst = gridded_library.CreatePSFLibrary(instrument=self, filters=filters, detectors=detectors,
                                                 num_psfs=num_psfs, psf_location=psf_location,
-                                                add_distortion=add_distortion, fov_pixels=fov_pixels,
-                                                oversample=oversample, save=save, filename=outfile,
-                                                overwrite=overwrite, **kwargs)
+                                                use_detsampled_psf=use_detsampled_psf, save=save,
+                                                filename=outfile, overwrite=overwrite,
+                                                **kwargs)
         grid = inst.create_files()
 
         return grid
