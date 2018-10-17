@@ -1,6 +1,7 @@
 import astropy.convolution
 from astropy.io import fits
 import numpy as np
+import os
 import pytest
 
 from .. import gridded_library
@@ -38,13 +39,13 @@ def test_comapre_to_calc_psf_detsampled():
     """Check that the output PSF matches calc_psf and is saved in the correct location:
     for an un-distorted, detector sampled case"""
     oversample = 2
-    fov_pixels = 11
+    fov_arcsec = 0.5
 
-    nis = webbpsf_core.NIRISS()
-    nis.filter = "F090W"
-    nis.detector = "NIS"
-    grid = nis.psf_grid(all_detectors=False, num_psfs=4, use_detsampled_psf=True, add_distortion=False,
-                       oversample=oversample, fov_pixels=fov_pixels)
+    mir = webbpsf_core.MIRI()
+    mir.filter = "F560W"
+    mir.detector = "MIRIM"
+    grid = mir.psf_grid(all_detectors=False, num_psfs=4, use_detsampled_psf=True, add_distortion=False,
+                       oversample=oversample, fov_arcsec=fov_arcsec)
 
     psfnum = 1
     loc = grid[0].header["DET_YX{}".format(psfnum)]
@@ -52,9 +53,9 @@ def test_comapre_to_calc_psf_detsampled():
     locx = int(loc.split()[1][:-1])
     gridpsf = grid[0].data[psfnum, :, :]
 
-    nis.detector_position = (locx, locy)
-    nis.options['output_mode'] = 'Detector Sampled Image'
-    calcpsf = nis.calc_psf(oversample=oversample, fov_pixels=fov_pixels)["DET_SAMP"].data
+    mir.detector_position = (locx, locy)
+    mir.options['output_mode'] = 'Detector Sampled Image'
+    calcpsf = mir.calc_psf(oversample=oversample, fov_arcsec=fov_arcsec)["DET_SAMP"].data
     kernel = astropy.convolution.Box2DKernel(width=1)
     convpsf = astropy.convolution.convolve(calcpsf, kernel)
 
@@ -62,25 +63,25 @@ def test_comapre_to_calc_psf_detsampled():
     assert np.array_equal(gridpsf, convpsf)
 
 
-# @pytest.mark.skip()
-def test_setting_values():
-    """Test the different ways to set filters and detectors"""
-    oversample = 2
-    fov_pixels = 1
-
-    mir = webbpsf_core.MIRI()
-    mir.filter = "F560W"
-
-    # Method 1
-    grid1 = mir.psf_grid(all_detectors=False, num_psfs=1, fov_pixels=fov_pixels, oversample=oversample)
-
-    # Method 2
-    mir.filter = "F560W"
-    mir.detector = "MIRIM"
-    grid2 = mir.psf_grid(all_detectors=False, num_psfs=1, fov_pixels=fov_pixels, oversample=oversample)
-
-    # Check they are the same
-    assert np.array_equal(grid1[0].data, grid2[0].data)
+# # @pytest.mark.skip()
+# def test_setting_values():
+#     """Test the different ways to set filters and detectors"""
+#     oversample = 2
+#     fov_arcsec = 0.5
+#
+#     mir = webbpsf_core.MIRI()
+#     mir.filter = "F560W"
+#
+#     # Method 1
+#     grid1 = mir.psf_grid(all_detectors=False, num_psfs=1, fov_arcsec=fov_arcsec, oversample=oversample)
+#
+#     # Method 2
+#     mir.filter = "F560W"
+#     mir.detector = "MIRIM"
+#     grid2 = mir.psf_grid(all_detectors=False, num_psfs=1, fov_arcsec=fov_arcsec, oversample=oversample)
+#
+#     # Check they are the same
+#     assert np.array_equal(grid1[0].data, grid2[0].data)
 
 
 # @pytest.mark.skip()
@@ -119,6 +120,36 @@ def test_one_psf():
 
 
 # @pytest.mark.skip()
+def test_nircam_all_detectors():
+    """Test that the NIRCam detectors pulled are correct (shortwave vs longwave)
+    with respect to the filter when all_detectors=True"""
+
+    nir = webbpsf_core.NIRCam()
+    longfilt = "F250M"
+    shortfilt = "F140M"
+
+    # Case 1: Shortwave -> check that only the SW detectors are applied for the SW filter
+    nir.filter = shortfilt
+    grid1 = nir.psf_grid(all_detectors=True, num_psfs=1, add_distortion=False, fov_pixels=1, oversample=2)
+    det_list = []
+    for hdu in grid1:
+        det_list.append(hdu[0].header["DETECTOR"])
+
+    assert len(grid1) == len(gridded_library.CreatePSFLibrary.nrca_short_detectors)
+    assert set(det_list) == set(gridded_library.CreatePSFLibrary.nrca_short_detectors)
+
+    # Case 2: Longwave -> check that only the LW detectors are applied for the LW filter
+    nir.filter = longfilt
+    grid2 = nir.psf_grid(all_detectors=True, num_psfs=1, add_distortion=False, fov_pixels=1, oversample=2)
+    det_list = []
+    for hdu in grid2:
+        det_list.append(hdu[0].header["DETECTOR"])
+
+    assert len(grid2) == len(gridded_library.CreatePSFLibrary.nrca_long_detectors)
+    assert set(det_list) == set(gridded_library.CreatePSFLibrary.nrca_long_detectors)
+
+
+# @pytest.mark.skip()
 def test_nircam_errors():
     """Check that NIRCam has checks for incorrect value setting"""
     longfilt = "F250M"
@@ -131,22 +162,45 @@ def test_nircam_errors():
     # Shouldn't error
     nir.filter = longfilt
     nir.detector = longdet
-    nir.psf_grid(all_detectors=False, num_psfs=1, fov_pixels=1)  # no error
+    nir.psf_grid(all_detectors=False, num_psfs=1, fov_pixels=1, detector_oversample=2, fft_oversample=2)   # no error
 
     nir.filter = shortfilt
     nir.detector = shortdet
-    nir.psf_grid(all_detectors=False, num_psfs=1, fov_pixels=1)  # no error
+    nir.psf_grid(all_detectors=False, num_psfs=1, fov_pixels=1, detector_oversample=2, fft_oversample=2) # no error
 
     # Should error
     with pytest.raises(ValueError) as excinfo:
+        # Bad filter/detector combination
         nir.filter =longfilt
         nir.detector =shortdet
         nir.psf_grid(all_detectors=False, num_psfs=1, fov_pixels=1)  # error
     assert "ValueError" in str(excinfo)
 
     with pytest.raises(ValueError) as excinfo:
+        # Bad filter/detector combination
         nir.filter =shortfilt
         nir.detector =longdet
         nir.psf_grid(all_detectors=False, num_psfs=1, fov_pixels=1)  # error
     assert "ValueError" in str(excinfo)
+
+    with pytest.raises(ValueError) as excinfo:
+        # Bad num_psfs entry
+        nir.psf_grid(all_detectors=False, num_psfs=2, fov_pixels=1)  # error
+    assert "ValueError" in str(excinfo)
+
+# @pytest.mark.skip()
+def test_saving(tmpdir):
+    """Test saving files"""
+
+    file = str(tmpdir.join("test1"))
+    fgs = webbpsf_core.FGS()
+    fgs.filter = "FGS"
+    fgs.detector = "FGS2"
+
+    # Using default calc_psf values
+    grid = fgs.psf_grid(all_detectors=False, num_psfs=4, save=True, outfile=file, overwrite=True)
+
+    with fits.open(os.path.join(file[:-5], "test1_fgs2_fgs.fits")) as infile:
+        assert infile[0].header == grid[0].header
+        assert np.array_equal(infile[0].data, grid[0].data)
 
