@@ -288,10 +288,6 @@ class CreatePSFLibrary:
             else:
                 ext = "OVERSAMP"
 
-        print(self.fov_pixels, self.oversample, self.add_distortion, self.use_detsampled_psf)
-        print(self._kwargs)
-        print(self)
-
         # Create kernel to smooth pixel based on oversample
         kernel = astropy.convolution.Box2DKernel(width=self.oversample)
 
@@ -341,6 +337,13 @@ class CreatePSFLibrary:
                 header["NWAVES"] = (psf[ext].header["NWAVES"], "Number of wavelengths used in calculation")
 
                 for h, loc in enumerate(self.location_list):  # these were originally written out in (x,y)
+                    loc = np.asarray(loc, dtype=float)
+
+                    # Even arrays are shifted by 0.5 so they are centered correctly during calc_psf computation
+                    # But this needs to be expressed correctly in the header
+                    if self.fov_pixels % 2 == 0:
+                        loc += 0.5  # even arrays must be at a half pixel
+
                     header["DET_YX{}".format(h)] = (str((loc[1], loc[0])),
                                                     "The #{} PSF's (y,x) detector pixel position".format(h))
 

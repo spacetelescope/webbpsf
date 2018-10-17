@@ -943,8 +943,8 @@ class JWInstrument(SpaceTelescopeInstrument):
             E.g. num_psfs = 16 will create a 4x4 grid of fiducial PSFs.
         single_psf_centered: bool
             If num_psfs is set to 1, this defines where that psf is located. If True it will be the
-            center of the detector, if False it will be the location defined in the wWebbPSF
-            attribute detector_position (reminder - detector_position is (x,y))
+            center of the detector, if False it will be the location defined in the WebbPSF
+            attribute detector_position (reminder - detector_position is (x,y)). Default is True
         save: bool
             True/False boolean if you want to save your file. Default is False.
         outfile: str

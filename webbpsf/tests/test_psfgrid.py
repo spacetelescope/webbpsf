@@ -11,9 +11,15 @@ from .. import webbpsf_core
 # @pytest.mark.skip()
 def test_compare_to_calc_psf_oversampled():
     """Check that the output PSF matches calc_psf and is saved in the correct slice of the array:
-    for a distorted, oversampled case"""
+    for a distorted, oversampled case
+
+    This case also uses an even length array, so we'll need to subtract 0.5 from the detector position
+    because psf_grid header has been shifted during calc_psf to account for it being an even length array
+    and this shift shouldn't happen 2x (ie again in calc_psf call below)
+
+    """
     oversample = 2
-    fov_pixels = 11
+    fov_pixels = 10
 
     # Create PSF grid
     fgs = webbpsf_core.FGS()
@@ -23,8 +29,8 @@ def test_compare_to_calc_psf_oversampled():
     # Pull one of the PSFs out of the grid
     psfnum = 1
     loc = grid[0].header["DET_YX{}".format(psfnum)]
-    locy = int(loc.split()[0][1:-1])
-    locx = int(loc.split()[1][:-1])
+    locy = int(float(loc.split()[0][1:-1]) - 0.5)
+    locx = int(float(loc.split()[1][:-1]) - 0.5)
     gridpsf = grid[0].data[psfnum, :, :]
 
     # Using header data, create the expected same PSF via calc_psf
@@ -39,7 +45,7 @@ def test_compare_to_calc_psf_oversampled():
 
 
 # @pytest.mark.skip()
-def test_comapre_to_calc_psf_detsampled():
+def test_compare_to_calc_psf_detsampled():
     """Check that the output PSF matches calc_psf and is saved in the correct slice of the array:
     for an un-distorted, detector sampled case"""
     oversample = 2
@@ -55,8 +61,8 @@ def test_comapre_to_calc_psf_detsampled():
     # Pull one of the PSFs out of the grid
     psfnum = 1
     loc = grid[0].header["DET_YX{}".format(psfnum)]
-    locy = int(loc.split()[0][1:-1])
-    locx = int(loc.split()[1][:-1])
+    locy = int(float(loc.split()[0][1:-1]))
+    locx = int(float(loc.split()[1][:-1]))
     gridpsf = grid[0].data[psfnum, :, :]
 
     # Using header data, create the expected same PSF via calc_psf
@@ -125,8 +131,8 @@ def test_one_psf():
     kernel = astropy.convolution.Box2DKernel(width=oversample)
     convpsf = astropy.convolution.convolve(calc["OVERDIST"].data, kernel)
 
-    assert grid1[0].header["DET_YX0"] == "(1024, 1024)"  # the default is the center of the NIS aperture
-    assert grid2[0].header["DET_YX0"] == "(0, 10)"  # it's in (y,x)
+    assert grid1[0].header["DET_YX0"] == "(1024.0, 1024.0)"  # the default is the center of the NIS aperture
+    assert grid2[0].header["DET_YX0"] == "(0.0, 10.0)"  # it's in (y,x)
     assert np.array_equal(convpsf, grid2[0].data[0, :, :])
 
 
