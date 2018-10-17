@@ -63,27 +63,6 @@ def test_comapre_to_calc_psf_detsampled():
     assert np.array_equal(gridpsf, convpsf)
 
 
-# # @pytest.mark.skip()
-# def test_setting_values():
-#     """Test the different ways to set filters and detectors"""
-#     oversample = 2
-#     fov_arcsec = 0.5
-#
-#     mir = webbpsf_core.MIRI()
-#     mir.filter = "F560W"
-#
-#     # Method 1
-#     grid1 = mir.psf_grid(all_detectors=False, num_psfs=1, fov_arcsec=fov_arcsec, oversample=oversample)
-#
-#     # Method 2
-#     mir.filter = "F560W"
-#     mir.detector = "MIRIM"
-#     grid2 = mir.psf_grid(all_detectors=False, num_psfs=1, fov_arcsec=fov_arcsec, oversample=oversample)
-#
-#     # Check they are the same
-#     assert np.array_equal(grid1[0].data, grid2[0].data)
-
-
 # @pytest.mark.skip()
 def test_all():
     """Check that running all the detectors works"""
