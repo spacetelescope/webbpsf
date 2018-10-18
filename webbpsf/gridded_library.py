@@ -147,7 +147,7 @@ class CreatePSFLibrary:
         elif len({"detector_oversample", "fft_oversample"}.intersection(kwargs.keys())) == 1:
             raise ValueError("Must pass either oversample keyword or detector_sample and fft_oversample keywords")
         else:
-            self.oversample = 5
+            self.oversample = 4
             kwargs["oversample"] = self.oversample
 
         if "fov_pixels" in kwargs:  # fov_pixels overrides fov_arcsec if both set -> same as in calc_psf
@@ -408,7 +408,7 @@ class CreatePSFLibrary:
                     if self.filename is None:
                         path = ""
 
-                        # E.g. filename: nircam_nrca1_f090w_fovp1000_samp5_npsf16.fits
+                        # E.g. filename: nircam_nrca1_f090w_fovp1000_samp4_npsf16.fits
                         name = "{}_{}_{}_fovp{}_samp{}_npsf{}.fits".format(self.instr.lower(), det.lower(),
                                                                            filt.lower(), self.fov_pixels,
                                                                            self.oversample, self.num_psfs)

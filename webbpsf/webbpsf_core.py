@@ -957,7 +957,7 @@ class JWInstrument(SpaceTelescopeInstrument):
         **kwargs:
             Add any extra arguments to the WebbPSF calc_psf() method call. This includes
             the following kwargs (and their default values): source(=None), nlambda(=None),
-            monochromatic(=None), fov_arcsec(=None), fov_pixels(=101), oversample(=5),
+            monochromatic(=None), fov_arcsec(=None), fov_pixels(=101), oversample(=4),
             detector_oversample(=None), fft_oversample(=None), normalize(='first'),
             add_distortion(=True), and crop_psf(=True)
 
