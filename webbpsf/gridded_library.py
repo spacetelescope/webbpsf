@@ -1,9 +1,8 @@
-import os
-import itertools
-
-import numpy as np
 import astropy.convolution
 from astropy.io import fits
+import itertools
+import numpy as np
+import os
 
 
 class CreatePSFLibrary:

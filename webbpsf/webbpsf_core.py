@@ -976,7 +976,7 @@ class JWInstrument(SpaceTelescopeInstrument):
         nir = webbpsf.NIRCam()
         nir.filter = "F090W"
         nir.detector = "NRCA2"
-        nir.psf_grid(oversample=5, fov_pixels=101)
+        nir.psf_grid(all_detectors=False, oversample=5, fov_pixels=101)
 
         """
 
@@ -997,8 +997,7 @@ class JWInstrument(SpaceTelescopeInstrument):
         inst = gridded_library.CreatePSFLibrary(instrument=self, filters=filters, detectors=detectors,
                                                 num_psfs=num_psfs, psf_location=psf_location,
                                                 use_detsampled_psf=use_detsampled_psf, save=save,
-                                                filename=outfile, overwrite=overwrite,
-                                                **kwargs)
+                                                filename=outfile, overwrite=overwrite, **kwargs)
         grid = inst.create_files()
 
         return grid
