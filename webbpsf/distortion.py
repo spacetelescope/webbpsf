@@ -1,13 +1,11 @@
-import copy
-
 import astropy.convolution
 import astropy.io.fits as fits
+import copy
 import numpy as np
+import poppy
 import pysiaf
 from scipy.interpolate import griddata
 from scipy.ndimage.interpolation import rotate
-
-import poppy
 
 
 def _get_default_siaf(instrument, aper_name):
