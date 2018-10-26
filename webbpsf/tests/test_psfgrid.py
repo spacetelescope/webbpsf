@@ -1,7 +1,8 @@
+import os
+
 import astropy.convolution
 from astropy.io import fits
 import numpy as np
-import os
 import pytest
 
 from .. import gridded_library
