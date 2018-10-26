@@ -989,7 +989,7 @@ class JWInstrument(SpaceTelescopeInstrument):
             detectors = self.detector
 
         if single_psf_centered is True:
-            psf_location = (int(self._detector_npixels / 2), int(self._detector_npixels / 2))  # center point
+            psf_location = (int((self._detector_npixels - 1) / 2), int((self._detector_npixels - 1) / 2))  # center pt
         else:
             psf_location = self.detector_position[::-1]  # (y,x)
 
