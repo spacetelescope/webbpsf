@@ -19,20 +19,20 @@ class CreatePSFLibrary:
     def __init__(self, instrument, filters="all", detectors="all", num_psfs=16, psf_location=None,
                  use_detsampled_psf=False, save=True, filename=None, overwrite=True, **kwargs):
         """
-        Description:
-        ------------
+        Description
+        -----------
         Create a PSF library in the following format:
             For a given instrument, filter, and detector 1 file is produced in the form
             [i, y, x] where i is the PSF position on the detector grid and (y,x)
             is the 2D PSF.
 
-        Parameters:
-        -----------
-        instrument: instance
+        Parameters
+        ----------
+        instrument : instance
             The instance of WebbPSF that is calling this class inside the psf_grid
             method.
 
-        filters: str or list
+        filters : str or list
             Which filter(s) you want to create a library for.
 
             Can be a string of 1 filter name, a list of filter names (as strings), or
@@ -40,7 +40,7 @@ class CreatePSFLibrary:
             attribute of webbpsf.INSTR(). Spelling/capitalization must match what
             WebbPSF expects. See also special case for NIRCam.
 
-        detectors: str or list
+        detectors : str or list
             Which detector(s) you want to create a library for.
 
             Can be a string of 1 detector name, a list of detector names (as strings), or
@@ -48,29 +48,29 @@ class CreatePSFLibrary:
             attribute of webbpsf.INSTR(). Spelling/capitalization must match what
             WebbPSF expects. See also special case for NIRCam.
 
-        num_psfs: int
+        num_psfs : int
             The total number of fiducial PSFs to be created and saved in the files. This
             number must be a square number. Default is 16.
             E.g. num_psfs = 16 will create a 4x4 grid of fiducial PSFs.
 
-        psf_location: tuple
+        psf_location : tuple
             If num_psfs = 1, then this is used to set the (y,x) location of that PSF.
             Default is the center point for the detector.
 
-        use_detsampled_psf: bool
+        use_detsampled_psf : bool
             If True, the grid of PSFs returned will be detector sampled (made by binning down the
             oversampled PSF). If False, the PSFs will be oversampled by the factor defined by the
             oversample/detector_oversample/fft_oversample keywords. Default is False.
 
-        save: bool
+        save : bool
             True/False boolean if you want to save your file
 
-        filename: str
+        filename : str
             If "save" keyword is set to True, your current file will be saved under
             "{filename}_det_filt.fits". Default of None will save it in the current
             directory as: instr_det_filt_fovp#_samp#_npsf#.fits
 
-        overwrite: bool
+        overwrite : bool
             True/False boolean to overwrite the output file if it already exists. Default
             is True.
 
@@ -92,15 +92,15 @@ class CreatePSFLibrary:
         shortwave or longwave. Mismatched lists of short and long wave filters and
         detectors will result in an error.
 
-        Returns:
-        -------
+        Returns
+        ------
         Returns or saves 3D fits HDUlist object - 1 per instrument, detector, and filter
 
-        Use:
-        ----
+        Use
+        ---
         c = CreatePSFLibrary(instrument, filters, detectors, num_psfs, add_distortion,
                              fov_pixels, oversample, save, fileloc, filename, overwrite)
-        c.create_files()
+        file_list = c.create_files()
 
         """
 

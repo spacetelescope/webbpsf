@@ -8,7 +8,6 @@ from .. import gridded_library
 from .. import webbpsf_core
 
 
-# @pytest.mark.skip()
 def test_compare_to_calc_psf_oversampled():
     """Check that the output PSF matches calc_psf and is saved in the correct slice of the array:
     for a distorted, oversampled case
@@ -44,7 +43,6 @@ def test_compare_to_calc_psf_oversampled():
     assert np.array_equal(gridpsf, convpsf)
 
 
-# @pytest.mark.skip()
 def test_compare_to_calc_psf_detsampled():
     """Check that the output PSF matches calc_psf and is saved in the correct slice of the array:
     for an un-distorted, detector sampled case"""
@@ -77,7 +75,6 @@ def test_compare_to_calc_psf_detsampled():
     assert np.array_equal(gridpsf, convpsf)
 
 
-# @pytest.mark.skip()
 def test_all():
     """Check that running all the detectors works (ie setting all_detectors=True). In
     particular for NIRCam, test that the detectors pulled are correct
@@ -136,7 +133,6 @@ def test_one_psf():
     assert np.array_equal(convpsf, grid2[0].data[0, :, :])
 
 
-# @pytest.mark.skip()
 def test_nircam_errors():
     """Check that there are checks for incorrect value setting - particularly with NIRCam"""
     longfilt = "F250M"
@@ -175,7 +171,6 @@ def test_nircam_errors():
     assert "ValueError" in str(excinfo)
 
 
-# @pytest.mark.skip()
 def test_saving(tmpdir):
     """Test saving files works properly"""
 

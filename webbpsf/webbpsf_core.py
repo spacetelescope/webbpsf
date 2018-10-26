@@ -925,36 +925,36 @@ class JWInstrument(SpaceTelescopeInstrument):
                  save=False, outfile=None, overwrite=True, **kwargs):
         """
         Create a PSF library in the form of a grid of PSFs across the detector based on the specified instrument,
-        filter, and detector. The output file is of the form [i, y, x] where i is the PSF position on the detector
-        grid and (y,x) is the 2D PSF.
+        filter, and detector. The output file will contain a 3D array with axes [i, y, x] where i is the PSF position
+        on the detector grid and (y,x) is the 2D PSF.
 
         Parameters
         ----------
-        all_detectors: bool
+        all_detectors : bool
             If True, run all detectors for the instrument. If False, run for the detector set in
             the instance. Default is True
-        use_detsampled_psf: bool
+        use_detsampled_psf : bool
             If True, the grid of PSFs returned will be detector sampled (made by binning down the
             oversampled PSF). If False, the PSFs will be oversampled by the factor defined by the
             oversample/detector_oversample/fft_oversample keywords. Default is False.
-        num_psfs: int
+        num_psfs : int
             The total number of fiducial PSFs to be created and saved in the files. This
             number must be a square number. Default is 16.
             E.g. num_psfs = 16 will create a 4x4 grid of fiducial PSFs.
-        single_psf_centered: bool
+        single_psf_centered : bool
             If num_psfs is set to 1, this defines where that psf is located. If True it will be the
             center of the detector, if False it will be the location defined in the WebbPSF
             attribute detector_position (reminder - detector_position is (x,y)). Default is True
-        save: bool
+        save : bool
             True/False boolean if you want to save your file. Default is False.
-        outfile: str
+        outfile : str
             If "save" keyword is set to True, your current file will be saved under
             "{outfile}_det_filt.fits". Default of None will save it in the current
             directory as: instr_det_filt_fovp#_samp#_npsf#.fits
         overwrite : bool
             True/False boolean to overwrite the output file if it already exists. Default
             is True.
-        **kwargs:
+        **kwargs
             Add any extra arguments to the WebbPSF calc_psf() method call. This includes
             the following kwargs (and their default values): source(=None), nlambda(=None),
             monochromatic(=None), fov_arcsec(=None), fov_pixels(=101), oversample(=4),
@@ -971,12 +971,12 @@ class JWInstrument(SpaceTelescopeInstrument):
         ----
         nir = webbpsf.NIRCam()
         nir.filter = "F090W"
-        nir.psf_grid(all_detectors=True, num_psfs=4)
+        grid = nir.psf_grid(all_detectors=True, num_psfs=4)
 
         nir = webbpsf.NIRCam()
         nir.filter = "F090W"
         nir.detector = "NRCA2"
-        nir.psf_grid(all_detectors=False, oversample=5, fov_pixels=101)
+        grid = nir.psf_grid(all_detectors=False, oversample=5, fov_pixels=101)
 
         """
 
@@ -991,7 +991,7 @@ class JWInstrument(SpaceTelescopeInstrument):
         if single_psf_centered is True:
             psf_location = (int(self._detector_npixels / 2), int(self._detector_npixels / 2))  # center point
         else:
-            psf_location = (self.detector_position[1], self.detector_position[0])  # (y,x)
+            psf_location = self.detector_position[::-1]  # (y,x)
 
         # Call CreatePSFLibrary class
         inst = gridded_library.CreatePSFLibrary(instrument=self, filters=filters, detectors=detectors,
