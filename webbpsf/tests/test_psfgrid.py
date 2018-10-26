@@ -106,7 +106,6 @@ def test_all():
     assert set(det_list) == set(gridded_library.CreatePSFLibrary.nrca_long_detectors)
 
 
-# @pytest.mark.skip()
 def test_one_psf():
     """Check that setting num_psfs = 1 produces the PSF in the right location"""
     oversample = 2
@@ -129,7 +128,7 @@ def test_one_psf():
     kernel = astropy.convolution.Box2DKernel(width=oversample)
     convpsf = astropy.convolution.convolve(calc["OVERDIST"].data, kernel)
 
-    assert grid1[0].header["DET_YX0"] == "(1024.0, 1024.0)"  # the default is the center of the NIS aperture
+    assert grid1[0].header["DET_YX0"] == "(1023.0, 1023.0)"  # the default is the center of the NIS aperture
     assert grid2[0].header["DET_YX0"] == "(0.0, 10.0)"  # it's in (y,x)
     assert np.array_equal(convpsf, grid2[0].data[0, :, :])
 
