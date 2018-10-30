@@ -33,21 +33,18 @@ class CreatePSFLibrary:
             The instance of WebbPSF that is calling this class inside the psf_grid
             method.
 
-        filters : str or list
-            Which filter(s) you want to create a library for.
+        filters : str
+            The name of the filter you want to create a library for. Spelling/
+            capitalization must match what WebbPSF expects.
 
-            Can be a string of 1 filter name, a list of filter names (as strings), or
-            the default "all" will run through all the filters in the filter_list
-            attribute of webbpsf.INSTR(). Spelling/capitalization must match what
-            WebbPSF expects. See also special case for NIRCam.
-
-        detectors : str or list
+        detectors : str
             Which detector(s) you want to create a library for.
 
-            Can be a string of 1 detector name, a list of detector names (as strings), or
-            the default "all" will run through all the detectors in the detector_list
-            attribute of webbpsf.INSTR(). Spelling/capitalization must match what
-            WebbPSF expects. See also special case for NIRCam.
+            Can be a string of 1 detector name or the default "all" will run through
+            all the detectors in the detector_list attribute of webbpsf.INSTR().
+            Spelling/capitalization must match what WebbPSF expects. If detectors="all"
+            for NIRCam, only the correct shortwave/longwave detectors will be pulled
+            based on the wavelength of the filter.
 
         num_psfs : int
             The total number of fiducial PSFs to be created and saved in the files. This
@@ -79,20 +76,6 @@ class CreatePSFLibrary:
             This can be used to add any extra arguments to the WebbPSF calc_psf() method
             call.
 
-        Special Case for NIRCam:
-        For NIRCam, you can set detectors and filters with multiple options.
-        You may set both filters and detectors = "all" just like the other instruments,
-        and the short and long wave filter/detectors will be separated and run in the
-        correct pairings.
-        If you choose only certain filters (either by name or with "shortwave" or
-        "longwave" to run all the shortwave/longwave filters), you may set detectors
-        to "shortwave" or "longwave" or you can set it to be "all" and the script will
-        pull the all possible detectors (ie either all the shortwave or all the longwave
-        detectors).
-        If you choose individual filters and detectors, they must match in
-        shortwave or longwave. Mismatched lists of short and long wave filters and
-        detectors will result in an error.
-
         Returns
         ------
         Returns or saves 3D fits HDUlist object - 1 per instrument, detector, and filter
@@ -113,27 +96,14 @@ class CreatePSFLibrary:
         if psf_location is None:
             psf_location = (int(self.webb._detector_npixels / 2), int(self.webb._detector_npixels / 2))
 
-        # Set the filters and detectors based on the inputs
-        self.filter_input = filters
-        self.detector_input = detectors
-
-        # A list of filters and a list of list of detectors (1 sublist per filter)
-        self.filter_list = self._set_filters()
-        self.detector_list = [self._set_detectors(filter) for filter in self.filter_list]
+        # Setting the filter and detector(s)
+        self.filter = filters
+        self.detector_list = self._set_detectors(self.filter, detectors)
 
         # Set the locations on the detector of the fiducial PSFs
         self.location_list = self._set_psf_locations(num_psfs, psf_location)
 
-        # For NIRCam: Check if filters/detectors match in terms of if they are longwave/shortwave
-        if self.instr == "NIRCam":
-            for filt, det_list in zip(self.filter_list, self.detector_list):
-                for det in det_list:
-                    if "5" in det and filt in CreatePSFLibrary.nrca_short_filters:
-                        self._raise_value_error("short filter", det, filt)
-                    elif "5" not in det and filt in CreatePSFLibrary.nrca_long_filters:
-                        self._raise_value_error("long filter", det, filt)
-
-        # Set PSF attributes for the 3 that will be used before the calc_psf call
+        # Set PSF attributes for the 3 kwargs that will be used before the calc_psf() call
         if "add_distortion" in kwargs:
             self.add_distortion = kwargs["add_distortion"]
         else:
@@ -172,69 +142,23 @@ class CreatePSFLibrary:
         self.overwrite = overwrite
         self.filename = filename
 
-    def _set_filters(self):
-        """ Get the list of filters to create PSF library files for """
-
-        # Set filter list to loop over
-        if self.filter_input == "all":
-            filter_list = self.webb.filter_list
-        elif self.filter_input == "shortwave":
-            filter_list = CreatePSFLibrary.nrca_short_filters
-        elif self.filter_input == "longwave":
-            filter_list = CreatePSFLibrary.nrca_long_filters
-        elif type(self.filter_input) is str:
-            filter_list = self.filter_input.split()
-        elif type(self.filter_input) is list:
-            filter_list = self.filter_input
-        else:
-            raise TypeError("Method of setting filters is not valid - see docstring for options")
-
-        # If the user hand chose a filter list, check it's a valid list for the chosen instrument
-        if self.filter_input not in ["all", "shortwave", "longwave"]:
-            filt = set(filter_list).difference(set(self.webb.filter_list))
-            if filt != set(): raise ValueError("Instrument {} doesn't have the filter(s) {}.".format(self.instr, filt))
-
-        return filter_list
-
-    def _set_detectors(self, filter):
-        """ Get the list of detectors to include in the PSF library files """
+    def _set_detectors(self, filt, detectors):
+        """Get the list of detectors to include in the PSF library files"""
 
         # Set detector list to loop over
-        if self.detector_input == "all":
+        if detectors == "all":
             if self.instr != "NIRCam":
-                detector_list = self.webb.detector_list
-            elif self.instr == "NIRCam" and filter in CreatePSFLibrary.nrca_short_filters:
-                detector_list = CreatePSFLibrary.nrca_short_detectors
-            elif self.instr == "NIRCam" and filter in CreatePSFLibrary.nrca_long_filters:
-                detector_list = CreatePSFLibrary.nrca_long_detectors
-        elif self.detector_input == "shortwave":
-            detector_list = CreatePSFLibrary.nrca_short_detectors
-        elif self.detector_input == "longwave":
-            detector_list = CreatePSFLibrary.nrca_long_detectors
-        elif type(self.detector_input) is str:
-            detector_list = self.detector_input.split()
-        elif type(self.detector_input) is list:
-            detector_list = self.detector_input
+                det= self.webb.detector_list
+            elif self.instr == "NIRCam" and filt in CreatePSFLibrary.nrca_short_filters:
+                det = CreatePSFLibrary.nrca_short_detectors
+            elif self.instr == "NIRCam" and filt in CreatePSFLibrary.nrca_long_filters:
+                det = CreatePSFLibrary.nrca_long_detectors
+        elif type(detectors) is str:
+            det = detectors.split()
         else:
-            raise TypeError("Method of setting detectors is not valid - see docstring for options")
+            raise TypeError("Method of setting detectors is not valid")
 
-        # If the user hand chose a detector list, check it's a valid list for the chosen instrument
-        if self.detector_input not in ["all", "shortwave", "longwave"]:
-            det = set(detector_list).difference(set(self.webb.detector_list))
-            if det != set(): raise ValueError("Instrument {} doesn't have the detector(s) {}.".format(self.instr, det))
-
-        return detector_list
-
-    @staticmethod
-    def _raise_value_error(msg_type, det, filt):
-        """Raise a specific ValueError based on mis-matched short/long wave detectors/filters"""
-
-        if "short filter" in msg_type.lower():
-            message = "You are trying to apply a shortwave filter ({}) to a longwave detector ({}). ".format(filt, det)
-        if "long filter" in msg_type.lower():
-            message = "You are trying to apply a longwave filter ({}) to a shortwave detector ({}). ".format(filt, det)
-
-        raise ValueError(message + "Please change these entries so the filter falls within the detector band.")
+        return det
 
     def _set_psf_locations(self, num_psfs, psf_location):
         """ Set the locations on the detector of the fiducial PSFs"""
@@ -292,138 +216,137 @@ class CreatePSFLibrary:
         kernel = astropy.convolution.Box2DKernel(width=self.oversample)
 
         # For every filter
+        print("\nStarting filter: {}".format(self.filter))
+
+        # Set filter
+        self.webb.filter = self.filter
+
+        # For every detector
         final_list = []
-        for filt, det_list in zip(self.filter_list, self.detector_list):
-            print("\nStarting filter: {}".format(filt))
+        for k, det in enumerate(self.detector_list):
+            print("  Running detector: {}".format(det))
 
-            # Set filter
-            self.webb.filter = filt
+            # Create an array to fill ([i, y, x])
+            psf_size = self.fov_pixels * self.oversample
+            psf_arr = np.empty((self.length**2, psf_size, psf_size))
 
-            # For every detector
-            for k, det in enumerate(det_list):
-                print("  Running detector: {}".format(det))
+            self.webb.detector = det
 
-                # Create an array to fill ([i, y, x])
-                psf_size = self.fov_pixels * self.oversample
-                psf_arr = np.empty((self.length**2, psf_size, psf_size))
+            # For each of the locations on the detector (loc = tuple = (x,y))
+            for i, loc in enumerate(self.location_list):
+                self.webb.detector_position = loc  # (X,Y) - line 286 in webbpsf_core.py
 
-                self.webb.detector = det
+                # Create PSF
+                psf = self.webb.calc_psf(**self._kwargs)
 
-                # For each of the locations on the detector (loc = tuple = (x,y))
-                for i, loc in enumerate(self.location_list):
-                    self.webb.detector_position = loc  # (X,Y) - line 286 in webbpsf_core.py
+                # Convolve PSF with a square kernel
+                psf_conv = astropy.convolution.convolve(psf[ext].data, kernel)
 
-                    # Create PSF
-                    psf = self.webb.calc_psf(**self._kwargs)
+                # Add PSF to 5D array
+                psf_arr[i, :, :] = psf_conv
 
-                    # Convolve PSF with a square kernel
-                    psf_conv = astropy.convolution.convolve(psf[ext].data, kernel)
+            # Write header
+            header = fits.Header()
 
-                    # Add PSF to 5D array
-                    psf_arr[i, :, :] = psf_conv
+            header["INSTRUME"] = (self.instr, "Instrument name")
+            header["DETECTOR"] = (det, "Detector name")
+            header["FILTER"] = (self.filter, "Filter name")
+            header["PUPILOPD"] = (self.webb.pupilopd, "Pupil OPD source name")
 
-                # Write header
-                header = fits.Header()
+            header["FOVPIXEL"] = (self.fov_pixels, "Field of view in pixels (full array)")
+            header["FOV"] = (psf[ext].header["FOV"], "Field of view in arcsec (full array) ")
+            header["OVERSAMP"] = (psf[ext].header["OVERSAMP"], "Oversampling factor for FFTs in computation")
+            header["DET_SAMP"] = (psf[ext].header["DET_SAMP"], "Oversampling factor for MFT to detector plane")
+            header["NWAVES"] = (psf[ext].header["NWAVES"], "Number of wavelengths used in calculation")
 
-                header["INSTRUME"] = (self.instr, "Instrument name")
-                header["DETECTOR"] = (det, "Detector name")
-                header["FILTER"] = (filt, "Filter name")
-                header["PUPILOPD"] = (self.webb.pupilopd, "Pupil OPD source name")
+            for h, loc in enumerate(self.location_list):  # these were originally written out in (x,y)
+                loc = np.asarray(loc, dtype=float)
 
-                header["FOVPIXEL"] = (self.fov_pixels, "Field of view in pixels (full array)")
-                header["FOV"] = (psf[ext].header["FOV"], "Field of view in arcsec (full array) ")
-                header["OVERSAMP"] = (psf[ext].header["OVERSAMP"], "Oversampling factor for FFTs in computation")
-                header["DET_SAMP"] = (psf[ext].header["DET_SAMP"], "Oversampling factor for MFT to detector plane")
-                header["NWAVES"] = (psf[ext].header["NWAVES"], "Number of wavelengths used in calculation")
+                # Even arrays are shifted by 0.5 so they are centered correctly during calc_psf computation
+                # But this needs to be expressed correctly in the header
+                if self.fov_pixels % 2 == 0:
+                    loc += 0.5  # even arrays must be at a half pixel
 
-                for h, loc in enumerate(self.location_list):  # these were originally written out in (x,y)
-                    loc = np.asarray(loc, dtype=float)
+                header["DET_YX{}".format(h)] = (str((loc[1], loc[0])),
+                                                "The #{} PSF's (y,x) detector pixel position".format(h))
 
-                    # Even arrays are shifted by 0.5 so they are centered correctly during calc_psf computation
-                    # But this needs to be expressed correctly in the header
-                    if self.fov_pixels % 2 == 0:
-                        loc += 0.5  # even arrays must be at a half pixel
+            header["NUM_PSFS"] = (self.num_psfs, "The total number of fiducial PSFs")
 
-                    header["DET_YX{}".format(h)] = (str((loc[1], loc[0])),
-                                                    "The #{} PSF's (y,x) detector pixel position".format(h))
+            # Distortion information
+            if self.add_distortion:
+                header["DISTORT"] = (psf[ext].header["DISTORT"], "SIAF distortion coefficients applied")
+                header["SIAF_VER"] = (psf[ext].header["SIAF_VER"], "SIAF PRD version used")
 
-                header["NUM_PSFS"] = (self.num_psfs, "The total number of fiducial PSFs")
+                for key in list(psf[ext].header.keys()):
+                    if "COEF_" in key:
+                        header[key] = (psf[ext].header[key], "SIAF distortion coefficient for {}".format(key))
 
-                # Distortion information
-                if self.add_distortion:
-                    header["DISTORT"] = (psf[ext].header["DISTORT"], "SIAF distortion coefficients applied")
-                    header["SIAF_VER"] = (psf[ext].header["SIAF_VER"], "SIAF PRD version used")
+                if self.instr in ["NIRCam", "NIRISS", "FGS"]:
+                    header["ROTATION"] = (psf[ext].header["ROTATION"], "PSF rotated to match detector rotation")
 
-                    for key in list(psf[ext].header.keys()):
-                        if "COEF_" in key:
-                            header[key] = (psf[ext].header[key], "SIAF distortion coefficient for {}".format(key))
+                if self.instr is "MIRI":
+                    header["MIR_DIST"] = (psf[ext].header["MIR_DIST"], "MIRI detector scattering applied")
+                    header["KERN_AMP"] = (psf[ext].header["KERN_AMP"],
+                                          "Amplitude(A) in kernel function A * exp(-x / B)")
+                    header["KERNFOLD"] = (psf[ext].header["KERNFOLD"],
+                                          "e - folding length(B) in kernel func A * exp(-x / B)")
 
-                    if self.instr in ["NIRCam", "NIRISS", "FGS"]:
-                        header["ROTATION"] = (psf[ext].header["ROTATION"], "PSF rotated to match detector rotation")
+            # Pull values from the last made psf
+            header["WAVELEN"] = (psf[ext].header["WAVELEN"], "Weighted mean wavelength in meters")
+            header["DIFFLMT"] = (psf[ext].header["DIFFLMT"], "Diffraction limit lambda/D in arcsec")
+            header["FFTTYPE"] = (psf[ext].header["FFTTYPE"], "Algorithm for FFTs: numpy or fftw")
+            header["NORMALIZ"] = (psf[ext].header["NORMALIZ"], "PSF normalization method")
+            header["JITRTYPE"] = (psf[ext].header["JITRTYPE"], "Type of jitter applied")
+            header["JITRSIGM"] = (psf[ext].header["JITRSIGM"], "Gaussian sigma for jitter [arcsec]")
+            header["TEL_WFE"] = (psf[ext].header["TEL_WFE"], "[nm] Telescope pupil RMS wavefront error")
 
-                    if self.instr is "MIRI":
-                        header["MIR_DIST"] = (psf[ext].header["MIR_DIST"], "MIRI detector scattering applied")
-                        header["KERN_AMP"] = (psf[ext].header["KERN_AMP"],
-                                              "Amplitude(A) in kernel function A * exp(-x / B)")
-                        header["KERNFOLD"] = (psf[ext].header["KERNFOLD"],
-                                              "e - folding length(B) in kernel func A * exp(-x / B)")
+            header["DATE"] = (psf[ext].header["DATE"], "Date of calculation")
+            header["AUTHOR"] = (psf[ext].header["AUTHOR"], "username@host for calculation")
+            header["VERSION"] = (psf[ext].header["VERSION"], "WebbPSF software version")
+            header["DATAVERS"] = (psf[ext].header["DATAVERS"], "WebbPSF reference data files version ")
 
-                # Pull values from the last made psf
-                header["WAVELEN"] = (psf[ext].header["WAVELEN"], "Weighted mean wavelength in meters")
-                header["DIFFLMT"] = (psf[ext].header["DIFFLMT"], "Diffraction limit lambda/D in arcsec")
-                header["FFTTYPE"] = (psf[ext].header["FFTTYPE"], "Algorithm for FFTs: numpy or fftw")
-                header["NORMALIZ"] = (psf[ext].header["NORMALIZ"], "PSF normalization method")
-                header["JITRTYPE"] = (psf[ext].header["JITRTYPE"], "Type of jitter applied")
-                header["JITRSIGM"] = (psf[ext].header["JITRSIGM"], "Gaussian sigma for jitter [arcsec]")
-                header["TEL_WFE"] = (psf[ext].header["TEL_WFE"], "[nm] Telescope pupil RMS wavefront error")
+            # Add descriptor for how the file was made
+            header["COMMENT"] = "For a given instrument, filter, and detector 1 file is produced in "
+            header["COMMENT"] = "the form [i, y, x] where i is the PSF position on the detector grid "
+            header["COMMENT"] = "and (y,x) is the 2D PSF. The order of PSFs can be found under the "
+            header["COMMENT"] = "header DET_YX* keywords"
 
-                header["DATE"] = (psf[ext].header["DATE"], "Date of calculation")
-                header["AUTHOR"] = (psf[ext].header["AUTHOR"], "username@host for calculation")
-                header["VERSION"] = (psf[ext].header["VERSION"], "WebbPSF software version")
-                header["DATAVERS"] = (psf[ext].header["DATAVERS"], "WebbPSF reference data files version ")
+            # Add header labels
+            header.insert("INSTRUME", ('', ''))
+            header.insert("INSTRUME", ('COMMENT', '/ PSF Library Information'))
 
-                # Add descriptor for how the file was made
-                header["COMMENT"] = "For a given instrument, filter, and detector 1 file is produced in "
-                header["COMMENT"] = "the form [i, y, x] where i is the PSF position on the detector grid "
-                header["COMMENT"] = "and (y,x) is the 2D PSF. The order of PSFs can be found under the "
-                header["COMMENT"] = "header DET_YX* keywords"
+            header.insert("NORMALIZ", ('', ''))
+            header.insert("NORMALIZ", ('COMMENT', '/ WebbPSF Creation Information'))
 
-                # Add header labels
-                header.insert("INSTRUME", ('', ''))
-                header.insert("INSTRUME", ('COMMENT', '/ PSF Library Information'))
+            header.insert("DATAVERS", ('COMMENT', '/ File Description'), after=True)
+            header.insert("DATAVERS", ('', ''), after=True)
 
-                header.insert("NORMALIZ", ('', ''))
-                header.insert("NORMALIZ", ('COMMENT', '/ WebbPSF Creation Information'))
+            # Combine the header and data
+            hdu = fits.HDUList([fits.PrimaryHDU(psf_arr, header=header)])
 
-                header.insert("DATAVERS", ('COMMENT', '/ File Description'), after=True)
-                header.insert("DATAVERS", ('', ''), after=True)
+            # Write file out
+            if self.save:
 
-                # Combine the header and data
-                hdu = fits.HDUList([fits.PrimaryHDU(psf_arr, header=header)])
+                # Set file information
+                if self.filename is None:
+                    path = ""
 
-                # Write file out
-                if self.save:
+                    # E.g. filename: nircam_nrca1_f090w_fovp1000_samp4_npsf16.fits
+                    name = "{}_{}_{}_fovp{}_samp{}_npsf{}.fits".format(self.instr.lower(), det.lower(),
+                                                                       self.filter.lower(), self.fov_pixels,
+                                                                       self.oversample, self.num_psfs)
+                    file = os.path.join(path, name)
+                else:
+                    file = self.filename.split(".")[0]+"_{}_{}.fits".format(det.lower(), self.filter.lower())
 
-                    # Set file information
-                    if self.filename is None:
-                        path = ""
+                print("  Saving file: {}".format(file))
 
-                        # E.g. filename: nircam_nrca1_f090w_fovp1000_samp4_npsf16.fits
-                        name = "{}_{}_{}_fovp{}_samp{}_npsf{}.fits".format(self.instr.lower(), det.lower(),
-                                                                           filt.lower(), self.fov_pixels,
-                                                                           self.oversample, self.num_psfs)
-                        file = os.path.join(path, name)
-                    else:
-                        file = self.filename.split(".")[0]+"_{}_{}.fits".format(det.lower(),filt.lower())
+                hdu.writeto(file, overwrite=self.overwrite)
 
-                    print("  Saving file: {}".format(file))
-
-                    hdu.writeto(file, overwrite=self.overwrite)
-
-                final_list.append(hdu)
+            final_list.append(hdu)
 
         # If only 1 hdulist object created, only return that. Else, return list of objects
-        if len(self.filter_list) == 1 and len(self.detector_list[0]) == 1:
+        if len(self.detector_list) == 1:
             return final_list[0]
         else:
             return final_list
