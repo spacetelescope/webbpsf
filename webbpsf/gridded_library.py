@@ -23,9 +23,9 @@ class CreatePSFLibrary:
         Description
         -----------
         Create a PSF library in the following format:
-            For a given instrument, filter, and detector 1 file is produced in the form
-            [i, y, x] where i is the PSF position on the detector grid and (y,x)
-            is the 2D PSF.
+            For a given instrument, filter, and detector 1 file is produced in the form of
+            a 3D array with axes [i, y, x] where i is the PSF position on the detector grid
+            and (y,x) is the 2D PSF.
 
         Parameters
         ----------
@@ -56,9 +56,10 @@ class CreatePSFLibrary:
             Default is the center point for the detector.
 
         use_detsampled_psf : bool
-            If True, the grid of PSFs returned will be detector sampled (made by binning down the
-            oversampled PSF). If False, the PSFs will be oversampled by the factor defined by the
-            oversample/detector_oversample/fft_oversample keywords. Default is False.
+            If True, the grid of PSFs returned will be detector sampled (made by binning
+            down the oversampled PSF). If False, the PSFs will be oversampled by the
+            factor defined by the oversample/detector_oversample/fft_oversample keywords.
+            Default is False.
 
         save : bool
             True/False boolean if you want to save your file
@@ -77,14 +78,14 @@ class CreatePSFLibrary:
             call.
 
         Returns
-        ------
+        -------
         Returns or saves 3D fits HDUlist object - 1 per instrument, detector, and filter
 
         Use
         ---
         c = CreatePSFLibrary(instrument, filters, detectors, num_psfs, add_distortion,
                              fov_pixels, oversample, save, fileloc, filename, overwrite)
-        file_list = c.create_files()
+        grid = c.create_files()
 
         """
 
@@ -161,10 +162,9 @@ class CreatePSFLibrary:
         return det
 
     def _set_psf_locations(self, num_psfs, psf_location):
-        """ Set the locations on the detector of the fiducial PSFs"""
+        """Set the locations on the detector of the fiducial PSFs"""
 
         self.num_psfs = num_psfs
-        max_size = self.webb._detector_npixels - 1
 
         if np.sqrt(self.num_psfs).is_integer():
             self.length = int(np.sqrt(self.num_psfs))
@@ -176,6 +176,7 @@ class CreatePSFLibrary:
             # Want this case to be at the specified location
             location_list = [(psf_location[1], psf_location[0])]  # tuple of (x,y)
         else:
+            max_size = self.webb._detector_npixels - 1
             loc_list = [int(round(num * max_size)) for num in np.linspace(0, 1, self.length, endpoint=True)]
             location_list = list(itertools.product(loc_list, loc_list))  # list of tuples (x,y) (for WebbPSF)
 
@@ -183,17 +184,14 @@ class CreatePSFLibrary:
 
     def create_files(self):
         """
-        This method is called in the create_files() method
-
         For a given instrument, filter, and detector 1 file is produced in the form
-        [i, y, x] where i is the PSF position on the detector grid and (y,x)
-        is the 2D PSF.
+        of a 3D array with axes [i, y, x] where i is the PSF position on the detector
+        grid and (y,x) is the 2D PSF.
 
-        Returns:
+        Returns
         -------
-        This saves out the library files if requested and then returns a list of all the
-        hdulist objects created (each in the form of [i, y, x], 1 per instrument/filter/
-        detector).
+        Returns a list of all the hdulist objects created (each in the form of [i, y, x],
+        1 per instrument/filter/ detector). Also saves the library file(s) if requested.
 
         """
 

@@ -10,13 +10,13 @@ from .. import webbpsf_core
 
 
 def test_compare_to_calc_psf_oversampled():
-    """Check that the output PSF matches calc_psf and is saved in the correct slice of the array:
+    """
+    Check that the output PSF matches calc_psf and is saved in the correct slice of the array:
     for a distorted, oversampled case
 
-    This case also uses an even length array, so we'll need to subtract 0.5 from the detector position
-    because psf_grid header has been shifted during calc_psf to account for it being an even length array
-    and this shift shouldn't happen 2x (ie again in calc_psf call below)
-
+    This case also uses an even length array, so we'll need to subtract 0.5 from the detector
+    position because psf_grid header has been shifted during calc_psf to account for it being
+    an even length array and this shift shouldn't happen 2x (ie again in calc_psf call below)
     """
     oversample = 2
     fov_pixels = 10
@@ -45,8 +45,10 @@ def test_compare_to_calc_psf_oversampled():
 
 
 def test_compare_to_calc_psf_detsampled():
-    """Check that the output PSF matches calc_psf and is saved in the correct slice of the array:
-    for an un-distorted, detector sampled case"""
+    """
+    Check that the output PSF matches calc_psf and is saved in the correct slice of the array:
+    for an un-distorted, detector sampled case
+    """
     oversample = 2
     fov_arcsec = 0.5
 
@@ -55,7 +57,7 @@ def test_compare_to_calc_psf_detsampled():
     mir.filter = "F560W"
     mir.detector = "MIRIM"
     grid = mir.psf_grid(all_detectors=False, num_psfs=4, use_detsampled_psf=True, add_distortion=False,
-                       oversample=oversample, fov_arcsec=fov_arcsec)
+                        oversample=oversample, fov_arcsec=fov_arcsec)
 
     # Pull one of the PSFs out of the grid
     psfnum = 1
@@ -77,10 +79,11 @@ def test_compare_to_calc_psf_detsampled():
 
 
 def test_all():
-    """Check that running all the detectors works (ie setting all_detectors=True). In
+    """
+    Check that running all the detectors works (ie setting all_detectors=True). In
     particular for NIRCam, test that the detectors pulled are correct
-    (shortwave vs longwave) with respect to the filter"""
-
+    (shortwave vs longwave) with respect to the filter
+    """
     nir = webbpsf_core.NIRCam()
     longfilt = "F250M"
     shortfilt = "F140M"
@@ -145,25 +148,25 @@ def test_nircam_errors():
     # Shouldn't error - applying SW to SW and LW to LW
     nir.filter = longfilt
     nir.detector = longdet
-    nir.psf_grid(all_detectors=False, num_psfs=1, fov_pixels=1, detector_oversample=2, fft_oversample=2)   # no error
+    nir.psf_grid(all_detectors=False, num_psfs=1, fov_pixels=1, detector_oversample=2, fft_oversample=2)
 
     nir.filter = shortfilt
     nir.detector = shortdet
-    nir.psf_grid(all_detectors=False, num_psfs=1, fov_pixels=1, detector_oversample=2, fft_oversample=2) # no error
+    nir.psf_grid(all_detectors=False, num_psfs=1, fov_pixels=1, detector_oversample=2, fft_oversample=2)
 
     # Should error - Bad filter/detector combination (LW filt to SW det)
-    with pytest.raises(ValueError) as excinfo:
-        nir.filter =longfilt
-        nir.detector =shortdet
+    with pytest.raises(RuntimeError) as excinfo:  # Errors inside calc_psf() call
+        nir.filter = longfilt
+        nir.detector = shortdet
         nir.psf_grid(all_detectors=False, num_psfs=1, fov_pixels=1)  # error
-    assert "ValueError" in str(excinfo)
+    assert "RuntimeError" in str(excinfo)
 
     # Should error - Bad filter/detector combination (SW filt to LW det)
-    with pytest.raises(ValueError) as excinfo:
-        nir.filter =shortfilt
-        nir.detector =longdet
+    with pytest.raises(RuntimeError) as excinfo:  # Errors inside calc_psf() call
+        nir.filter = shortfilt
+        nir.detector = longdet
         nir.psf_grid(all_detectors=False, num_psfs=1, fov_pixels=1)  # error
-    assert "ValueError" in str(excinfo)
+    assert "RuntimeError" in str(excinfo)
 
     # Should error - Bad num_psfs entry (must be a square number)
     with pytest.raises(ValueError) as excinfo:
@@ -188,3 +191,5 @@ def test_saving(tmpdir):
         assert infile[0].header == grid[0].header
         assert np.array_equal(infile[0].data, grid[0].data)
 
+    # Remove temporary directory
+    tmpdir.remove()
