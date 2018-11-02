@@ -1,4 +1,3 @@
-
 import copy
 
 import astropy.convolution
@@ -12,8 +11,8 @@ from scipy.ndimage.interpolation import rotate
 def _get_default_siaf(instrument, aper_name):
     """
     Create instance of pysiaf for the input instrument and aperture
-    to be used later to pull SIAF values like distortion coefficients
-    and rotation.
+    to be used later to pull SIAF values like distortion polynomial
+    coefficients and rotation.
 
     Parameters
     ----------
@@ -42,6 +41,8 @@ def _get_default_siaf(instrument, aper_name):
     return aper
 
 
+# Function for applying distortion from SIAF polynomials
+
 def apply_distortion(hdulist_or_filename=None, fill_value=0):
     """
     Apply a distortion to the input PSF. The distortion comes from the SIAF 4-5 degree polynomial
@@ -58,7 +59,7 @@ def apply_distortion(hdulist_or_filename=None, fill_value=0):
     Returns
     -------
     psf : HDUlist object
-        PSF with distortion applied from SIAF coefficients
+        PSF with distortion applied from SIAF polynomial
     """
 
     # Read in input PSF
@@ -161,8 +162,8 @@ def apply_distortion(hdulist_or_filename=None, fill_value=0):
 
     return psf
 
-# #####################################################################################################################
 
+# Function for applying Rotation to NIRCam, NIRISS, and FGS
 
 def apply_rotation(hdulist_or_filename=None, rotate_value=None, crop=True):
     """
@@ -227,8 +228,8 @@ def apply_rotation(hdulist_or_filename=None, rotate_value=None, crop=True):
 
     return psf
 
-# #####################################################################################################################
 
+# Functions for applying MIRI Detector Scattering Effect
 
 def _make_miri_scattering_kernel(image, amplitude, nsamples):
     """
