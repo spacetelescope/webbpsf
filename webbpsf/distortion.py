@@ -202,11 +202,9 @@ def apply_rotation(hdulist_or_filename=None, rotate_value=None, crop=True):
     instrument = hdu_list[0].header["INSTRUME"].upper()
     aper_name = hdu_list[0].header["APERNAME"].upper()
 
-    if instrument == "MIRI":
-        raise ValueError("MIRI's rotation is already included in WebbPSF and shouldn't be added again.")
-
-    if instrument == "NIRSPEC":
-        raise ValueError("NIRSpec's rotation is already included in WebbPSF and shouldn't be added again.")
+    if instrument in ["MIRI", "NIRSPEC"]:
+        raise ValueError("{}'s rotation is already included in WebbPSF and "
+                         "shouldn't be added again.".format(instrument))
 
     # Set rotation value if not already set by a keyword argument
     if rotate_value is None:
