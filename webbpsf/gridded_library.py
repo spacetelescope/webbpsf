@@ -18,7 +18,8 @@ class CreatePSFLibrary:
     nrca_long_detectors = ['NRCA5', 'NRCB5']
 
     def __init__(self, instrument, filters="all", detectors="all", num_psfs=16, psf_location=None,
-                 use_detsampled_psf=False, save=True, filename=None, overwrite=True, **kwargs):
+                 use_detsampled_psf=False, save=True, filename=None, overwrite=True, verbose=True,
+                 **kwargs):
         """
         Description
         -----------
@@ -73,6 +74,9 @@ class CreatePSFLibrary:
             True/False boolean to overwrite the output file if it already exists. Default
             is True.
 
+        verbose : bool
+            True/False boolean to print status updates. Default is True.
+
         **kwargs
             This can be used to add any extra arguments to the WebbPSF calc_psf() method
             call.
@@ -84,7 +88,8 @@ class CreatePSFLibrary:
         Use
         ---
         c = CreatePSFLibrary(instrument, filters, detectors, num_psfs, add_distortion,
-                             fov_pixels, oversample, save, fileloc, filename, overwrite)
+                             fov_pixels, oversample, save, fileloc, filename, overwrite,
+                             verbose)
         grid = c.create_files()
 
         """
@@ -142,6 +147,8 @@ class CreatePSFLibrary:
         self.save = save
         self.overwrite = overwrite
         self.filename = filename
+
+        self.verbose = verbose
 
     def _set_detectors(self, filt, detectors):
         """Get the list of detectors to include in the PSF library files"""
@@ -214,7 +221,8 @@ class CreatePSFLibrary:
         kernel = astropy.convolution.Box2DKernel(width=self.oversample)
 
         # For every filter
-        print("\nStarting filter: {}".format(self.filter))
+        if self.verbose is True:
+            print("\nRunning instrument: {}, filter: {}".format(self.instr, self.filter))
 
         # Set filter
         self.webb.filter = self.filter
@@ -222,7 +230,8 @@ class CreatePSFLibrary:
         # For every detector
         final_list = []
         for k, det in enumerate(self.detector_list):
-            print("  Running detector: {}".format(det))
+            if self.verbose is True:
+                print("  Running detector: {}".format(det))
 
             # Create an array to fill ([i, y, x])
             psf_size = self.fov_pixels * self.oversample

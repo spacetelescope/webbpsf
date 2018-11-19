@@ -922,7 +922,7 @@ class JWInstrument(SpaceTelescopeInstrument):
         return fits.HDUList(fits.ImageHDU(newopd, header=hdr))
 
     def psf_grid(self, all_detectors=True, num_psfs=16, single_psf_centered=True, use_detsampled_psf=False,
-                 save=False, outfile=None, overwrite=True, **kwargs):
+                 save=False, outfile=None, overwrite=True, verbose=True, **kwargs):
         """
         Create a PSF library in the form of a grid of PSFs across the detector based on the specified instrument,
         filter, and detector. The output file will contain a 3D array with axes [i, y, x] where i is the PSF position
@@ -954,6 +954,8 @@ class JWInstrument(SpaceTelescopeInstrument):
         overwrite : bool
             True/False boolean to overwrite the output file if it already exists. Default
             is True.
+        verbose : bool
+            True/False boolean to print status updates. Default is True.
         **kwargs
             Add any extra arguments to the WebbPSF calc_psf() method call. This includes
             the following kwargs (and their default values): source(=None), nlambda(=None),
@@ -997,7 +999,8 @@ class JWInstrument(SpaceTelescopeInstrument):
         inst = gridded_library.CreatePSFLibrary(instrument=self, filters=filters, detectors=detectors,
                                                 num_psfs=num_psfs, psf_location=psf_location,
                                                 use_detsampled_psf=use_detsampled_psf, save=save,
-                                                filename=outfile, overwrite=overwrite, **kwargs)
+                                                filename=outfile, overwrite=overwrite, verbose=verbose,
+                                                **kwargs)
         grid = inst.create_files()
 
         return grid
