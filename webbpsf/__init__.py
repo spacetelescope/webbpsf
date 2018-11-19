@@ -1,5 +1,4 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
-from __future__ import division, print_function, absolute_import, unicode_literals
 """
 WebbPSF: Simulated Point Spread Functions for the James Webb Space Telescope
 ----------------------------------------------------------------------------
@@ -9,14 +8,31 @@ flagship infrared space telescope. WebbPSF can simulate images for any of the
 four science instruments plus the fine guidance sensor, including both direct
 imaging and coronagraphic modes.
 
-Developed by Marshall Perrin and contributors at STScI, 2010-2015.
+Developed by Marshall Perrin and collaborators at STScI, 2010-2018.
+
+Documentation can be found online at https://webbpsf.readthedocs.io/
 """
 
 # Affiliated packages may add whatever they like to this file, but
 # should keep this content at the top.
 # ----------------------------------------------------------------------------
+# make use of astropy affiliate framework to set __version__, __githash__, and
+# add the test() helper function
 from ._astropy_init import *
 # ----------------------------------------------------------------------------
+
+# Enforce Python version check during package import.
+# This is the same check as the one at the top of setup.py
+import sys
+
+__minimum_python_version__ = "3.5"
+
+class UnsupportedPythonError(Exception):
+    pass
+
+if sys.version_info < tuple((int(val) for val in __minimum_python_version__.split('.'))):
+    raise UnsupportedPythonError("webbpsf does not support Python < {}".format(__minimum_python_version__))
+
 
 # This tuple gives the *minimum* version of the WebbPSF data package
 # required. If changes to the code and data mean WebbPSF won't work
@@ -27,11 +43,11 @@ DATA_VERSION_MIN = (0, 6, 0)
 import astropy
 from astropy import config as _config
 
+
 class Conf(_config.ConfigNamespace):
     """
     Configuration parameters for `webbpsf`.
     """
-# Should probably be science state in astropy>=0.4 schema:
 
     default_oversampling = _config.ConfigItem(4, 'Default '+
             'oversampling factor: number of times more finely sampled than '+

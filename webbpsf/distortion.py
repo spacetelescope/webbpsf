@@ -1,16 +1,11 @@
-from __future__ import division, print_function, absolute_import, unicode_literals
-
-import copy
-
 import astropy.convolution
 import astropy.io.fits as fits
+import copy
 import numpy as np
+import poppy
 import pysiaf
-import six
 from scipy.interpolate import griddata
 from scipy.ndimage.interpolation import rotate
-
-import poppy
 
 
 def _get_default_siaf(instrument, aper_name):
@@ -48,7 +43,7 @@ def apply_distortion(hdulist_or_filename=None, fill_value=0):
     """
 
     # Read in input PSF
-    if isinstance(hdulist_or_filename, six.string_types):
+    if isinstance(hdulist_or_filename, str):
         hdu_list = fits.open(hdulist_or_filename)
     elif isinstance(hdulist_or_filename, fits.HDUList):
         hdu_list = hdulist_or_filename
@@ -100,6 +95,10 @@ def apply_distortion(hdulist_or_filename=None, fill_value=0):
     # 5) Now that the indices are in the Ideal frame, convert them to the Science Frame using idl_to_sci
     # Going from Idl to Sci this way allows us to add in the distortion
     xsci, ysci = aper.idl_to_sci(xidl, yidl)
+
+    # 6) Shift the sci indices so they match the PSF's position again (moved slightly off from pysiaf calculation)
+    xsci += xpix_center - np.median(xsci)
+    ysci += ypix_center - np.median(ysci)
 
     # ###############################################
     # Create an array of indices (in pixels) that the final data will be interpolated on to
@@ -166,7 +165,7 @@ def apply_rotation(hdulist_or_filename=None, rotate_value=None, crop=True):
 
     """
     # Read in input PSF
-    if isinstance(hdulist_or_filename, six.string_types):
+    if isinstance(hdulist_or_filename, str):
         hdu_list = fits.open(hdulist_or_filename)
     elif isinstance(hdulist_or_filename, fits.HDUList):
         hdu_list = hdulist_or_filename
@@ -270,7 +269,7 @@ def apply_miri_scattering(hdulist_or_filename=None, kernel_amp=None):
     """
 
     # Read in input PSF
-    if isinstance(hdulist_or_filename, six.string_types):
+    if isinstance(hdulist_or_filename, str):
         hdu_list = fits.open(hdulist_or_filename)
     elif isinstance(hdulist_or_filename, fits.HDUList):
         hdu_list = hdulist_or_filename

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
+# Based on astropy affiliated package template's setup.py
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
-# --based on setup.py from astropy--
 from __future__ import print_function
 
 import glob
@@ -8,6 +8,15 @@ import os
 import sys
 import imp
 import ast
+
+__packagename__ = 'webbpsf'
+__minimum_python_version__ = "3.5"
+
+# Enforce Python version check - this is the same check as in __init__.py but
+# this one has to happen before importing ah_bootstrap.
+if sys.version_info < tuple((int(val) for val in __minimum_python_version__.split('.'))):
+    sys.stderr.write("ERROR: {} requires Python {} or later\n".format(__packagename__, __minimum_python_version__))
+    sys.exit(1)
 
 try:
     import numpy
@@ -109,16 +118,15 @@ setup(name=PACKAGENAME,
       version=VERSION,
       description=DESCRIPTION,
       scripts=scripts,
+      python_requires='>=' + __minimum_python_version__,
       install_requires=[
           'numpy>=1.10.0',
           'matplotlib>=1.5.0',
           'scipy>=0.16.0',
           'poppy>=0.7.0',
-          'astropy>=1.2.0',
+          'astropy>=1.3.0',
           'jwxml>=0.3.0',
           'pysiaf>=0.1.8', 'six',
-          'pytest'  # unlisted requirement for pysiaf - see https://github.com/spacetelescope/pysiaf/issues/16
-                    # Remove this requirement once that issue is addressed.
       ],
       provides=[PACKAGENAME],
       author=AUTHOR,
@@ -128,6 +136,5 @@ setup(name=PACKAGENAME,
       long_description=LONG_DESCRIPTION,
       cmdclass=cmdclassd,
       zip_safe=False,
-      use_2to3=True,
       **package_info
 )
