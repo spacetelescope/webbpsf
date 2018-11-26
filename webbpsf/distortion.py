@@ -1,15 +1,30 @@
+import copy
+
 import astropy.convolution
 import astropy.io.fits as fits
-import copy
 import numpy as np
-import poppy
 import pysiaf
 from scipy.interpolate import griddata
 from scipy.ndimage.interpolation import rotate
 
 
 def _get_default_siaf(instrument, aper_name):
-    """ Store the default SIAF values for distortion and rotation """
+    """
+    Create instance of pysiaf for the input instrument and aperture
+    to be used later to pull SIAF values like distortion polynomial
+    coefficients and rotation.
+
+    Parameters
+    ----------
+    instrument : str
+        The name of the instrument
+    aper_name : str
+        The name of the specific instrument aperture
+
+    Returns
+    -------
+    aper : instance of pysiaf
+    """
 
     # Create new naming because SIAF requires special capitalization
     if instrument == "NIRCAM":
@@ -26,20 +41,25 @@ def _get_default_siaf(instrument, aper_name):
     return aper
 
 
+# Function for applying distortion from SIAF polynomials
+
 def apply_distortion(hdulist_or_filename=None, fill_value=0):
     """
-    Apply a distortion to the input PSF. The distortion comes from the SIAF 4-5 degree polynomial (depends on the
-    instrument). This function pulls and applies the SIAF polynomial values using pysiaf, which ensures the most
-    up-to-date values will be called.
+    Apply a distortion to the input PSF. The distortion comes from the SIAF 4-5 degree polynomial
+    (depending on the instrument). This function pulls and applies the SIAF polynomial values
+    using pysiaf package, which ensures the most up-to-date values will be called.
 
     Parameters
     ----------
-
     hdulist_or_filename :
         A PSF from WebbPSF, either as an HDUlist object or as a filename
     fill_value : float
         Value used to fill in any blank space by the skewed PSF. Default = 0
 
+    Returns
+    -------
+    psf : HDUlist object
+        PSF with distortion applied from SIAF polynomial
     """
 
     # Read in input PSF
@@ -60,7 +80,7 @@ def apply_distortion(hdulist_or_filename=None, fill_value=0):
     # Pull default values
     aper = _get_default_siaf(instrument, aper_name)
 
-    ext = 1  # edit the oversampled PSF
+    ext = 1  # edit the oversampled PSF (OVERDIST extension)
 
     # Pull PSF header information
     pixelscale = psf[ext].header["PIXELSCL"]  # the pixel scale carries the over-sample value
@@ -120,7 +140,6 @@ def apply_distortion(hdulist_or_filename=None, fill_value=0):
 
     # ###############################################
     # Interpolate from the original indices (xsci, ysci) on to new indices (xnew, ynew)
-    # noinspection PyTypeChecker
     psf_new = griddata((xsci.flatten(), ysci.flatten()), psf[ext].data.flatten(), (xnew, ynew),
                        fill_value=fill_value)
 
@@ -143,27 +162,31 @@ def apply_distortion(hdulist_or_filename=None, fill_value=0):
 
     return psf
 
-# #####################################################################################################################
 
+# Function for applying Rotation to NIRCam, NIRISS, and FGS
 
 def apply_rotation(hdulist_or_filename=None, rotate_value=None, crop=True):
     """
-    Apply the detector's rotation to the PSF. This is for NIRCam, NIRISS, and FGS. MIRI and NIRSpec's large rotation is
-    already added inside WebbPSF's calculations.
+    Apply the detector's rotation to the PSF. This is for NIRCam, NIRISS, and FGS.
+    MIRI and NIRSpec's large rotation is already added inside WebbPSF's calculations.
 
     Parameters
     ----------
-
     hdulist_or_filename :
         A PSF from WebbPSF, either as an HDUlist object or as a filename
     rotate_value : float
-        Rotation in degrees that PSF needs to be. If set to None, function will pull the most up to date
-        SIAF value. Default = None.
+        Rotation in degrees that PSF needs to be. If set to None, function
+        will pull the most up to date SIAF value. Default = None.
     crop : bool
-        True or False to crop the PSF so it matches the size of the input PSF (e.g. so they could be more easily
-        compared).
+        True or False to crop the PSF so it matches the size of the input
+        PSF (e.g. so they could be more easily compared).
 
+    Returns
+    -------
+    psf : HDUlist object
+        PSF with rotation applied from SIAF values
     """
+
     # Read in input PSF
     if isinstance(hdulist_or_filename, str):
         hdu_list = fits.open(hdulist_or_filename)
@@ -179,11 +202,9 @@ def apply_rotation(hdulist_or_filename=None, rotate_value=None, crop=True):
     instrument = hdu_list[0].header["INSTRUME"].upper()
     aper_name = hdu_list[0].header["APERNAME"].upper()
 
-    if instrument == "MIRI":
-        raise ValueError("MIRI's rotation is already included in WebbPSF and shouldn't be added again.")
-
-    if instrument == "NIRSPEC":
-        raise ValueError("NIRSpec's rotation is already included in WebbPSF and shouldn't be added again.")
+    if instrument in ["MIRI", "NIRSPEC"]:
+        raise ValueError("{}'s rotation is already included in WebbPSF and "
+                         "shouldn't be added again.".format(instrument))
 
     # Set rotation value if not already set by a keyword argument
     if rotate_value is None:
@@ -193,7 +214,7 @@ def apply_rotation(hdulist_or_filename=None, rotate_value=None, crop=True):
     # If crop = True, then reshape must be False - so invert this keyword
     reshape = np.invert(crop)
 
-    ext = 1  # edit the oversampled PSF
+    ext = 1  # edit the oversampled PSF (OVERDIST extension)
 
     psf_new = rotate(psf[ext].data, rotate_value, reshape=reshape)
 
@@ -205,13 +226,28 @@ def apply_rotation(hdulist_or_filename=None, rotate_value=None, crop=True):
 
     return psf
 
-# #####################################################################################################################
 
+# Functions for applying MIRI Detector Scattering Effect
 
 def _make_miri_scattering_kernel(image, amplitude, nsamples):
     """
-    Creates a detector scatter kernel function. For simplicity, we assume a simple exponential dependence. Code is
-    adapted from MIRI-TN-00076-ATC_Imager_PSF_Issue_4.pdf (originally in IDL).
+    Creates a detector scatter kernel function. For simplicity, we assume a
+    simple exponential dependence. Code is adapted from
+    MIRI-TN-00076-ATC_Imager_PSF_Issue_4.pdf (originally in IDL).
+
+    Parameters
+    ----------
+    image : ndarray
+        PSF array for which to make the kernel
+    amplitude : float
+        Amplitude of the kernel
+    nsamples : int
+        Amount by which the input PSF is oversampled
+
+    Returns
+    -------
+    kernel_x : ndarray
+        1D detector scattering kernel in the x direction
     """
 
     # Compute 1d indices
@@ -230,10 +266,27 @@ def _make_miri_scattering_kernel(image, amplitude, nsamples):
 
 def _apply_miri_scattering_kernel(in_psf, kernel_x, oversample):
     """
-    Applies the detector scattering kernel function created in _make_kernel function to an input image. Code is
-    adapted from MIRI-TN-00076-ATC_Imager_PSF_Issue_4.pdf (originally in IDL).
+    Applies the detector scattering kernel created in _make_miri_scattering_kernel
+    function to an input image. Code is adapted from
+    MIRI-TN-00076-ATC_Imager_PSF_Issue_4.pdf
 
+    Parameters
+    ----------
+    in_psf : ndarray
+        PSF array upon which to apply the kernel
+    kernel_x : ndarray
+        The 1D kernel in the x direction, output from _make_miri_scattering_kernel.
+        This will be transposed to createt the kernel in the y direction.
+    oversample : int
+        Amount by which the input PSF is oversampled
+
+    Returns
+    -------
+    im_conv_both : ndarray
+        The input image convolved with the input kernel in both the x and
+        y directions
     """
+
     # Apply the kernel via convolution in both the X and Y direction
     # Convolve the input PSF with the kernel for scattering in the X direction
     im_conv_x = astropy.convolution.convolve_fft(in_psf, kernel_x, boundary='fill', fill_value=0.0,
@@ -252,20 +305,25 @@ def _apply_miri_scattering_kernel(in_psf, kernel_x, oversample):
 
 def apply_miri_scattering(hdulist_or_filename=None, kernel_amp=None):
     """
-    Apply a distortion caused by the MIRI scattering cross artifact effect. In short we convolve a 2D
-    exponentially decaying cross to the PSF where the amplitude of the exponential function is determined
-    by the filter of the PSF. A full description of the distortion and the original code can
+    Apply a distortion caused by the MIRI scattering cross artifact effect.
+    In short we convolve a 2D exponentially decaying cross to the PSF where
+    the amplitude of the exponential function is determined by the filter of
+    the PSF. A full description of the distortion and the original code can
     be found in MIRI-TN-00076-ATC_Imager_PSF_Issue_4.pdf
 
     Parameters
     ----------
-
     hdulist_or_filename :
         A PSF from WebbPSF, either as an HDUlist object or as a filename
     kernel_amp: float
-        Detector scattering kernel amplitude. If set to None, function will pull the value based on best fit analysis
+        Detector scattering kernel amplitude. If set to None,
+        function will pull the value based on best fit analysis
         using the input PSF's filter. Default = None.
 
+    Returns
+    -------
+    psf : HDUlist object
+        PSF with MIRI detector scattering effect applied
     """
 
     # Read in input PSF
@@ -287,15 +345,17 @@ def apply_miri_scattering(hdulist_or_filename=None, kernel_amp=None):
         raise ValueError("MIRI's Scattering Effect should only be applied to MIRI PSFs")
 
     # Default kernel amplitude values from modeling in MIRI-TN-00076-ATC_Imager_PSF_Issue_4.pdf
-    kernel_amp_dict = {'F560W': 0.00220, 'F770W': 0.00139, 'F1000W': 0.00034, 'F1130W': 0.00007, 'F1280W': 0.00011,
-                       'F1500W': 0.0, 'F1800W': 0.0, 'F2100W': 0.0, 'F2550W': 0.0, 'FND': 0.00087, 'F1065C': 0.00010,
-                       'F1140C': 0.00007, 'F1550C': 0.0, 'F2300C': 0.0}
+    kernel_amp_dict = {'F560W': 0.00220, 'F770W': 0.00139, 'F1000W': 0.00034,
+                       'F1130W': 0.00007, 'F1280W': 0.00011, 'F1500W': 0.0,
+                       'F1800W': 0.0, 'F2100W': 0.0, 'F2550W': 0.0, 'FND': 0.00087,
+                       'F1065C': 0.00010, 'F1140C': 0.00007, 'F1550C': 0.0,
+                       'F2300C': 0.0}
 
     # Set values if not already set by a keyword argument
     if kernel_amp is None:
         kernel_amp = kernel_amp_dict[filt]
 
-    ext = 1
+    ext = 1  # edit the oversampled PSF (OVERDIST extension)
 
     # Set over-sample value
     oversample = psf[ext].header["DET_SAMP"]
