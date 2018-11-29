@@ -754,7 +754,8 @@ class JWInstrument(SpaceTelescopeInstrument):
                  fov_arcsec=None, fov_pixels=None, oversample=None, detector_oversample=None, fft_oversample=None,
                  overwrite=True, display=False, save_intermediates=False, return_intermediates=False,
                  normalize='first', add_distortion=True, crop_psf=True):
-        """ Compute a PSF
+        """
+        Compute a PSF
 
         Parameters
         ----------
@@ -767,10 +768,9 @@ class JWInstrument(SpaceTelescopeInstrument):
             plane, the PSF will be cropped so the shape of the distorted PSF will match it's
             undistorted counterpart. This will only be used for NIRCam, NIRISS, and FGS PSFs.
 
-
         """
 
-        # Save new keyords to the options dictionary
+        # Save new keywords to the options dictionary
         self.options['add_distortion'] = add_distortion
         self.options['crop_psf'] = crop_psf
 
