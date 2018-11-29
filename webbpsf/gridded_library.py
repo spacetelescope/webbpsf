@@ -1,9 +1,12 @@
+from collections import OrderedDict
 import itertools
 import os
 
 import astropy.convolution
 from astropy.io import fits
+from astropy.nddata import NDData
 import numpy as np
+from photutils import GriddedPSFModel
 
 
 class CreatePSFLibrary:
@@ -24,9 +27,9 @@ class CreatePSFLibrary:
         Description
         -----------
         Create a PSF library in the following format:
-            For a given instrument, filter, and detector 1 file is produced in the form of
-            a 3D array with axes [i, y, x] where i is the PSF position on the detector grid
-            and (y,x) is the 2D PSF.
+            For a given instrument, filter, and detector 1 GriddedPSFModel object is produced
+            in the form of a 3D array with axes [i, y, x] where i is the PSF position on the
+            detector grid and (y,x) is the 2D PSF.
 
         Parameters
         ----------
@@ -83,7 +86,8 @@ class CreatePSFLibrary:
 
         Returns
         -------
-        Returns or saves 3D fits HDUlist object - 1 per instrument, detector, and filter
+        Returns a 3D photutils GriddedPSFModel object and/or saves 3D fits HDUlist object.
+        1 model/file per instrument, detector, and filter
 
         Use
         ---
@@ -181,7 +185,7 @@ class CreatePSFLibrary:
         # Set the values
         if num_psfs == 1:
             # Want this case to be at the specified location
-            location_list = [(psf_location[1], psf_location[0])]  # tuple of (x,y)
+            location_list = [(psf_location[::-1])]  # tuple of (x,y)
         else:
             max_size = self.webb._detector_npixels - 1
             loc_list = [int(round(num * max_size)) for num in np.linspace(0, 1, self.length, endpoint=True)]
@@ -189,7 +193,7 @@ class CreatePSFLibrary:
 
         return location_list
 
-    def create_files(self):
+    def create_grid(self):
         """
         For a given instrument, filter, and detector 1 file is produced in the form
         of a 3D array with axes [i, y, x] where i is the PSF position on the detector
@@ -228,7 +232,7 @@ class CreatePSFLibrary:
         self.webb.filter = self.filter
 
         # For every detector
-        final_list = []
+        model_list = []
         for k, det in enumerate(self.detector_list):
             if self.verbose is True:
                 print("  Running detector: {}".format(det))
@@ -252,19 +256,19 @@ class CreatePSFLibrary:
                 # Add PSF to 5D array
                 psf_arr[i, :, :] = psf_conv
 
-            # Write header
-            header = fits.Header()
+            # Define meta data
+            meta = OrderedDict()
 
-            header["INSTRUME"] = (self.instr, "Instrument name")
-            header["DETECTOR"] = (det, "Detector name")
-            header["FILTER"] = (self.filter, "Filter name")
-            header["PUPILOPD"] = (self.webb.pupilopd, "Pupil OPD source name")
+            meta["INSTRUME"] = (self.instr, "Instrument name")
+            meta["DETECTOR"] = (det, "Detector name")
+            meta["FILTER"] = (self.filter, "Filter name")
+            meta["PUPILOPD"] = (self.webb.pupilopd, "Pupil OPD source name")
 
-            header["FOVPIXEL"] = (self.fov_pixels, "Field of view in pixels (full array)")
-            header["FOV"] = (psf[ext].header["FOV"], "Field of view in arcsec (full array) ")
-            header["OVERSAMP"] = (psf[ext].header["OVERSAMP"], "Oversampling factor for FFTs in computation")
-            header["DET_SAMP"] = (psf[ext].header["DET_SAMP"], "Oversampling factor for MFT to detector plane")
-            header["NWAVES"] = (psf[ext].header["NWAVES"], "Number of wavelengths used in calculation")
+            meta["FOVPIXEL"] = (self.fov_pixels, "Field of view in pixels (full array)")
+            meta["FOV"] = (psf[ext].header["FOV"], "Field of view in arcsec (full array)")
+            meta["OVERSAMP"] = (psf[ext].header["OVERSAMP"], "Oversampling factor for FFTs in computation")
+            meta["DET_SAMP"] = (psf[ext].header["DET_SAMP"], "Oversampling factor for MFT to detector plane")
+            meta["NWAVES"] = (psf[ext].header["NWAVES"], "Number of wavelengths used in calculation")
 
             for h, loc in enumerate(self.location_list):  # these were originally written out in (x,y)
                 loc = np.asarray(loc, dtype=float)
@@ -274,86 +278,143 @@ class CreatePSFLibrary:
                 if self.fov_pixels % 2 == 0:
                     loc += 0.5  # even arrays must be at a half pixel
 
-                header["DET_YX{}".format(h)] = (str((loc[1], loc[0])),
-                                                "The #{} PSF's (y,x) detector pixel position".format(h))
+                meta["DET_YX{}".format(h)] = (str((loc[1], loc[0])),
+                                              "The #{} PSF's (y,x) detector pixel position".format(h))
 
-            header["NUM_PSFS"] = (self.num_psfs, "The total number of fiducial PSFs")
+            meta["NUM_PSFS"] = (self.num_psfs, "The total number of fiducial PSFs")
 
             # Distortion information
             if self.add_distortion:
-                header["DISTORT"] = (psf[ext].header["DISTORT"], "SIAF distortion coefficients applied")
-                header["SIAF_VER"] = (psf[ext].header["SIAF_VER"], "SIAF PRD version used")
+                meta["DISTORT"] = (psf[ext].header["DISTORT"], "SIAF distortion coefficients applied")
+                meta["SIAF_VER"] = (psf[ext].header["SIAF_VER"], "SIAF PRD version used")
 
                 for key in list(psf[ext].header.keys()):
                     if "COEF_" in key:
-                        header[key] = (psf[ext].header[key], "SIAF distortion coefficient for {}".format(key))
+                        meta[key] = (psf[ext].header[key], "SIAF distortion coefficient for {}".format(key))
 
                 if self.instr in ["NIRCam", "NIRISS", "FGS"]:
-                    header["ROTATION"] = (psf[ext].header["ROTATION"], "PSF rotated to match detector rotation")
+                    meta["ROTATION"] = (psf[ext].header["ROTATION"], "PSF rotated to match detector rotation")
 
                 if self.instr is "MIRI":
-                    header["MIR_DIST"] = (psf[ext].header["MIR_DIST"], "MIRI detector scattering applied")
-                    header["KERN_AMP"] = (psf[ext].header["KERN_AMP"],
+                    meta["MIR_DIST"] = (psf[ext].header["MIR_DIST"], "MIRI detector scattering applied")
+                    meta["KERN_AMP"] = (psf[ext].header["KERN_AMP"],
                                           "Amplitude(A) in kernel function A * exp(-x / B)")
-                    header["KERNFOLD"] = (psf[ext].header["KERNFOLD"],
+                    meta["KERNFOLD"] = (psf[ext].header["KERNFOLD"],
                                           "e - folding length(B) in kernel func A * exp(-x / B)")
 
             # Pull values from the last made psf
-            header["WAVELEN"] = (psf[ext].header["WAVELEN"], "Weighted mean wavelength in meters")
-            header["DIFFLMT"] = (psf[ext].header["DIFFLMT"], "Diffraction limit lambda/D in arcsec")
-            header["FFTTYPE"] = (psf[ext].header["FFTTYPE"], "Algorithm for FFTs: numpy or fftw")
-            header["NORMALIZ"] = (psf[ext].header["NORMALIZ"], "PSF normalization method")
-            header["JITRTYPE"] = (psf[ext].header["JITRTYPE"], "Type of jitter applied")
-            header["JITRSIGM"] = (psf[ext].header["JITRSIGM"], "Gaussian sigma for jitter [arcsec]")
-            header["TEL_WFE"] = (psf[ext].header["TEL_WFE"], "[nm] Telescope pupil RMS wavefront error")
+            meta["WAVELEN"] = (psf[ext].header["WAVELEN"], "Weighted mean wavelength in meters")
+            meta["DIFFLMT"] = (psf[ext].header["DIFFLMT"], "Diffraction limit lambda/D in arcsec")
+            meta["FFTTYPE"] = (psf[ext].header["FFTTYPE"], "Algorithm for FFTs: numpy or fftw")
+            meta["NORMALIZ"] = (psf[ext].header["NORMALIZ"], "PSF normalization method")
+            meta["JITRTYPE"] = (psf[ext].header["JITRTYPE"], "Type of jitter applied")
+            meta["JITRSIGM"] = (psf[ext].header["JITRSIGM"], "Gaussian sigma for jitter [arcsec]")
+            meta["TEL_WFE"] = (psf[ext].header["TEL_WFE"], "[nm] Telescope pupil RMS wavefront error")
 
-            header["DATE"] = (psf[ext].header["DATE"], "Date of calculation")
-            header["AUTHOR"] = (psf[ext].header["AUTHOR"], "username@host for calculation")
-            header["VERSION"] = (psf[ext].header["VERSION"], "WebbPSF software version")
-            header["DATAVERS"] = (psf[ext].header["DATAVERS"], "WebbPSF reference data files version ")
+            meta["DATE"] = (psf[ext].header["DATE"], "Date of calculation")
+            meta["AUTHOR"] = (psf[ext].header["AUTHOR"], "username@host for calculation")
+            meta["VERSION"] = (psf[ext].header["VERSION"], "WebbPSF software version")
+            meta["DATAVERS"] = (psf[ext].header["DATAVERS"], "WebbPSF reference data files version")
 
-            # Add descriptor for how the file was made
-            header["COMMENT"] = "For a given instrument, filter, and detector 1 file is produced in "
-            header["COMMENT"] = "the form [i, y, x] where i is the PSF position on the detector grid "
-            header["COMMENT"] = "and (y,x) is the 2D PSF. The order of PSFs can be found under the "
-            header["COMMENT"] = "header DET_YX* keywords"
+            # Create GriddedPSFModel object
+            model = self.to_model(psf_arr, meta)
 
-            # Add header labels
-            header.insert("INSTRUME", ('', ''))
-            header.insert("INSTRUME", ('COMMENT', '/ PSF Library Information'))
+            # Append data/objects to lists as needed
+            model_list.append(model)
 
-            header.insert("NORMALIZ", ('', ''))
-            header.insert("NORMALIZ", ('COMMENT', '/ WebbPSF Creation Information'))
+            if self.save is True:
+                self.writeto(psf_arr, meta, det)
 
-            header.insert("DATAVERS", ('COMMENT', '/ File Description'), after=True)
-            header.insert("DATAVERS", ('', ''), after=True)
-
-            # Combine the header and data
-            hdu = fits.HDUList([fits.PrimaryHDU(psf_arr, header=header)])
-
-            # Write file out
-            if self.save:
-
-                # Set file information
-                if self.filename is None:
-                    path = ""
-
-                    # E.g. filename: nircam_nrca1_f090w_fovp1000_samp4_npsf16.fits
-                    name = "{}_{}_{}_fovp{}_samp{}_npsf{}.fits".format(self.instr.lower(), det.lower(),
-                                                                       self.filter.lower(), self.fov_pixels,
-                                                                       self.oversample, self.num_psfs)
-                    file = os.path.join(path, name)
-                else:
-                    file = self.filename.split(".")[0]+"_{}_{}.fits".format(det.lower(), self.filter.lower())
-
-                print("  Saving file: {}".format(file))
-
-                hdu.writeto(file, overwrite=self.overwrite)
-
-            final_list.append(hdu)
-
-        # If only 1 hdulist object created, only return that. Else, return list of objects
+        # If only 1 detector, only return that 1 object. Else, return list of objects
         if len(self.detector_list) == 1:
-            return final_list[0]
+            single_model = model_list[0]
+            return single_model
         else:
-            return final_list
+            return model_list
+
+    def to_model(self, data, meta):
+        """
+        Create a photutils GriddedPSFModel object from input data and meta information
+
+        Parameters
+        ----------
+        data : ndarray
+            3D numpy array of PSFs at different points across the detector
+        meta : dict
+            Dictionary containing meta data
+
+        Returns
+        -------
+        model : GriddedPSFModel
+            Photutils object with 3D data array and metadata with specified grid_xypos
+            and oversampling keys
+        """
+
+        ndd = NDData(data, meta=meta, copy=True)
+
+        ndd.meta['grid_xypos'] = [((float(ndd.meta[key][0].split(',')[1].split(')')[0])),
+                                  (float(ndd.meta[key][0].split(',')[0].split('(')[1])))
+                                  for key in ndd.meta.keys() if "DET_YX" in key]
+
+        ndd.meta['oversampling'] = meta["OVERSAMP"][0]  # just pull the value
+        ndd.meta = {key.lower(): ndd.meta[key] for key in ndd.meta if "DET_YX" not in key and "OVERSAMP" not in key}
+
+        model = GriddedPSFModel(ndd)
+
+        return model
+
+    def writeto(self, data, meta, detector):
+        """
+        Saves grid of PSFs as a 3D FITS file, 1 file per detector.
+
+        Parameters
+        ----------
+        data : ndarray
+            3D numpy array of PSFs at different points across the detector
+        meta : dict
+            Dictionary containing meta data
+        detector : str
+            The name of the detector for which the grid of PSFs was created
+        """
+
+        primaryhdu = fits.PrimaryHDU(data)
+
+        # Convert meta dictionary to header
+        tuples = [(a, b, c) for (a, (b, c)) in meta.items()]
+        primaryhdu.header.extend(tuples)
+
+        # Add extra descriptors for how the file was made
+        primaryhdu.header["COMMENT"] = "For a given instrument, filter, and detector 1 file is produced in "
+        primaryhdu.header["COMMENT"] = "the form [i, y, x] where i is the PSF position on the detector grid "
+        primaryhdu.header["COMMENT"] = "and (y,x) is the 2D PSF. The order of PSFs can be found under the "
+        primaryhdu.header["COMMENT"] = "header DET_YX* keywords"
+
+        # Add extra header labels
+        primaryhdu.header.insert("INSTRUME", ('', ''))
+        primaryhdu.header.insert("INSTRUME", ('COMMENT', '/ PSF Library Information'))
+
+        primaryhdu.header.insert("NORMALIZ", ('', ''))
+        primaryhdu.header.insert("NORMALIZ", ('COMMENT', '/ WebbPSF Creation Information'))
+
+        primaryhdu.header.insert("DATAVERS", ('COMMENT', '/ File Description'), after=True)
+        primaryhdu.header.insert("DATAVERS", ('', ''), after=True)
+
+        # Combine the header and data
+        hdu = fits.HDUList(primaryhdu)
+
+        # Set file information
+        if self.filename is None:
+            path = ""
+
+            # E.g. filename: nircam_nrca1_f090w_fovp1000_samp4_npsf16.fits
+            name = "{}_{}_{}_fovp{}_samp{}_npsf{}.fits".format(self.instr.lower(), detector.lower(),
+                                                               self.filter.lower(), self.fov_pixels,
+                                                               self.oversample, self.num_psfs)
+            file = os.path.join(path, name)
+        else:
+            file = self.filename.split(".")[0] + "_{}_{}.fits".format(detector.lower(), self.filter.lower())
+
+        if self.verbose is True:
+            print("  Saving file: {}".format(file))
+
+        hdu.writeto(file, overwrite=self.overwrite)

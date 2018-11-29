@@ -1,7 +1,10 @@
+from collections import OrderedDict
 import os, sys
 import astropy.io.fits as fits
+from astropy.nddata import NDData
 import numpy as np
 import matplotlib.pyplot as plt
+from photutils import GriddedPSFModel
 
 import scipy.interpolate as sciint
 
@@ -672,3 +675,65 @@ def combine_docstrings(cls):
                            getattr(spacetelescope_class, 'calc_psf').__doc__[ind1:]
 
     return cls
+
+
+def to_griddedpsfmodel(HDUlist_or_filename=None, ext=0):
+    """
+    Create a photutils GriddedPSFModel object from either a FITS file or
+    an HDUlist object. The input must have header keywords "DET_YX{}" and
+    "OVERSAMP" (will be present if psf_grid() is used to create the
+    file).
+
+    Parameters
+    ----------
+    HDUlist_or_filename : string
+        Either a fits.HDUList object or a filename of a FITS file on disk
+    ext : int
+        Extension in that FITS file
+
+    Returns
+    -------
+    model : GriddedPSFModel
+        Photutils object with 3D data array and metadata with specified
+        grid_xypos and oversampling keys
+    """
+
+    if isinstance(HDUlist_or_filename, str):
+        HDUlist = fits.open(HDUlist_or_filename)
+    elif isinstance(HDUlist_or_filename, fits.HDUList):
+        HDUlist = HDUlist_or_filename
+    else:
+        raise ValueError('Input must be a filename or HDUlist')
+
+    data = HDUlist[ext].data
+    header = HDUlist[ext].header
+
+    # Check necessary keys are there
+    if not any("DET_YX" in key for key in header.keys()):
+        raise KeyError("You are missing 'DET_YX{}' keys: which are the detector locations of the PSFs")
+    if 'OVERSAMP' not in header.keys():
+        raise KeyError("You are missing 'OVERSAMP' key: which is the oversampling factor of the PSFs")
+
+    # Convert header to meta dict
+    header = header.copy(strip=True)
+    header.remove('COMMENT', remove_all=True)
+    header.remove('', remove_all=True)
+    meta = OrderedDict((a, (b, c)) for (a, b, c) in header.cards)
+
+    ndd = NDData(data, meta=meta, copy=True)
+
+    # Edit meta dictionary for GriddedPSFLibrary specifics
+    ndd.meta['grid_xypos'] = [((float(ndd.meta[key][0].split(',')[1].split(')')[0])),
+                              (float(ndd.meta[key][0].split(',')[0].split('(')[1])))
+                              for key in ndd.meta.keys() if "DET_YX" in key]  # from (y,x) to (x,y)
+
+    if 'oversampling' not in ndd.meta:
+        ndd.meta['oversampling'] = ndd.meta['OVERSAMP'][0]  # pull the value
+
+    # Remove keys with duplicate information
+    ndd.meta = {key.lower(): ndd.meta[key] for key in ndd.meta if 'DET_YX' not in key and 'OVERSAMP' not in key}
+
+    # Create model
+    model = GriddedPSFModel(ndd)
+
+    return model

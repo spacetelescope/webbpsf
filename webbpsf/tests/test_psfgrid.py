@@ -7,6 +7,7 @@ import pytest
 
 from .. import gridded_library
 from .. import webbpsf_core
+from .. import utils
 
 
 def test_compare_to_calc_psf_oversampled():
@@ -15,8 +16,9 @@ def test_compare_to_calc_psf_oversampled():
     for a distorted, oversampled case
 
     This case also uses an even length array, so we'll need to subtract 0.5 from the detector
-    position because psf_grid header has been shifted during calc_psf to account for it being
-    an even length array and this shift shouldn't happen 2x (ie again in calc_psf call below)
+    position because psf_grid value in the meta data has been shifted during calc_psf to account
+    for it being an even length array and this shift shouldn't happen 2x (ie again in calc_psf
+    call below)
     """
     oversample = 2
     fov_pixels = 10
@@ -28,12 +30,12 @@ def test_compare_to_calc_psf_oversampled():
 
     # Pull one of the PSFs out of the grid
     psfnum = 1
-    loc = grid[0].header["DET_YX{}".format(psfnum)]
-    locy = int(float(loc.split()[0][1:-1]) - 0.5)
-    locx = int(float(loc.split()[1][:-1]) - 0.5)
-    gridpsf = grid[0].data[psfnum, :, :]
+    loc = grid.meta["grid_xypos"][psfnum]
+    locy = int(float(loc[1]) - 0.5)
+    locx = int(float(loc[0]) - 0.5)
+    gridpsf = grid.data[psfnum, :, :]
 
-    # Using header data, create the expected same PSF via calc_psf
+    # Using meta data, create the expected same PSF via calc_psf
     fgs.detector_position = (locx, locy)
     calcpsf = fgs.calc_psf(oversample=oversample, fov_pixels=fov_pixels)["OVERDIST"].data
     kernel = astropy.convolution.Box2DKernel(width=oversample)
@@ -61,12 +63,12 @@ def test_compare_to_calc_psf_detsampled():
 
     # Pull one of the PSFs out of the grid
     psfnum = 1
-    loc = grid[0].header["DET_YX{}".format(psfnum)]
-    locy = int(float(loc.split()[0][1:-1]))
-    locx = int(float(loc.split()[1][:-1]))
-    gridpsf = grid[0].data[psfnum, :, :]
+    loc = grid.meta["grid_xypos"][psfnum]
+    locy = int(float(loc[1]))
+    locx = int(float(loc[0]))
+    gridpsf = grid.data[psfnum, :, :]
 
-    # Using header data, create the expected same PSF via calc_psf
+    # Using meta data, create the expected same PSF via calc_psf
     mir.detector_position = (locx, locy)
     mir.options['output_mode'] = 'Detector Sampled Image'
     calcpsf = mir.calc_psf(oversample=oversample, fov_arcsec=fov_arcsec)["DET_SAMP"].data
@@ -93,7 +95,7 @@ def test_all():
     grid1 = nir.psf_grid(all_detectors=True, num_psfs=1, add_distortion=False, fov_pixels=1, oversample=2)
     det_list = []
     for hdu in grid1:
-        det_list.append(hdu[0].header["DETECTOR"])
+        det_list.append(hdu.meta["detector"][0])
 
     assert len(grid1) == len(gridded_library.CreatePSFLibrary.nrca_short_detectors)
     assert set(det_list) == set(gridded_library.CreatePSFLibrary.nrca_short_detectors)
@@ -103,7 +105,7 @@ def test_all():
     grid2 = nir.psf_grid(all_detectors=True, num_psfs=1, add_distortion=False, fov_pixels=1, oversample=2)
     det_list = []
     for hdu in grid2:
-        det_list.append(hdu[0].header["DETECTOR"])
+        det_list.append(hdu.meta["detector"][0])
 
     assert len(grid2) == len(gridded_library.CreatePSFLibrary.nrca_long_detectors)
     assert set(det_list) == set(gridded_library.CreatePSFLibrary.nrca_long_detectors)
@@ -131,9 +133,9 @@ def test_one_psf():
     kernel = astropy.convolution.Box2DKernel(width=oversample)
     convpsf = astropy.convolution.convolve(calc["OVERDIST"].data, kernel)
 
-    assert grid1[0].header["DET_YX0"] == "(1023.0, 1023.0)"  # the default is the center of the NIS aperture
-    assert grid2[0].header["DET_YX0"] == "(0.0, 10.0)"  # it's in (y,x)
-    assert np.array_equal(convpsf, grid2[0].data[0, :, :])
+    assert grid1.meta["grid_xypos"] == [(1023, 1023)]  # the default is the center of the NIS aperture
+    assert grid2.meta["grid_xypos"] == [(10, 0)]  # it's in (x,y)
+    assert np.array_equal(convpsf, grid2.data[0, :, :])
 
 
 def test_nircam_errors():
@@ -188,8 +190,21 @@ def test_saving(tmpdir):
 
     # Check that the saved file matches the returned file (and thus that the save worked through properly)
     with fits.open(os.path.join(file[:-5], "test1_fgs2_fgs.fits")) as infile:
-        assert infile[0].header == grid[0].header
-        assert np.array_equal(infile[0].data, grid[0].data)
+        # Check data
+        assert np.array_equal(infile[0].data, grid.data)
+
+        # Check meta data
+        model = utils.to_griddedpsfmodel(infile)
+        assert model.meta.keys() == grid.meta.keys()
+        for item in model.meta.items():
+            try:
+                key, (val, comm) = item
+            except:
+                key, val = item
+            if isinstance(val, float):
+                assert np.isclose(model.meta[key][0], grid.meta[key][0], 1e-10)
+            else:
+                assert model.meta[key] == grid.meta[key]
 
     # Remove temporary directory
     tmpdir.remove()

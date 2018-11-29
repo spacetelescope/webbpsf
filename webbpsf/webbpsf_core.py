@@ -922,8 +922,8 @@ class JWInstrument(SpaceTelescopeInstrument):
                  save=False, outfile=None, overwrite=True, verbose=True, **kwargs):
         """
         Create a PSF library in the form of a grid of PSFs across the detector based on the specified instrument,
-        filter, and detector. The output file will contain a 3D array with axes [i, y, x] where i is the PSF position
-        on the detector grid and (y,x) is the 2D PSF.
+        filter, and detector. The output GriddedPSFModel object will contain a 3D array with axes [i, y, x] where
+        i is the PSF position on the detector grid and (y,x) is the 2D PSF.
 
         Parameters
         ----------
@@ -962,9 +962,10 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         Returns
         -------
-        grid : fits.HDUList or list
-            Returns and/or saves 3D fits.HDUlist object (1 per instrument, detector, and filter)
-            or a list of fits.HDUlist objects if more than one detector is specified
+        gridmodel : photutils GriddedPSFModel object
+            Returns a GriddedPSFModel object (1 per instrument, detector, and filter), or a list
+            of objects if more than one detector is specified.
+            User also has the option to save the grid as a fits.HDUlist object
 
         Use
         ----
@@ -998,9 +999,9 @@ class JWInstrument(SpaceTelescopeInstrument):
                                                 use_detsampled_psf=use_detsampled_psf, save=save,
                                                 filename=outfile, overwrite=overwrite, verbose=verbose,
                                                 **kwargs)
-        grid = inst.create_files()
+        gridmodel = inst.create_grid()
 
-        return grid
+        return gridmodel
 
 
 class MIRI(JWInstrument):
