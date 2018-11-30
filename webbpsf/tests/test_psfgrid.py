@@ -196,15 +196,8 @@ def test_saving(tmpdir):
         # Check meta data
         model = utils.to_griddedpsfmodel(infile)
         assert model.meta.keys() == grid.meta.keys()
-        for item in model.meta.items():
-            try:
-                key, (val, comm) = item
-            except:
-                key, val = item
-            if isinstance(val, float):
-                assert np.isclose(model.meta[key][0], grid.meta[key][0], 1e-10)
-            else:
-                assert model.meta[key] == grid.meta[key]
+        assert model.meta["grid_xypos"] == grid.meta["grid_xypos"]
+        assert model.meta["oversampling"] == grid.meta["oversampling"]
 
     # Remove temporary directory
     tmpdir.remove()
