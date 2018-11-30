@@ -24,7 +24,7 @@ env:
         - ASTROPY_VERSION=stable
         - SETUP_CMD='test'
         - PIP_DEPENDENCIES='git+https://github.com/mperrin/poppy.git#egg=poppy jwxml git+https://github.com/spacetelescope/pysiaf.git#egg=pysiaf nbsphinx git+https://github.com/astropy/photutils.git#egg=phoutils'
-        - CONDA_DEPENDENCIES='scipy matplotlib six'
+        - CONDA_DEPENDENCIES='scipy matplotlib six cython'
 
         # For headless testing of code that imports PyPlot:
         - MPLBACKEND=Agg
