@@ -350,8 +350,8 @@ class CreatePSFLibrary:
         """
         try:
             from photutils import GriddedPSFModel
-        except:
-            ImportError("This method requires photutils v0.6")
+        except ImportError:
+            raise ImportError("This method requires photutils >= 0.6")
 
         ndd = NDData(data, meta=meta, copy=True)
 

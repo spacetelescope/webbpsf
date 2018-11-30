@@ -698,8 +698,8 @@ def to_griddedpsfmodel(HDUlist_or_filename=None, ext=0):
     """
     try:
         from photutils import GriddedPSFModel
-    except:
-        ImportError("This method requires photutils v0.6")
+    except ImportError:
+        raise ImportError("This method requires photutils >= 0.6")
 
     if isinstance(HDUlist_or_filename, str):
         HDUlist = fits.open(HDUlist_or_filename)
