@@ -6,7 +6,6 @@ import astropy.convolution
 from astropy.io import fits
 from astropy.nddata import NDData
 import numpy as np
-from photutils import GriddedPSFModel
 
 
 class CreatePSFLibrary:
@@ -349,6 +348,10 @@ class CreatePSFLibrary:
             Photutils object with 3D data array and metadata with specified grid_xypos
             and oversampling keys
         """
+        try:
+            from photutils import GriddedPSFModel
+        except:
+            ImportError("This method requires photutils v0.6")
 
         ndd = NDData(data, meta=meta, copy=True)
 

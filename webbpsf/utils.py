@@ -4,7 +4,6 @@ import astropy.io.fits as fits
 from astropy.nddata import NDData
 import numpy as np
 import matplotlib.pyplot as plt
-from photutils import GriddedPSFModel
 
 import scipy.interpolate as sciint
 
@@ -697,6 +696,10 @@ def to_griddedpsfmodel(HDUlist_or_filename=None, ext=0):
         Photutils object with 3D data array and metadata with specified
         grid_xypos and oversampling keys
     """
+    try:
+        from photutils import GriddedPSFModel
+    except:
+        ImportError("This method requires photutils v0.6")
 
     if isinstance(HDUlist_or_filename, str):
         HDUlist = fits.open(HDUlist_or_filename)
