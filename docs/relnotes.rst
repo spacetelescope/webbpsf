@@ -32,6 +32,26 @@ Road Map for Future Releases
 Version History and Change Log
 -------------------------------
 
+
+Version 0.8.0
+=============
+
+*2018 Dec 07*
+
+- *Added new capability to create grids of fiducial, distorted PSFs* spanning a chosen instrument/detector. This new ``psf_grid`` method is meant to be used as the first step of using the ``photutils`` package to do PSF-fitting photometry on simulated JWST PSFs. This method will output a list of or single ``photutils`` ``GriddedPSFModel`` object(s) which can then be read into ``photutils`` to apply interpolation to the grid and simulate a spatially dependent PSF anywhere on the instrument. See this `Jupyter notebook <https://github.com/mperrin/webbpsf/blob/master/notebooks/Gridded_PSF_Library.ipynb>`_ for examples. This method requires ``photutils`` version 0.6 or higher. [`#241, <https://github.com/spacetelescope/webbpsf/pull/241>` _, @shanosborne with inputs from @mperrin, @larrybradley, @hcferguson, and @eteq]
+- *Improved the application of distortion to PSFs* to allow distorted PSFs to be created when the output mode is set to only “oversampled” or only “detector-sampled.”  When either of these modes is set in the options dictionary, the output will be an HDUList object with two extensions, where the 1st extension is the same PSF as in the 0th extension but with distortion applied. [`#229, <https://github.com/spacetelescope/webbpsf/pull/229>` _, @shanosborne]
+
+**Bug fixes and minor changes:**
+
+- All JWST Instruments: Fix for distorted PSFs which were shifted off-center compared to their undistorted counterparts. These distorted PSFs had always been created in the correct detector location, but the values in the array returned by ``calc_psf`` were shifted off from the center. This bug was particularly apparent when the PSFs were set with a location near the edge of the detector. [`#219, <https://github.com/mperrin/webbpsf/pull/219>` _, @shanosborne]
+- Various smaller code cleanup and doc improvements, including code cleanup for better Python PEP8 style guide compliance [@shanosborne]
+
+
+--------
+
+
+
+
 Version 0.7.0
 =============
 
