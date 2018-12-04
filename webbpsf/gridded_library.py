@@ -97,6 +97,13 @@ class CreatePSFLibrary:
 
         """
 
+        # Before doing anything else, check that we have GriddedPSFModel
+        try:
+            from photutils import GriddedPSFModel
+        except ImportError:
+            raise ImportError("This method requires photutils >= 0.6")
+
+
         # Pull WebbPSF instance
         self.webb = instrument
         self.instr = instrument.name
@@ -246,6 +253,8 @@ class CreatePSFLibrary:
             for i, loc in enumerate(self.location_list):
                 self.webb.detector_position = loc  # (X,Y) - line 286 in webbpsf_core.py
 
+                if self.verbose is True:
+                    print("    Position {}/{}: {} pixels".format(i+1, len(self.location_list), loc))
                 # Create PSF
                 psf = self.webb.calc_psf(**self._kwargs)
 
@@ -421,3 +430,63 @@ class CreatePSFLibrary:
             print("  Saving file: {}".format(file))
 
         hdu.writeto(file, overwrite=self.overwrite)
+
+
+def display_psf_grid(grid, zoom_in=True):
+    """ Display a PSF grid in a pair of lpots
+
+    Shows the NxN grid in NxN subplots, repeated to show
+    first the individual PSFs, and then their differences
+    from the average PSF.
+
+    At this time, this only visualizes a single GriddedPSFModel object,
+    i.e.  covering one detector, not an entire instrument field of view.
+
+    This function returns nothing, but makes some plots.
+
+    Inputs
+    -------
+    grid : photutils.GriddedPSFModel object
+        The grid of PSFs to be displayed.
+
+
+    """
+    import matplotlib
+    import matplotlib.pyplot as plt
+
+    tuple_to_int = lambda t: (int(t[0]), int(t[1]))
+    def show_grid_helper(grid, data, title="Grid of PSFs", vmax=0, vmin=0, scale='log'):
+        npsfs = grid.data.shape[0]
+        n = int(np.sqrt(npsfs))
+
+        fig, axes = plt.subplots(n, n, figsize=(12,12))
+
+        if scale=='log':
+            norm = matplotlib.colors.LogNorm()
+        else:
+            norm = matplotlib.colors.Normalize()
+
+        for ix in range(n):
+            for iy in range(n):
+                i = ix*n+iy
+                axes[n-1-iy,ix].imshow(data[i], vmax=vmax, vmin=vmin, norm=norm)
+                axes[n-1-iy,ix].xaxis.set_visible(False)
+                axes[n-1-iy,ix].yaxis.set_visible(False)
+                axes[n-1-iy,ix].set_title("{}".format(tuple_to_int(grid.grid_xypos[i])))
+                if zoom_in:
+                    axes[n-1-iy,ix].use_sticky_edges = False
+                    axes[n-1-iy,ix].margins(x=-0.25, y=-0.25)
+        plt.suptitle("{} for {} in {} ".format(title,
+                                                         grid.meta['detector'][0],
+                                                         grid.meta['filter'][0]), fontsize=16)
+
+
+    vmax = grid.data.max()
+    vmin = vmax/1e4
+    show_grid_helper(grid, grid.data, vmax=vmax, vmin=vmin)
+
+    meanpsf = np.mean(grid.data, axis=0)
+    diffs = grid.data - meanpsf
+    vmax = np.abs(diffs).max()
+    show_grid_helper(grid, diffs, vmax=vmax, vmin=-vmax, scale='linear', title='PSF differences from mean')
+
