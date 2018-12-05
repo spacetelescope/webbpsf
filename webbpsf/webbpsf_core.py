@@ -612,15 +612,16 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 class JWInstrument(SpaceTelescopeInstrument):
     """ Superclass for all JWST instruments
 
-    Notable attributes:
+    Notable attributes
+    -------------------
 
     telescope : name of telescope
     pupilopd : filename or FITS file object
+
     include_si_wfe : boolean (default: True)
         Should SI internal WFE be included in models? Requires
         the presence of ``si_zernikes_isim_cv3.fits`` in the
         ``WEBBPSF_PATH``.
-
     """
     telescope = "JWST"
     pupilopd = None
