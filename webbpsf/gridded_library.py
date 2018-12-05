@@ -432,7 +432,7 @@ class CreatePSFLibrary:
         hdu.writeto(file, overwrite=self.overwrite)
 
 
-def display_psf_grid(grid, zoom_in=True):
+def display_psf_grid(grid, zoom_in=True, figsize=(12, 12)):
     """ Display a PSF grid in a pair of lpots
 
     Shows the NxN grid in NxN subplots, repeated to show
@@ -460,7 +460,15 @@ def display_psf_grid(grid, zoom_in=True):
         npsfs = grid.data.shape[0]
         n = int(np.sqrt(npsfs))
 
-        fig, axes = plt.subplots(n, n, figsize=(12,12))
+        fig, axes = plt.subplots(n, n, figsize=figsize)
+
+        # Handle an edge case such that this function doesn't fail
+        # for degenerate 1-PSF grids
+        if n == 1:
+            import warnings
+            warnings.warn("Displaying a 1-element 'grid'; this will not be very interesting.")
+            axes = np.asarray(axes)
+            axes.shape = (1, 1)
 
         if scale == 'log':
             norm = matplotlib.colors.LogNorm()
@@ -471,9 +479,9 @@ def display_psf_grid(grid, zoom_in=True):
             for iy in range(n):
                 i = ix*n+iy
                 axes[n-1-iy, ix].imshow(data[i], vmax=vmax, vmin=vmin, norm=norm)
-                axes[n-1-iy,ix].xaxis.set_visible(False)
-                axes[n-1-iy,ix].yaxis.set_visible(False)
-                axes[n-1-iy,ix].set_title("{}".format(tuple_to_int(grid.grid_xypos[i])))
+                axes[n-1-iy, ix].xaxis.set_visible(False)
+                axes[n-1-iy, ix].yaxis.set_visible(False)
+                axes[n-1-iy, ix].set_title("{}".format(tuple_to_int(grid.grid_xypos[i])))
                 if zoom_in:
                     axes[n-1-iy,ix].use_sticky_edges = False
                     axes[n-1-iy,ix].margins(x=-0.25, y=-0.25)
