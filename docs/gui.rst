@@ -4,7 +4,14 @@
 Using WebbPSF via the Graphical User Interface
 **********************************************
 
-The WebbPSF GUI provides an easy interface to most, but not quite all, of the functionality of WebbPSF. (Not all of the advanced settings in the :py:attr:`~webbpsf.JWInstrument.options` structure for :py:class:`webbpsf.JWInstrument` are exposed in the GUI yet, and the programming API is better suited for scripting batch calculations.)
+The WebbPSF GUI provides an easy interface to much, but not all, of the functionality of WebbPSF. (Many advanced settings in the class attributes and :py:attr:`~webbpsf.JWInstrument.options` structure for :py:class:`webbpsf.JWInstrument` are not exposed in the GUI. The programming API is also much better suited for scripting calculations.)
+
+.. attention:: 
+
+   The GUI is mostly not actively developed any more, and is not recommended for more than basic use
+   cases. It's a nice way to play around, but we encourage almost everyone to use the Python API as
+   their primary way of interacting with WebbPSF. The GUI may be deprecated in a future release.
+   
 
 Using the Graphical Interface
 =============================
@@ -89,3 +96,23 @@ The 'More Options...' button on the toolbar will bring up a window that allows y
    :scale: 75%
    :align: center
    :alt: Sample "More Options" dialog box.
+
+
+Troubleshooting
+===============
+
+
+.. caution:: 
+   **Matplotlib Back End Issues**
+
+   On macOS, some users have encountered problems running the GUI due to incompatibilities with
+   `Matplotlib backends <https://matplotlib.org/api/index_backend_api.html>`_. If you see a
+   severe error when trying to start the gui, try switching the backend to "TkAgg" rather than the
+   default "MacOSX". This needs to be done immediately after starting IPython, prior to any attempt
+   to use the GUI, and ideally before even importing webbpsf::
+       import matplotlib
+       matplotlib.use('TkAgg')
+       import webbpsf
+
+
+
