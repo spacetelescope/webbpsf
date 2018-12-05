@@ -34,6 +34,22 @@ The WFI model includes a model for field dependent PSF aberrations. With as larg
 
    This documentation is complemented by an `IPython Notebook format quickstart tutorial <http://nbviewer.ipython.org/github/mperrin/webbpsf/blob/master/notebooks/WebbPSF-WFIRST_Tutorial.ipynb>`_. Downloading and run that notebook to use the beta notebook GUI for the WFI model, and to explore code samples for common tasks interactively.
 
+
+.. caution::
+
+   Note that unlike most JWST modes, WFIRST WFI is *significantly* undersampled relative to Nyquist.
+   Undersampled data is inherently lossy with information, and subject to aliasing. Measurements of
+   properties such as encircled energy, FWHM, Strehl ratio, etc cannot be done precisely on
+   undersampled data. 
+
+   In flight, we will use dithering and similar strategies to reconstruct better-sampled images. The
+   same can be done in simulation using WebbPSF. **Only measure PSF properties such as FWHM or
+   encircled energy on well-sampled data**. That means either simulating dithered undersampled data
+   at multiple subpixel steps and drizzling them back together, or else performing your measurements
+   on oversampled calculation outputs. (I.e. in webbpsf, set `wfi.oversample=4` or more, and perform
+   your measurements on extension 0 of the returned FITS file.)
+
+
 Field dependence in the WFI model
 ---------------------------------
 

@@ -19,10 +19,7 @@ from .. import conf
 
 
 def _exception_message_starts_with(excinfo, message_body):
-    if sys.version_info.major < 3:
-        return excinfo.value.message.startswith(message_body)
-    else:
-        return excinfo.value.args[0].startswith(message_body)
+    return excinfo.value.args[0].startswith(message_body)
 
 
 def test_calc_psf_catch_incompatible_oversampling():

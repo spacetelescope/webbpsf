@@ -311,6 +311,11 @@ def apply_miri_scattering(hdulist_or_filename=None, kernel_amp=None):
     the PSF. A full description of the distortion and the original code can
     be found in MIRI-TN-00076-ATC_Imager_PSF_Issue_4.pdf
 
+    Note, this code **edits in place Extension 1 of the supplied HDUlist**. In the typical case where the
+    input PSF is calculated as Extension 0, the calling function must put a copy of that into Extension 1
+    which this will then modify. This happens in webbpsf_core.py/JWInstrument._calc_psf_format_output,
+    which is where this is called from in the usual course of operation.
+
     Parameters
     ----------
     hdulist_or_filename :

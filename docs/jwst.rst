@@ -83,7 +83,7 @@ For both the required and predicted cases, the OPD files contain 10 Monte Carlo 
    >>> nc.pupilopd = ('OPD_RevW_ote_for_NIRCam_predicted.fits.gz', 7)
 
 Note that these represent 10 distinct, totally independent realizations of JWST and its optical error budget. They do not represent any sort of time series or wavefront drift.
-The average levels of WFE from the telescope itself used in the OPD files are as follows. 
+The average levels of WFE from the telescope itself used in the OPD files are as follows.
 
 
 ==========  ============  ============
@@ -113,6 +113,8 @@ A1-A5 and B1-B5.  Additional attributes are then automatically set for ``channel
 just set the desired detector and the channel and module are inferred
 automatically.
 
+
+
 The choice of ``filter`` also impacts the channel selection: If you choose a
 long-wavelength filter such as F460M, then the detector will automatically
 switch to the long-wave detector for the current channel. For example, if the
@@ -122,6 +124,24 @@ then the detector will automatically change to A5.  If the user later selects
 need to manually select if a different short wave detector is desired).  This
 behavior on filter selection can be disabled by setting ``nircam.auto_channel = False``.
 
+.. admonition:: NIRCam class automatic pixelscale changes
+
+    The ``pixelscale`` will automatically toggle to the correct scale
+    for LW or SW based on user inputs for either detector or filter.
+    If you set the ``detector`` to NRCA1-4 or NRCB1-4, the scale will be set for
+    SW, otherwise for NRCA5 or NRCB5 the pixel scale will be for LW.
+    If you set the ``filter`` attribute to a filter in the short wave channel,
+    the pixel scale will be set for SW, otherwise for a filter in the long wave
+    challen the scale will be set for LW.
+
+    The intent is that the user should in general automatically get a PSF with the
+    appropriate pixelscale for whatever instrument config you're trying to simulate,
+    with no extra effort needed by the user to switch between NIRCam's two channels.
+
+    Note that this behavior is *not* invoked for monochromatic calculations; you
+    can't just iterate over calc_psf calls at different wavelengths and expect it to
+    toggle between SW and LW at some point. The workaround is simple, just set either the
+    filter or detector attribute whenever you want to toggle between SW or LW channels.
 
 
 Coronagraph Masks
@@ -136,9 +156,9 @@ WebbPSF won't prevent users from simulating configuration using a coronagraph
 image mask without the Lyot stop, but that's not something that can be done for
 real with NIRCam.
 
-Note, the Lyot masks have multiple names for historical reasons: The names 
+Note, the Lyot masks have multiple names for historical reasons: The names
 'CIRCLYOT' and 'WEDGELYOT' have been used since early in WebbPSF development, and
-can still be used, but the same masks can also be referred to as "MASKRND" and 
+can still be used, but the same masks can also be referred to as "MASKRND" and
 "MASKSWB" or "MASKLWB", the nomenclature that was eventually adopted for use in
 APT and other JWST documentation. Both ways work and will continue to do so.
 
@@ -164,6 +184,19 @@ easily actually achieve that pointing with the flight hardware.
     :scale: 50%
     :alt: MASKLWB Offsets
 
+.. admonition:: NIRCam class automatic detector position setting for coronagraphy
+
+    Each coronagraphic mask is imaged onto a specific area of a specific detector. Setting the
+    image mask attribute to a coronagraphic mask (e.g. MASKLWB or MASK335R) will
+    automatically configure the ``detector`` and ``detector_position`` attributes appropriately
+    for that mask's field point. Note, this will also invoke the automatic pixelscale functionality
+    to get the right scale for SW or LW, too.
+
+.. warning:: Coronagraph field point WFE not yet included
+
+    The coronagraph field points are far off axis, and this comes with significant WFE added compared to
+    the inner portion of the NIRCam field of view. This is not yet included in WebbPSF, but is work in
+    progress for the next version expected in 2019.
 
 
 Weak Lenses for Wavefront Sensing
