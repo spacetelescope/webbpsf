@@ -58,6 +58,7 @@ The WebbPSF software system is composed of two Python packages: a lower-level op
    webbpsf.rst
    jwst.rst
    wfirst.rst
+   psf_grids.rst
    gui.rst
    more_examples.rst
    poppy.rst
