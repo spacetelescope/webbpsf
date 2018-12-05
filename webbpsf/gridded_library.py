@@ -455,6 +455,7 @@ def display_psf_grid(grid, zoom_in=True):
     import matplotlib.pyplot as plt
 
     tuple_to_int = lambda t: (int(t[0]), int(t[1]))
+
     def show_grid_helper(grid, data, title="Grid of PSFs", vmax=0, vmin=0, scale='log'):
         npsfs = grid.data.shape[0]
         n = int(np.sqrt(npsfs))
