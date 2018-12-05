@@ -480,7 +480,6 @@ def display_psf_grid(grid, zoom_in=True):
                                                grid.meta['detector'][0],
                                                          grid.meta['filter'][0]), fontsize=16)
 
-
     vmax = grid.data.max()
     vmin = vmax/1e4
     show_grid_helper(grid, grid.data, vmax=vmax, vmin=vmin)
