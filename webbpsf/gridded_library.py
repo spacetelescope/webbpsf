@@ -477,7 +477,7 @@ def display_psf_grid(grid, zoom_in=True):
                     axes[n-1-iy,ix].use_sticky_edges = False
                     axes[n-1-iy,ix].margins(x=-0.25, y=-0.25)
         plt.suptitle("{} for {} in {} ".format(title,
-                                                         grid.meta['detector'][0],
+                                               grid.meta['detector'][0],
                                                          grid.meta['filter'][0]), fontsize=16)
 
 
