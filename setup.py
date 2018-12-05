@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Based on astropy affiliated package template's setup.py
-# Licensed under a 3-clause BSD style license - see LICENSE.rst
+# Licensed under a 3-clause BSD style license - see LICENSE.md
 from __future__ import print_function
 
 import glob
@@ -28,7 +28,8 @@ WARNING: NumPy was not found! setup.py will attempt to install it if asked, but
 """)
 
 import ah_bootstrap
-from setuptools import setup
+from setuptools import setup, Command
+from setuptools.command.test import test as TestCommand
 
 #A dirty hack to get around some early import/configurations ambiguities
 if sys.version_info[0] >= 3:
@@ -113,6 +114,59 @@ for root, dirs, files in os.walk(PACKAGENAME):
                 os.path.join(
                     os.path.relpath(root, PACKAGENAME), filename))
 package_info['package_data'][PACKAGENAME].extend(c_files)
+
+
+# allows you to build sphinx docs from the pacakge
+# main directory with python setup.py build_sphinx
+
+try:
+    from sphinx.cmd.build import build_main
+    from sphinx.setup_command import BuildDoc
+
+    class BuildSphinx(BuildDoc):
+        """Build Sphinx documentation after compiling C source files"""
+
+        description = 'Build Sphinx documentation'
+
+        def initialize_options(self):
+            BuildDoc.initialize_options(self)
+
+        def finalize_options(self):
+            BuildDoc.finalize_options(self)
+
+        def run(self):
+            build_cmd = self.reinitialize_command('build_ext')
+            build_cmd.inplace = 1
+            self.run_command('build_ext')
+            build_main(['-b', 'html', './docs', './docs/_build/html'])
+
+except ImportError:
+    class BuildSphinx(Command):
+        user_options = []
+
+        def initialize_options(self):
+            pass
+
+        def finalize_options(self):
+            pass
+
+        def run(self):
+            print('!\n! Sphinx is not installed!\n!', file=sys.stderr)
+            exit(1)
+
+
+class PyTest(TestCommand):
+    def finalize_options(self):
+        TestCommand.finalize_options(self)
+        self.test_args = ['packagename/tests']
+        self.test_suite = True
+
+    def run_tests(self):
+        # import here, cause outside the eggs aren't loaded
+        import pytest
+        errno = pytest.main(self.test_args)
+        sys.exit(errno)
+
 
 setup(name=PACKAGENAME,
       version=VERSION,

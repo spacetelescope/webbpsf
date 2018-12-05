@@ -1,0 +1,12 @@
+Users of WebbPSF are encouraged to cite one of these:
+
+- Perrin et al. 2014, “Updated point spread function simulations for JWST with WebbPSF”, Proc. SPIE. 9143
+
+- Perrin et al. 2012, “Simulating point spread functions for the James Webb Space Telescope with WebbPSF”, Proc SPIE 8842
+
+- Perrin 2011, Improved PSF Simulations for JWST: Methods, Algorithms, and Validation, JWST Technical report JWST-STScI-002469
+
+In particular, the 2012 SPIE paper gives a broad overview, the 2014 SPIE paper presents comparisons to instrument
+cryotest data, and the Technical Report document describes in more detail the relevant optical physics, explains design
+decisions and motivation for WebbPSF’s architecture, and presents extensive validation tests demonstrating consistency
+between WebbPSF and other PSF simulation packages used throughout the JWST project.
