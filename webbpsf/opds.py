@@ -1801,7 +1801,7 @@ def enable_adjustable_ote(instr, jsc=False):
     wavefront error OPD via an OTE linear optical model (LOM).
 
     Parameters
-    ---------
+    ----------
     inst : WebbPSF Instrument instance
         an instance of one of the WebbPSF instrument classes.
     jsc : bool
