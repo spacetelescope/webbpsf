@@ -45,7 +45,7 @@ The WFI model includes a model for field dependent PSF aberrations. With as larg
    In flight, we will use dithering and similar strategies to reconstruct better-sampled images. The
    same can be done in simulation using WebbPSF. **Only measure PSF properties such as FWHM or
    encircled energy on well-sampled data**. That means either simulating dithered undersampled data
-   at multiple subpixel steps nd drizzling them back together, or else performing your measurements
+   at multiple subpixel steps and drizzling them back together, or else performing your measurements
    on oversampled calculation outputs. (I.e. in webbpsf, set `wfi.oversample=4` or more, and perform
    your measurements on extension 0 of the returned FITS file.)
 
