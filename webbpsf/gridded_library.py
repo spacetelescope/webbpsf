@@ -461,7 +461,7 @@ def display_psf_grid(grid, zoom_in=True):
 
         fig, axes = plt.subplots(n, n, figsize=(12,12))
 
-        if scale=='log':
+        if scale == 'log':
             norm = matplotlib.colors.LogNorm()
         else:
             norm = matplotlib.colors.Normalize()
