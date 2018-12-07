@@ -1014,6 +1014,40 @@ class JWInstrument(SpaceTelescopeInstrument):
         return gridmodel
 
 
+    def _get_pupil_shift(self):
+        """ Return a tuple of pupil shifts, for passing to OpticalElement constructors
+        This is a minor utility function that gets used in most of the subclass optical
+        system construction.
+
+        For historical reasons, the pupil_shift_x and pupil_shift_y options are expressed
+        in fractions of the pupil. The parameters to poppy should now be expressed in
+        meters of shift. So the translation of that happens here.
+
+        Returns
+        -------
+        shift_x, shift_y : floats or Nones
+            Pupil shifts, expressed in meters.
+
+        """
+        if ('pupil_shift_x' in self.options and self.options['pupil_shift_x'] != 0) or \
+                ('pupil_shift_y' in self.options and self.options['pupil_shift_y'] != 0):
+
+            from .constants import JWST_CIRCUMSCRIBED_DIAMETER
+            # missing values are treated as 0's
+            shift_x = self.options.get('pupil_shift_x', 0)
+            shift_y = self.options.get('pupil_shift_y', 0)
+            # nones are likewise treated as 0's
+            if shift_x is None: shift_x = 0
+            if shift_y is None: shift_y = 0
+            # Apply pupil scale
+            shift_x *= JWST_CIRCUMSCRIBED_DIAMETER
+            shift_y *= JWST_CIRCUMSCRIBED_DIAMETER
+            _log.info("Setting Lyot pupil shift to ({}, {})".format(shift_x,shift_y))
+        else:
+            shift_x, shift_y = None, None
+        return shift_x, shift_y
+
+
 class MIRI(JWInstrument):
     """ A class modeling the optics of MIRI, the Mid-InfraRed Instrument.
 
@@ -1107,15 +1141,6 @@ class MIRI(JWInstrument):
             # coronagraph planes.
             miri_aberrations = optsys.planes.pop(2)
 
-        # _log.debug('Amplitude:'+str(defaultpupil.amplitude_file))
-        # _log.debug('OPD:'+str(defaultpupil.opd_file))
-        # opd = defaultpupil.opd_file
-        # if hasattr(defaultpupil,'opd_slice'):
-        #    opd = (defaultpupil.opd_file, defaultpupil.opd_slice) # rebuild tuple if needed to slice
-        # optsys.add_pupil(name='JWST Entrance Pupil',
-        #        transmission=defaultpupil.amplitude_file, opd=opd, rotation=None,
-        #        index=0)
-
         # Add image plane mask
         # For the MIRI FQPMs, we require the star to be centered not on the middle pixel, but
         # on the cross-hairs between four pixels. (Since that is where the FQPM itself is centered)
@@ -1189,34 +1214,27 @@ class MIRI(JWInstrument):
             optsys.add_pupil(poppy.FQPM_FFT_aligner(direction='backward'))
 
         # add pupil plane mask
-        if ('pupil_shift_x' in self.options and self.options['pupil_shift_x'] != 0) or \
-                ('pupil_shift_y' in self.options and self.options['pupil_shift_y'] != 0):
-
-            shift = (self.options.get('pupil_shift_x', 0),
-                     self.options.get('pupil_shift_y', 0))
-            _log.info("Setting Lyot pupil shift to %s" % (str(shift)))
-        else:
-            shift = None
+        shift_x, shift_y = self._get_pupil_shift()
         rotation = self.options.get('pupil_rotation', None)
 
         if self.pupil_mask == 'MASKFQPM':
             optsys.add_pupil(transmission=self._datapath + "/optics/MIRI_FQPMLyotStop.fits.gz",
                              name=self.pupil_mask,
-                             flip_y=True, shift=shift, rotation=rotation)
+                             flip_y=True, shift_x=shift_x, shift_y=shift_y, rotation=rotation)
             optsys.planes[-1].wavefront_display_hint = 'intensity'
         elif self.pupil_mask == 'MASKLYOT':
             optsys.add_pupil(transmission=self._datapath + "/optics/MIRI_LyotLyotStop.fits.gz",
                              name=self.pupil_mask,
-                             flip_y=True, shift=shift, rotation=rotation)
+                             flip_y=True, shift_x=shift_x, shift_y=shift_y, rotation=rotation)
             optsys.planes[-1].wavefront_display_hint = 'intensity'
         elif self.pupil_mask == 'P750L LRS grating' or self.pupil_mask == 'P750L':
             optsys.add_pupil(transmission=self._datapath + "/optics/MIRI_LRS_Pupil_Stop.fits.gz",
                              name=self.pupil_mask,
-                             flip_y=True, shift=shift, rotation=rotation)
+                             flip_y=True, shift_x=shift_x, shift_y=shift_y, rotation=rotation)
             optsys.planes[-1].wavefront_display_hint = 'intensity'
         else:  # all the MIRI filters have a tricontagon outline, even the non-coron ones.
             optsys.add_pupil(transmission=self._WebbPSF_basepath + "/tricontagon.fits.gz",
-                             name='filter cold stop', shift=shift, rotation=rotation)
+                             name='filter cold stop', shift_x=shift_x, shift_y=shift_y, rotation=rotation)
             # FIXME this is probably slightly oversized? Needs to have updated specifications here.
 
         if self.include_si_wfe:
@@ -1477,7 +1495,8 @@ class NIRCam(JWInstrument):
                              index=2)
             trySAM = False  # True FIXME
             SAM_box_size = [5, 20]
-        elif ((self.pupil_mask is not None) and ('LENS' not in self.pupil_mask.upper())):
+        elif ((self.pupil_mask is not None) and ('LENS' not in self.pupil_mask.upper())
+                and ('WL' not in self.pupil_mask.upper() )):
             # no occulter selected but coronagraphic mode anyway. E.g. off-axis PSF
             # but don't add this image plane for weak lens calculations
             optsys.add_image(poppy.ScalarTransmission(name='No Image Mask Selected!'), index=2)
@@ -1486,12 +1505,7 @@ class NIRCam(JWInstrument):
             trySAM = False
 
         # add pupil plane mask
-        if ('pupil_shift_x' in self.options and self.options['pupil_shift_x'] != 0) or \
-                ('pupil_shift_y' in self.options and self.options['pupil_shift_y'] != 0):
-            shift = (self.options.get('pupil_shift_x', 0),
-                     self.options.get('pupil_shift_y', 0))
-        else:
-            shift = None
+        shift_x, shift_y = self._get_pupil_shift()
         rotation = self.options.get('pupil_rotation', None)
 
         # NIRCam as-built weak lenses, from WSS config file
@@ -1502,11 +1516,11 @@ class NIRCam(JWInstrument):
 
         if self.pupil_mask == 'CIRCLYOT' or self.pupil_mask == 'MASKRND':
             optsys.add_pupil(transmission=self._datapath + "/optics/NIRCam_Lyot_Somb.fits.gz", name=self.pupil_mask,
-                             flip_y=True, shift=shift, rotation=rotation, index=3)
+                             flip_y=True, shift_x=shift_x, shift_y=shift_y, rotation=rotation, index=3)
             optsys.planes[-1].wavefront_display_hint = 'intensity'
         elif self.pupil_mask == 'WEDGELYOT' or self.pupil_mask == 'MASKSWB' or self.pupil_mask == 'MASKLWB':
             optsys.add_pupil(transmission=self._datapath + "/optics/NIRCam_Lyot_Sinc.fits.gz", name=self.pupil_mask,
-                             flip_y=True, shift=shift, rotation=rotation, index=3)
+                             flip_y=True, shift_x=shift_x, shift_y=shift_y, rotation=rotation, index=3)
             optsys.planes[-1].wavefront_display_hint = 'intensity'
         elif self.pupil_mask == 'WEAK LENS +4' or self.pupil_mask == 'WLP4':
             optsys.add_pupil(poppy.ThinLens(
@@ -1514,7 +1528,7 @@ class NIRCam(JWInstrument):
                 nwaves=WLP4_diversity / WL_wavelength,
                 reference_wavelength=WL_wavelength * 1e-6,  # convert microns to meters
                 radius=self.pupil_radius,
-                shift=shift, rotation=rotation,
+                shift_x=shift_x, shift_y=shift_y, rotation=rotation,
             ), index=3)
         elif self.pupil_mask == 'WEAK LENS +8' or self.pupil_mask == 'WLP8':
             optsys.add_pupil(poppy.ThinLens(
@@ -1522,7 +1536,7 @@ class NIRCam(JWInstrument):
                 nwaves=WLP8_diversity / WL_wavelength,
                 reference_wavelength=WL_wavelength * 1e-6,
                 radius=self.pupil_radius,
-                shift=shift, rotation=rotation,
+                shift_x=shift_x, shift_y=shift_y, rotation=rotation,
             ), index=3)
         elif self.pupil_mask == 'WEAK LENS -8' or self.pupil_mask == 'WLM8':
             optsys.add_pupil(poppy.ThinLens(
@@ -1530,7 +1544,7 @@ class NIRCam(JWInstrument):
                 nwaves=WLM8_diversity / WL_wavelength,
                 reference_wavelength=WL_wavelength * 1e-6,
                 radius=self.pupil_radius,
-                shift=shift, rotation=rotation,
+                shift_x=shift_x, shift_y=shift_y, rotation=rotation,
             ), index=3)
         elif self.pupil_mask == 'WEAK LENS +12 (=4+8)' or self.pupil_mask == 'WLP12':
             stack = poppy.CompoundAnalyticOptic(name='Weak Lens Pair +12', opticslist=[
@@ -1539,14 +1553,14 @@ class NIRCam(JWInstrument):
                     nwaves=WLP4_diversity / WL_wavelength,
                     reference_wavelength=WL_wavelength * 1e-6,
                     radius=self.pupil_radius,
-                    shift=shift, rotation=rotation,
+                    shift_x=shift_x, shift_y=shift_y, rotation=rotation,
                 ),
                 poppy.ThinLens(
                     name='Weak Lens +8',
                     nwaves=WLP8_diversity / WL_wavelength,
                     reference_wavelength=WL_wavelength * 1e-6,
                     radius=self.pupil_radius,
-                    shift=shift, rotation=rotation,
+                    shift_x=shift_x, shift_y=shift_y, rotation=rotation,
                 )]
                                                 )
             optsys.add_pupil(stack, index=3)
@@ -1557,14 +1571,14 @@ class NIRCam(JWInstrument):
                     nwaves=WLP4_diversity / WL_wavelength,
                     reference_wavelength=WL_wavelength * 1e-6,
                     radius=self.pupil_radius,
-                    shift=shift, rotation=rotation,
+                    shift_x=shift_x, shift_y=shift_y, rotation=rotation,
                 ),
                 poppy.ThinLens(
                     name='Weak Lens -8',
                     nwaves=WLM8_diversity / WL_wavelength,
                     reference_wavelength=WL_wavelength * 1e-6,
                     radius=self.pupil_radius,
-                    shift=shift, rotation=rotation,
+                    shift_x=shift_x, shift_y=shift_y, rotation=rotation,
                 )]
                                                 )
             optsys.add_pupil(stack, index=3)
@@ -1574,7 +1588,7 @@ class NIRCam(JWInstrument):
             optsys.add_pupil(poppy.ScalarTransmission(name='No Lyot Mask Selected!'), index=3)
         else:
             optsys.add_pupil(transmission=self._WebbPSF_basepath + "/tricontagon_oversized_4pct.fits.gz",
-                             name='filter stop', shift=shift, rotation=rotation)
+                             name='filter stop', shift_x=shift_x, shift_y=shift_y, rotation=rotation)
 
         return (optsys, trySAM, SAM_box_size)
 
@@ -1780,20 +1794,14 @@ class NIRISS(JWInstrument):
             radius = 0.0  # irrelevant but variable needs to be initialized
 
         # add pupil plane mask
-        # if ('pupil_shift_x' in self.options and self.options['pupil_shift_x'] != 0) or \
-        # ('pupil_shift_y' in self.options and self.options['pupil_shift_y'] != 0):
-        # shift_x = (self.options['pupil_shift_x'], self.options['pupil_shift_y'])
-        # else:
-        # shift = None
-        shift_x = self.options.get('pupil_shift_x', None)
-        shift_y = self.options.get('pupil_shift_y', None)
+        shift_x, shift_y = self._get_pupil_shift()
         rotation = self.options.get('pupil_rotation', None)
 
         # Note - the syntax for specifying shifts is different between FITS files and
         # AnalyticOpticalElement instances. Annoying but historical.
         if self.pupil_mask == 'MASK_NRM':
             optsys.add_pupil(transmission=self._datapath + "/optics/MASK_NRM.fits.gz", name=self.pupil_mask,
-                             flip_y=True, shift=(shift_y, shift_y), rotation=rotation)
+                             flip_y=True, shift_x=shift_x, shift_y=shift_y, rotation=rotation)
             optsys.planes[-1].wavefront_display_hint = 'intensity'
         elif self.pupil_mask == 'CLEARP':
             optsys.add_pupil(optic=NIRISS_CLEARP(shift_x=shift_x, shift_y=shift_y, rotation=rotation))
