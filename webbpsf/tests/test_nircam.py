@@ -287,3 +287,31 @@ def test_nircam_coron_unocculted(plot=False):
     psf = nc.calc_psf(monochromatic=2.12e-6)
     return(psf)
 
+def test_defocus(fov_arcsec=1, display=False):
+    """Test we can apply a defocus to a PSF
+    via either a weak lens, or via the options dict,
+    and we get consistent results either way.
+
+    Test for #59 among other things
+    """
+    nrc = webbpsf_core.NIRCam()
+    nrc.pupilopd=None
+    nrc.include_si_wfe=False
+
+    # Calculate defocus with a weak lens
+    nrc.pupil_mask = 'WEAK LENS +4'
+    psf = nrc.calc_psf(nlambda=1, fov_arcsec=fov_arcsec, oversample=1, display=False, add_distortion=False)
+
+    # Calculate equivalent via the options structure
+    nrc.pupil_mask = None
+    nrc.options['defocus_waves']=3.9024 # as measured
+    nrc.options['defocus_wavelength']=2.12e-6
+    psf_2 = nrc.calc_psf(nlambda=1, fov_arcsec=fov_arcsec, oversample=1, display=False, add_distortion=False)
+
+    assert np.allclose(psf[0].data, psf_2[0].data), "Defocused PSFs calculated two ways don't agree"
+
+    if display:
+        plt.figure()
+        webbpsf.display_psf(psf)
+        plt.figure()
+        webbpsf.display_psf(psf_2)
