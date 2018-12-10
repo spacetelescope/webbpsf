@@ -311,6 +311,7 @@ def test_defocus(fov_arcsec=1, display=False):
     assert np.allclose(psf[0].data, psf_2[0].data), "Defocused PSFs calculated two ways don't agree"
 
     if display:
+        import webbpsf
         plt.figure()
         webbpsf.display_psf(psf)
         plt.figure()
