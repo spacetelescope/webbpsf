@@ -18,14 +18,14 @@ See https://github.com/mperrin/webbpsf/issues for currently open issues and enha
 **The following factors are NOT included in these simulations:**
 
 * Coronagraphic masks are assumed to be perfect (i.e. the masks exactly match their design parameters.)
-* Most detector effects, such as intrapixel sensitivity variations or interpixel capacitance. There are currently no plans to include these WebbPSF itself.  Generate a subsampled PSF and use a separate detector model code instead. The one exception is a scattering artifact in the MIRI imager detector substrate. 
+* Most detector effects, such as intrapixel sensitivity variations or interpixel capacitance. There are currently no plans to include these WebbPSF itself.  Generate a subsampled PSF and use a separate detector model code instead. The one exception is a scattering artifact in the MIRI imager detector substrate.
 
 Road Map for Future Releases
 --------------------------------
-* Continued validation and updates as needed based on further analyses of instrument and telescope hardware test data. 
+* Continued validation and updates as needed based on further analyses of instrument and telescope hardware test data.
 * Support for the NIRSpec and MIRI IFUs may be added in a future release; level of detail is still TBD.
-* Improved models for telescope WFE evolution over time. 
-* Possibly: separate handling of pre- and post- coronagraphic WFE in instruments, or pre- and post- NIRSpec MSA plane WFE; pending receipt of test data and models from the instrument teams.  
+* Improved models for telescope WFE evolution over time.
+* Possibly: separate handling of pre- and post- coronagraphic WFE in instruments, or pre- and post- NIRSpec MSA plane WFE; pending receipt of test data and models from the instrument teams.
 
 .. _whatsnew:
 
@@ -36,15 +36,36 @@ Version History and Change Log
 Version 0.8.0
 =============
 
-*2018 Dec 07*
+*2018 Dec 15*
 
-- *Added new capability to create grids of fiducial, distorted PSFs* spanning a chosen instrument/detector. This new ``psf_grid`` method is meant to be used as the first step of using the ``photutils`` package to do PSF-fitting photometry on simulated JWST PSFs. This method will output a list of or single ``photutils`` ``GriddedPSFModel`` object(s) which can then be read into ``photutils`` to apply interpolation to the grid and simulate a spatially dependent PSF anywhere on the instrument. See this `Jupyter notebook <https://github.com/mperrin/webbpsf/blob/master/notebooks/Gridded_PSF_Library.ipynb>`_ for examples. This method requires ``photutils`` version 0.6 or higher. [`#241, <https://github.com/spacetelescope/webbpsf/pull/241>` _, @shanosborne with inputs from @mperrin, @larrybradley, @hcferguson, and @eteq]
+This release focused on software engineering improvements, rather than changes in any of the optical models or reference data. In particular, there are NO changes in the reference data files; WebbPSF version 0.8 will continue to use the same reference data as distributed for version 0.7.
+
+.. admonition:: Python version support: Python 3 required
+
+        This version drops support for Python 2.7. The minimum supported version of Python is now 3.5.
+
+**New functionality:**
+
+- *Added new capability to create grids of fiducial, distorted PSFs* spanning a chosen instrument/detector. This new ``psf_grid`` method is meant to be used as the first step of using the ``photutils`` package to do PSF-fitting photometry on simulated JWST PSFs. This method will output a list of or single ``photutils`` ``GriddedPSFModel`` object(s) which can then be read into ``photutils`` to apply interpolation to the grid and simulate a spatially dependent PSF anywhere on the instrument. See this `Jupyter notebook <https://github.com/spacetelescope/webbpsf/blob/master/notebooks/Gridded_PSF_Library.ipynb>`_ for examples. This method requires ``photutils`` version 0.6 or higher. [`#241, <https://github.com/spacetelescope/webbpsf/pull/241>` _, @shanosborne with inputs from @mperrin, @larrybradley, @hcferguson, and @eteq]
+
+**Bug fixes and small changes:**
+
 - *Improved the application of distortion to PSFs* to allow distorted PSFs to be created when the output mode is set to only “oversampled” or only “detector-sampled.”  When either of these modes is set in the options dictionary, the output will be an HDUList object with two extensions, where the 1st extension is the same PSF as in the 0th extension but with distortion applied. [`#229, <https://github.com/spacetelescope/webbpsf/pull/229>` _, @shanosborne]
+- Also fixed distorted PSFs which were shifted off-center compared to their undistorted counterparts. These distorted PSFs had always been created in the correct detector location, but the values in the array returned by ``calc_psf`` were shifted off from the center. This bug was particularly apparent when the PSFs were set with a location near the edge of the detector. [`#219, <https://github.com/spacetelescope/webbpsf/pull/219>` _, @shanosborne]
+- Fix FITS output from JWST OTE linear model, plus typo fixes and PEP8 improvements [#232, @laurenmarietta]
+- Display code added for the PSF grid functionality mentioned above [#247, @mperrin]
 
-**Bug fixes and minor changes:**
+**Software and Package Infrastructure Updates:**
 
-- All JWST Instruments: Fix for distorted PSFs which were shifted off-center compared to their undistorted counterparts. These distorted PSFs had always been created in the correct detector location, but the values in the array returned by ``calc_psf`` were shifted off from the center. This bug was particularly apparent when the PSFs were set with a location near the edge of the detector. [`#219, <https://github.com/mperrin/webbpsf/pull/219>` _, @shanosborne]
-- Various smaller code cleanup and doc improvements, including code cleanup for better Python PEP8 style guide compliance [@shanosborne]
+- Removed Python 2.7 compatibility code, use of six and 2to3 packages, and Python 2 test cases on Travis (#236, #239, @mperrin, @kjbrooks]
+- Packaging re-organized for consistency with current STScI package template (#240, @robelgeda)
+- Documentation template updated for consistency with current STScI docs template (#250, @robelgeda)
+- Documentation added or updated for a variety of features [#248, @mperrin]
+- Various smaller code cleanup and doc improvements, including code cleanup for better Python PEP8 style guide compliance [#227, #255, @shanosborne]
+- Updated to newer syntax for specifying pupil shifts of optical elements [#257, @mperrin]
+- Unit tests added for defocused instruments, including the NIRCam weak lenses [#256, @mperrin]
+- Updated astropy-helpers submodule to 3.0.2 [#249, @mperrin]
+- Software development repo on Github shifted to within the `spacetelescope organization <https://github.com/spacetelescope/poppy>`_.
 
 
 --------
