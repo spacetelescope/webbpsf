@@ -125,7 +125,7 @@ and you should be able to test drive things using the GUI:
    The main window of the WebbPSF GUI when first launched.
 
 Most controls should be self-explanatory, so feel free to experiment. The article :ref:`gui` provides a detailed
-explanation of the GUI options.
+explanation of the GUI options. (Please note, the GUI only provides *basic* access to WebbPSF for introductory purposes; the Python programming interface is the recommended best way to use WebbPSF.)
 
 WebbPSF can save a detailed log of its calculations and results. This will by default be shown on screen but can also be saved to disk.
 

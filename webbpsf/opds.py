@@ -1219,7 +1219,7 @@ class OTE_Linear_Model_WSS(OPD):
         segment : string
             name of segment, A1 through C6
         hexike_coeffs : iterable of floats
-            Zernike coefficients, in units of microns
+            Zernike coefficients, in units of meters
         """
         assert (segment in self.segnames)
 

@@ -1095,9 +1095,10 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
 
         self.row = self.ztable[closest]
 
-        self.name = '{instrument} internal WFE, near {field_point}'.format(
+        self.name = "{instrument} internal WFE at V2V3=({v2:.2f},{v3:.2f})', near {field_point}".format(
             instrument=lookup_name,
-            field_point=self.row['field_point_name']
+            field_point=self.row['field_point_name'],
+            v2=telcoords_am[0], v3=telcoords_am[1]
         )
         # Retrieve those Zernike coeffs (no interpolation for now)
         # coeffs = [self.row['Zernike_{}'.format(i)] for i in range(1, 36)]

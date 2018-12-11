@@ -326,6 +326,49 @@ Please see the documentation for :py:class:`poppy.FITSOpticalElement` for inform
 In particular, you will need to set the `PUPLSCAL` keyword, and OPD values must be given in units of meters.
 
 
+Calculating Data Cubes
+----------------------
+
+Sometimes it is convenient to calculate many PSFs at different wavelengths with the same instrument
+config. You can do this just by iterating over calls to ``calc_psf``, but there's also a function to
+automate this: ``calc_datacube``. For example, here's something loosely like the NIRSpec IFU in
+F290LP:
+
+
+.. code-block:: Python
+
+    # Set up a NIRSpec instance
+    nrs = webbpsf.NIRSpec()
+    nrs.image_mask = None # No MSA for IFU mode
+    nl = np.linspace(2.87e-6, 5.27e-6, 6)
+
+    # Calculate PSF datacube
+    cube = nrs.calc_datacube(wavelengths=nl, fov_pixels=27, oversample=4)
+
+    # Display the contents of the data cube
+    fig, axes = plt.subplots(nrows=2, ncols=3, figsize=(10,7))
+    for iy in range(2):
+        for ix in range(3):
+            ax=axes[iy,ix]
+            i = iy*3+ix
+            wl = cube[0].header['WAVELN{:02d}'.format(i)]
+
+            # Note that when displaying datacubes, you have to set the "cube_slice" parameter
+            webbpsf.display_psf(cube, ax=ax, cube_slice=i,
+                                title="NIRSpec, $\lambda$ = {:.3f} $\mu$m".format(wl*1e6),
+                                vmax=.2, vmin=1e-4, ext=1, colorbar=False)
+            ax.xaxis.set_visible(False)
+            ax.yaxis.set_visible(False)
+
+
+.. image:: ./fig_nirspec_cube_f290lp.png
+   :scale: 100%
+   :align: center
+   :alt: Sample PSF cube image
+
+
+
+
 Subclassing a JWInstrument to add additional functionality
 ----------------------------------------------------------
 
