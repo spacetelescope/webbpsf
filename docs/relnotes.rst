@@ -7,7 +7,7 @@ Release Notes
 Known Issues
 --------------
 
-See https://github.com/mperrin/webbpsf/issues for currently open issues and enhancement suggestions.
+See https://github.com/spacetelescope/webbpsf/issues for currently open issues and enhancement suggestions.
 
 * Calculations at large radii (> 500 lambda/D ~ 30 arcsec for 2 microns) will
   show numerical artifacts from Fourier aliasing and the implicit repetition of

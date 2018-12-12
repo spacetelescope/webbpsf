@@ -1,7 +1,7 @@
 Diagnostics & Troubleshooting
 =============================
 
-If something does not work right, the first place to look is the :ref:`known_issues` section of the release notes. The next place to check is the `GitHub issues <https://github.com/mperrin/webbpsf/issues>`_ page, where another user may have reported the problem.
+If something does not work right, the first place to look is the :ref:`known_issues` section of the release notes. The next place to check is the `GitHub issues <https://github.com/spacetelescope/webbpsf/issues>`_ page, where another user may have reported the problem.
 
 To report a new issue, you will need a free GitHub account. Alternatively, you may report the issue via email to the project maintainers. Include code that exhibits the issue to facilitate debugging.
 

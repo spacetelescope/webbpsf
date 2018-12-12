@@ -86,7 +86,7 @@ Installing the Required Data Files
 
 Files containing such information as the JWST pupil shape, instrument throughputs, and aperture positions are distributed separately from WebbPSF. To run WebbPSF, you must download these files and tell WebbPSF where to find them using the ``WEBBPSF_PATH`` environment variable.
 
-1. Download the following file:  `webbpsf-data-0.7.0.tar.gz <http://www.stsci.edu/~mperrin/software/webbpsf/webbpsf-data-0.7.0.tar.gz>`_  [approx. 240 MB]
+1. Download the following file:  `webbpsf-data-0.7.0.tar.gz <http://www.stsci.edu/~spacetelescope/software/webbpsf/webbpsf-data-0.7.0.tar.gz>`_  [approx. 240 MB]
 2. Untar ``webbpsf-data-0.7.0.tar.gz`` into a directory of your choosing.
 3. Set the environment variable ``WEBBPSF_PATH`` to point to that directory. e.g. ::
 
@@ -136,13 +136,13 @@ These optional packages are only worth adding for speed improvements if you are 
 Installing a pre-release version or contributing to WebbPSF development
 -----------------------------------------------------------------------
 
-The `WebbPSF source code repository <https://github.com/mperrin/webbpsf>`_ is hosted at GitHub, as is the repository for `POPPY <https://github.com/mperrin/poppy>`_. Users may clone or fork in the usual manner. Pull requests with code enhancements welcomed.
+The `WebbPSF source code repository <https://github.com/spacetelescope/webbpsf>`_ is hosted at GitHub, as is the repository for `POPPY <https://github.com/spacetelescope/poppy>`_. Users may clone or fork in the usual manner. Pull requests with code enhancements welcomed.
 
 To install the current development version of WebbPSF, you can use ``pip`` to install directly from a ``git`` repository. To install WebbPSF and POPPY from ``git``, uninstall any existing copies of WebbPSF and POPPY, then invoke pip as follows::
 
-    $ pip install -e git+https://github.com/mperrin/poppy.git#egg=poppy \
-       -e git+https://github.com/mperrin/webbpsf.git#egg=webbpsf
+    $ pip install -e git+https://github.com/spacetelescope/poppy.git#egg=poppy \
+       -e git+https://github.com/spacetelescope/webbpsf.git#egg=webbpsf
 
-This will create directories ``./src/poppy`` and ``./src/webbpsf`` in your current directory containing the cloned repository. If you have commit access to the repository, you may want to clone via ssh with a URL like ``git+ssh://git@github.com:mperrin/webbpsf.git``. Documentation of the available options for installing directly from Git can be found in the `pip documentation <http://pip.readthedocs.org/en/latest/reference/pip_install.html#git>`_.
+This will create directories ``./src/poppy`` and ``./src/webbpsf`` in your current directory containing the cloned repository. If you have commit access to the repository, you may want to clone via ssh with a URL like ``git+ssh://git@github.com:spacetelescope/webbpsf.git``. Documentation of the available options for installing directly from Git can be found in the `pip documentation <http://pip.readthedocs.org/en/latest/reference/pip_install.html#git>`_.
 
 Remember to :ref:`install the required data files <data_install>`, if you have not already installed them.
