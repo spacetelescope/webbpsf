@@ -656,7 +656,7 @@ class CGI(WFIRSTInstrument):
         return mft_optsys, trySAM, occ_box_size
 
     def _get_aberrations(self):
-        """Get the OpticalElement that applies the field-dependent
+        """Get * the OpticalElement that applies the field-dependent
         optical aberrations. (Called in _getOpticalSystem.)"""
         return None
 
