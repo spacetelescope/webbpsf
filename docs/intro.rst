@@ -14,28 +14,23 @@ GUI can provide a quicker method for many simple interactive calculations.
 Why WebbPSF?
 ------------
 
-WebbPSF replaced an older PSF simulation package,  ``JWPSF``, that was in use prior to 2011.
-From a user's perspective WebbPSF provides the following enhancements over JWPSF:
+For any space telescope, an ability to predict the properties of
+point spread functions (PSFs) is needed before launch for a wide
+range of preparatory science studies and tool development.
+Tools for producing high
+quality model PSFs must be easily accessible to the entire astronomical
+community.
+WebbPSF provides an easy-to-use tool for PSF simulations of JWST and WFIRST, in
+the style of the highly successful "Tiny Tim" PSF simulator for Hubble.
 
-* Updated to the most recent JWST pupil and OPD models, Revision V.
-* Added TFI and FGS models. TFI then updated to NIRISS.
-* Updated lists of available filters.
-* Added support for coronagraphic and spectroscopic observing modes.
-* Includes the detector rotations, particularly for MIRI and NIRSpec
-* Adds ability to set output image FOV size and pixel sampling, separate from the oversampling factor used for the optical propagation.
-* New & improved graphical user interface.
+WebbPSF
+simulations are based on a mixture of observatory design parameters and
+as-built properties. The software provides a highly flexible and scriptable toolkit in
+Python for simulating a very wide range of observing modes and science scenarios, using
+efficient computational methods (including optional parallelization and use of GPUs). WebbPSF
+is a key building block in higher-level observatory simulators, including the
+JWST `Exposure Time Calculator <https://jwst.etc.stsci.edu>`_.
 
-
-Perhaps even more importantly, the underlying codebase has been entirely replaced and revamped. The most
-significant additions from a programmer's perspective include:
-
-* Much cleaner object-oriented interface. Better abstraction of details across layers.
-* Support for optics defined by analytic functions
-* Support for coordinate rotations and rotated optics.
-* Arbitrary oversampling for coronagraphic models.
-* Matrix Fourier Transform algorithm from Soummer et al. implemented for arbitrary detector sampling.
-* Optional parallelization for improved speed and efficient use of multiple processor cores.
-* Uses ``pysynphot`` library (same as the HST & JWST exposure time calculators) for consistent treatment of filter bandpasses and source spectra.
 
 .. _intro_algorithms:
 

@@ -1,7 +1,7 @@
 Documentation for WebbPSF
 ===============================
 
-WebbPSF is a Python package that computes simulated PSFs for the JWST instruments (and now for WFIRST too), taking into account detector pixel scales, rotations, filter profiles, and point source spectra. It is *not* a full optical model of JWST, but rather a tool for transforming optical path difference (OPD) maps, created with some other tool, into the resulting PSFs as observed with JWST's instruments.
+WebbPSF is a Python package that computes simulated point spread functions (PSFs) for NASA's JWST and WFIRST observatories. WebbPSF transforms models of telescope and instrument optical state into PSFs, taking into account detector pixel scales, rotations, filter profiles, and point source spectra. It is *not* a full optical model of JWST, but rather a tool for transforming optical path difference (OPD) maps, created with some other tool, into the resulting PSFs as observed with JWST's or WFIRST's instruments.
 
 .. figure:: ./fig_instrument_comparison.png
    :scale: 45 %
@@ -32,11 +32,11 @@ WebbPSF is a Python package that computes simulated PSFs for the JWST instrument
 
 * Contain in itself any detailed thermal or optical model of JWST or WFIRST. For the results of end-to-end integrated simulations of JWST, see for instance `Predicted JWST imaging performance (Knight, Lightsey, & Barto; Proc. SPIE 2012) <http://proceedings.spiedigitallibrary.org/proceeding.aspx?articleid=1362264>`_. For WFIRST modeling, see `the WFIRST Reference Info page <http://wfirst.gsfc.nasa.gov/science/Instrument_Reference_Information.html>`_
 * Model spectrally dispersed PSFs produced by any of the spectrograph gratings. It does, however, let you produce monochromatic PSFs in these modes, suitable for stitching together into spectra using some other software.
-* Model detector effects such as pixel MTF, intrapixel sensitivity variations, interpixel capacitance, or any noise sources. Add those separately with your favorite detector model code. (\*Note, one particularly significant
+* Model most detector effects such as pixel MTF, intrapixel sensitivity variations, interpixel capacitance, or any noise sources. Add those separately with your favorite detector model code. (\*Note, one particularly significant
   detector scattering for MIRI imaging has now been added.)
 
 **Contributors:**
-WebbPSF has been developed by Marshall Perrin, Joseph Long, Neil Zimmerman, Robel Geda, Shannon Osborne, and Marcio Melendez Hernandez, with contributions from Jarron Leisenring, Ewan Douglas, Charles Lajoie, Megan Sosey, and the developers of  the astropy-helpers template framework.
+WebbPSF has been developed by Marshall Perrin, Joseph Long, Neil Zimmerman, Robel Geda, Shannon Osborne, Marcio Melendez Hernandez, Lauren Chambers, and Keira Brooks, with contributions from Jarron Leisenring, Ewan Douglas, Charles Lajoie, Megan Sosey, and the developers of  the astropy-helpers template framework.
 
 Getting Started with WebbPSF
 ----------------------------
