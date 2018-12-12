@@ -1,7 +1,7 @@
 Documentation for WebbPSF
 ===============================
 
-WebbPSF is a Python package that computes simulated point spread functions for NASA's JWST and WFIRST observatories. WebbPSF transforms models of telescope and instrument optical state into PSFs, taking into account detector pixel scales, rotations, filter profiles, and point source spectra. It is *not* a full optical model of JWST, but rather a tool for transforming optical path difference (OPD) maps, created with some other tool, into the resulting PSFs as observed with JWST's or WFIRST's instruments.
+WebbPSF is a Python package that computes simulated point spread functions (PSFs) for NASA's JWST and WFIRST observatories. WebbPSF transforms models of telescope and instrument optical state into PSFs, taking into account detector pixel scales, rotations, filter profiles, and point source spectra. It is *not* a full optical model of JWST, but rather a tool for transforming optical path difference (OPD) maps, created with some other tool, into the resulting PSFs as observed with JWST's or WFIRST's instruments.
 
 .. figure:: ./fig_instrument_comparison.png
    :scale: 45 %
