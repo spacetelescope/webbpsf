@@ -32,6 +32,7 @@ The WFI model includes a model for field dependent PSF aberrations. With as larg
 
 .. admonition:: Quickstart IPython Notebook
 
+   This documentation is complemented by an `IPython Notebook format quickstart tutorial <http://nbviewer.ipython.org/github/spacetelescope/webbpsf/blob/master/notebooks/WebbPSF-WFIRST_Tutorial.ipynb>`_. Downloading and run that notebook to use the beta notebook GUI for the WFI model, and to explore code samples for common tasks interactively.
 
 
 .. caution::
@@ -48,7 +49,6 @@ The WFI model includes a model for field dependent PSF aberrations. With as larg
    on oversampled calculation outputs. (I.e. in webbpsf, set `wfi.oversample=4` or more, and perform
    your measurements on extension 0 of the returned FITS file.)
 
-   This documentation is complemented by an `IPython Notebook format quickstart tutorial <http://nbviewer.ipython.org/github/spacetelescope/webbpsf/blob/master/notebooks/WebbPSF-WFIRST_Tutorial.ipynb>`_. Downloading and run that notebook to use the beta notebook GUI for the WFI model, and to explore code samples for common tasks interactively.
 
 Field dependence in the WFI model
 ---------------------------------
