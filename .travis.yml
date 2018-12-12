@@ -95,15 +95,6 @@ before_script:
     - wget http://www.stsci.edu/~mperrin/software/webbpsf/minimal-webbpsf-data-0.6rc.tar.gz  -O /tmp/minimal-webbpsf-data.tar.gz
     - tar -xzvf /tmp/minimal-webbpsf-data.tar.gz
     - export WEBBPSF_PATH=$PWD/webbpsf-data
-    - echo "\n\n\n\n Test1"
-    - ls /home/travis/miniconda/envs/test/lib/python3.6/site-packages/
-    - echo "\n\n\n\n Test2"
-    - ls /home/travis/miniconda/envs/test/lib/python3.6/site-packages/pysiaf
-    - echo "\n\n\n\n Test3"
-    - ls /home/travis/miniconda/envs/test/lib/python3.6/site-packages/pysiaf/prd_data
-    - echo "\n\n\n\n Test4"
-    - ls /home/travis/miniconda/envs/test/lib/python3.6/site-packages/pysiaf/prd_data/HST
-    - echo "\n\n\n\n End Test5"
 
 script:
    - python setup.py $SETUP_CMD
