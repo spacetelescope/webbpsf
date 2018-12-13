@@ -37,9 +37,9 @@ for instr in insts:
 
     print("Trimming to only 1 datacube slice: "+files[0])
 
-    f0 = fits.open(files[0], mode='update')
+    f0 = fits.open(files[0])
     f0[0].data = f0[0].data[0]
-    f0.flush()
+    f0.writeto(files[0], overwrite=True)
     f0.close()
 
 print("#### Removing extra optional pupil files ####")
