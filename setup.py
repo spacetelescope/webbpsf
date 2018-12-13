@@ -71,7 +71,7 @@ LONG_DESCRIPTION = ast.get_docstring(module_ast)
 builtins._ASTROPY_PACKAGE_NAME_ = PACKAGENAME
 
 # VERSION should be PEP386 compatible (http://www.python.org/dev/peps/pep-0386)
-VERSION = '0.8.0rc1'
+VERSION = '0.8.0'
 
 # Indicates if this version is a release version
 RELEASE = 'dev' not in VERSION
@@ -177,7 +177,7 @@ setup(name=PACKAGENAME,
           'numpy>=1.10.0',
           'matplotlib>=1.5.0',
           'scipy>=0.16.0',
-          'poppy>=0.7.0',
+          'poppy>=0.8.0',
           'astropy>=1.3.0',
           'jwxml>=0.3.0',
           'pysiaf>=0.1.8', 'six',
