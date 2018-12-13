@@ -38,7 +38,7 @@ Version 0.8.0
 
 *2018 Dec 15*
 
-This release focused on software engineering improvements, rather than changes in any of the optical models or reference data. (In particular, there are NO changes in the reference data files; the contents of the WebbPSF version 0.8 data zip file are identical to the reference data as distributed for version 0.7, and in fact also for version 0.6.  This version of WebbPSF will work with any of those interchangably.).
+This release focused on software engineering improvements, rather than changes in any of the optical models or reference data. (In particular, there are NO changes in the reference data files; the contents of the WebbPSF version 0.8 data zip file are identical to the reference data as distributed for version 0.7.  This version of WebbPSF will work with either of those interchangably.).
 
 .. admonition:: Python version support: Python 3 required
 
