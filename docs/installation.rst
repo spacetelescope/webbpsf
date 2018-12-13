@@ -5,15 +5,20 @@ Requirements & Installation
 
 The latest released version of WebbPSF can be installed with the conda package management system or `using pip <install_pip>`_.
 
+
+Recommended best method: Installing via AstroConda
+--------------------------------------------------
+
 For ease of installation, we recommend using `AstroConda <http://astroconda.readthedocs.io/en/latest/>`_, an astronomy-optimized software distribution for scientific Python built on Anaconda. Install AstroConda according to `their instructions <http://astroconda.readthedocs.io/en/latest/installation.html>`_, then activate the environment with::
 
    $ source activate astroconda
 
 (Note: if you named your environment something other than ``astroconda``, change the above command appropriately.)
 
-Next, install WebbPSF (along with its dependencies and required reference data) with::
+Next, install WebbPSF (along with all its dependencies and required reference data) with::
 
    (astroconda)$ conda install webbpsf
+
 
 .. admonition:: Optional: sign up to receive announcement of updates
 
@@ -43,46 +48,30 @@ Upgrading to the latest version is done with ``conda update -n webbpsf-env --all
 Installing with pip
 -------------------
 
-**If you have Python 2.7, 3.4, or 3.5 already installed another way**, WebbPSF and its underlying optical library POPPY may be installed from the `Python Package Index <http://pypi.python.org/pypi>`_ in the usual manner for Python packages. ::
+WebbPSF and its underlying optical library POPPY may be installed from the `Python Package Index <http://pypi.python.org/pypi>`_ in the usual manner for Python packages. ::
 
     $ pip install --upgrade webbpsf
     [... progress report ...]
 
     Successfully installed webbpsf
 
-Note that ``pip install webbpsf`` only installs the program code. You still must download and install the data files, as :ref:`described below <data_install>`.
+Note that ``pip install webbpsf`` only installs the program code. **If you install via pip, you must manually download and install the data files, as :ref:`described below <data_install>`.**
 To obtain source spectra for calculations, you should also follow :ref:`installation instructions for pysynphot <pysynphot_install>`.
 
-To use the Jupyter Notebook GUI, you will need to install ``ipywidgets``::
-
-   $ pip install ipywidgets
-   $ jupyter nbextension enable --py --sys-prefix widgetsnbextension
-
-(See `the ipywidgets README <https://github.com/ipython/ipywidgets#install>`_ for more info.)
-
-.. tip::
-
-   If you wish to install WebbPSF on a machine for which you do not have administrative access, you can do so by using Python's
-   built-in `"--user" mechanism  <http://docs.python.org/2/install/#alternate-installation-the-user-scheme>`_
-   for installing packages into your home directory. ::
-
-      $ pip install webbpsf --user
-
-.. warning::
-
-   If you get the message ``SystemError: Cannot compile 'Python.h'. Perhaps you need to install python-dev|python-devel.`` during install *even when Python.h is available*, this means ``setup.py`` was unable to install NumPy. This can sometimes be fixed by executing ``pip install numpy`` separately, before installing WebbPSF. See the bug report at `numpy/numpy#2434 <https://github.com/numpy/numpy/issues/2434>`_ for details.
 
 .. _pysynphot_install:
 
 Installing or updating pysynphot
 --------------------------------
 
-Pysynphot is an optional dependency, but is highly recommended.  Installation instructions can be found `here in the POPPY docs <http://poppy-optics.readthedocs.io/en/stable/installation.html#installing-or-updating-pysynphot>`_.
+Pysynphot is an optional dependency, but is highly recommended.  Pysynphot is best installed via AstroConda. Further installation instructions can be found `here in the POPPY docs <http://poppy-optics.readthedocs.io/en/stable/installation.html#installing-or-updating-pysynphot>`_.
 
 .. _data_install:
 
 Installing the Required Data Files
 ----------------------------------
+
+*If you install via pip or manually*, you must install the data files yourself. If you install via Conda, the data files are automatically installed, in which case you can skip this section. 
 
 Files containing such information as the JWST pupil shape, instrument throughputs, and aperture positions are distributed separately from WebbPSF. To run WebbPSF, you must download these files and tell WebbPSF where to find them using the ``WEBBPSF_PATH`` environment variable.
 
@@ -111,13 +100,13 @@ You should now be able to successfully ``import webbpsf`` in a Python session, o
 Software Requirements
 ---------------------
 
-**Required Python version**: WebbPSF is supported on both Python 2.7 and 3.4+.
+**Required Python version**: WebbPSF 0.8 and above require Python 3.5 or higher.
 
 **Required Python packages**:
 
 * Recent versions of `NumPy, SciPy <http://www.scipy.org/scipylib/download.html>`_ and `matplotlib <http://matplotlib.org>`_, if not installed already.
-* `Astropy <http://astropy.org>`_, 1.0 or more recent.
-* `POPPY <https://pypi.python.org/pypi/poppy>`_, 0.5.0 or more recent.
+* `Astropy <http://astropy.org>`_
+* `POPPY <https://pypi.python.org/pypi/poppy>`_
 
 **Recommended Python packages**:
 
@@ -129,7 +118,9 @@ Software Requirements
 **Optional Python packages**:
 
 Some calculations with POPPY can benefit from the optional packages `psutil <https://pypi.python.org/pypi/psutil>`_ and `pyFFTW <https://pypi.python.org/pypi/pyFFTW>`_, but these are not needed in general. See `the POPPY installation docs <http://poppy-optics.readthedocs.io/en/stable/installation.html>`_ for more details.
-These optional packages are only worth adding for speed improvements if you are spending substantial time running calculations.
+These optional packages are only worth adding for speed improvements if you are spending substantial time running calculations. 
+
+Additional packages are needed for the optional use of GPUs to accelerate calculations. See the POPPY documentation.
 
 .. _install_dev_version:
 
