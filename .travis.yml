@@ -15,7 +15,7 @@ env:
         - ASTROPY_VERSION=stable
         - SETUP_CMD='test'
         - PIP_DEPENDENCIES='git+https://github.com/spacetelescope/poppy.git#egg=poppy jwxml git+https://github.com/spacetelescope/pysiaf.git#egg=pysiaf'
-        - CONDA_DEPENDENCIES='scipy matplotlib cython'
+        - CONDA_DEPENDENCIES='scipy matplotlib cython photutils'
 
         # For headless testing of code that imports PyPlot:
         - MPLBACKEND=Agg
@@ -35,7 +35,7 @@ matrix:
         # Check for Sphinx doc build errors
         - python: 3.6
           env: SETUP_CMD='build_sphinx'
-                CONDA_DEPENDENCIES='scipy matplotlib cython nbsphinx pandoc'
+                CONDA_DEPENDENCIES='scipy matplotlib nbsphinx pandoc'
                 PIP_DEPENDENCIES='git+https://github.com/spacetelescope/poppy.git#egg=poppy jwxml git+https://github.com/spacetelescope/pysiaf.git#egg=pysiaf nbsphinx sphinx_rtd_theme stsci_rtd_theme sphinx-automodapi'
 
         # Try Astropy development version
