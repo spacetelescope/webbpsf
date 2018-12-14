@@ -1806,9 +1806,8 @@ class OTE_Linear_Model_WSS(OPD):
                     print("   Hexike coeffs: {}".format(hexike_coeffs))
 
                 self._apply_hexikes_to_seg(segname, hexike_coeffs_combined)
-        #  Add global focus term from time-variant max thermal slew OPDs
         # FIXME this wont work if thermal_slew hasn't been called.
-        #self._global_zernike_coeffs[5] = global_focus_from_thermal
+        self._global_zernike_coeffs[5] += global_focus_from_thermal
 
         # Apply Global Zernikes
         if not np.all(self._global_zernike_coeffs == 0):
@@ -2259,13 +2258,15 @@ class OteThermalModel(object):
         mypath = os.path.dirname(os.path.abspath( __file__ ))+os.sep
         # These are in units of microns
         self._fit_data = fits.getdata(os.path.join(mypath, 'otelm',
-                                          'thermal_slew_OPD_per_seg_gn_tau_9h_m.fits'))
+                                                   'thermal_OPD_fitting_parameters_9H_um.fits'))
         # grab the coefficients at this delta time
+        # the global focus term will be added to _global_zernike_coeffs so needs to be float
         if self.delta_time == 0.0:
             self.coeffs = np.zeros(9) # 9 terms
-            self.global_focus = 0
+            self.global_focus = 0.0
         else:
             self.coeffs, self.global_focus = self.get_coeffs()
+            self.check_units()
 
 
     @staticmethod
@@ -2291,22 +2292,49 @@ class OteThermalModel(object):
         return days.value
 
     @staticmethod
-    def thermal_response_func(x, tau, gn):
+    def second_order_thermal_response_function(x, tau_1, gn_1, tau_2, gn_2):
         '''
-        First order thermal response function
+        Second order thermal response function
         '''
-        return gn * (1 - np.exp(-1 * (x / tau)))
+        return gn_1 * (1 - np.exp(-1 * (x / tau_1))) + gn_2 * (1 - np.exp(-1 * (x / tau_2)))
+
+
+    def check_units(self):
+        '''
+        Make sure that the coefficients are in the correct units - meters.
+        (Adapted from poppy.poppy_core.FITSOpticalElement)
+        '''
+        opdunits = self._fit_data.header['BUNIT']
+        # normalize and drop any trailing 's'
+        opdunits = opdunits.lower()
+        if opdunits.endswith('s'):
+            opdunits = opdunits[:-1]
+        if opdunits in ('meter', 'm'):
+            pass
+        elif opdunits in ('micron', 'um', 'micrometer'):
+            self.coeffs *= 1e-6
+            self.global_focus *= 1e-6
+        elif opdunits in ('nanometer', 'nm'):
+            self.coeffs *= 1e-9
+            self.global_focus *= 1e-9
 
 
     def get_coeffs(self):
         '''
         For every segment, each Hexike term, get the coefficent and append to
-        list of all coefficients for this OPD
+        list of all coefficients for this OPD (assuming WSS ordering)
         '''
-        coeffs_seg = OteThermalModel.thermal_response_func(self.delta_time,
-                                                           self._fit_data[self._fit_data['segs'] == self.segid]['tau'],
-                                                           self._fit_data[self._fit_data['segs'] == self.segid]['G_n'])
-        global_focus = OteThermalModel.thermal_response_func(self.delta_time,
-                                                             self._fit_data[self._fit_data['segs'] == "SM"]['tau'],
-                                                             self._fit_data[self._fit_data['segs'] == "SM"]['G_n'])
-        return coeffs_seg, global_focus
+        coeffs_seg = OteThermalModel.second_order_thermal_response_function(delta_time_days,
+                                                            self._fit_data[self._fit_data['segs'] == segid]['tau1'],
+                                                            self._fit_data[self._fit_data['segs'] == segid]['Gn1'],
+                                                            self._fit_data[self._fit_data['segs'] == segid]['tau2'],
+                                                            self._fit_data[self._fit_data['segs'] == segid]['Gn2'])
+
+        global_focus = OteThermalModel.second_order_thermal_response_function(delta_time_days,
+                                                            self._fit_data[self._fit_data['segs'] == 'SM']['tau1'],
+                                                            self._fit_data[self._fit_data['segs'] == 'SM']['Gn1'],
+                                                            self._fit_data[self._fit_data['segs'] == 'SM']['tau2'],
+                                                            self._fit_data[self._fit_data['segs'] == 'SM']['Gn2'])
+        # global_coeffs = np.zeros(nterms)
+        # global_coeffs[4] = global_focus #add in the focus term as the 5th Hexike term
+        return coeffs_seg.data, global_focus.data[0]
