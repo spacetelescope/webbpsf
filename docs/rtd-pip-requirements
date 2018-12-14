@@ -1,5 +1,5 @@
 stsci_rtd_theme
-numpy
+numpy >= 1.13
 matplotlib
 Cython
 astropy-helpers
