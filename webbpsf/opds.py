@@ -1804,6 +1804,9 @@ class OTE_Linear_Model_WSS(OPD):
             self.delta_time
         except AttributeError:
             self.delta_time = 0.0
+            self.start_angle = 0.0
+            self.end_angle = 0.0
+            self.scaling = 0.0
 
         for iseg, segname in enumerate(self.segnames[0:18]):
             pose_coeffs = self.segment_state[iseg].copy()
@@ -2265,7 +2268,6 @@ def thermal_slew_opd(delta_time, segid='SM', start_angle=-5., end_angle=45.,
     thermal_model = OteThermalModel(delta_time)
 
     coeffs = thermal_model.get_coeffs(segid)
-    print(coeffs)
     return scaling*coeffs
 
 
