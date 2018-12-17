@@ -1058,13 +1058,17 @@ class OTE_Linear_Model_WSS(OPD):
         ----------
         opdfile : str or fits.HDUList
             FITS file to load an OPD from. The OPD must be specified in microns.
-        ext : int, optional
+        opd_index : int, optional
             FITS extension to load OPD from
+        transmission: ??
+            ??
         slice : int, optional
             slice of a datacube to load OPD from, if the selected extension contains a datacube.
-        pupilfile : str
-            FITS file for pupil mask, with throughput from 0-1. If not explicitly provided, will be inferred from
-            wherever is nonzero in the OPD file.
+        segment_mask_file : str
+            FITS file for pupil mask, with throughput from 0-1. If not explicitly provided, will
+            use JWpupil_segments.fits
+        zero: ??
+            ??
         jsc : bool
             Enable JSC OTIS test specific options?
         rm_ptt : bool
@@ -1297,14 +1301,41 @@ class OTE_Linear_Model_WSS(OPD):
 
         if not self.opd.shape == (1024, 1024):
             raise NotImplementedError("Code need to be generalized for OPD sizes other than 1024**2")
-
-
         perturbation = poppy.zernike.opd_from_zernikes(self._global_zernike_coeffs,
                                                        npix=1024,
                                                        basis=poppy.zernike.zernike_basis_faster)
 
+    def _apply_global_hexikes(self):
+        """ Apply Hexike perturbations to the whole primary
 
+        """
+        def _define_rho_theta(npix, centroid, norm_radius):
+            """ Define the rho and theta parameters that describe the aperture """
+            x = (np.arange(npix, dtype=np.float64) - npix//2) / norm_radius
+            y = x
+            xx, yy = np.meshgrid(x, y)
+            rho = np.sqrt(xx ** 2 + yy ** 2)
+            theta = np.arctan2(yy, xx)
+            return rho, theta
 
+        def _get_basis(*args, **kwargs):
+            """ Conveince function to make basis callable """
+            return basis
+        # Define aperture as the full OTE
+        aperture = self._segment_masks != 0
+        # Get size of mask (1024)
+        npix = np.shape(aperture)[0]
+        ap_radius = constants.JWST_CIRCUMSCRIBED_DIAMETER // self.pixelscale.value / 2
+        rho, theta = _define_rho_theta(npix, (npix//2, npix//2), ap_radius)
+        basis = poppy.zernike.hexike_basis_wss(nterms=9, npix=npix, rho=rho,
+                                               theta=theta, aperture=aperture > 0.)
+        # Use the Hexike basis to reconstruct the global terms
+        perturbation = poppy.zernike.opd_from_zernikes(self._global_zernike_coeffs,
+                                                       basis=_get_basis,
+                                                       aperture=aperture > 0.)
+        perturbation[~np.isfinite(perturbation)] = 0.0
+        # Add perturbation to the opd
+        self.opd += perturbation
 
     def move_seg_local(self, segment, xtilt=0.0, ytilt=0.0, clocking=0.0, rot_unit='urad',
                        radial=None, xtrans=None, ytrans=None, piston=0.0, roc=0.0, trans_unit='micron', display=False,
@@ -1769,12 +1800,10 @@ class OTE_Linear_Model_WSS(OPD):
         sm_pose_coeffs = self.segment_state[sm].copy()[0:5]  # 6th row is n/a for SM
         sm_pose_coeffs.shape = (5, 1)  # to allow broadcasting below
 
-        #FIXME This is here because there is no condition if we dont do thermal slew... YET
         try:
             self.delta_time
         except AttributeError:
             self.delta_time = 0.0
-
 
         for iseg, segname in enumerate(self.segnames[0:18]):
             pose_coeffs = self.segment_state[iseg].copy()
@@ -1792,11 +1821,11 @@ class OTE_Linear_Model_WSS(OPD):
                 sm_sensitivities = self._get_seg_sensitivities_from_sm(segname)
                 hexike_coeffs_from_sm = sm_sensitivities * sm_pose_coeffs  # will be 5,9 array
                 hexike_coeffs_from_sm = hexike_coeffs_from_sm.sum(axis=0)  # sum to get 9
-                hexike_coeffs_from_thermal, global_focus_from_thermal = thermal_slew_opd(self.delta_time,
-                                                                                         segname,
-                                                                                         self.start_angle,
-                                                                                         self.end_angle,
-                                                                                         self.scaling)
+                hexike_coeffs_from_thermal = thermal_slew_opd(self.delta_time,
+                                                              segname,
+                                                              self.start_angle,
+                                                              self.end_angle,
+                                                              self.scaling)
                 hexike_coeffs_combined = hexike_coeffs + hexike_coeffs_from_sm + hexike_coeffs_from_thermal
 
                 if verbose:
@@ -1806,12 +1835,16 @@ class OTE_Linear_Model_WSS(OPD):
                     print("   Hexike coeffs: {}".format(hexike_coeffs))
 
                 self._apply_hexikes_to_seg(segname, hexike_coeffs_combined)
-        # FIXME this wont work if thermal_slew hasn't been called.
-        self._global_zernike_coeffs[5] += global_focus_from_thermal
 
+        if self.delta_time != 0.0:
+            self._global_zernike_coeffs[4] += thermal_slew_opd(self.delta_time,
+                                                               'SM',
+                                                               self.start_angle,
+                                                               self.end_angle,
+                                                               self.scaling)
         # Apply Global Zernikes
         if not np.all(self._global_zernike_coeffs == 0):
-            self._apply_global_zernikes()
+            self._apply_global_hexikes()
 
         # Apply NASA JSC OTIS test ACF tilts (not relevant in flight)
         if self._jsc and np.any(self._jsc_acf_tilts != 0):
@@ -2204,8 +2237,9 @@ from copy import deepcopy
 from . import optics
 from scipy import io
 
-def thermal_slew_opd(delta_time, segid, start_angle=-5., end_angle=45., scaling=None):
-    '''
+def thermal_slew_opd(delta_time, segid='SM', start_angle=-5., end_angle=45.,
+                     scaling=None):
+    """
     The default HOT to COLD slew angles are -5 to 45 degrees. We make some assumptions:
     1. A COLD to HOT slew is just the negative of the HOT to COLD slew
     2. The scaling factor can be simplified to a simple ratio of angles (this is
@@ -2218,19 +2252,22 @@ def thermal_slew_opd(delta_time, segid, start_angle=-5., end_angle=45., scaling=
     -----------
     delta_time: tuple, (number, astropy.units quantity object)
         Include the number and units for the delta time between observations.
-
+    segid: str
+        Segment to be fit. 'SM' will fit the global focus term. Any other
+        segment name will fits 9 Hexikes to that segment
     start_angle: float
         The starting angle of the slew in DEGREES
-
     end_angle: float
         The ending angle of the slew in DEGREES
-    '''
+    """
     if not scaling:
         scaling = np.cos(np.radians(end_angle) - np.radians(start_angle)) / np.cos(np.radians(45.) - np.radians(-5.))
-    thermal_model = OteThermalModel(delta_time, segid)
-    coeffs = thermal_model.coeffs
-    global_focus = thermal_model.global_focus
-    return scaling*coeffs, scaling*global_focus
+    thermal_model = OteThermalModel(delta_time)
+
+    coeffs = thermal_model.get_coeffs(segid)
+    print(coeffs)
+    return scaling*coeffs
+
 
 
 class OteThermalModel(object):
@@ -2249,29 +2286,21 @@ class OteThermalModel(object):
         delta_time
 
     """
-    def __init__(self, delta_time, segid):
-        # set the delta time for the thermal contribution to the OPD
+    def __init__(self, delta_time):
+        # Set the delta time for the thermal contribution to the OPD
+        # Convert to units of days
         self.delta_time = OteThermalModel.convert_time(delta_time)
-        self.segid = segid
-
-        # load fitting values table:
+        self.nterms = 9
+        # Load fitting values table:
         mypath = os.path.dirname(os.path.abspath( __file__ ))+os.sep
-        # These are in units of microns
-        self._fit_data = fits.getdata(os.path.join(mypath, 'otelm',
-                                                   'thermal_OPD_fitting_parameters_9H_um.fits'))
-        # grab the coefficients at this delta time
-        # the global focus term will be added to _global_zernike_coeffs so needs to be float
-        if self.delta_time == 0.0:
-            self.coeffs = np.zeros(9) # 9 terms
-            self.global_focus = 0.0
-        else:
-            self.coeffs, self.global_focus = self.get_coeffs()
-            self.check_units()
+        # This table is in units of microns
+        self._fit_file = os.path.join(mypath, 'otelm', 'thermal_OPD_fitting_parameters_9H_um.fits')
+        self._fit_data = fits.getdata(self._fit_file)
 
 
     @staticmethod
     def convert_time(delta_time):
-        '''
+        """
         Parameters:
         -----------
         delta_time: astropy units quantity
@@ -2282,7 +2311,7 @@ class OteThermalModel(object):
         --------
         days: float
             Return a delta time value in units of days
-        '''
+        """
         try:
             days = delta_time.to(u.day)
         except AttributeError:
@@ -2293,18 +2322,17 @@ class OteThermalModel(object):
 
     @staticmethod
     def second_order_thermal_response_function(x, tau_1, gn_1, tau_2, gn_2):
-        '''
-        Second order thermal response function
-        '''
+        """ Second order thermal response function """
         return gn_1 * (1 - np.exp(-1 * (x / tau_1))) + gn_2 * (1 - np.exp(-1 * (x / tau_2)))
 
 
-    def check_units(self):
-        '''
+    def check_units(self, coeffs):
+        """
         Make sure that the coefficients are in the correct units - meters.
         (Adapted from poppy.poppy_core.FITSOpticalElement)
-        '''
-        opdunits = self._fit_data.header['BUNIT']
+        """
+        header = fits.getheader(self._fit_file, ext=1)
+        opdunits = header['BUNIT']
         # normalize and drop any trailing 's'
         opdunits = opdunits.lower()
         if opdunits.endswith('s'):
@@ -2312,29 +2340,51 @@ class OteThermalModel(object):
         if opdunits in ('meter', 'm'):
             pass
         elif opdunits in ('micron', 'um', 'micrometer'):
-            self.coeffs *= 1e-6
-            self.global_focus *= 1e-6
+            coeffs *= 1e-6
         elif opdunits in ('nanometer', 'nm'):
-            self.coeffs *= 1e-9
-            self.global_focus *= 1e-9
+            coeffs *= 1e-9
+        return coeffs
 
 
-    def get_coeffs(self):
-        '''
-        For every segment, each Hexike term, get the coefficent and append to
-        list of all coefficients for this OPD (assuming WSS ordering)
-        '''
-        coeffs_seg = OteThermalModel.second_order_thermal_response_function(delta_time_days,
-                                                            self._fit_data[self._fit_data['segs'] == segid]['tau1'],
-                                                            self._fit_data[self._fit_data['segs'] == segid]['Gn1'],
-                                                            self._fit_data[self._fit_data['segs'] == segid]['tau2'],
-                                                            self._fit_data[self._fit_data['segs'] == segid]['Gn2'])
+    def get_coeffs(self, segid):
+        """ Give the segid name (either 'SM' or any of the segment names under
+        constants.SEGNAMES) get the global or local (to each segment) coefficiets
+        """
+        if segid == 'SM':
+            coeffs = self.get_global_coeffs()
+        elif segid in constants.SEGNAMES:
+            coeffs = self.get_segment_coeffs(segid)
+        else:
+            _log.warning("Invalid segment ID. No coefficients returned")
+            coeffs = 0.0
+        return coeffs
 
-        global_focus = OteThermalModel.second_order_thermal_response_function(delta_time_days,
-                                                            self._fit_data[self._fit_data['segs'] == 'SM']['tau1'],
-                                                            self._fit_data[self._fit_data['segs'] == 'SM']['Gn1'],
-                                                            self._fit_data[self._fit_data['segs'] == 'SM']['tau2'],
-                                                            self._fit_data[self._fit_data['segs'] == 'SM']['Gn2'])
-        # global_coeffs = np.zeros(nterms)
-        # global_coeffs[4] = global_focus #add in the focus term as the 5th Hexike term
-        return coeffs_seg.data, global_focus.data[0]
+
+    def get_segment_coeffs(self, segid):
+        """ For a segment of name, segid, get each Hexike term, get the Hexike
+        coefficents
+        """
+        if self.delta_time == 0.0:
+            return np.zeros(self.nterms)
+        else:
+            coeffs_seg = OteThermalModel.second_order_thermal_response_function(self.delta_time,
+                                         self._fit_data[self._fit_data['segs'] == segid]['tau1'],
+                                         self._fit_data[self._fit_data['segs'] == segid]['Gn1'],
+                                         self._fit_data[self._fit_data['segs'] == segid]['tau2'],
+                                         self._fit_data[self._fit_data['segs'] == segid]['Gn2'])
+            coeffs_seg = self.check_units(coeffs_seg)
+            return coeffs_seg
+
+
+    def get_global_coeffs(self):
+        """ For the global focus, get the coefficent """
+        if self.delta_time == 0.0:
+            return 0.0
+        else:
+            global_focus = OteThermalModel.second_order_thermal_response_function(self.delta_time,
+                                           self._fit_data[self._fit_data['segs'] == 'SM']['tau1'],
+                                           self._fit_data[self._fit_data['segs'] == 'SM']['Gn1'],
+                                           self._fit_data[self._fit_data['segs'] == 'SM']['tau2'],
+                                           self._fit_data[self._fit_data['segs'] == 'SM']['Gn2'])
+            global_focus = self.check_units(global_focus[0])
+            return global_focus
