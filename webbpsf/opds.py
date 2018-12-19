@@ -191,9 +191,9 @@ class OPD(poppy.FITSOpticalElement):
             Include the pupil mask as a FITS extension?
         """
 
-        output = fits.HDUList([fits.ImageHDU(self.opd)])
+        output = fits.HDUList([fits.ImageHDU(self.opd, self.opd_header)])
         output[0].header['EXTNAME'] = 'OPD'
-        output[0].header['BUNIT'] = 'meter'  # Will this always be the case?
+        output[0].header['BUNIT'] = 'meter'  # Rescaled to meters in poppy_core
 
         if include_pupil:
             self.amplitude_header['EXTNAME'] = 'PUPIL'
