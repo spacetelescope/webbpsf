@@ -39,7 +39,7 @@ import pysiaf
 
 from . import conf
 from . import utils
-#from . import version
+from . import version
 from . import optics
 from . import DATA_VERSION_MIN
 from . import distortion
