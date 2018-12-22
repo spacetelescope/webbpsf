@@ -34,7 +34,7 @@ Version History and Change Log
 Version 0.8.1
 =============
 **Bug fixes and small changes:**
-- The WFIRST R026 filter bandpass red edge was corrected from 8000A to 7600A (@robelgeda)
+- The WFIRST R062 filter bandpass red edge was corrected from 8000A to 7600A (@robelgeda)
 
 Version 0.8.0
 =============
