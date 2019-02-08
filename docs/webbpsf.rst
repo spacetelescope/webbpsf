@@ -174,12 +174,9 @@ pixel scale in a variety of ways, as follows. See the :py:class:`JWInstrument.ca
 
 1. Set the ``oversample`` parameter to calc_psf(). This will produce a PSF with a pixel grid this many times more finely sampled.
    ``oversample=1`` is the native detector scale, ``oversample=2`` means divide each pixel into 2x2 finer pixels, and so forth.
-   You can automatically obtain both the oversampled PSF and a version rebinned down onto the detector pixel scale by setting `rebin=True`
-   in the call to calc_psf:
 
-   >>> hdulist = instrument.calc_psf(oversample=2, rebin=True)    # hdulist will contain a primary HDU with the
-   >>>                                                            # oversampled data, plus an image extension
-   >>>                                                            # with the PSF rebinned down to regular sampling.
+   >>> hdulist = instrument.calc_psf(oversample=2)    # hdulist will contain a primary HDU with the
+   >>>                                                # oversampled data
 
 
 
