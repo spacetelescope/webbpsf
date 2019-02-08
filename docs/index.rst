@@ -36,7 +36,7 @@ WebbPSF is a Python package that computes simulated point spread functions (PSFs
   detector scattering for MIRI imaging has now been added.)
 
 **Contributors:**
-WebbPSF has been developed by Marshall Perrin, Joseph Long, Neil Zimmerman, Robel Geda, Shannon Osborne, Marcio Melendez Hernandez, Lauren Chambers, and Keira Brooks, with contributions from Jarron Leisenring, Ewan Douglas, Charles Lajoie, Megan Sosey, and the developers of  the astropy-helpers template framework.
+WebbPSF has been developed by Marshall Perrin, Joseph Long, Shannon Osborne, Neil Zimmerman, Robel Geda,  Marcio Melendez Hernandez, Lauren Chambers, Keira Brooks, and Anand Sivaramakrishnan, with contributions from Jarron Leisenring, Ewan Douglas, Charles Lajoie, Megan Sosey, Kathryn St.Laurent, and the developers of  the astropy-helpers template framework.
 
 Getting Started with WebbPSF
 ----------------------------
