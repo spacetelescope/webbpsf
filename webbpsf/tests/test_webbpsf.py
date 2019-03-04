@@ -183,7 +183,7 @@ def test_return_intermediates():
     nc.image_mask='maskswb'
     nc.pupil_mask='wedgelyot'
 
-    osys = nc._getOpticalSystem()
+    osys = nc._get_optical_system()
 
     psf, intermediates = nc.calc_psf(monochromatic=2e-6, return_intermediates=True)
     assert len(intermediates) == len(osys.planes)
