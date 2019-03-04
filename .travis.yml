@@ -50,11 +50,11 @@ matrix:
 
         # Try released POPPY
         - python: 3.6
-          env: SETUP_CMD='test' PIP_DEPENDENCIES='poppy jwxml'
+          env: SETUP_CMD='test' PIP_DEPENDENCIES='poppy pysiaf'
 
     allow_failures:
-        # Released POPPY may be missing new functionality used by dev WebbPSF
-        - env: SETUP_CMD='test' PIP_DEPENDENCIES='poppy jwxml'
+        # Released POPPY and/or pySIAF may be missing new functionality used by dev WebbPSF
+        - env: SETUP_CMD='test' PIP_DEPENDENCIES='poppy pysiaf'
 
 install:
 
