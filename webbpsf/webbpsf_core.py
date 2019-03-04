@@ -703,11 +703,12 @@ class JWInstrument(SpaceTelescopeInstrument):
         self._detector_geom_info = DetectorGeometry(self.name, self._detectors[self._detector])
 
     def _tel_coords(self):
-        """ Convert from detector pixel coordinates to SIAF aperture coordinates,
+        """ Convert from science frame coordinates to telescope frame coordinates using
+        SIAF transformations. Returns (V2, V3) tuple, in arcminutes.
 
-        Returns (V2, V3) tuple, in arcminutes.
         Note that the astropy.units framework is used to return the result as a
-        dimensional Quantity. """
+        dimensional Quantity.
+        """
 
         return self._detector_geom_info.pix2angle(self.detector_position[0], self.detector_position[1])
 
@@ -731,7 +732,7 @@ class JWInstrument(SpaceTelescopeInstrument):
         try:
             ap = siaf[aperture_name]
 
-            self.detector_position = (ap.XDetRef, ap.YDetRef)
+            self.detector_position = (ap.XSciRef, ap.YSciRef)
             detname = aperture_name.split('_')[0]
             self.detector = detname # As a side effect this auto reloads SIAF info, see detector.setter
             _log.debug("From {} set det. pos. to {} {}".format(aperture_name, detname, self.detector_position))
@@ -2007,7 +2008,9 @@ class DetectorGeometry(object):
             raise ValueError("Detector pixels Y coordinate cannot be > {0}".format(int(self.shape[1]) - 1))
 
     def pix2angle(self, xpix, ypix):
-        """ Convert  from detector coordinates to telescope frame coordinates using SIAF transformations
+        """ Convert from science frame coordinates (in pixels) to telescope frame coordinates
+        (in arcminutes) using SIAF transformations.
+
         See the pysiaf code for all the full details, or Lallo & Cox Tech Reports
 
         Parameters
