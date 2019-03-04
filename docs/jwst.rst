@@ -220,12 +220,12 @@ configuration that can be acheived with NIRCam.
 SI WFE
 ------
 
-(Not yet available)
-
+SI internal WFE measurements are from ISIM CV3 testing (See JWST-RPT-032131 by David Aronstein et al.)
 The SI internal WFE measurements are distinct for each of the modules and
 channels. When enabled, these are added to the final pupil of the optical
 train, i.e. after the coronagraphic image planes.
 
+**Caution** WFE is not yet included for the coronagraph field points; it will use the closest imaging field point. See issue #180.
 
 Wavelength-Dependent Focus Variations
 ---------------------------------------
@@ -239,7 +239,7 @@ NIRSpec
 Imaging and spectroscopy
 ------------------------
 
-webbpsf models the optics of NIRSpec, mostly in **imaging** mode or for monochromatic PSFs that can be assembled into spectra using other tools.
+WebbPSF models the optics of NIRSpec, mostly in **imaging** mode or for monochromatic PSFs that can be assembled into spectra using other tools.
 
 This is not a substitute for a spectrograph model, but rather a way of
 simulating a PSF as it would appear with NIRSpec in imaging mode (e.g. for
@@ -247,7 +247,7 @@ target acquisition).  It can also be used to produce monochromatic PSFs
 appropriate for spectroscopic modes, but other software must be used for
 assembling those monochromatic PSFs into a spectrum.
 
-Slits: webbpsf includes models of each of the fixed slits in NIRSpec (S200A1, S1600A1, and so forth), plus a
+Slits: WebbPSF includes models of each of the fixed slits in NIRSpec (S200A1, S1600A1, and so forth), plus a
 few patterns with the MSA: (1) a single open shutter, (2) three adjacent
 open shutters to make a mini-slit, and (3) all shutters open at once.
 Other MSA patterns could be added if requested by users.
@@ -263,9 +263,9 @@ Perrin.
 SI WFE
 ------
 
-(Not yet available)
+SI internal WFE measurements are from ISIM CV3 testing (See JWST-RPT-032131 by David Aronstein et al.).
 
-SI WFE will most likely be added to the entrance pupil, prior to the MSA image plane. This model is still under development.
+The ISIM CV3 data on their own do not indicate how the sources of WFE are distributed within the NIRSpec optical train. For simulation purposes here, the SI WFE measurements are allocated as 1/3 in the foreoptics, prior to the MSA image plane, and 2/3 in the spectrograph optics, after the MSA image plane. This follows a recommendation from Maurice Te Plate of the NIRSpec team, based on metrology and testing of the NIRSpec flight model optics.
 
 NIRISS
 ======
@@ -280,15 +280,19 @@ Note that long wavelength filters (>2.5 microns) are used with a pupil
 obscuration which includes the pupil alignment reference fixture. This is called
 the "CLEARP" pupil.
 
-Based on the selected filter, webbpsf will automatically toggle the
+Based on the selected filter, WebbPSF will automatically toggle the
 ``pupil_mask`` between "CLEARP" and the regular clear pupil (i.e.
 ``pupil_mask = None``).
+
+AMI mask geometry is as provided to the WebbPSF team by Anand Sivaramakrishnan. To match the orientation of the
+mask as installed in the flight hardware, the simulated mask model was flipped in X coordinates as of the spring 2019 version of WebbPSF;
+thanks to Kevin Volk and Deepashri Thatte for determining this was necessary to match the test data.
 
 
 Slitless Spectroscopy
 ---------------------
 
-webbpsf provides preliminary support for
+WebbPSF provides preliminary support for
 the single-object slitless
 spectroscopy ("SOSS") mode using the GR700XD cross-dispersed grating. Currently
 this includes the clipping of the pupil due to the undersized grating and its
@@ -301,7 +305,7 @@ in one direction.
 
 Note that WebbPSF does not model the spectral dispersion in any of NIRISS'
 slitless spectroscopy modes.  For wide-field slitless spectroscopy, this
-can best be simulated by using webbpsf output PSFs as input to the aXe
+can best be simulated by using WebbPSF output PSFs as input to the aXe
 spectroscopy code. Contact Van Dixon at STScI for further information.
 For SOSS mode, contact Loic Albert at Universite de Montreal.
 
@@ -315,16 +319,12 @@ Coronagraph Masks
 NIRISS includes four coronagraphic occulters, machined as features on its
 pick-off mirror. These were part of its prior incarnation as TFI, and are not
 expected to see much use in NIRISS. However they remain a part of the physical
-instrument and we retain in webbpsf the capability to simulate them.
+instrument and we retain in WebbPSF the capability to simulate them.
 
 SI WFE
 -------
 
-(Not yet available)
-
-The SI internal WFE measurements are distinct for each of the modules and
-channels. When enabled, these are added to the final pupil of the optical
-train, i.e. after the coronagraphic image planes.
+SI internal WFE measurements are from ISIM CV3 testing (See JWST-RPT-032131 by David Aronstein et al.).
 
 
 MIRI
@@ -333,7 +333,7 @@ MIRI
 Imaging
 -------
 
-webbpsf models the MIRI imager; currently there is no specific support for MRS,
+WebbPSF models the MIRI imager; currently there is no specific support for MRS,
 however monochromatic PSFS computed for the imager may be used as a reasonable
 proxy for PSF properties at the entrance to the MRS slicers.
 
@@ -341,9 +341,9 @@ proxy for PSF properties at the entrance to the MRS slicers.
 Coronagraphy
 -------------
 
-webbpsf includes models for all three FQPM coronagraphs and the Lyot
+WebbPSF includes models for all three FQPM coronagraphs and the Lyot
 coronagraph. In practice, the wavelength selection filters and the Lyot stop are
-co-mounted. webbpsf models this by automatically setting the ``pupil_mask``
+co-mounted. WebbPSF models this by automatically setting the ``pupil_mask``
 element to one of the coronagraph masks or the regular pupil when the ``filter``
 is changed. If you want to disable this behavior, set ``miri.auto_pupil = False``.
 
@@ -351,7 +351,7 @@ is changed. If you want to disable this behavior, set ``miri.auto_pupil = False`
 LRS Spectroscopy
 ----------------
 
-webbpsf includes models for the LRS slit and the subsequent pupil stop on the
+WebbPSF includes models for the LRS slit and the subsequent pupil stop on the
 grism in the wheels. Users should select ``miri.image_mask = "LRS slit"`` and ``miri.pupil_mask = 'P750L LRS grating'``.
 That said, the LRS simulations have not been extensively tested yet;
 feedback is appreciated about any issues encountered.
@@ -360,7 +360,7 @@ feedback is appreciated about any issues encountered.
 SI WFE
 ------
 
-(Not yet available)
+SI internal WFE measurements are from ISIM CV3 testing (See JWST-RPT-032131 by David Aronstein et al.).
 
 The SI internal WFE measurements, when enabled, are added to the final pupil of the optical
 train, i.e. after the coronagraphic image planes.
@@ -387,4 +387,4 @@ either 'FGS1' or 'FGS2'.
 SI WFE
 ------
 
-(Not yet available)
+SI internal WFE measurements are from ISIM CV3 testing (See JWST-RPT-032131 by David Aronstein et al.).

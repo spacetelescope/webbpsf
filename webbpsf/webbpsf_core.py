@@ -1801,7 +1801,7 @@ class NIRISS(JWInstrument):
         # AnalyticOpticalElement instances. Annoying but historical.
         if self.pupil_mask == 'MASK_NRM':
             optsys.add_pupil(transmission=self._datapath + "/optics/MASK_NRM.fits.gz", name=self.pupil_mask,
-                             flip_y=True, shift_x=shift_x, shift_y=shift_y, rotation=rotation)
+                             flip_y=True, flip_x=True, shift_x=shift_x, shift_y=shift_y, rotation=rotation)
             optsys.planes[-1].wavefront_display_hint = 'intensity'
         elif self.pupil_mask == 'CLEARP':
             optsys.add_pupil(optic=NIRISS_CLEARP(shift_x=shift_x, shift_y=shift_y, rotation=rotation))
