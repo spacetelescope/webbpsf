@@ -388,7 +388,7 @@ def validate_vs_krist_blc(which='spot'):
     mask1f = fits.open(mask1)
 
     #P.subplot(332)
-    os = nc._getOpticalSystem()
+    os = nc._get_optical_system()
     #os.planes[1].display(ax=P.gca(),  what='intensity', colorbar_orientation='vertical')
     #P.gca().set_title('')
     #P.gca().set_xbound(-8,8)
@@ -471,7 +471,7 @@ def validate_vs_krist_sims(clobber=False, normalize=False, which='spot', no_sam=
     poppy.display_PSF(mask1f, title="", pixelscale='PIXSIZE', vmin=0, vmax=1, scale='linear', cmap=matplotlib.cm.gray)
 
     P.subplot(332)
-    os = nc._getOpticalSystem()
+    os = nc._get_optical_system()
     os.planes[1].display(ax=P.gca(),  what='intensity', colorbar_orientation='vertical')
     P.gca().set_title('')
     P.gca().set_xbound(-8,8)
