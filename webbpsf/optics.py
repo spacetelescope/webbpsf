@@ -1058,8 +1058,14 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
 
         self.tel_coords = instrument._tel_coords()
 
-        # load the Zernikes table here
-        zernike_file = os.path.join(utils.get_webbpsf_data_path(), 'si_zernikes_isim_cv3.fits')
+        # load the Zernikes table here         
+        zfile = "si_zernikes_isim_cv3.fits"
+        # Check special case NIRCam coronagraphy
+        if instrument.name == 'NIRCam':
+            pupil_mask = self.instrument._pupil_mask
+            if (pupil_mask is not None) and ('LYOT' in pupil_mask.upper()):
+                zfile = "si_zernikes_coron_zemax.fits"
+        zernike_file = os.path.join(utils.get_webbpsf_data_path(), zfile)
 
         if not os.path.exists(zernike_file):
             raise RuntimeError("Could not find Zernike coefficients file in WebbPSF data directory")
@@ -1111,8 +1117,42 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
 
             # Cubic interpolation of of non-uniform 2D grid
             cf = griddata((v2, v3), zvals, (v2_tel, v3_tel), method='cubic').tolist()
+            # Want to perform extrapolation if outside of bounds
             if np.isnan(cf):
-                cf = self.row[zkey]
+                #cf = self.row[zkey]
+
+                # Create fine mesh grid
+                dstep = 1. / 60. # 1" steps
+                xgrid = np.arange(v2.min(), v2.max()+dstep, dstep)
+                ygrid = np.arange(v3.min(), v3.max()+dstep, dstep)
+                X, Y = np.meshgrid(xgrid,ygrid)
+
+                # Cubic interpolation of all points
+                zgrid = griddata((v2, v3), zvals, (X, Y), method='cubic')
+    
+                # There will be some NaNs along the border that need to be replaced
+                ind_nan = np.isnan(zgrid)
+                # Remove rows/cols 1 by 1 until no NaNs
+                zgrid2 = zgrid
+                ygrid2 = ygrid
+                xgrid2 = xgrid
+                while np.isnan(zgrid2.sum()):
+                    zgrid = zgrid2[1:-1,1:-1]
+                    ygrid = ygrid2[1:-1]
+                    xgrid = xgrid2[1:-1]
+
+                # Create regular grid interpolator function for extrapolation of NaN's
+                func = RegularGridInterpolator((ygrid2,xgrid2), zgrid2, method='linear',
+                                               bounds_error=False, fill_value=None)
+
+                # Replace NaNs
+                pts = np.array([Y[ind_nan], X[ind_nan]]).transpose()
+                zgrid[ind_nan] = func(pts)
+
+                # Recreate function without NaNs
+                func = RegularGridInterpolator((ygrid,xgrid), zgrid, method='linear',
+                                               bounds_error=False, fill_value=None)
+                cf = func( (v3_tel, v2_tel) ).tolist()
 
             coeffs.append(cf)
 
@@ -1171,7 +1211,7 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
                 outside=0
             )
             self.amplitude = (self.opd != 0).astype(int)
-
+    
     def header_keywords(self):
         """ Return info we would like to save in FITS header of output PSFs
         """
@@ -1243,37 +1283,15 @@ class NIRCamFieldAndWavelengthDependentAberration(WebbFieldDependentAberration):
             instrument,
             **kwargs)
 
-        # TODO load here the wavelength dependence info.
-        self.focusmodel_file = os.path.join(
-            utils.get_webbpsf_data_path(),
-            'NIRCam',
-            'optics',
-            'nircam_defocus_vs_wavelength.fits')
-        model_hdul = fits.open(self.focusmodel_file)
-        assert model_hdul[1].header['XTENSION'] == 'BINTABLE'
-        self.focus_model_data = model_hdul[1].data
-        model_wavelengths, model_defocus = (
-            self.focus_model_data['wavelength'].astype('=f8'),
-            self.focus_model_data['defocus_in_rms_wfe'].astype('=f8')
-        )
-
-        # Read in model data and set up interpolators.
-
-        short_wavelengths_mask = model_wavelengths < 2.45
-        self.fm_short = scipy.interpolate.interp1d(
-            model_wavelengths[short_wavelengths_mask],
-            model_defocus[short_wavelengths_mask],
-            kind='cubic'
-        )
-
-        long_wavelengths_mask = model_wavelengths > 2.45
-        # (n.b. row where model_wavelengths == 2.45 is nan)
-        self.fm_long = scipy.interpolate.interp1d(
-            model_wavelengths[long_wavelengths_mask],
-            model_defocus[long_wavelengths_mask],
-            kind='cubic'
-        )
-
+        # Polynomial equations fit to defocus model (RMS WFE).
+        # This works for coronagraphy as well.
+        cf_scale = -1.09746e7 # convert from mm defocus to meters RMS wfe
+        sw_cf = np.array([-5.169185169, 50.62919436, -201.5444129, 415.9031962,  
+                          -465.9818413, 265.843112, -59.64330811]) / cf_scale
+        lw_cf = np.array([0.175718713, -1.100964635, 0.986462016, 1.641692934]) / cf_scale
+        self.fm_short = np.poly1d(sw_cf)
+        self.fm_long  = np.poly1d(lw_cf)
+        
         # Get the representation of focus in the same Zernike basis as used for
         # making the OPD. While it looks like this does more work here than needed
         # by making a whole basis set, in fact because of caching behind the scenes
@@ -1285,8 +1303,7 @@ class NIRCamFieldAndWavelengthDependentAberration(WebbFieldDependentAberration):
         )
         self.defocus_zern = basis[3]
 
-        model_hdul.close()
-
+        
     def get_opd(self, wave):
         # Which wavelength was used to generate the OPD map we have already
         # created from zernikes?
@@ -1297,24 +1314,13 @@ class NIRCamFieldAndWavelengthDependentAberration(WebbFieldDependentAberration):
             opd_ref_wave = 3.23
             focusmodel = self.fm_long
 
-        try:
+        # F323N deviates from the model and has it's own focus power
+        # Because narrowband, can consider the focus to be constant w/ wavelength
+        if 'F323N' in self.instrument.filter:
+            focus_at_wave = 1.206e-7
+        else:
             wave_um = wave.wavelength.to(units.micron).value
             focus_at_wave = focusmodel(wave_um)
-        except ValueError:
-            # apply linear extrapolation if we are slightly outside the range of the focus model
-            # inputs. This is required to support the full range of the LW channel.
-            if wave_um < focusmodel.x[0]:
-                focus_at_wave = (
-                        focusmodel.y[0] +
-                        (wave_um - focusmodel.x[0]) * (focusmodel.y[0] - focusmodel.y[1]) /
-                        (focusmodel.x[0] - focusmodel.x[1])
-                )
-            else:
-                focus_at_wave = (
-                        focusmodel.y[-1] +
-                        (wave_um - focusmodel.x[-1]) * (focusmodel.y[-1] - focusmodel.y[-2]) /
-                        (focusmodel.x[-1] - focusmodel.x[-2])
-                )
 
         deltafocus = focus_at_wave - focusmodel(opd_ref_wave)
         _log.info("  Applying OPD focus adjustment based on NIRCam focus vs wavelength model")
