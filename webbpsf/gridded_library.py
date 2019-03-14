@@ -270,7 +270,7 @@ class CreatePSFLibrary:
             meta["INSTRUME"] = (self.instr, "Instrument name")
             meta["DETECTOR"] = (det, "Detector name")
             meta["FILTER"] = (self.filter, "Filter name")
-            meta["PUPILOPD"] = (self.webb.pupilopd, "Pupil OPD source name")
+            meta["PUPILOPD"] = (psf[ext].header["PUPILOPD"], "Pupil OPD source name")
 
             meta["FOVPIXEL"] = (self.fov_pixels, "Field of view in pixels (full array)")
             meta["FOV"] = (psf[ext].header["FOV"], "Field of view in arcsec (full array)")
