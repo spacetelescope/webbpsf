@@ -14,6 +14,7 @@ import numpy as np
 from . import webbpsf_core
 from scipy.interpolate import griddata
 from astropy.io import fits
+import astropy.units as u
 import logging
 
 _log = logging.getLogger('webbpsf')
@@ -65,14 +66,16 @@ class WavelengthDependenceInterpolator(object):
             # we have to interpolate @ this wavelength
             aberration_terms = griddata(self._wavelengths, self._aberration_terms, wavelength, method='linear')
             if np.any(np.isnan(aberration_terms)):
-                import warnings
-                wavelength_closest = np.clip(wavelength.value, np.min(self._wavelengths), np.max(self._wavelengths))
+                if isinstance(wavelength, u.Quantity):
+                    wavelength = wavelength.to(u.m).value
+                wavelength_closest = np.clip(wavelength, np.min(self._wavelengths), np.max(self._wavelengths))
                 _log.warn("Attempted to get aberrations at wavelength {:.2g} "
-                        "outside the range of the reference data; clipping to closest wavelength {:.2g}".format(wavelength, wavelength_closest))
+                          "outside the range of the reference data; clipping to closest wavelength {:.2g}".format(
+                    wavelength, wavelength_closest))
 
-                aberration_terms = griddata(self._wavelengths, self._aberration_terms, wavelength_closest, method='linear')
+                aberration_terms = griddata(self._wavelengths, self._aberration_terms, wavelength_closest,
+                                            method='linear')
             return aberration_terms
-
 
 class FieldDependentAberration(poppy.ZernikeWFE):
     """FieldDependentAberration incorporates aberrations that
