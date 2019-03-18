@@ -65,8 +65,12 @@ class WavelengthDependenceInterpolator(object):
             # we have to interpolate @ this wavelength
             aberration_terms = griddata(self._wavelengths, self._aberration_terms, wavelength, method='linear')
             if np.any(np.isnan(aberration_terms)):
-                raise RuntimeError("Attempted to get aberrations at wavelength "
-                                   "outside the range of the reference data")
+                import warnings
+                wavelength_closest = np.clip(wavelength.value, np.min(self._wavelengths), np.max(self._wavelengths))
+                _log.warn("Attempted to get aberrations at wavelength {:.2g} "
+                        "outside the range of the reference data; clipping to closest wavelength {:.2g}".format(wavelength, wavelength_closest))
+
+                aberration_terms = griddata(self._wavelengths, self._aberration_terms, wavelength_closest, method='linear')
             return aberration_terms
 
 
