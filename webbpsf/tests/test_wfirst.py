@@ -61,7 +61,7 @@ def test_WFI_detector_position_setter():
 def test_WFI_includes_aberrations():
     wfi = wfirst.WFI()
     wfi.detector = 'SCA01'
-    osys = wfi._get_optical_system()
+    osys = wfi._getOpticalSystem()
     assert isinstance(osys[2], wfirst.FieldDependentAberration), (
         "Third plane of WFIRST WFI optical system should be the "
         "field dependent aberration virtual optic"
