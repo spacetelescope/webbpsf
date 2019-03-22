@@ -1,5 +1,7 @@
 import pytest
 from webbpsf import wfirst
+from numpy import allclose
+
 
 def test_WFI_psf():
     """
@@ -8,6 +10,16 @@ def test_WFI_psf():
     """
     wi = wfirst.WFI()
     wi.calc_psf(fov_pixels=4)
+
+
+def test_WFI_filters():
+    wi = wfirst.WFI()
+    filter_list = wi.filter_list
+    for filter in filter_list:
+        wi = wfirst.WFI()
+        wi.filter = filter
+        wi.calc_psf(fov_pixels=4, oversample=1, nlambda=3)
+
 
 def test_aberration_detector_position_setter():
     detector = wfirst.FieldDependentAberration(4096, 4096)
@@ -82,6 +94,8 @@ def test_WFI_chooses_pupil_masks():
 
     _test_filter_pupil('Y106', wfi._unmasked_pupil_path)
     _test_filter_pupil('J129', wfi._unmasked_pupil_path)
+    _test_filter_pupil('R062', wfi._unmasked_pupil_path)
+
     _test_filter_pupil('H158', wfi._masked_pupil_path)
     _test_filter_pupil('F184', wfi._masked_pupil_path)
     _test_filter_pupil('W149', wfi._masked_pupil_path)
@@ -102,10 +116,15 @@ def test_WFI_limits_interpolation_range():
         "FieldDependentAberration did not error on out-of-bounds field point"
     )
     det.field_position = (2048, 2048)
-    with pytest.raises(RuntimeError) as excinfo:
-        det.get_aberration_terms(5e-6)
-    assert 'wavelength outside the range' in str(excinfo.value), (
-        "FieldDependentAberration did not error on out-of-bounds wavelength"
+
+    # Test the get_aberration_terms function uses approximated wavelength when
+    # called with an out-of-bound wavelength.
+    assert allclose(det.get_aberration_terms(5e-6), det.get_aberration_terms(2e-6)), (
+        "Aberration outside wavelength range did not return closest value."
+    )
+
+    assert allclose(det.get_aberration_terms(1e-7), det.get_aberration_terms(0.76e-6)), (
+        "Aberration outside wavelength range did not return closest value."
     )
 
 def test_CGI_detector_position():
