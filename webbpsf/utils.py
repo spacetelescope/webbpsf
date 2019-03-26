@@ -719,8 +719,9 @@ def to_griddedpsfmodel(HDUlist_or_filename=None, ext=0):
 
     # Convert header to meta dict
     header = header.copy(strip=True)
-    header.remove('COMMENT', remove_all=True)
-    header.remove('', remove_all=True)
+    header.pop('COMMENT', None)
+    header.pop('', None)
+    header.pop('HISTORY', None)
     meta = OrderedDict((a, (b, c)) for (a, b, c) in header.cards)
 
     ndd = NDData(data, meta=meta, copy=True)
@@ -734,7 +735,7 @@ def to_griddedpsfmodel(HDUlist_or_filename=None, ext=0):
         ndd.meta['oversampling'] = ndd.meta['OVERSAMP'][0]  # pull the value
 
     # Remove keys with duplicate information
-    ndd.meta = {key.lower(): ndd.meta[key] for key in ndd.meta if 'DET_YX' not in key and 'OVERSAMP' not in key}
+    ndd.meta = {key.lower(): ndd.meta[key] for key in ndd.meta}
 
     # Create model
     model = GriddedPSFModel(ndd)
