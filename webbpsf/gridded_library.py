@@ -369,7 +369,7 @@ class CreatePSFLibrary:
                                   for key in ndd.meta.keys() if "DET_YX" in key]
 
         ndd.meta['oversampling'] = meta["OVERSAMP"][0]  # just pull the value
-        ndd.meta = {key.lower(): ndd.meta[key] for key in ndd.meta if "DET_YX" not in key and "OVERSAMP" not in key}
+        ndd.meta = {key.lower(): ndd.meta[key] for key in ndd.meta}
 
         model = GriddedPSFModel(ndd)
 
