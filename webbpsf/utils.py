@@ -734,7 +734,7 @@ def to_griddedpsfmodel(HDUlist_or_filename=None, ext=0):
     if 'oversampling' not in ndd.meta:
         ndd.meta['oversampling'] = ndd.meta['OVERSAMP'][0]  # pull the value
 
-    # Remove keys with duplicate information
+    # Turn all metadata keys into lowercase
     ndd.meta = {key.lower(): ndd.meta[key] for key in ndd.meta}
 
     # Create model
