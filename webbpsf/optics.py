@@ -9,7 +9,8 @@ from astropy.table import Table
 import astropy.io.fits as fits
 import astropy.units as units
 
-from scipy.interpolate import griddata
+from scipy.interpolate import griddata, RegularGridInterpolator
+from skimage.transform import rotate
 
 from . import utils
 from . import constants
@@ -1020,8 +1021,18 @@ def _calc_blc_wedge(deg=4, wavelength=2.1e-6):
     print("  fit rms: " + str(diffs.std()))
 
 
-# Field dependent aberration class for JWST instruments
+def _trim_nan_image(xgrid, ygrid, zgrid):
+    """Remove rows/cols 1 by 1 until no NaNs"""
 
+    xgrid2, ygrid2, zgrid2 = (xgrid, ygrid, zgrid)
+    while np.isnan(zgrid2.sum()):
+        xgrid2 = xgrid2[1:-1]
+        ygrid2 = ygrid2[1:-1]
+        zgrid2 = zgrid2[1:-1,1:-1]
+        
+    return xgrid2, ygrid2, zgrid2
+
+# Field dependent aberration class for JWST instruments
 class WebbFieldDependentAberration(poppy.OpticalElement):
     """ Field dependent aberration generated from Zernikes measured in ISIM CV testing
 
@@ -1099,6 +1110,7 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
         r = np.sqrt((telcoords_am[0] - v2) ** 2 + (telcoords_am[1] - v3) ** 2)
         closest = np.argmin(r)
 
+        # Save closest ISIM CV3 WFE measured field point for reference
         self.row = self.ztable[closest]
 
         self.name = "{instrument} internal WFE at V2V3=({v2:.2f},{v3:.2f})', near {field_point}".format(
@@ -1117,42 +1129,80 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
 
             # Cubic interpolation of of non-uniform 2D grid
             cf = griddata((v2, v3), zvals, (v2_tel, v3_tel), method='cubic').tolist()
-            # Want to perform extrapolation if outside of bounds
+            
+            # Want to perform extrapolation if field point outside of bounds
             if np.isnan(cf):
-                #cf = self.row[zkey]
+                if (instrument.name == 'NIRSpec') or (instrument.name == 'MIRI'):
+                    cf = self.row[zkey]
+                else:
+                    # To extrapolate outside the measured field points, we proceed 
+                    # in two steps.  This first creates a fine-meshed cubic fit 
+                    # over the known field points, fixes any NaN's using 
+                    # RegularGridInterpolator, then again uses  RegularGridInterpolator 
+                    # on the fixed data to extrapolate the requested field point.
 
-                # Create fine mesh grid
-                dstep = 1. / 60. # 1" steps
-                xgrid = np.arange(v2.min(), v2.max()+dstep, dstep)
-                ygrid = np.arange(v3.min(), v3.max()+dstep, dstep)
-                X, Y = np.meshgrid(xgrid,ygrid)
+                    # In principle, the first call of RegularGridInterpolator can be 
+                    # used to extrapolate the requested field point to eliminate 
+                    # the intermediate step, but this method enables use of all the 
+                    # real data rather than the trimmed data set.
 
-                # Cubic interpolation of all points
-                zgrid = griddata((v2, v3), zvals, (X, Y), method='cubic')
-    
-                # There will be some NaNs along the border that need to be replaced
-                ind_nan = np.isnan(zgrid)
-                # Remove rows/cols 1 by 1 until no NaNs
-                zgrid2 = zgrid
-                ygrid2 = ygrid
-                xgrid2 = xgrid
-                while np.isnan(zgrid2.sum()):
-                    zgrid = zgrid2[1:-1,1:-1]
-                    ygrid = ygrid2[1:-1]
-                    xgrid = xgrid2[1:-1]
+                    # Create fine mesh grid
+                    dstep = 1. / 60. # 1" steps
+                    xgrid = np.arange(v2.min(), v2.max()+dstep, dstep)
+                    ygrid = np.arange(v3.min(), v3.max()+dstep, dstep)
+                    X, Y = np.meshgrid(xgrid,ygrid)
 
-                # Create regular grid interpolator function for extrapolation of NaN's
-                func = RegularGridInterpolator((ygrid2,xgrid2), zgrid2, method='linear',
-                                               bounds_error=False, fill_value=None)
+                    # Cubic interpolation of all points
+                    zgrid = griddata((v2, v3), zvals, (X, Y), method='cubic')
 
-                # Replace NaNs
-                pts = np.array([Y[ind_nan], X[ind_nan]]).transpose()
-                zgrid[ind_nan] = func(pts)
+                    # Want to rotate zgrid image of some SIs to minimize NaN clipping
+                    if 'NIRSpec' in lookup_name:
+                        rot_ang = 42
+                    elif 'MIRI' in lookup_name:
+                        rot_ang = -25
+                    elif 'NIRISS' in lookup_name:
+                        rot_ang = 5
+                    else:
+                        rot_ang = 0
 
-                # Recreate function without NaNs
-                func = RegularGridInterpolator((ygrid,xgrid), zgrid, method='linear',
-                                               bounds_error=False, fill_value=None)
-                cf = func( (v3_tel, v2_tel) ).tolist()
+                    # Rotate zgrid
+                    if rot_ang != 0:
+                        zgrid = rotate(zgrid, rot_ang)
+                        zgrid[zgrid==0] = np.nan
+
+                    # There will be some NaNs along the border that need to be replaced
+                    ind_nan = np.isnan(zgrid)
+                    # Remove rows/cols 1 by 1 until no NaNs
+                    xgrid2, ygrid2, zgrid2 = _trim_nan_image(xgrid, ygrid, zgrid)
+
+                    # Create regular grid interpolator function for extrapolation of NaN's
+                    func = RegularGridInterpolator((ygrid2,xgrid2), zgrid2, method='linear',
+                                                   bounds_error=False, fill_value=None)
+                                                   
+                    # Replace NaNs
+                    pts = np.array([Y[ind_nan], X[ind_nan]]).transpose()
+                    zgrid[ind_nan] = func(pts)
+
+                    # De-rotate clipped zgrid image and redo RegularGridInterpolator
+                    if rot_ang != 0:
+                        zgrid = rotate(zgrid, -rot_ang, cval=np.nan)
+                        # There will be some NaNs along the border that need to be replaced
+                        ind_nan = np.isnan(zgrid)
+                        # Remove rows/cols 1 by 1 until no NaNs
+                        xgrid2, ygrid2, zgrid2 = _trim_nan_image(xgrid, ygrid, zgrid)
+
+                        # Create regular grid interpolator function for extrapolation of NaN's
+                        func = RegularGridInterpolator((ygrid2,xgrid2), zgrid2, method='linear',
+                                                       bounds_error=False, fill_value=None)
+
+                        # Replace NaNs
+                        pts = np.array([Y[ind_nan], X[ind_nan]]).transpose()
+                        zgrid[ind_nan] = func(pts)
+
+                    # Recreate function without NaNs
+                    func = RegularGridInterpolator((ygrid,xgrid), zgrid, method='linear',
+                                                   bounds_error=False, fill_value=None)
+                    cf = func( (v3_tel, v2_tel) ).tolist()
 
             coeffs.append(cf)
 
@@ -1284,7 +1334,12 @@ class NIRCamFieldAndWavelengthDependentAberration(WebbFieldDependentAberration):
             **kwargs)
 
         # Polynomial equations fit to defocus model (RMS WFE).
-        # This works for coronagraphy as well.
+        # Fits were performed to the SW and LW optical design focus model 
+        # as provided by Randal Telfer. 
+        # See plot at https://github.com/spacetelescope/webbpsf/issues/179
+        # The relative wavelength dependence of these focus models are very
+        # similar for coronagraphic mode in the Zemax optical prescription,
+        # so we opt to use the same focus model in both imaging and coronagraphy.
         cf_scale = -1.09746e7 # convert from mm defocus to meters RMS wfe
         sw_cf = np.array([-5.169185169, 50.62919436, -201.5444129, 415.9031962,  
                           -465.9818413, 265.843112, -59.64330811]) / cf_scale
@@ -1314,7 +1369,7 @@ class NIRCamFieldAndWavelengthDependentAberration(WebbFieldDependentAberration):
             opd_ref_wave = 3.23
             focusmodel = self.fm_long
 
-        # F323N deviates from the model and has it's own focus power
+        # F323N deviates from the model and has its own focus power
         # Because narrowband, can consider the focus to be constant w/ wavelength
         if 'F323N' in self.instrument.filter:
             focus_at_wave = 1.206e-7
