@@ -165,7 +165,7 @@ class CreatePSFLibrary:
         # Set detector list to loop over
         if detectors == "all":
             if self.instr != "NIRCam":
-                det= self.webb.detector_list
+                det = self.webb.detector_list
             elif self.instr == "NIRCam" and filt in CreatePSFLibrary.nrca_short_filters:
                 det = CreatePSFLibrary.nrca_short_detectors
             elif self.instr == "NIRCam" and filt in CreatePSFLibrary.nrca_long_filters:
@@ -311,9 +311,9 @@ class CreatePSFLibrary:
                 if self.instr is "MIRI":
                     meta["MIR_DIST"] = (psf[ext].header["MIR_DIST"], "MIRI detector scattering applied")
                     meta["KERN_AMP"] = (psf[ext].header["KERN_AMP"],
-                                          "Amplitude(A) in kernel function A * exp(-x / B)")
+                                        "Amplitude(A) in kernel function A * exp(-x / B)")
                     meta["KERNFOLD"] = (psf[ext].header["KERNFOLD"],
-                                          "e - folding length(B) in kernel func A * exp(-x / B)")
+                                        "e - folding length(B) in kernel func A * exp(-x / B)")
 
             # Pull values from the last made psf
             meta["WAVELEN"] = (psf[ext].header["WAVELEN"], "Weighted mean wavelength in meters")
@@ -345,7 +345,8 @@ class CreatePSFLibrary:
         else:
             return model_list
 
-    def to_model(self, data, meta):
+    @staticmethod
+    def to_model(data, meta):
         """
         Create a photutils GriddedPSFModel object from input data and meta information
 
