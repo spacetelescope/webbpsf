@@ -103,7 +103,6 @@ class CreatePSFLibrary:
         except ImportError:
             raise ImportError("This method requires photutils >= 0.6")
 
-
         # Pull WebbPSF instance
         self.webb = instrument
         self.instr = instrument.name
@@ -255,6 +254,7 @@ class CreatePSFLibrary:
 
                 if self.verbose is True:
                     print("    Position {}/{}: {} pixels".format(i+1, len(self.location_list), loc))
+
                 # Create PSF
                 psf = self.webb.calc_psf(**self._kwargs)
 
@@ -277,6 +277,11 @@ class CreatePSFLibrary:
             meta["OVERSAMP"] = (psf[ext].header["OVERSAMP"], "Oversampling factor for FFTs in computation")
             meta["DET_SAMP"] = (psf[ext].header["DET_SAMP"], "Oversampling factor for MFT to detector plane")
             meta["NWAVES"] = (psf[ext].header["NWAVES"], "Number of wavelengths used in calculation")
+
+            if self.webb.image_mask is not None:
+                meta["CORONMSK"] = (self.webb.image_mask, "Image plane mask")
+            if self.webb.pupil_mask is not None:
+                meta["PUPIL"] = (self.webb.pupil_mask, "Pupil plane mask")
 
             for h, loc in enumerate(self.location_list):  # these were originally written out in (x,y)
                 loc = np.asarray(loc, dtype=float)
