@@ -1022,14 +1022,65 @@ def _calc_blc_wedge(deg=4, wavelength=2.1e-6):
 
 
 def _trim_nan_image(xgrid, ygrid, zgrid):
-    """Remove rows/cols 1 by 1 until no NaNs"""
+    """NaN Trimming of Image
+    
+    Remove rows/cols with NaN's while trying to preserve
+    the maximum footprint of real data.
+    """
 
-    xgrid2, ygrid2, zgrid2 = (xgrid, ygrid, zgrid)
+    xgrid2, ygrid2, zgrid2 = xgrid, ygrid, zgrid
+    
+    # Find a reasonable place to crop a subsection
+    # Iterative cropping
+    ndiff = 10
+    while np.isnan(zgrid2.sum()):
+        # Make sure ndiff is not negative
+        if ndiff<0:
+            break
+
+        npix = zgrid2.size
+
+        # Create a mask of NaN'ed values
+        nan_mask = np.isnan(zgrid2)
+        nrows, ncols = nan_mask.shape
+        # Determine number of NaN's along each row and col
+        num_nans_cols = nan_mask.sum(axis=0)
+        num_nans_rows = nan_mask.sum(axis=1)
+
+        # Look for any appreciable diff row-to-row/col-to-col
+        col_diff = num_nans_cols - np.roll(num_nans_cols,-1) 
+        row_diff = num_nans_rows - np.roll(num_nans_rows,-1)
+        # For edge wrapping, just use last minus previous
+        col_diff[-1] = col_diff[-2]
+        row_diff[-1] = row_diff[-2]
+
+        # Keep rows/cols composed mostly of real data 
+        # and where number of NaN's don't change dramatically
+        xind_good = np.where( ( np.abs(col_diff) <= ndiff  ) & 
+                              ( num_nans_cols < 0.5*nrows ) )[0]
+        yind_good = np.where( ( np.abs(row_diff) <= ndiff  ) & 
+                              ( num_nans_rows < 0.5*ncols ) )[0]
+        # get border limits
+        x1, x2 = (xind_good.min(), xind_good.max()+1)
+        y1, y2 = (yind_good.min(), yind_good.max()+1)
+    
+        # Trim of NaN borders
+        xgrid2 = xgrid2[x1:x2]
+        ygrid2 = ygrid2[y1:y2]
+        zgrid2 = zgrid2[y1:y2,x1:x2]
+        
+        # Check for convergence
+        # If we've converged, reduce 
+        if npix==zgrid2.size:
+            ndiff -= 1
+                
+    # Last ditch effort in case there are still NaNs
+    # If so, remove rows/cols 1 by 1 until no NaNs
     while np.isnan(zgrid2.sum()):
         xgrid2 = xgrid2[1:-1]
         ygrid2 = ygrid2[1:-1]
         zgrid2 = zgrid2[1:-1,1:-1]
-        
+            
     return xgrid2, ygrid2, zgrid2
 
 # Field dependent aberration class for JWST instruments
@@ -1154,11 +1205,11 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
 
                 # Want to rotate zgrid image of some SIs to minimize NaN clipping
                 if 'NIRSpec' in lookup_name:
-                    rot_ang = 42
+                    rot_ang = 43
                 elif 'MIRI' in lookup_name:
-                    rot_ang = -25
+                    rot_ang = -5
                 elif 'NIRISS' in lookup_name:
-                    rot_ang = 5
+                    rot_ang = 2
                 else:
                     rot_ang = 0
 
