@@ -1620,6 +1620,8 @@ class OTE_Linear_Model_WSS(OPD):
                 vector *= 1000
             elif trans_unit == 'nm' or trans_unit == 'nanometer' or trans_unit == 'nanometers':
                 vector /= 1000
+            elif trans_unit == 'meter':
+                vector *= 1000000
             else:
                 raise ValueError("Unknown trans_unit for length: %s" % trans_unit)
 
@@ -1716,16 +1718,26 @@ class OTE_Linear_Model_WSS(OPD):
                     rot_unit = update.units['X_TILT']
                     trans_unit = update.units['X_TRANS']
 
-                    self.move_seg_local(update.segment[0:2],
-                                        xtilt=update.moves['X_TILT'],
-                                        ytilt=update.moves['Y_TILT'],
-                                        xtrans=update.moves['X_TRANS'],
-                                        ytrans=update.moves['Y_TRANS'],
-                                        piston=update.moves['PISTON'],
-                                        absolute=update.absolute,
-                                        rot_unit=rot_unit,
-                                        trans_unit=trans_unit,
-                                        delay_update=True)
+                    if update.segment == 'SM':
+                        self.move_sm_local(xtilt=update.moves['X_TILT'],
+                                           ytilt=update.moves['Y_TILT'],
+                                           xtrans=update.moves['X_TRANS'],
+                                           ytrans=update.moves['Y_TRANS'],
+                                           piston=update.moves['PISTON'],
+                                           rot_unit=rot_unit,
+                                           trans_unit=trans_unit,
+                                           delay_update=True)
+                    else:
+                        self.move_seg_local(update.segment[0:2],
+                                            xtilt=update.moves['X_TILT'],
+                                            ytilt=update.moves['Y_TILT'],
+                                            xtrans=update.moves['X_TRANS'],
+                                            ytrans=update.moves['Y_TRANS'],
+                                            piston=update.moves['PISTON'],
+                                            absolute=update.absolute,
+                                            rot_unit=rot_unit,
+                                            trans_unit=trans_unit,
+                                            delay_update=True)
 
                 elif update.type == 'roc':
                     self.move_seg_local(update.segment[0:2],
