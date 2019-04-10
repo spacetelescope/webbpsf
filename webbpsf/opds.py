@@ -1705,7 +1705,11 @@ class OTE_Linear_Model_WSS(OPD):
         import jwxml
 
         sur = jwxml.SUR(sur_file)
-        for grp in sur.groups:
+        if group is not None:
+            groups = [sur.groups[group]]
+        else:
+            groups = sur.groups
+        for grp in groups:
             for update in grp:
                 if verbose:
                     print("Move seg {} by {}".format(update.segment, str(update)))
