@@ -1699,7 +1699,20 @@ class OTE_Linear_Model_WSS(OPD):
             self.update_opd(display=display)
 
     def move_sur(self, sur_file, group=None, verbose=False):
-        """ Move using a JWST Segment Update Request file
+        """
+        Move using a JWST Segment Update Request file
+
+        Parameters
+        ----------
+        sur_file : file name
+            Path to SUR XML file
+        group : zero-based int index
+            Index to a single group to run. Default is to run all groups.
+        verbose : bool
+            Flag controlling whether moves are printed.
+
+        Returns
+        -------
 
         """
         import jwxml
