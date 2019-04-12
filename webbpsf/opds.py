@@ -1325,7 +1325,7 @@ class OTE_Linear_Model_WSS(OPD):
         roc : float
             radius of curvature mechanism adjustment, in microns.
         trans_unit : str
-            Unit for translations. Can be 'micron', 'millimeter','nanometer', 'mm', 'nm', 'um'
+            Unit for translations. Can be 'meter', 'micron', 'millimeter', 'nanometer', 'm', 'mm', 'nm', 'um'
         rot_unit : str
             Unit for rotations. Can be 'urad', 'radian', 'milliradian', 'arcsec', 'arcmin', 'milliarcsec'
         absolute : bool
