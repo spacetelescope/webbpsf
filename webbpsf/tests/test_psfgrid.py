@@ -7,6 +7,7 @@ import pytest
 
 from .. import gridded_library
 from .. import webbpsf_core
+from .. import wfirst
 from .. import utils
 
 
@@ -201,3 +202,41 @@ def test_saving(tmpdir):
 
     # Remove temporary directory
     tmpdir.remove()
+
+
+def test_wfi():
+    """Test that the psf_grid method works for the WFI class"""
+
+    # Check add_distortion not specified defaults to false
+    oversample = 2
+    fov_pixels = 10
+
+    # Create PSF grid
+    wfi = wfirst.WFI()
+    grid = wfi.psf_grid(all_detectors=False, num_psfs=1, fov_pixels=fov_pixels, oversample=oversample)
+
+    # Pull one of the PSFs out of the grid
+    psfnum = 0  # This should be num_psfs=4 and psfnum=1
+    loc = grid.meta["grid_xypos"][psfnum]
+    locy = int(float(loc[1])-0.5)
+    locx = int(float(loc[0])-0.5)
+    gridpsf = grid.data[psfnum, :, :]
+
+    # Using meta data, create the expected same PSF via calc_psf
+    wfi.detector_position = (locx, locy)
+    calcpsf = wfi.calc_psf(oversample=oversample, fov_pixels=fov_pixels)["OVERSAMP"].data
+    kernel = astropy.convolution.Box2DKernel(width=oversample)
+    convpsf = astropy.convolution.convolve(calcpsf, kernel)
+
+    # Compare to make sure they are in fact the same PSF
+    assert gridpsf.shape == calcpsf.shape
+    assert np.array_equal(gridpsf, convpsf)
+
+
+def test_wfi_error():
+    """Check add_distortion=True raises an error"""
+
+    with pytest.raises(NotImplementedError) as excinfo:
+        wfi = wfirst.WFI()
+        wfi.psf_grid(add_distortion=True, num_psfs=1, fov_pixels=1, detector_oversample=2)
+    assert "NotImplementedError" in str(excinfo)

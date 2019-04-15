@@ -103,7 +103,6 @@ class CreatePSFLibrary:
         except ImportError:
             raise ImportError("This method requires photutils >= 0.6")
 
-
         # Pull WebbPSF instance
         self.webb = instrument
         self.instr = instrument.name
@@ -122,6 +121,8 @@ class CreatePSFLibrary:
         # Set PSF attributes for the 3 kwargs that will be used before the calc_psf() call
         if "add_distortion" in kwargs:
             self.add_distortion = kwargs["add_distortion"]
+            if self.webb.name == "WFI":
+                del kwargs["add_distortion"]
         else:
             self.add_distortion = True
             kwargs["add_distortion"] = self.add_distortion
@@ -255,6 +256,7 @@ class CreatePSFLibrary:
 
                 if self.verbose is True:
                     print("    Position {}/{}: {} pixels".format(i+1, len(self.location_list), loc))
+
                 # Create PSF
                 psf = self.webb.calc_psf(**self._kwargs)
 
@@ -315,9 +317,11 @@ class CreatePSFLibrary:
             meta["DIFFLMT"] = (psf[ext].header["DIFFLMT"], "Diffraction limit lambda/D in arcsec")
             meta["FFTTYPE"] = (psf[ext].header["FFTTYPE"], "Algorithm for FFTs: numpy or fftw")
             meta["NORMALIZ"] = (psf[ext].header["NORMALIZ"], "PSF normalization method")
-            meta["JITRTYPE"] = (psf[ext].header["JITRTYPE"], "Type of jitter applied")
-            meta["JITRSIGM"] = (psf[ext].header["JITRSIGM"], "Gaussian sigma for jitter [arcsec]")
             meta["TEL_WFE"] = (psf[ext].header["TEL_WFE"], "[nm] Telescope pupil RMS wavefront error")
+
+            if self.webb.name != "WFI":
+                meta["JITRTYPE"] = (psf[ext].header["JITRTYPE"], "Type of jitter applied")
+                meta["JITRSIGM"] = (psf[ext].header["JITRSIGM"], "Gaussian sigma for jitter [arcsec]")
 
             meta["DATE"] = (psf[ext].header["DATE"], "Date of calculation")
             meta["AUTHOR"] = (psf[ext].header["AUTHOR"], "username@host for calculation")
