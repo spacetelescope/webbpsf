@@ -672,7 +672,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         """
 
         # Keywords that could be set before the method call
-        filters = self.filter
+        filt = self.filter
 
         if all_detectors is True:
             detectors = "all"
@@ -692,7 +692,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
             keyword must be set to False.")
 
         # Call CreatePSFLibrary class
-        inst = gridded_library.CreatePSFLibrary(instrument=self, filters=filters, detectors=detectors,
+        inst = gridded_library.CreatePSFLibrary(instrument=self, filter_name=filt, detectors=detectors,
                                                 num_psfs=num_psfs, psf_location=psf_location,
                                                 use_detsampled_psf=use_detsampled_psf, save=save,
                                                 filename=outfile, overwrite=overwrite, verbose=verbose,
