@@ -213,10 +213,10 @@ def test_wfi():
 
     # Create PSF grid
     wfi = wfirst.WFI()
-    grid = wfi.psf_grid(all_detectors=False, num_psfs=1, fov_pixels=fov_pixels, oversample=oversample)
+    grid = wfi.psf_grid(all_detectors=False, num_psfs=4, fov_pixels=fov_pixels, oversample=oversample)
 
     # Pull one of the PSFs out of the grid
-    psfnum = 0  # This should be num_psfs=4 and psfnum=1
+    psfnum = 1
     loc = grid.meta["grid_xypos"][psfnum]
     locy = int(float(loc[1])-0.5)
     locx = int(float(loc[0])-0.5)
