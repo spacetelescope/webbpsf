@@ -19,7 +19,7 @@ class CreatePSFLibrary:
     nrca_short_detectors = ['NRCA1', 'NRCA2', 'NRCA3', 'NRCA4', 'NRCB1', 'NRCB2', 'NRCB3', 'NRCB4']
     nrca_long_detectors = ['NRCA5', 'NRCB5']
 
-    def __init__(self, instrument, filters="all", detectors="all", num_psfs=16, psf_location=None,
+    def __init__(self, instrument, filter_name, detectors="all", num_psfs=16, psf_location=None,
                  use_detsampled_psf=False, save=True, filename=None, overwrite=True, verbose=True,
                  **kwargs):
         """
@@ -36,7 +36,7 @@ class CreatePSFLibrary:
             The instance of WebbPSF that is calling this class inside the psf_grid
             method.
 
-        filters : str
+        filter_name : str
             The name of the filter you want to create a library for. Spelling/
             capitalization must match what WebbPSF expects.
 
@@ -90,7 +90,7 @@ class CreatePSFLibrary:
 
         Use
         ---
-        c = CreatePSFLibrary(instrument, filters, detectors, num_psfs, add_distortion,
+        c = CreatePSFLibrary(instrument, filter_name, detectors, num_psfs, add_distortion,
                              fov_pixels, oversample, save, fileloc, filename, overwrite,
                              verbose)
         grid = c.create_files()
@@ -112,7 +112,7 @@ class CreatePSFLibrary:
             psf_location = (int(self.webb._detector_npixels / 2), int(self.webb._detector_npixels / 2))
 
         # Setting the filter and detector(s)
-        self.filter = filters
+        self.filter = filter_name
         self.detector_list = self._set_detectors(self.filter, detectors)
 
         # Set the locations on the detector of the fiducial PSFs
