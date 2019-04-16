@@ -10,7 +10,7 @@ import astropy.io.fits as fits
 import astropy.units as units
 
 from scipy.interpolate import griddata, RegularGridInterpolator
-from skimage.transform import rotate
+from scipy.ndimage import rotate
 
 from . import utils
 from . import constants
@@ -1083,6 +1083,68 @@ def _trim_nan_image(xgrid, ygrid, zgrid):
             
     return xgrid2, ygrid2, zgrid2
 
+
+def _fix_zgrid_NaNs(xgrid, ygrid, zgrid, rot_ang=0):
+    """Fix NaN's in Zernike Grid
+    
+    We trim NaN's within `zgrid`, then generate an extrapolation function
+    using `RegularGridInterpolator`. A rotation angle can also be specified
+    to maximize the number of remaining data points due to irregular
+    polygons of the real `zgrid` data.
+    
+    Returns `zgrid` with the NaN's fixed using the extrapolation function.
+    
+    Parameter
+    =========
+    xgrid : ndarray
+        1D V2 regular grid information
+    ygrid : ndarray
+        1D V3 regular grid information
+    zgrid : ndarray
+        2D Zernike grid
+    rot_ang : float
+        Option to rotate grid data for more optimal
+        trimming of NaN's.
+    """
+            
+    # Rotate zgrid
+    if rot_ang != 0:
+        zgrid = rotate(zgrid, rot_ang, reshape=False, order=1, cval=np.nan)
+        
+    # There will be some NaN's along the border that need to be replaced
+    ind_nan = np.isnan(zgrid)
+    # Remove rows/cols with NaN's
+    xgrid2, ygrid2, zgrid2 = _trim_nan_image(xgrid, ygrid, zgrid)
+    
+    # Create regular grid interpolator function for extrapolation of NaN's
+    func = RegularGridInterpolator((ygrid2,xgrid2), zgrid2, method='linear',
+                                   bounds_error=False, fill_value=None)
+
+    # Replace NaNs
+    X, Y = np.meshgrid(xgrid,ygrid)
+    pts = np.array([Y[ind_nan], X[ind_nan]]).transpose()
+    zgrid[ind_nan] = func(pts)
+
+    # De-rotate clipped zgrid image and redo RegularGridInterpolator
+    if rot_ang != 0:
+        # De-rotate
+        zgrid = rotate(zgrid, -rot_ang, reshape=False, order=1, cval=np.nan)
+        # There will be some NaNs along the border that need to be replaced
+        ind_nan = np.isnan(zgrid)
+        # Remove rows/cols 1 by 1 until no NaNs
+        xgrid2, ygrid2, zgrid2 = _trim_nan_image(xgrid, ygrid, zgrid)
+
+        # Create regular grid interpolator function for extrapolation of NaN's
+        func = RegularGridInterpolator((ygrid2,xgrid2), zgrid2, method='linear',
+                                       bounds_error=False, fill_value=None)
+
+        # Replace NaNs
+        pts = np.array([Y[ind_nan], X[ind_nan]]).transpose()
+        zgrid[ind_nan] = func(pts)
+        
+    return zgrid
+
+
 # Field dependent aberration class for JWST instruments
 class WebbFieldDependentAberration(poppy.OpticalElement):
     """ Field dependent aberration generated from Zernikes measured in ISIM CV testing
@@ -1213,43 +1275,15 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
                 else:
                     rot_ang = 0
 
-                # Rotate zgrid
-                if rot_ang != 0:
-                    zgrid = rotate(zgrid, rot_ang)
-                    zgrid[zgrid==0] = np.nan
+                # Fix the NaN's within zgrid array
+                # Performs specified rotation
+                # Iteratively trims rows/cols and create extrapolation function
+                zgrid = _fix_zgrid_NaNs(xgrid, ygrid, zgrid, rot_ang=rot_ang)
 
-                # There will be some NaNs along the border that need to be replaced
-                ind_nan = np.isnan(zgrid)
-                # Remove rows/cols 1 by 1 until no NaNs
-                xgrid2, ygrid2, zgrid2 = _trim_nan_image(xgrid, ygrid, zgrid)
-
-                # Create regular grid interpolator function for extrapolation of NaN's
-                func = RegularGridInterpolator((ygrid2,xgrid2), zgrid2, method='linear',
-                                               bounds_error=False, fill_value=None)
-                                               
-                # Replace NaNs
-                pts = np.array([Y[ind_nan], X[ind_nan]]).transpose()
-                zgrid[ind_nan] = func(pts)
-
-                # De-rotate clipped zgrid image and redo RegularGridInterpolator
-                if rot_ang != 0:
-                    zgrid = rotate(zgrid, -rot_ang, cval=np.nan)
-                    # There will be some NaNs along the border that need to be replaced
-                    ind_nan = np.isnan(zgrid)
-                    # Remove rows/cols 1 by 1 until no NaNs
-                    xgrid2, ygrid2, zgrid2 = _trim_nan_image(xgrid, ygrid, zgrid)
-
-                    # Create regular grid interpolator function for extrapolation of NaN's
-                    func = RegularGridInterpolator((ygrid2,xgrid2), zgrid2, method='linear',
-                                                   bounds_error=False, fill_value=None)
-
-                    # Replace NaNs
-                    pts = np.array([Y[ind_nan], X[ind_nan]]).transpose()
-                    zgrid[ind_nan] = func(pts)
-
-                # Recreate function without NaNs
+                # Create final function excluding NaNs
                 func = RegularGridInterpolator((ygrid,xgrid), zgrid, method='linear',
                                                bounds_error=False, fill_value=None)
+                # Extrapolate at requested (V2,V3) coordinates
                 cf = func( (v3_tel, v2_tel) ).tolist()
 
             coeffs.append(cf)
