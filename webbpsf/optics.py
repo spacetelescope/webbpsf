@@ -1263,6 +1263,7 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
                 X, Y = np.meshgrid(xgrid,ygrid)
 
                 # Cubic interpolation of all points
+                # Will produce a number of NaN's that need to be extrapolated over
                 zgrid = griddata((v2, v3), zvals, (X, Y), method='cubic')
 
                 # Want to rotate zgrid image of some SIs to minimize NaN clipping
@@ -1276,11 +1277,11 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
                     rot_ang = 0
 
                 # Fix the NaN's within zgrid array
-                # Performs specified rotation
-                # Iteratively trims rows/cols and create extrapolation function
+                # Perform specified rotation for certain SIs
+                # Trim rows/cols
                 zgrid = _fix_zgrid_NaNs(xgrid, ygrid, zgrid, rot_ang=rot_ang)
 
-                # Create final function excluding NaNs
+                # Create final function for extrapolation
                 func = RegularGridInterpolator((ygrid,xgrid), zgrid, method='linear',
                                                bounds_error=False, fill_value=None)
                 # Extrapolate at requested (V2,V3) coordinates
