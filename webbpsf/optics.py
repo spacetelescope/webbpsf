@@ -1203,10 +1203,11 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
         # load the Zernikes table here         
         zfile = "si_zernikes_isim_cv3.fits"
         # Check special case NIRCam coronagraphy
-        if instrument.name == 'NIRCam':
-            pupil_mask = self.instrument._pupil_mask
-            if (pupil_mask is not None) and ('LYOT' in pupil_mask.upper()):
-                zfile = "si_zernikes_coron_zemax.fits"
+        # TODO: Create Zernike FITS file for NIRCam coronagraphy then uncomment lower section
+#         if instrument.name == 'NIRCam':
+#             pupil_mask = self.instrument._pupil_mask
+#             if (pupil_mask is not None) and ('LYOT' in pupil_mask.upper()):
+#                 zfile = "si_zernikes_coron_zemax.fits"
         zernike_file = os.path.join(utils.get_webbpsf_data_path(), zfile)
 
         if not os.path.exists(zernike_file):
