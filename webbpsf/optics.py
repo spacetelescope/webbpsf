@@ -1027,12 +1027,30 @@ def _trim_nan_image(xgrid, ygrid, zgrid):
     Remove rows/cols with NaN's while trying to preserve
     the maximum footprint of real data.
     """
-
+    
     xgrid2, ygrid2, zgrid2 = xgrid, ygrid, zgrid
     
-    # Find a reasonable place to crop a subsection
+    # Create a mask of NaN'ed values
+    nan_mask = np.isnan(zgrid2)
+    nrows, ncols = nan_mask.shape
+    # Determine number of NaN's along each row and col
+    num_nans_cols = nan_mask.sum(axis=0)
+    num_nans_rows = nan_mask.sum(axis=1)
+    
+    # First, crop all rows/cols that are only NaN's
+    xind_good = np.where(num_nans_cols < nrows)[0]
+    yind_good = np.where(num_nans_rows < ncols)[0]
+    # get border limits
+    x1, x2 = (xind_good.min(), xind_good.max()+1)
+    y1, y2 = (yind_good.min(), yind_good.max()+1)
+    # Trim of NaN borders
+    xgrid2 = xgrid2[x1:x2]
+    ygrid2 = ygrid2[y1:y2]
+    zgrid2 = zgrid2[y1:y2,x1:x2]
+    
+    # Find a optimal rectangule subsection free of NaN's
     # Iterative cropping
-    ndiff = 10
+    ndiff = 5
     while np.isnan(zgrid2.sum()):
         # Make sure ndiff is not negative
         if ndiff<0:
@@ -1053,7 +1071,7 @@ def _trim_nan_image(xgrid, ygrid, zgrid):
         # For edge wrapping, just use last minus previous
         col_diff[-1] = col_diff[-2]
         row_diff[-1] = row_diff[-2]
-
+        
         # Keep rows/cols composed mostly of real data 
         # and where number of NaN's don't change dramatically
         xind_good = np.where( ( np.abs(col_diff) <= ndiff  ) & 
@@ -1256,10 +1274,30 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
                 # real data rather than the trimmed data set. RGI is a rather
                 # quick process, so added overheads should be negligible.
 
+                # Full field V2/V3 limits for each instrument.
+                # Produces better initial extrapolation with fewer 
+                # interpolation artifacts in RGI.
+                if lookup_name == 'Guider1':
+                    v2_min, v2_max, v3_min, v3_max = (2.2, 4.7, -12.9, -10.4)
+                elif lookup_name == 'Guider2':
+                    v2_min, v2_max, v3_min, v3_max = (-0.8, 1.6, -12.9, -10.4)
+                elif lookup_name == 'NIRISS': 
+                    v2_min, v2_max, v3_min, v3_max = (-6.0, -3.6, -12.9, -10.4)
+                elif lookup_name == 'MIRI': 
+                    v2_min, v2_max, v3_min, v3_max = (-8.3, -6.1, -7.3, -5.2)
+                elif lookup_name == 'NIRSpec': 
+                    v2_min, v2_max, v3_min, v3_max = (3.7, 9.0, -9.8, -4.5)
+                elif (lookup_name == 'NIRCamLWA') or (lookup_name == 'NIRCamSWA'): 
+                    v2_min, v2_max, v3_min, v3_max = (0.2, 2.7, -9.5, -7.0)
+                elif (lookup_name == 'NIRCamLWB') or (lookup_name == 'NIRCamSWB'): 
+                    v2_min, v2_max, v3_min, v3_max = (-2.7, -0.2, -9.5, -7.0)
+                else:
+                    v2_min, v2_max, v3_min, v3_max = (v2.min(), v2.max(), v3.min(), v3.max())
+            
                 # Create fine mesh grid
                 dstep = 1. / 60. # 1" steps
-                xgrid = np.arange(v2.min(), v2.max()+dstep, dstep)
-                ygrid = np.arange(v3.min(), v3.max()+dstep, dstep)
+                xgrid = np.arange(v2_min, v2_max+dstep, dstep)
+                ygrid = np.arange(v3_min, v3_max+dstep, dstep)
                 X, Y = np.meshgrid(xgrid,ygrid)
 
                 # Cubic interpolation of all points
