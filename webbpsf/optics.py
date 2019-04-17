@@ -1294,7 +1294,15 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
                     v2_min, v2_max, v3_min, v3_max = (-2.7, -0.2, -9.5, -7.0)
                 else:
                     v2_min, v2_max, v3_min, v3_max = (v2.min(), v2.max(), v3.min(), v3.max())
-            
+
+                # For NIRCam coronagraphy, add 50" to V3 limits
+                # TODO: Uncomment these lines when si_zernikes_coron_zemax.fits exists
+#                 if instrument.name == 'NIRCam':
+#                     pupil_mask = self.instrument._pupil_mask
+#                     if (pupil_mask is not None) and ('LYOT' in pupil_mask.upper()):
+#                         v3_min += 50. / 60.
+#                         v3_max += 50. / 60.
+
                 # Create fine mesh grid
                 dstep = 1. / 60. # 1" steps
                 xgrid = np.arange(v2_min, v2_max+dstep, dstep)
