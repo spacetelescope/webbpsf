@@ -70,9 +70,9 @@ class WavelengthDependenceInterpolator(object):
                 if isinstance(wavelength, u.Quantity):
                     wavelength = wavelength.to(u.m).value
                 wavelength_closest = np.clip(wavelength, np.min(self._wavelengths), np.max(self._wavelengths))
-                _log.warn("Attempted to get aberrations at wavelength {:.2g} "
-                          "outside the range of the reference data; clipping to closest wavelength {:.2g}".format(
-                    wavelength, wavelength_closest))
+                _log.warning("Attempted to get aberrations at wavelength {:.2g} "
+                             "outside the range of the reference data; clipping to closest wavelength {:.2g}".format(
+                             wavelength, wavelength_closest))
 
                 aberration_terms = griddata(self._wavelengths, self._aberration_terms, wavelength_closest,
                                             method='linear')
