@@ -741,3 +741,76 @@ def to_griddedpsfmodel(HDUlist_or_filename=None, ext=0):
     model = GriddedPSFModel(ndd)
 
     return model
+
+
+def nearest_polygon_point(x, y, target):
+    """
+    Given a set of vertices find the nearest
+    point on the nearest edge
+
+    Parameter
+    ---------
+    x, y : numpy array
+        x and y values of vertices
+    target : tuple, array
+        x and y values of target point
+
+    Returns
+    -------
+    nearest : array
+        x and y values of nearest point to target
+    """
+
+    if len(x) == 1 and len(y) == 1:
+        return np.array([x[0], y[0]])
+    elif len(x) != len(y):
+        raise RuntimeError("Input x and y arrays are not the same dimensions")
+    elif len(x) == 0 or len(y) == 0:
+        raise RuntimeError("Can not find nearest point"
+                           " because input array is empty")
+
+    # Convert to array
+    target = np.asarray(target)
+    if len(target.shape) != 1:
+        raise RuntimeError("Multiple targets passed to nearest"
+                           " point approximation function")
+
+    vertices = []
+    for i in range(len(x)):
+        for j in range(len(x[i:])):
+            k = i + j
+            if i == k:
+                continue
+            vertices.append(
+                np.array([
+                    np.array([x[i], y[i]]),
+                    np.array([x[k], y[k]])
+                ])
+            )
+
+    min_dist = np.inf
+    nearest_pnt = None
+    for i, vertex in enumerate(vertices):
+        p1, p2 = vertex
+
+        v = p2 - p1
+        u = p1 - target
+        t = - (np.dot(u, v) / np.dot(v, v))
+
+        if 0 <= t <= 1:
+            # Point lies on line segment
+            point = ((1 - t) * p1) + (t * p2)
+            dist = np.linalg.norm(point - target)
+        else:
+            # Point is one of the edge vertices
+            dist1 = np.linalg.norm(p1 - target)
+            dist2 = np.linalg.norm(p2 - target)
+
+            point = p2 if dist1 > dist2 else p1
+            dist = dist2 if dist1 > dist2 else dist1
+
+        if dist < min_dist:
+            min_dist = dist
+            nearest_pnt = point
+
+    return nearest_pnt

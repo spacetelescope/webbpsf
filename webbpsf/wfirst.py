@@ -12,6 +12,7 @@ import os.path
 import poppy
 import numpy as np
 from . import webbpsf_core
+from .utils import nearest_polygon_point
 from scipy.interpolate import griddata
 from astropy.io import fits
 import astropy.units as u
@@ -165,7 +166,33 @@ class FieldDependentAberration(poppy.ZernikeWFE):
                 method='linear'
             )
             if np.any(np.isnan(coefficients)):
-                raise RuntimeError("Attempted to get aberrations for an out-of-bounds field point")
+                if len(field_points) > 0:
+                    x_coords, y_coords = np.asarray(field_points).transpose()
+                    nearest_field_position = nearest_polygon_point(
+                        x_coords, y_coords,
+                        self.field_position)
+
+                    if nearest_field_position is not None:
+                        nearest_field_position = nearest_field_position.astype(int)
+                        nearest_field_position = tuple(nearest_field_position)
+                        coefficients = griddata(
+                            np.asarray(field_points),
+                            np.asarray(aberration_terms),
+                            nearest_field_position,
+                            method='linear'
+                        )
+
+                    if np.any(np.isnan(coefficients)):
+                        raise RuntimeError("Attempted to get aberrations for an out-of-bounds field point")
+
+                    _log.warning("Missing aberration information at {} pixels. "
+                                 "Approximated aberration by using coefficients at {}"
+                                 " pixels.".format(self.field_position, nearest_field_position))
+                    self.field_position = nearest_field_position
+
+                else:
+                    raise RuntimeError("Could not find field point data to approximate aberrations")
+
         if self._omit_piston_tip_tilt:
             _log.debug("Omitting piston/tip/tilt")
             coefficients[:3] = 0.0  # omit piston, tip, and tilt Zernikes
