@@ -271,6 +271,8 @@ class CreatePSFLibrary:
             meta["DETECTOR"] = (det, "Detector name")
             meta["FILTER"] = (self.filter, "Filter name")
             meta["PUPILOPD"] = (psf[ext].header["PUPILOPD"], "Pupil OPD source name")
+            meta['OPD_FILE'] = (psf[ext].header["OPD_FILE"], 'Pupil OPD file name')
+            meta['OPDSLICE'] = (psf[ext].header["OPDSLICE"], 'Pupil OPD slice number')
 
             meta["FOVPIXEL"] = (self.fov_pixels, "Field of view in pixels (full array)")
             meta["FOV"] = (psf[ext].header["FOV"], "Field of view in arcsec (full array)")
