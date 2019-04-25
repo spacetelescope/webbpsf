@@ -48,16 +48,19 @@ def test_thermal_slew_opd(time, seg, coeff_truth, scaling):
     """ Test that the OTE Thermal model is outputting the correct values """
     delta_time = time
     # Create the thermal model
-    coeffs = webbpsf.opds.thermal_slew_opd(delta_time, segid=seg, start_angle=-5.,
-                                           end_angle=45., scaling=scaling)
-    #thermal_model = webbpsf.opds.OteThermalModel(delta_time)
+    otelm = webbpsf.opds.OTE_Linear_Model_WSS()
+    otelm.delta_time = delta_time
+    otelm.start_angle = -5.
+    otelm.end_angle = 45.
+    otelm.scaling = scaling
+    otelm.thermal_model = webbpsf.opds.OteThermalModel(otelm.delta_time)
+    coeffs = otelm.thermal_slew_opd(segid=seg)
     # Pull out coefficients
-    #coeffs = thermal_model.get_coeffs(seg)
-    if isinstance (coeffs, float):
+    if isinstance(coeffs, float):
         coeffs = [coeffs]
     # Assert the coefficents
         for coeff, truth in zip(coeffs, coeff_truth):
-                assert np.round(coeff, decimals=4) == np.round(truth, decimals=4)
+            assert np.round(coeff, decimals=4) == np.round(truth, decimals=4)
 
 
 def test_thermal_slew_update_opd():

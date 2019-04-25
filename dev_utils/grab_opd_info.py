@@ -10,7 +10,7 @@ import webbpsf
 
 
 
-matfile = 'JWST_thermal_response_data05_31_2017.mat'
+matfile = '/itar/jwst/tel/share/webbpsf/webbpsf-data-source/JWST_thermal_response_data05_31_2017.mat'
 def load_matfile(matfile):
     """Load MATLAB file"""
     return loadmat(matfile, mat_dtype=True, struct_as_record=False)
