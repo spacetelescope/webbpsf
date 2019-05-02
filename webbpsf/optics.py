@@ -1206,11 +1206,12 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
         if instrument.name == 'NIRCam':
             pupil_mask = self.instrument._pupil_mask
             if (pupil_mask is not None) and ('LYOT' in pupil_mask.upper()):
-                zfile = "si_zernikes_coron_zemax.fits"
+                zfile = "si_zernikes_coron_wfe.fits"
         zernike_file = os.path.join(utils.get_webbpsf_data_path(), zfile)
 
         if not os.path.exists(zernike_file):
-            raise RuntimeError("Could not find Zernike coefficients file in WebbPSF data directory")
+            raise RuntimeError("Could not find Zernike coefficients file {} \
+                               in WebbPSF data directory".format(zfile))
         else:
             self.ztable_full = Table.read(zernike_file)
 
@@ -1249,6 +1250,9 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
             field_point=self.row['field_point_name'],
             v2=telcoords_am[0], v3=telcoords_am[1]
         )
+        self.si_wfe_type = ("Interpolated", 
+                "SI WFE was interpolated between available meas.")
+
         # Retrieve those Zernike coeffs
         # Field point interpolation
         v2_tel, v3_tel = telcoords_am
@@ -1262,6 +1266,10 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
             
             # Want to perform extrapolation if field point outside of bounds
             if np.isnan(cf):
+                if i==1:
+                    self.si_wfe_type = ("Extrapolated", 
+                            "SI WFE was extrapolated outside available meas.")
+
                 # To extrapolate outside the measured field points, we proceed 
                 # in two steps.  This first creates a fine-meshed cubic fit 
                 # over the known field points, fixes any NaN's using 
@@ -1395,7 +1403,7 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
         """
         from collections import OrderedDict
         keywords = OrderedDict()
-        keywords['SIWFETYP'] = ("Interpolated", "SI WFE was interpolated between available meas.")
+        keywords['SIWFETYP'] = self.si_wfe_type
         keywords['SIWFEFPT'] = (self.row['field_point_name'], "Closest ISIM CV3 WFE meas. field point")
         for i in range(1, 36):
             keywords['SIZERN{}'.format(i)] = (self.zernike_coeffs[i - 1], "[nm] SI WFE coeff for Zernike term {}".format(i))
