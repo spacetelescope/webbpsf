@@ -218,7 +218,7 @@ SI internal WFE measurements are from ISIM CV3 testing (See JWST-RPT-032131 by D
 The SI internal WFE measurements are distinct for each of the modules and
 channels. When enabled, these are added to the final pupil of the optical
 train, i.e. after the coronagraphic image planes. For field-points outside of
-the measurement bounds, WebbPSF performs an extraction routine.
+the measurement bounds, WebbPSF performs an extrapolation routine.
 
 The coronagraph field points are far off axis, and this comes with significant WFE 
 added compared to the inner portion of the NIRCam field of view. While SI WFE for
@@ -236,11 +236,13 @@ NIRCam's wavelength-dependent defocus was measured during ISIM CV2 at a given fi
 (See JWST-RPT-029985 by Randal Telfer). Overall, the measurements are consistent with
 predictions from the nominal optical model. The departure of the data from the 
 model curve has been determined to be from residual power in individual filters.
+In particular, the F323N filter has a significant extra defocus; WebbPSF includes 
+this measured defocus if the selected filter is F323N.
 
 All SI WFE maps were derived from measurements with the F212N and F323N filters. 
 WebbPSF utilizes polynomial fits to the nominal focus model to derive focus offset values
 relative to these narrowband filters for a given wavelength. The derived delta focus
-is then translated to a Zernike focus image, which then get applied to the 
+is then translated to a Zernike focus image, which is subsequently applied to the 
 instrument OPD map.
 
 
