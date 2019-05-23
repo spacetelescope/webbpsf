@@ -112,7 +112,11 @@ class CreatePSFLibrary:
             psf_location = (int(self.webb._detector_npixels / 2), int(self.webb._detector_npixels / 2))
 
         # Setting the filter and detector(s)
-        self.filter = filter_name
+        if isinstance(filter_name, str):
+            self.filter = filter_name
+        else:
+            raise TypeError("Filter input must be a string with spelling/capitalization matching what WebbPSF expects")
+
         self.detector_list = self._set_detectors(self.filter, detectors)
 
         # Set the locations on the detector of the fiducial PSFs
