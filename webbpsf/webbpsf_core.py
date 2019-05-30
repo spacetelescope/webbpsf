@@ -605,10 +605,9 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         filterfits.close()
         return band
 
-    def psf_grid(self, num_psfs=16, all_detectors=True,
-                 save=False, outfile=None, overwrite=True, verbose=True,
-                 use_detsampled_psf=False, single_psf_centered=True,
-                 **kwargs):
+    def psf_grid(self, num_psfs=16, all_detectors=True, save=False,
+                 outdir=None, outfile=None, overwrite=True, verbose=True,
+                 use_detsampled_psf=False, single_psf_centered=True, **kwargs):
         """
         Create a PSF library in the form of a grid of PSFs across the detector
         based on the specified instrument, filter, and detector. The output
@@ -627,10 +626,14 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
             the detector set in the instance. Default is True
         save : bool
             True/False boolean if you want to save your file. Default is False.
+        outdir : str
+            If "save" keyword is set to True, your file will be saved in the
+            specified directory. Default of None will save it in the current
+            directory
         outfile : str
-            If "save" keyword is set to True, your current file will be saved under
-            "{outfile}_det_filt.fits". Default of None will save it in the current
-            directory as: instr_det_filt_fovp#_samp#_npsf#.fits
+            If "save" keyword is set to True, your file will be saved as
+            {outfile}_det.fits. Default of None will save it as
+            instr_det_filt_fovp#_samp#_npsf#.fits
         overwrite : bool
             True/False boolean to overwrite the output file if it already exists.
             Default is True.
@@ -653,7 +656,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
         Returns
         -------
-        gridmodel : photutils GriddedPSFModel object
+        gridmodel : photutils GriddedPSFModel object or list of objects
             Returns a GriddedPSFModel object or a list of objects if more than one
             configuration is specified (1 per instrument, detector, and filter)
             User also has the option to save the grid as a fits.HDUlist object.
@@ -662,7 +665,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         ----
         nir = webbpsf.NIRCam()
         nir.filter = "F090W"
-        grid = nir.psf_grid(all_detectors=True, num_psfs=4)
+        list_of_grids = nir.psf_grid(all_detectors=True, num_psfs=4)
 
         wfi = webbpsf.WFI()
         wfi.filter = "Z087"
@@ -695,8 +698,8 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         inst = gridded_library.CreatePSFLibrary(instrument=self, filter_name=filt, detectors=detectors,
                                                 num_psfs=num_psfs, psf_location=psf_location,
                                                 use_detsampled_psf=use_detsampled_psf, save=save,
-                                                filename=outfile, overwrite=overwrite, verbose=verbose,
-                                                **kwargs)
+                                                outdir=outdir, filename=outfile, overwrite=overwrite,
+                                                verbose=verbose, **kwargs)
         gridmodel = inst.create_grid()
 
         return gridmodel

@@ -20,7 +20,7 @@ class CreatePSFLibrary:
     nrca_long_detectors = ['NRCA5', 'NRCB5']
 
     def __init__(self, instrument, filter_name, detectors="all", num_psfs=16, psf_location=None,
-                 use_detsampled_psf=False, save=True, filename=None, overwrite=True, verbose=True,
+                 use_detsampled_psf=False, save=True, outdir=None, filename=None, overwrite=True, verbose=True,
                  **kwargs):
         """
         Description
@@ -67,10 +67,15 @@ class CreatePSFLibrary:
         save : bool
             True/False boolean if you want to save your file
 
+        outdir : str
+            If "save" keyword is set to True, your file will be saved in the
+            specified directory. Default of None will save it in the current
+            directory
+
         filename : str
-            If "save" keyword is set to True, your current file will be saved under
-            "{filename}_det_filt.fits". Default of None will save it in the current
-            directory as: instr_det_filt_fovp#_samp#_npsf#.fits
+            If "save" keyword is set to True, your file will be saved as
+            {filename}_det.fits. Default of None will save it as
+            instr_det_filt_fovp#_samp#_npsf#.fits
 
         overwrite : bool
             True/False boolean to overwrite the output file if it already exists. Default
@@ -91,7 +96,7 @@ class CreatePSFLibrary:
         Use
         ---
         c = CreatePSFLibrary(instrument, filter_name, detectors, num_psfs, add_distortion,
-                             fov_pixels, oversample, save, fileloc, filename, overwrite,
+                             fov_pixels, oversample, save, outdir, filename, overwrite,
                              verbose)
         grid = c.create_files()
 
@@ -161,6 +166,7 @@ class CreatePSFLibrary:
         # Set saving attributes
         self.save = save
         self.overwrite = overwrite
+        self.outdir = outdir
         self.filename = filename
 
         self.verbose = verbose
@@ -432,15 +438,15 @@ class CreatePSFLibrary:
 
         # Set file information
         if self.filename is None:
-            path = ""
-
             # E.g. filename: nircam_nrca1_f090w_fovp1000_samp4_npsf16.fits
-            name = "{}_{}_{}_fovp{}_samp{}_npsf{}.fits".format(self.instr.lower(), detector.lower(),
+            file = "{}_{}_{}_fovp{}_samp{}_npsf{}.fits".format(self.instr.lower(), detector.lower(),
                                                                self.filter.lower(), self.fov_pixels,
                                                                self.oversample, self.num_psfs)
-            file = os.path.join(path, name)
         else:
-            file = self.filename.split(".")[0] + "_{}_{}.fits".format(detector.lower(), self.filter.lower())
+            file = self.filename.split(".fits")[0] + "_{}.fits".format(detector.lower())
+
+        if self.outdir is not None:
+            file = os.path.join(self.outdir, file)
 
         if self.verbose is True:
             print("  Saving file: {}".format(file))

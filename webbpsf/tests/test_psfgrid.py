@@ -181,16 +181,17 @@ def test_saving(tmpdir):
     """Test saving files works properly"""
 
     # Create a temp directory to place file in
-    file = str(tmpdir.join("test1"))
+    directory = str(tmpdir)
+    file = "test1.fits"
 
     # Test using default calc_psf values
     fgs = webbpsf_core.FGS()
     fgs.filter = "FGS"
     fgs.detector = "FGS2"
-    grid = fgs.psf_grid(all_detectors=False, num_psfs=4, save=True, outfile=file, overwrite=True)
+    grid = fgs.psf_grid(all_detectors=False, num_psfs=4, save=True, outdir=directory, outfile=file, overwrite=True)
 
     # Check that the saved file matches the returned file (and thus that the save worked through properly)
-    with fits.open(os.path.join(file[:-5], "test1_fgs2_fgs.fits")) as infile:
+    with fits.open(os.path.join(directory, file[:-5]+"_fgs2.fits")) as infile:
         # Check data
         assert np.array_equal(infile[0].data, grid.data)
 
@@ -202,6 +203,26 @@ def test_saving(tmpdir):
 
     # Remove temporary directory
     tmpdir.remove()
+
+
+def test_2d_to_griddedpsfmodel():
+    """Test that utils.to_griddedpsfmodel function works fof a 2D HDUList input"""
+
+    # Set up example 2D fits image
+    data = np.ones((10, 10))
+    primaryhdu = fits.PrimaryHDU(data)
+    primaryhdu.header["DET_YX0"] = ('(1024, 1024)', 'The #0 PSFs (y,x) detector pixel position')
+    primaryhdu.header["OVERSAMP"] = (5, 'oversampling value')
+    hdu = fits.HDUList(primaryhdu)
+
+    # Test that nothing errors when writing a GriddedPSFModel object
+    model = utils.to_griddedpsfmodel(hdu)
+
+    # Check the basic keywords are there
+    assert 'det_yx0' in model.meta
+    assert 'grid_xypos' in model.meta
+    assert 'oversamp' in model.meta
+    assert 'oversampling' in model.meta
 
 
 def test_wfi():
