@@ -146,7 +146,7 @@ class TargetScene(object):
                     src_psf[0].data *= obj['normalization']
                     fluxlogstring = "                with source flux = {}".format(obj['normalization'])
                 else:
-                    raise NotImplemented("Not Yet")
+                    raise NotImplementedError("Not Yet")
             else:
                 # use the flux level already implicitly set by the source spectrum.
                 # i.e. figure out what the flux of the source is, inside the selected bandpass
@@ -178,7 +178,7 @@ class TargetScene(object):
 
 
         if noise:
-            raise NotImplemented("Not Yet")
+            raise NotImplementedError("Not Yet")
 
         sum_image[0].header['NSOURCES'] = ( len(self.sources), "Number of point sources in sim")
             #add noise in image - photon and read noise, mainly.
