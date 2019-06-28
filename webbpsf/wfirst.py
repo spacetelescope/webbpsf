@@ -287,6 +287,7 @@ class WFI(WFIRSTInstrument):
     """
     # "The H158, F184 and W149 filters and the grism are mounted with proximate cold pupil masks"
     # from the final draft of the SDT report, page 92, table 3-2
+    # todo: [cycle 8] update this as it relates to each SCA:
     UNMASKED_PUPIL_WAVELENGTH_MIN, UNMASKED_PUPIL_WAVELENGTH_MAX = 0.760e-6, 1.454e-6
     MASKED_PUPIL_WAVELENGTH_MIN, MASKED_PUPIL_WAVELENGTH_MAX = 1.380e-6, 2.000e-6
 
@@ -307,13 +308,6 @@ class WFI(WFIRSTInstrument):
         self._detectors = _load_wfi_detector_aberrations(os.path.join(self._datapath, 'wim_zernikes_cycle7.csv'))
         assert len(self._detectors.keys()) > 0
         self.detector = 'SCA01'
-
-        # Paths to the two possible pupils. The correct one is selected based on requested
-        # wavelengths in _validate_config()
-        self._unmasked_pupil_path = os.path.join(self._WebbPSF_basepath,
-                                                 'WFIRST_SRR_WFC_Pupil_Mask_Shortwave_2048.fits')
-        self._masked_pupil_path = os.path.join(self._WebbPSF_basepath,
-                                               'WFIRST_SRR_WFC_Pupil_Mask_Longwave_2048.fits')
 
         # Flag to en-/disable automatic selection of the appropriate pupil_mask
         self.auto_pupil = True
@@ -342,7 +336,7 @@ class WFI(WFIRSTInstrument):
         This mainly consists of selecting the masked or unmasked pupil
         appropriately based on the wavelengths requested.
         """
-        if self.auto_pupil and self.pupil in (self._unmasked_pupil_path, self._masked_pupil_path):
+        if self.auto_pupil:
             # Does the wavelength range fit entirely in an unmasked filter?
             wavelengths = np.array(kwargs['wavelengths'])
             wl_min, wl_max = np.min(wavelengths), np.max(wavelengths)
@@ -363,6 +357,27 @@ class WFI(WFIRSTInstrument):
             # correct shape it should have
             pass
         super(WFI, self)._validate_config(**kwargs)
+
+    def _update_pupil(self):
+        if 'AUTO' == self._pupil_mask:
+            pass
+        elif "COLD_PUPIL" == self._pupil_mask:
+            self.pupil = self._masked_pupil_path
+        elif "UNMASKED" == self._pupil_mask:
+            self.pupil = self._unmasked_pupil_path
+        else:
+            raise ValueError("Pupil mask setting is not valid or empty.")
+
+    def _update_pupil_path(self):
+        """
+        Update the masked and unmasked pupil paths according to the SCA selected
+        """
+        self._unmasked_pupil_path = os.path.join(self._WebbPSF_basepath,
+                                                 '{}_full_mask.fits'.format(self.detector))
+
+        self._masked_pupil_path = os.path.join(self._WebbPSF_basepath,
+                                               '{}_rim_mask.fits'.format(self.detector))
+        self._update_pupil()
 
     @property
     def pupil_mask(self):
@@ -393,16 +408,32 @@ class WFI(WFIRSTInstrument):
             elif "COLD_PUPIL" == name:
                 self.auto_pupil = False
                 _log.info("Using custom pupil mask: Masked Pupil.")
-                self.pupil = self._masked_pupil_path
             elif "UNMASKED" == name:
                 self.auto_pupil = False
                 _log.info("Using custom pupil mask: Unmasked Pupil.")
-                self.pupil = self._unmasked_pupil_path
             else:
                 raise ValueError("Instrument {0} doesn't have a pupil mask called '{1}'.".format(self.name, name))
         else:
             raise ValueError("Pupil mask setting is not valid or empty.")
+
         self._pupil_mask = name
+        self._update_pupil()
+
+    @property
+    def detector(self):
+        """Detector selected for simulated PSF
+
+        Used in calculation of field-dependent aberrations. Must be
+        selected from detectors in the `detector_list` attribute.
+        """
+        return self._detector
+
+    @detector.setter
+    def detector(self, value):
+        if value.upper() not in self.detector_list:
+            raise ValueError("Invalid detector. Valid detector names are: {}".format(', '.join(self.detector_list)))
+        self._detector = value.upper()
+        self._update_pupil_path()
 
     def _addAdditionalOptics(self, optsys, **kwargs):
         return optsys, False, None
