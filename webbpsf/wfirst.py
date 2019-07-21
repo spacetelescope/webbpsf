@@ -297,6 +297,7 @@ class WFIPupilController:
 
         self._pupil_mask = "AUTO"
         self.pupil_mask_list = ['AUTO', 'COLD_PUPIL', 'UNMASKED']
+        self._currently_masked = False
 
     @property
     def pupil(self):
@@ -353,24 +354,25 @@ class WFIPupilController:
         detector = detector or self.wfi.detector
         if detector is None:
             raise ValueError("Detector was not set when trying to set pupil file path")
+        if 'SCA' not in detector:
+            raise ValueError("Unidentified detector selected, could not assign pupil")
 
-        self._pupil_basepath = self.wfi._WebbPSF_basepath  # os.path.join(self.wfi._WebbPSF_basepath)
+        detector = detector[:3] + str(int((detector[3:])))  # example "SCA01" -> "SCA1"
+
+        self._pupil_basepath = os.path.join(self.wfi._WebbPSF_basepath, "WFI", "pupils")
 
         self._unmasked_pupil_path = os.path.join(self._pupil_basepath,
-                                                 'WFIRST_SRR_WFC_Pupil_Mask_Shortwave_2048.fits')
-        self._masked_pupil_path = os.path.join(self._pupil_basepath,
-                                               'WFIRST_SRR_WFC_Pupil_Mask_Longwave_2048.fits')
+                                                 '{}_full_mask.fits'.format(detector))
 
-        # self._unmasked_pupil_path = os.path.join(self._pupil_basepath,
-        #                                          '{}_full_mask.fits'.format(self.detector))
-        #
-        # self._masked_pupil_path = os.path.join(self._pupil_basepath,
-        #                                        '{}_rim_mask.fits'.format(self.detector))
+        self._masked_pupil_path = os.path.join(self._pupil_basepath,
+                                               '{}_rim_mask.fits'.format(detector))
         self._update_pupil()
 
     def _update_pupil(self):
         if 'AUTO' == self.pupil_mask:
-            if self.pupil is None:
+            if self._currently_masked:
+                self.pupil = self._masked_pupil_path
+            else:
                 self.pupil = self._unmasked_pupil_path
         elif "COLD_PUPIL" == self.pupil_mask:
             self.pupil = self._masked_pupil_path
@@ -445,16 +447,11 @@ class WFI(WFIRSTInstrument):
         super(WFI, self).__init__("WFI", pixelscale=pixelscale)
 
         self._detector_npixels = 4096
-        self._detectors = _load_wfi_detector_aberrations(os.path.join(self._datapath, 'wim_zernikes_cycle7.csv'))
+        self._detectors = _load_wfi_detector_aberrations(os.path.join(self._datapath, 'wim_zernikes_cycle8.csv'))
         assert len(self._detectors.keys()) > 0
         self.detector = 'SCA01'
 
         self._pupil_controller.user_pupil_mask_override(set_pupil_mask_on)
-
-        self._unmasked_pupil_path = os.path.join(self._WebbPSF_basepath,
-                                                 'WFIRST_SRR_WFC_Pupil_Mask_Shortwave_2048.fits')
-        self._masked_pupil_path = os.path.join(self._WebbPSF_basepath,
-                                               'WFIRST_SRR_WFC_Pupil_Mask_Longwave_2048.fits')
 
         self.opd_list = [
             os.path.join(self._WebbPSF_basepath, 'upscaled_HST_OPD.fits'),
