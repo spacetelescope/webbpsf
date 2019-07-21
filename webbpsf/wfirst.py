@@ -418,6 +418,7 @@ class WFIPupilController:
                 raise TypeError("set_pupil_mask_on parameter must be boolean")
 
 
+
 class WFI(WFIRSTInstrument):
     """
     WFI represents to the to-be-named wide field imager
@@ -515,6 +516,14 @@ class WFI(WFIRSTInstrument):
 
     def _addAdditionalOptics(self, optsys, **kwargs):
         return optsys, False, None
+
+    @property
+    def _unmasked_pupil_path(self):
+        return self._pupil_controller._unmasked_pupil_path
+
+    @property
+    def _masked_pupil_path(self):
+        return self._pupil_controller._masked_pupil_path
 
 
 class CGI(WFIRSTInstrument):
