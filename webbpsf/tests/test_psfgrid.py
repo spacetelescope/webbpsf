@@ -40,10 +40,11 @@ def test_compare_to_calc_psf_oversampled():
     calcpsf = fgs.calc_psf(oversample=oversample, fov_pixels=fov_pixels)["OVERDIST"].data
     kernel = astropy.convolution.Box2DKernel(width=oversample)
     convpsf = astropy.convolution.convolve(calcpsf, kernel)
+    scalefactor = oversample**2 # normalization as used internally in GriddedPSFModel; see #302
 
     # Compare to make sure they are in fact the same PSF
-    assert gridpsf.shape == calcpsf.shape
-    assert np.array_equal(gridpsf, convpsf)
+    assert gridpsf.shape == calcpsf.shape, "Shape mismatch"
+    assert np.allclose(gridpsf, convpsf*scalefactor), "Data values not as expected"
 
 
 def test_compare_to_calc_psf_detsampled():
@@ -80,7 +81,7 @@ def test_compare_to_calc_psf_detsampled():
     assert np.array_equal(gridpsf, convpsf)
 
 
-def test_all():
+def test_all_detectors():
     """
     Check that running all the detectors works (ie setting all_detectors=True). In
     particular for NIRCam, test that the detectors pulled are correct
@@ -132,10 +133,12 @@ def test_one_psf():
     calc = nis.calc_psf(add_distortion=True, oversample=2, fov_pixels=11)
     kernel = astropy.convolution.Box2DKernel(width=oversample)
     convpsf = astropy.convolution.convolve(calc["OVERDIST"].data, kernel)
+    scalefactor = oversample**2 # normalization as used internally in GriddedPSFModel; see #302
 
-    assert grid1.meta["grid_xypos"] == [(1023, 1023)]  # the default is the center of the NIS aperture
-    assert grid2.meta["grid_xypos"] == [(10, 0)]  # it's in (x,y)
-    assert np.array_equal(convpsf, grid2.data[0, :, :])
+
+    assert grid1.meta["grid_xypos"] == [(1023, 1023)], "Center position not as expected"  # the default is the center of the NIS aperture
+    assert grid2.meta["grid_xypos"] == [(10, 0)], "Corner position not as expected" # it's in (x,y)
+    assert np.allclose(convpsf*scalefactor, grid2.data[0, :, :]), "PSF data values not as expected"
 
 
 def test_nircam_errors():
