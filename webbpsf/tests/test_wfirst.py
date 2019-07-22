@@ -119,11 +119,11 @@ def test_WFI_limits_interpolation_range():
 
     # Test the get_aberration_terms function uses approximated wavelength when
     # called with an out-of-bound wavelength.
-    assert allclose(det.get_aberration_terms(5e-6), det.get_aberration_terms(2e-6)), (
+    assert allclose(det.get_aberration_terms(2.0e-6), det.get_aberration_terms(2.5e-6)), (
         "Aberration outside wavelength range did not return closest value."
     )
 
-    assert allclose(det.get_aberration_terms(1e-7), det.get_aberration_terms(0.76e-6)), (
+    assert allclose(det.get_aberration_terms(0.48e-6), det.get_aberration_terms(0.40e-6)), (
         "Aberration outside wavelength range did not return closest value."
     )
 
