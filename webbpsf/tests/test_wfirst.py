@@ -181,16 +181,32 @@ def test_WFI_limits_interpolation_range():
     det = wfi._detectors['SCA01']
     det.get_aberration_terms(1.29e-6)
     det.field_position = (0, 0)
-    with pytest.raises(RuntimeError) as excinfo:
-        det.get_aberration_terms(1.29e-6)
-    assert 'out-of-bounds field point' in str(excinfo.value), (
+    det.get_aberration_terms(1.29e-6)
+
+    with pytest.raises(ValueError) as excinfo:
+        det.field_position = (500000, 0)
+    assert 'Requested pixel_x position' in str(excinfo.value), (
         "FieldDependentAberration did not error on out-of-bounds field point"
     )
-    with pytest.raises(RuntimeError) as excinfo:
-        det.get_aberration_terms(1.29e-6)
-    assert 'out-of-bounds field point' in str(excinfo.value), (
+
+    with pytest.raises(ValueError) as excinfo:
+        det.field_position = (-1, 0)
+    assert 'Requested pixel_x position' in str(excinfo.value), (
         "FieldDependentAberration did not error on out-of-bounds field point"
     )
+
+    with pytest.raises(ValueError) as excinfo:
+        det.field_position = (0, 500000)
+    assert 'Requested pixel_y position' in str(excinfo.value), (
+        "FieldDependentAberration did not error on out-of-bounds field point"
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        det.field_position = (0, -1)
+    assert 'Requested pixel_y position' in str(excinfo.value), (
+        "FieldDependentAberration did not error on out-of-bounds field point"
+    )
+
     det.field_position = (2048, 2048)
 
     # Test the get_aberration_terms function uses approximated wavelength when

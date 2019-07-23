@@ -158,14 +158,16 @@ class FieldDependentAberration(poppy.ZernikeWFE):
             assert len(aberration_array.shape) == 2, "computed aberration array is not 2D " \
                                                      "(inconsistent number of Zernike terms " \
                                                      "at each point?)"
+
+            field_position = tuple(np.clip(self.field_position, 4, 4092))
             coefficients = griddata(
                 np.asarray(field_points),
                 np.asarray(aberration_terms),
-                self.field_position,
+                field_position,
                 method='linear'
             )
             if np.any(np.isnan(coefficients)):
-                raise RuntimeError("Attempted to get aberrations for an out-of-bounds field point")
+                raise RuntimeError("Could not get aberrations for input field point")
         if self._omit_piston_tip_tilt:
             _log.debug("Omitting piston/tip/tilt")
             coefficients[:3] = 0.0  # omit piston, tip, and tilt Zernikes
