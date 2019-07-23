@@ -62,7 +62,7 @@
 #
 #
 # def get_rel_fluxes(obsname='miri,im,f560w', nlambda=10, plot=True, verbose=False):
-#     raise NotImplemented("Obsolete!")
+#     raise NotImplementedError("Obsolete!")
 #
 #     star = pysynphot.Icat('ck04models',7700,0.0,2.0)
 #     band0 = pysynphot.ObsBandpass(obsname)
