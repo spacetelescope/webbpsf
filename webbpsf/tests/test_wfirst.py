@@ -1,7 +1,11 @@
+import os
 import pytest
 from webbpsf import wfirst
 from numpy import allclose
 
+MASKED_FLAG = "COLD_PUPIL"
+UNMASKED_FLAG = "UNMASKED"
+AUTO_FLAG = "AUTO"
 
 def test_WFI_psf():
     """
@@ -45,6 +49,75 @@ def test_aberration_detector_position_setter():
     detector.field_position = valid_pos
     assert detector._field_position == valid_pos, 'Setting field position through setter did not ' \
                                                   'update private `_field_position` value'
+
+def test_wfi_pupil_controller():
+    wfi = wfirst.WFI()
+
+    for detector in wfi.detector_list:
+        wfi.detector = detector
+
+        detector_cropped = detector[:3] + str(int((detector[3:])))  # example "SCA01" -> "SCA1"
+
+        unmasked_pupil_path = os.path.join(wfi._pupil_controller._pupil_basepath,
+                                           '{}_rim_mask.fits'.format(detector_cropped))
+
+        masked_pupil_path = os.path.join(wfi._pupil_controller._pupil_basepath,
+                                         '{}_full_mask.fits'.format(detector_cropped))
+
+        assert os.path.isfile(unmasked_pupil_path), "Pupil file missing {}".format(unmasked_pupil_path)
+        assert os.path.isfile(masked_pupil_path), "Pupil file missing {}".format(masked_pupil_path)
+
+        # Test detector change was successful
+        assert wfi.detector == detector, "WFI detector was not set correctly"
+        assert wfi._unmasked_pupil_path == unmasked_pupil_path, "unmasked_pupil_path was not set correctly"
+        assert wfi._masked_pupil_path == masked_pupil_path, "masked_pupil_path was not set correctly"
+        assert wfi.pupil in [unmasked_pupil_path, masked_pupil_path], "pupil was not set correctly"
+
+        # Test mask overriding
+        wfi.pupil_mask = MASKED_FLAG
+        assert wfi.pupil == masked_pupil_path, "pupil was not set correctly"
+        assert wfi._pupil_controller.auto_pupil is False, "auto_pupil is active after user override"
+        assert wfi._pupil_controller._pupil_mask == wfi.pupil_mask, "pupil mask was not set correctly"
+
+        wfi.pupil_mask = UNMASKED_FLAG
+        assert wfi.pupil == unmasked_pupil_path, "pupil was not set correctly"
+        assert wfi._pupil_controller.auto_pupil is False, "auto_pupil is active after user override"
+        assert wfi._pupil_controller._pupil_mask == wfi.pupil_mask, "pupil mask was not set correctly"
+
+        wfi.pupil_mask = AUTO_FLAG
+        assert wfi._pupil_controller.auto_pupil is True, "auto_pupil is inactive after mask is set to AUTO"
+        assert wfi._pupil_controller._pupil_mask == wfi.pupil_mask, "pupil mask was not set correctly"
+
+        # Test filters
+        for filter in wfi.filter_list:
+            wfi.filter = filter
+            if filter in wfi._pupil_controller._masked_filters:
+                assert wfi.pupil == masked_pupil_path, "Pupil did not set to correct value according to filter"
+            else:
+                assert wfi.pupil == unmasked_pupil_path, "Pupil did not set to correct value according to filter"
+
+    # Test initialisation mask overriding
+    wfi = wfirst.WFI(set_pupil_mask_on=True)
+    assert wfi._pupil_controller.auto_pupil is False
+    assert wfi._pupil_controller._pupil_mask == wfi.pupil_mask, "pupil mask was not set correctly"
+    assert wfi.pupil_mask == MASKED_FLAG, "User override did not set pupil_mask to correct value"
+    assert wfi.pupil == masked_pupil_path, "Pupil did not set to correct value according to override"
+
+    wfi = wfirst.WFI(set_pupil_mask_on=False)
+    assert wfi._pupil_controller.auto_pupil is False
+    assert wfi._pupil_controller._pupil_mask == wfi.pupil_mask, "pupil mask was not set correctly"
+    assert wfi.pupil_mask == UNMASKED_FLAG, "User override did not set pupil_mask to correct value"
+    assert wfi.pupil == unmasked_pupil_path, "Pupil did not set to correct value according to override"
+
+    # Test calculating a single PSF
+    wfi = wfirst.WFI(set_pupil_mask_on=True)
+    wfi.detector = 'SCA07'
+    valid_pos = (4000, 1000)
+    wfi.detector_position = valid_pos
+    assert wfi.pupil == masked_pupil_path, "Pupil did not set to correct value according to override"
+    wfi.calc_psf(fov_pixels=4)
+    assert wfi.pupil == masked_pupil_path, "Pupil did not set to correct value according to override"
+
 
 def test_WFI_detector_position_setter():
     wfi = wfirst.WFI()
