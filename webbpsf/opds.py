@@ -1809,6 +1809,10 @@ class OTE_Linear_Model_WSS(OPD):
             "delay_update" parameter to True in some function call to move mirrors.
 
         """
+        # Check values
+        if (start_angle < -5) or (end_angle > 45):
+            raise ValueError("Start or end angle is outside of acceptable range of -5 to 45 degrees.")
+
         # Convert Delta time to units of days
         delta_time = convert_quantity(delta_time, to_units=u.day) #this returns astropy units quantity
         self.delta_time = delta_time.value
@@ -1816,14 +1820,16 @@ class OTE_Linear_Model_WSS(OPD):
         self.end_angle = end_angle
         self.scaling = scaling
 
+        # Update the header info
+        self.opd_header['BUNIT'] = 'meter'
+        self.opd_header['DELTA_T'] = (self.delta_time, "Delta time after slew [d]")
+        self.opd_header['STARTANG'] = (self.start_angle, "Starting sun pitch angle [deg]")
+        self.opd_header['ENDANG'] = (self.end_angle, "Ending sun pitch angle [deg]")
+        if scaling:
+            self.opd_header['SCALING'] = (self.scaling, 'Scaling factor for delta slew')
+
         if not delay_update:
             self.update_opd(display=display)
-            self.opd_header['BUNIT'] = 'meter'
-            self.opd_header['DELTA_T'] = (self.delta_time, "Delta time after slew [d]")
-            self.opd_header['STARTANG'] = (self.start_angle, "Starting sun pitch angle [deg]")
-            self.opd_header['ENDANG'] = (self.end_angle, "Ending sun pitch angle [deg]")
-            if scaling:
-                self.opd_header['SCALING'] = (self.scaling, 'Scaling factor for delta slew')
 
 
     def _get_thermal_slew_coeffs(self, segid):
