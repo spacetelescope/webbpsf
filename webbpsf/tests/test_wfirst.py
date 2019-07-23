@@ -24,7 +24,6 @@ def test_WFI_filters():
         wi.filter = filter
         wi.calc_psf(fov_pixels=4, oversample=1, nlambda=3)
 
-
 def test_aberration_detector_position_setter():
     detector = wfirst.FieldDependentAberration(4096, 4096)
 
@@ -50,7 +49,7 @@ def test_aberration_detector_position_setter():
     assert detector._field_position == valid_pos, 'Setting field position through setter did not ' \
                                                   'update private `_field_position` value'
 
-def test_wfi_pupil_controller():
+def test_WFI_pupil_controller():
     wfi = wfirst.WFI()
 
     for detector in wfi.detector_list:
@@ -92,18 +91,22 @@ def test_wfi_pupil_controller():
         for filter in wfi.filter_list:
             wfi.filter = filter
             if filter in wfi._pupil_controller._masked_filters:
-                assert wfi.pupil == masked_pupil_path, "Pupil did not set to correct value according to filter"
+                assert wfi.pupil == masked_pupil_path, \
+                    "Pupil did not set to correct value according to filter {}".format(filter)
             else:
-                assert wfi.pupil == unmasked_pupil_path, "Pupil did not set to correct value according to filter"
+                assert wfi.pupil == unmasked_pupil_path, \
+                    "Pupil did not set to correct value according to filter {}".format(filter)
 
     # Test initialisation mask overriding
     wfi = wfirst.WFI(set_pupil_mask_on=True)
+    wfi.detector = detector
     assert wfi._pupil_controller.auto_pupil is False
     assert wfi._pupil_controller._pupil_mask == wfi.pupil_mask, "pupil mask was not set correctly"
     assert wfi.pupil_mask == MASKED_FLAG, "User override did not set pupil_mask to correct value"
     assert wfi.pupil == masked_pupil_path, "Pupil did not set to correct value according to override"
 
     wfi = wfirst.WFI(set_pupil_mask_on=False)
+    wfi.detector = detector
     assert wfi._pupil_controller.auto_pupil is False
     assert wfi._pupil_controller._pupil_mask == wfi.pupil_mask, "pupil mask was not set correctly"
     assert wfi.pupil_mask == UNMASKED_FLAG, "User override did not set pupil_mask to correct value"
@@ -111,7 +114,7 @@ def test_wfi_pupil_controller():
 
     # Test calculating a single PSF
     wfi = wfirst.WFI(set_pupil_mask_on=True)
-    wfi.detector = 'SCA07'
+    wfi.detector = detector
     valid_pos = (4000, 1000)
     wfi.detector_position = valid_pos
     assert wfi.pupil == masked_pupil_path, "Pupil did not set to correct value according to override"
@@ -147,31 +150,31 @@ def test_WFI_chooses_pupil_masks():
         """Helper to trigger pupil selection in testing"""
         wavelengths, _ = wfi._get_weights()
         wfi._validate_config(wavelengths=wavelengths)
-    wfi.filter = 'Z087'
+    wfi.filter = 'F087'
     autopupil()
-    assert wfi.pupil == wfi._unmasked_pupil_path, "WFI did not select unmasked pupil for Z087"
-    wfi.filter = 'H158'
+    assert wfi.pupil == wfi._unmasked_pupil_path, "WFI did not select unmasked pupil for F087"
+    wfi.filter = 'F184'
     autopupil()
-    assert wfi.pupil == wfi._masked_pupil_path, "WFI did not select masked pupil for H158"
-    wfi.filter = 'Z087'
+    assert wfi.pupil == wfi._masked_pupil_path, "WFI did not select masked pupil for F158"
+    wfi.filter = 'F087'
     autopupil()
-    assert wfi.pupil == wfi._unmasked_pupil_path, "WFI did not re-select unmasked pupil for Z087"
+    assert wfi.pupil == wfi._unmasked_pupil_path, "WFI did not re-select unmasked pupil for F087"
 
     def _test_filter_pupil(filter_name, expected_pupil):
-        wfi.filter = 'Z087'
+        wfi.filter = 'F087'
         autopupil()
         wfi.filter = filter_name
         autopupil()
         assert wfi.pupil == expected_pupil, "Expected pupil {} " \
                                             "for filter {}".format(filter_name, expected_pupil)
 
-    _test_filter_pupil('Y106', wfi._unmasked_pupil_path)
-    _test_filter_pupil('J129', wfi._unmasked_pupil_path)
-    _test_filter_pupil('R062', wfi._unmasked_pupil_path)
+    _test_filter_pupil('F106', wfi._unmasked_pupil_path)
+    _test_filter_pupil('F129', wfi._unmasked_pupil_path)
+    _test_filter_pupil('F062', wfi._unmasked_pupil_path)
+    _test_filter_pupil('F158', wfi._unmasked_pupil_path)
+    _test_filter_pupil('F146', wfi._unmasked_pupil_path)
 
-    _test_filter_pupil('H158', wfi._masked_pupil_path)
     _test_filter_pupil('F184', wfi._masked_pupil_path)
-    _test_filter_pupil('W149', wfi._masked_pupil_path)
 
 def test_WFI_limits_interpolation_range():
     wfi = wfirst.WFI()

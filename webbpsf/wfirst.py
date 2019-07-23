@@ -462,8 +462,6 @@ class WFI(WFIRSTInstrument):
              mirror polishing errors, which are taken from HST).
     """
 
-    _pupil_controller = WFIPupilController()
-
     def __init__(self, set_pupil_mask_on=None):
         """
         Initiate WFI
@@ -475,6 +473,9 @@ class WFI(WFIRSTInstrument):
             or to None for the automatic behavior.
         """
         pixelscale = 110e-3  # arcsec/px, WFIRST-AFTA SDT report final version (p. 91)
+
+        # Initialize the pupil controller
+        self._pupil_controller = WFIPupilController()
 
         super(WFI, self).__init__("WFI", pixelscale=pixelscale)
 
@@ -531,6 +532,19 @@ class WFI(WFIRSTInstrument):
     @property
     def pupil_mask(self):
         return self._pupil_controller.pupil_mask
+
+    @property
+    def filter(self):
+        """Currently selected filter name (e.g. F200W)"""
+        return self._filter
+
+    @filter.setter
+    def filter(self, value):
+        value = value.upper()  # force to uppercase
+        if value not in self.filter_list:
+            raise ValueError("Instrument %s doesn't have a filter called %s." % (self.name, value))
+        self._filter = value
+        self._pupil_controller.validate_pupil(self.filter)
 
     @pupil_mask.setter
     def pupil_mask(self, name):
