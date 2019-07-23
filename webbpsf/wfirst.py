@@ -277,13 +277,18 @@ class WFIRSTInstrument(webbpsf_core.SpaceTelescopeInstrument):
 
 
 class WFIPupilController:
-    # "The H158, F184 and W149 filters and the grism are mounted with proximate cold pupil masks"
-    # from the final draft of the SDT report, page 92, table 3-2
-    UNMASKED_PUPIL_WAVELENGTH_MIN, UNMASKED_PUPIL_WAVELENGTH_MAX = 0.760e-6, 1.454e-6
-    MASKED_PUPIL_WAVELENGTH_MIN, MASKED_PUPIL_WAVELENGTH_MAX = 1.380e-6, 2.000e-6
+    """
+    This is a helper class for the WFI and is used to swap in
+    the correct pupil each time the detector is changed.
+    The pupil depends on the selected detector, filter and the
+    pupil_mask flag provided by the user.
+    The user should not interact with this class directly, only
+    through the API provided through the WFI class.
+    """
 
-    def __init__(self, wfi):
-        self.wfi = wfi
+    def __init__(self):
+        self._datapath = None
+        self._pupil_basepath = None
 
         self._pupil = None
 
@@ -292,12 +297,27 @@ class WFIPupilController:
         self._unmasked_pupil_path = None
         self._masked_pupil_path = None
 
+        # List of filters that need the masked pupil
+        self._masked_filters = ['F184']
+
         # Flag to en-/disable automatic selection of the appropriate pupil_mask
         self.auto_pupil = True
 
         self._pupil_mask = "AUTO"
         self.pupil_mask_list = ['AUTO', 'COLD_PUPIL', 'UNMASKED']
         self._currently_masked = False
+
+    def set_base_path(self, datapath):
+        """
+        Sets the path to the WebbPSF data files.
+        This should be set before this class is used.
+        Parameters
+        ----------
+        datapath : string
+            Path to WebbPSF-WFI data files
+        """
+        self._datapath = datapath
+        self._pupil_basepath = os.path.join(self._datapath, "pupils")
 
     @property
     def pupil(self):
@@ -309,6 +329,15 @@ class WFIPupilController:
 
     @property
     def pupil_mask(self):
+        """
+        pupil_mask types:
+        - "AUTO":
+            Automatically select pupil
+        - "COLD_PUPIL":
+            Masked pupil override
+        - "UNMASKED":
+            Unmasked pupil override
+        """
         return self._pupil_mask
 
     @pupil_mask.setter
@@ -351,7 +380,8 @@ class WFIPupilController:
         """
         Update the masked and unmasked pupil paths according to the SCA selected
         """
-        detector = detector or self.wfi.detector
+        if self._pupil_basepath is None:
+            raise Exception("update_pupil_path called before pupil file path is set")
         if detector is None:
             raise ValueError("Detector was not set when trying to set pupil file path")
         if 'SCA' not in detector:
@@ -359,16 +389,21 @@ class WFIPupilController:
 
         detector = detector[:3] + str(int((detector[3:])))  # example "SCA01" -> "SCA1"
 
-        self._pupil_basepath = os.path.join(self.wfi._WebbPSF_basepath, "WFI", "pupils")
-
         self._unmasked_pupil_path = os.path.join(self._pupil_basepath,
-                                                 '{}_full_mask.fits'.format(detector))
+                                                 '{}_rim_mask.fits'.format(detector))
 
         self._masked_pupil_path = os.path.join(self._pupil_basepath,
-                                               '{}_rim_mask.fits'.format(detector))
+                                               '{}_full_mask.fits'.format(detector))
         self._update_pupil()
 
     def _update_pupil(self):
+        """
+        Update the actual pupil by setting the pupil variable
+        to the correct pupil path.
+        """
+        if self._pupil_basepath is None:
+            raise Exception("update pupil called before pupil file path is set")
+
         if 'AUTO' == self.pupil_mask:
             if self._currently_masked:
                 self.pupil = self._masked_pupil_path
@@ -381,42 +416,40 @@ class WFIPupilController:
         else:
             raise ValueError("Pupil mask setting is not valid or empty.")
 
-    def validate_pupil(self, **kwargs):
+    def validate_pupil(self, filter, **kwargs):
         """Validates that the WFI is configured sensibly
 
         This mainly consists of selecting the masked or unmasked pupil
         appropriately based on the wavelengths requested.
         """
         if self.auto_pupil:
-            # Does the wavelength range fit entirely in an unmasked filter?
-            wavelengths = np.array(kwargs['wavelengths'])
-            wl_min, wl_max = np.min(wavelengths), np.max(wavelengths)
-            # test shorter filters first; if wl range fits entirely in one of them, it's not going
-            # to be the (masked) wideband filter
-            if wl_max <= self.UNMASKED_PUPIL_WAVELENGTH_MAX:
-                # use unmasked pupil optic
-                self.pupil = self._unmasked_pupil_path
-                _log.info("Using the unmasked WFI pupil shape based on wavelengths requested")
-            else:
-                if wl_max > self.MASKED_PUPIL_WAVELENGTH_MAX:
-                    _log.warn("Requested wavelength is > 2e-6 m, defaulting to masked pupil shape")
+            if filter in self._masked_filters:
                 # use masked pupil optic
                 self.pupil = self._masked_pupil_path
-                _log.info("Using the masked WFI pupil shape based on wavelengths requested")
+                _log.info("Using the masked WFI pupil shape based on filter requested")
+            else:
+                # use unmasked pupil optic
+                self.pupil = self._unmasked_pupil_path
+                _log.info("Using the unmasked WFI pupil shape based on filter requested")
         else:
             # If the user has set the pupil to a custom value, let them worry about the
             # correct shape it should have
             pass
 
     def user_pupil_mask_override(self, set_pupil_mask_on):
-        if set_pupil_mask_on is not None:
-            if isinstance(set_pupil_mask_on, bool):
-                self.auto_pupil = False
-                _log.info("Using custom pupil mask")
-                self.pupil = self._masked_pupil_path if set_pupil_mask_on else self._unmasked_pupil_path
-            else:
-                raise TypeError("set_pupil_mask_on parameter must be boolean")
+        """
+        Only used if the user overrides the pupil selection at
+        the initiation of the WFI class.
+        """
+        if isinstance(set_pupil_mask_on, bool):
+            _log.info("Using custom pupil mask")
+            self.pupil_mask = 'COLD_PUPIL' if set_pupil_mask_on else 'UNMASKED'
+        else:
+            raise TypeError("set_pupil_mask_on parameter must be boolean")
 
+    def remove_pupil_mask_override(self):
+        _log.info("Removing custom pupil mask")
+        self.pupil_mask = 'AUTO'
 
 
 class WFI(WFIRSTInstrument):
@@ -428,6 +461,9 @@ class WFI(WFIRSTInstrument):
              simulations, and uses several approximations (e.g. for
              mirror polishing errors, which are taken from HST).
     """
+
+    _pupil_controller = WFIPupilController()
+
     def __init__(self, set_pupil_mask_on=None):
         """
         Initiate WFI
@@ -440,19 +476,17 @@ class WFI(WFIRSTInstrument):
         """
         pixelscale = 110e-3  # arcsec/px, WFIRST-AFTA SDT report final version (p. 91)
 
-        # The WFIPupilController needs to be initiated before super is called
-        # because the pupil is set to none in super(WFI, self).__init__(...)
-        self._pupil_controller = WFIPupilController(self)
-        self.pupil_mask_list = self._pupil_controller.pupil_mask_list
-
         super(WFI, self).__init__("WFI", pixelscale=pixelscale)
+
+        self._pupil_controller.set_base_path(self._datapath)
+        if set_pupil_mask_on is not None:
+            self._pupil_controller.user_pupil_mask_override(set_pupil_mask_on)
+        self.pupil_mask_list = self._pupil_controller.pupil_mask_list
 
         self._detector_npixels = 4096
         self._detectors = _load_wfi_detector_aberrations(os.path.join(self._datapath, 'wim_zernikes_cycle8.csv'))
         assert len(self._detectors.keys()) > 0
         self.detector = 'SCA01'
-
-        self._pupil_controller.user_pupil_mask_override(set_pupil_mask_on)
 
         self.opd_list = [
             os.path.join(self._WebbPSF_basepath, 'upscaled_HST_OPD.fits'),
@@ -465,7 +499,7 @@ class WFI(WFIRSTInstrument):
         This mainly consists of selecting the masked or unmasked pupil
         appropriately based on the wavelengths requested.
         """
-        self._pupil_controller.validate_pupil(**kwargs)
+        self._pupil_controller.validate_pupil(self.filter, **kwargs)
         super(WFI, self)._validate_config(**kwargs)
 
     @property
@@ -489,7 +523,10 @@ class WFI(WFIRSTInstrument):
 
     @pupil.setter
     def pupil(self, value):
-        self._pupil_controller.pupil = value
+        # self._pupil_controller is not available at initiation thus
+        # we must ignore any assignments at super(WFI, self).__init__(...)
+        if self._pupil_controller:
+            self._pupil_controller.pupil = value
 
     @property
     def pupil_mask(self):
