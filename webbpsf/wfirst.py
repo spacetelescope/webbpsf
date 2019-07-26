@@ -392,10 +392,10 @@ class WFIPupilController:
         detector = detector[:3] + str(int((detector[3:])))  # example "SCA01" -> "SCA1"
 
         self._unmasked_pupil_path = os.path.join(self._pupil_basepath,
-                                                 '{}_rim_mask.fits'.format(detector))
+                                                 '{}_rim_mask.fits.gz'.format(detector))
 
         self._masked_pupil_path = os.path.join(self._pupil_basepath,
-                                               '{}_full_mask.fits'.format(detector))
+                                               '{}_full_mask.fits.gz'.format(detector))
         self._update_pupil()
 
     def _update_pupil(self):

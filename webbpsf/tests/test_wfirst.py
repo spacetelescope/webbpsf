@@ -58,10 +58,10 @@ def test_WFI_pupil_controller():
         detector_cropped = detector[:3] + str(int((detector[3:])))  # example "SCA01" -> "SCA1"
 
         unmasked_pupil_path = os.path.join(wfi._pupil_controller._pupil_basepath,
-                                           '{}_rim_mask.fits'.format(detector_cropped))
+                                           '{}_rim_mask.fits.gz'.format(detector_cropped))
 
         masked_pupil_path = os.path.join(wfi._pupil_controller._pupil_basepath,
-                                         '{}_full_mask.fits'.format(detector_cropped))
+                                         '{}_full_mask.fits.gz'.format(detector_cropped))
 
         assert os.path.isfile(unmasked_pupil_path), "Pupil file missing {}".format(unmasked_pupil_path)
         assert os.path.isfile(masked_pupil_path), "Pupil file missing {}".format(masked_pupil_path)
