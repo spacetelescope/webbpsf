@@ -31,11 +31,53 @@ Road Map for Future Releases
 
 Version History and Change Log
 -------------------------------
+
 Version 0.8.1
 =============
-**Bug fixes and small changes:**
-- The WFIRST R062 filter bandpass red edge was corrected from 8000A to 7600A (@robelgeda)
-- NIRISS NRM mask was flipped along the X axis to match the as-built instrument and measured PSFs (#275, @KevinVolkSTScI, @anand0xff, @mperrin).
+*2019 July X*
+
+Note, when upgrading to this version you will need to update to the latest data files as well. This is handled automatically if you use `conda`, otherwise you will need to download and install the data from: `webbpsf-data-0.8.1.tar.gz <LINK_TO_DATA_HERE>`_.
+
+
+**JWST Improvements**
+
+- *Added a new capability for users to include the impact of thermal variations* from telescope slew relative to the sun, on the primary mirror and therefore their PSFs. This new ``thermal_slew`` method  can be used to create a delta OPD for some elapsed time after the slew at either the maximum slew angle, some specified angle, or with a scaling factor applied to maximum case. Once combined with an input OPD (requirements or predicted), the new shape of the mirrors can be used to simulate predicted PSFs some time after a slew. See this `Jupyter notebook <https://github.com/spacetelescope/webbpsf/blob/master/notebooks/Example Construction of OPDs from Delta Time After Slew.ipynb>`_ for examples. [#269, @kjbrooks]
+
+**WFIRST Improvements**
+
+- *The WFI optical model has been updated to use optical data from the Cycle 8 design revision.* These include updated Zernike coefficients, filter throughputs, masked and unmasked pupil images for each SCA, and detector aberrations. The filters have been renamed so they all begin with “F”, see the table `here <https://github.com/spacetelescope/webbpsf/pull/309>`_ . [#309 @robelgeda]
+- *The WFI wavelength range has now been extended to cover the 0.48 - 2.0 µm range.* [#309 @robelgeda]
+- *Expanded ``psf_grid`` method’s functionality so it can also be used to make grids of WFIRST PSFs.* Note that applying detector distortion is not possible for WFIRST PSFs and so ``add_distortion`` keyword should not be used for this case. [#294, @shanosborne]
+- *The WFIRST F062 filter bandpass red edge was corrected* from 8000A to 7600A [@robelgeda]
+
+**General bug fixes and small changes:**
+
+- *New option in ``psf_grid`` to specify both/either the output filename and output directory location of the FITS object* with the parameters ``filename`` and ``outdir`` respectively. See this `Jupyter notebook <https://github.com/spacetelescope/webbpsf/blob/master/notebooks/Gridded_PSF_Library.ipynb>`_ for examples. [#294, @shanosborne]
+- *NIRISS NRM mask was flipped along the X axis to match the as-built instrument and measured PSFs* [#275, @KevinVolkSTScI, @anand0xff, @mperrin]
+- File name when saving out a ``psf_grid`` FITS object which has it’s ``filename`` parameter set will now end with ``_det.fits`` instead of the previous ``_det_filt.fits`` [#294, @shanosborne]
+- Update added to ``utils.to_griddedpsfmodel`` where a 2-dimensional array input with a header containing only 1 ``DET_YX`` keyword can be turned into ``GriddedPSFModel`` object without error as it  implies the case of a PSF grid with num_psfs = 1. [#294, @shanosborne]
+- Remove deletion of ``det_yx`` and ``oversamp`` keywords from ``psf_grid`` output to allow for easier implementation in certain cases. Normal case users will have extra keywords but will not change functionality [#291, @shanosborne]
+- Updated normalization of PSFs from ``psf_grid`` to be in surface brightness units, independent of oversampling in order to match the expectation of ``photutils.GriddedPSFModel``. This is diferent than webbpsf's default in which PSFs usually sum to 1 so the counts/pixel varies based on sampling. [#311, @mperrin]
+- Provide extrapolation method for field points that are outside the bounds of Zernike table data and use polynomial coefficients fit to focus model instead of interpolation of table data, to provide seamless extrapolation. [#283, @JarronL]
+- Add Zernikes for the wavefront error at NIRCam coronagraphy  field points. [#283, @JarronL]
+- Fix bug in how ``pupilopd`` keyword is saved and include extra keywords ``opd_file``, ``opdslice``, ``coronmsk``, and ``pupil`` in the ``psf_grid`` output, both the GriddedPSFModel meta data and FITS object's header [#284, #293, #299, @shanosborne]
+- The ``set_position_from_aperture_name`` method now sets the detector position parameter in the science frame [@281, @shanosborne, @JarronL, @mperrin]
+- Fix OPD HDUList output from the ``as_fits`` method inside the OPD class to include the previously existing header information [#270 @laurenmarietta]
+- Added support for secondary mirror moves to the move_sur() method through the move_sm_local method [#295, @AldenJurling]
+- Various smaller code cleanup and doc improvements, including code cleanup for better Python PEP8 style guide compliance [@mperrin, @shanosborne, @robelgeda]
+- Remove ``units`` keyword from ``get_opd`` method, now the wave input needs to be a Wavefront object [#304, @shanosborne]
+
+**Software and Package Infrastructure Updates:**
+
+- Added unit tests for WFIRST F062 filter [#288, @robelgeda]
+- Remove leftover deprecated syntax ``_getOpticalSystem`` for ``_get_optical_system`` and ``display_PSF`` for ``display_psf`` [#280, #294, @mperrin, @shanosborne]
+- Documentation added and/or updated for a variety of features [#277, #280,  @mperrin]
+
+
+--------
+
+
+
 
 Version 0.8.0
 =============
