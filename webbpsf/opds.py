@@ -1731,7 +1731,7 @@ class OTE_Linear_Model_WSS(OPD):
         if not delay_update:
             self.update_opd(display=display)
 
-    def move_sur(self, sur_file, group=None, verbose=False):
+    def move_sur(self, sur_file, group=None, verbose=False, reverse=False):
         """
         Move using a JWST Segment Update Request file
 
@@ -1739,10 +1739,17 @@ class OTE_Linear_Model_WSS(OPD):
         ----------
         sur_file : file name
             Path to SUR XML file
-        group : zero-based int index
-            Index to a single group to run. Default is to run all groups.
+        group : one-based int index
+            Index to a single group to run. Default is to run all groups. Note,
+            this index counts up from 1 (not 0) for consistency with group indexing
+            in the SUR files themselves.
+
         verbose : bool
             Flag controlling whether moves are printed.
+        reverse : bool
+            Run this SUR "backwards", i.e. in opposite order of all groups and
+            flipping the sign of all moves. (This can be useful for certain
+            testing and mock data generation scenarios.)
 
         Returns
         -------
@@ -1752,10 +1759,23 @@ class OTE_Linear_Model_WSS(OPD):
 
         sur = jwxml.SUR(sur_file)
         if group is not None:
-            groups = [sur.groups[group]]
+            if group==0:
+                raise ValueError("Group indices start at 1, not 0.")
+            groups = [sur.groups[group-1]]
         else:
             groups = sur.groups
-        for grp in groups:
+        groupnum = list(np.arange(len(groups))+1)
+
+        sign = -1 if reverse else 1
+        if reverse:
+            if verbose:
+                print("Applying SUR in reverse: flipping group order and sign of all moves.")
+            groups = reversed(groups)
+            groupnum = reversed(groupnum)
+
+        for igrp, grp in zip(groupnum, groups):
+            if verbose:
+                print("Moving segments for group {}".format(igrp))
             for update in grp:
                 if verbose:
                     print("Move seg {} by {}".format(update.segment, str(update)))
@@ -1769,21 +1789,21 @@ class OTE_Linear_Model_WSS(OPD):
                     trans_unit = update.units['X_TRANS']
 
                     if update.segment == 'SM':
-                        self.move_sm_local(xtilt=update.moves['X_TILT'],
-                                           ytilt=update.moves['Y_TILT'],
-                                           xtrans=update.moves['X_TRANS'],
-                                           ytrans=update.moves['Y_TRANS'],
-                                           piston=update.moves['PISTON'],
+                        self.move_sm_local(xtilt=update.moves['X_TILT']*sign,
+                                           ytilt=update.moves['Y_TILT']*sign,
+                                           xtrans=update.moves['X_TRANS']*sign,
+                                           ytrans=update.moves['Y_TRANS']*sign,
+                                           piston=update.moves['PISTON']*sign,
                                            rot_unit=rot_unit,
                                            trans_unit=trans_unit,
                                            delay_update=True)
                     else:
                         self.move_seg_local(update.segment[0:2],
-                                            xtilt=update.moves['X_TILT'],
-                                            ytilt=update.moves['Y_TILT'],
-                                            xtrans=update.moves['X_TRANS'],
-                                            ytrans=update.moves['Y_TRANS'],
-                                            piston=update.moves['PISTON'],
+                                            xtilt=update.moves['X_TILT']*sign,
+                                            ytilt=update.moves['Y_TILT']*sign,
+                                            xtrans=update.moves['X_TRANS']*sign,
+                                            ytrans=update.moves['Y_TRANS']*sign,
+                                            piston=update.moves['PISTON']*sign,
                                             absolute=update.absolute,
                                             rot_unit=rot_unit,
                                             trans_unit=trans_unit,
@@ -1791,7 +1811,7 @@ class OTE_Linear_Model_WSS(OPD):
 
                 elif update.type == 'roc':
                     self.move_seg_local(update.segment[0:2],
-                                        roc=update.moves['ROC'],
+                                        roc=update.moves['ROC']*sign,
                                         absolute=update.absolute,
                                         delay_update=True)
 

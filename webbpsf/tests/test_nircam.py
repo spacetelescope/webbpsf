@@ -319,3 +319,41 @@ def test_defocus(fov_arcsec=1, display=False):
         webbpsf.display_psf(psf)
         plt.figure()
         webbpsf.display_psf(psf_2)
+
+
+def test_ways_to_specify_weak_lenses():
+    """ There are multiple ways to specify combinations of weak lenses. Test they work as expected.
+
+    """
+
+
+    testcases = (
+        # FILTER  PUPIL   EXPECTED_DEFOCUS
+        # Test methods directly specifying a single element
+        ('F212N', 'WLM8', 'Weak Lens -8'),
+        ('F200W', 'WLP8', 'Weak Lens +8'),
+        ('F187N', 'WLP8', 'Weak Lens +8'),
+        # Note WLP4 can be specified as filter or pupil element or both
+        ('WLP4', 'WLP4', 'Weak Lens +4'),
+        (None, 'WLP4', 'Weak Lens +4'),
+        ('WLP4', None, 'Weak Lens +4'),
+        # Test methods directly specifying a pair of elements stacked together
+        ('WLP4', 'WLM8', 'Weak Lens Pair -4'),
+        ('WLP4', 'WLP8', 'Weak Lens Pair +12'),
+        # Test methods using virtual pupil elements WLM4 and WLP12
+        ('WLP4', 'WLM4', 'Weak Lens Pair -4'),
+        ('WLP4', 'WLP12', 'Weak Lens Pair +12'),
+        ('F212N', 'WLM4', 'Weak Lens Pair -4'),
+        ('F212N', 'WLP12', 'Weak Lens Pair +12'),
+    )
+
+    nrc = webbpsf_core.NIRCam()
+    nrc.pupilopd = None # irrelevant for this test and slows it down
+    nrc.include_si_wfe = False # irrelevant for this test and slows it down
+    for filt, pup, expected in testcases:
+        nrc.pupil_mask = pup
+        if filt is not None: nrc.filter = filt
+
+        assert expected in [p.name for p in nrc.get_optical_system().planes], "Optical system did not contain expected plane {} for {}, {}".format(expected, filt, pup)
+
+

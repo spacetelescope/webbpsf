@@ -499,8 +499,9 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         if self.image_mask == "": self.image_mask = None
         if self.pupil_mask == "": self.pupil_mask = None
 
-        if self.image_mask is not None or self.pupil_mask is not None or \
-                ('force_coron' in options and options['force_coron']):
+        if (self.image_mask is not None or self.pupil_mask is not None or
+                'WL' in self.filter or  # special case handling for NIRCam WLP4 filter that is also a lens
+                ('force_coron' in options and options['force_coron'])):
             _log.debug("Adding coronagraph/spectrograph optics...")
             optsys, trySAM, SAM_box_size = self._addAdditionalOptics(optsys, oversample=fft_oversample)
         else:
@@ -1405,7 +1406,11 @@ class NIRCam(JWInstrument):
 
         if self.auto_channel:
             # set the channel (via setting the detector) based on filter
-            wlnum = int(self.filter[1:4])
+            if self.filter=='WLP4':
+                # special case, weak lens 4 is actually a filter too but isn't named like one
+                wlnum =212
+            else:
+                wlnum = int(self.filter[1:4])
             new_channel = 'long' if wlnum >= 250 else 'short'
             self._switch_channel(new_channel)
 
@@ -1536,7 +1541,11 @@ class NIRCam(JWInstrument):
             optsys.add_pupil(transmission=self._datapath + "/optics/NIRCam_Lyot_Sinc.fits.gz", name=self.pupil_mask,
                              flip_y=True, shift_x=shift_x, shift_y=shift_y, rotation=rotation, index=3)
             optsys.planes[-1].wavefront_display_hint = 'intensity'
-        elif self.pupil_mask == 'WEAK LENS +4' or self.pupil_mask == 'WLP4':
+        # Note, for historical reasons there are multiple synonymous ways to specify the weak lenses
+        # This includes versions that elide over the fact that WLP4 is in the filter wheel, plus
+        # versions that take that into account explicitly.
+        elif self.pupil_mask == 'WEAK LENS +4' or self.pupil_mask == 'WLP4' or (
+                self.filter == 'WLP4' and self.pupil_mask is None) :
             optsys.add_pupil(poppy.ThinLens(
                 name='Weak Lens +4',
                 nwaves=WLP4_diversity / WL_wavelength,
@@ -1544,7 +1553,7 @@ class NIRCam(JWInstrument):
                 radius=self.pupil_radius,
                 shift_x=shift_x, shift_y=shift_y, rotation=rotation,
             ), index=3)
-        elif self.pupil_mask == 'WEAK LENS +8' or self.pupil_mask == 'WLP8':
+        elif self.pupil_mask == 'WEAK LENS +8' or (self.pupil_mask == 'WLP8' and self.filter != 'WLP4'):
             optsys.add_pupil(poppy.ThinLens(
                 name='Weak Lens +8',
                 nwaves=WLP8_diversity / WL_wavelength,
@@ -1552,7 +1561,7 @@ class NIRCam(JWInstrument):
                 radius=self.pupil_radius,
                 shift_x=shift_x, shift_y=shift_y, rotation=rotation,
             ), index=3)
-        elif self.pupil_mask == 'WEAK LENS -8' or self.pupil_mask == 'WLM8':
+        elif self.pupil_mask == 'WEAK LENS -8' or (self.pupil_mask == 'WLM8' and self.filter != 'WLP4'):
             optsys.add_pupil(poppy.ThinLens(
                 name='Weak Lens -8',
                 nwaves=WLM8_diversity / WL_wavelength,
@@ -1560,7 +1569,8 @@ class NIRCam(JWInstrument):
                 radius=self.pupil_radius,
                 shift_x=shift_x, shift_y=shift_y, rotation=rotation,
             ), index=3)
-        elif self.pupil_mask == 'WEAK LENS +12 (=4+8)' or self.pupil_mask == 'WLP12':
+        elif self.pupil_mask == 'WEAK LENS +12 (=4+8)' or self.pupil_mask == 'WLP12' or (
+                self.pupil_mask == 'WLP8' and self.filter == 'WLP4'):
             stack = poppy.CompoundAnalyticOptic(name='Weak Lens Pair +12', opticslist=[
                 poppy.ThinLens(
                     name='Weak Lens +4',
@@ -1578,7 +1588,8 @@ class NIRCam(JWInstrument):
                 )]
                                                 )
             optsys.add_pupil(stack, index=3)
-        elif self.pupil_mask == 'WEAK LENS -4 (=4-8)' or self.pupil_mask == 'WLM4':
+        elif self.pupil_mask == 'WEAK LENS -4 (=4-8)' or self.pupil_mask == 'WLM4' or (
+                self.pupil_mask == 'WLM8' and self.filter == 'WLP4'):
             stack = poppy.CompoundAnalyticOptic(name='Weak Lens Pair -4', opticslist=[
                 poppy.ThinLens(
                     name='Weak Lens +4',

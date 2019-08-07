@@ -131,3 +131,56 @@ def test_update_opd():
     otelm = webbpsf.opds.OTE_Linear_Model_WSS()
     otelm.update_opd()
     assert np.max(otelm.opd) == 0.0
+
+
+def test_move_sur(plot=False):
+    import webbpsf
+    import os
+    import glob
+    surdir = os.path.join(webbpsf.__path__[0], 'tests', 'surs')
+    surs = glob.glob(surdir+'/*sur.xml')
+
+    nrc = webbpsf.NIRCam()
+    nrc.filter='F212N'
+    nrc, ote = webbpsf.enable_adjustable_ote(nrc)
+    ote.zero(zero_original=True)
+
+    for s in surs:
+        print("Testing "+s)
+        ote.reset()
+        ote.move_sur(s)
+        # the coarse phasing SUR is a no-op after 3 groups; all others have some effect
+        if 'coarse_phasing' not in s:
+            assert not np.allclose(ote.segment_state, 0), "Expected some segments to be moved"
+
+        ote.move_sur(s, reverse=True)
+        assert np.allclose(ote.segment_state, 0), "Reversing moves didn't bring us back to zero"
+
+    # Test moving one at a time. This test relies on specifics of what's in the image stacking SUR.
+    s = glob.glob(surdir+'/example_image_stacking*sur.xml')[0]
+    print("Testing moving one group at a time with "+s)
+    ote.reset()
+    import jwxml
+    sur = jwxml.SUR(s)
+
+    ngroups = len(sur.groups)
+    oldstate = ote.segment_state.copy()
+
+    for igrp in range(1,ngroups+1):
+        print("Group {} should move segment {}".format(igrp, 2*igrp+6))
+        ote.move_sur(s, group=igrp)
+
+        movedsegs = np.abs((ote.segment_state - oldstate).sum(axis=1))
+        assert (movedsegs!=0).sum()==1, "Only expected one segment to move"
+        whichmoved = np.argmax(movedsegs)+1
+        print ("Moved segment", whichmoved)
+        assert whichmoved == 2*igrp+6, "An unexpected segment moved"
+        oldstate = ote.segment_state.copy()
+        if plot:
+            psf = nrc.calc_psf(fov_pixels=256, add_distortion=False)
+            plt.figure()
+            ote.display_opd(title="After Group {}".format(igrp))
+            plt.figure()
+            webbpsf.display_psf(psf, ext=1, title="After Group {}".format(igrp))
+
+
