@@ -9,7 +9,8 @@ from astropy.table import Table
 import astropy.io.fits as fits
 import astropy.units as units
 
-from scipy.interpolate import griddata
+from scipy.interpolate import griddata, RegularGridInterpolator
+from scipy.ndimage import rotate
 
 from . import utils
 from . import constants
@@ -1020,8 +1021,149 @@ def _calc_blc_wedge(deg=4, wavelength=2.1e-6):
     print("  fit rms: " + str(diffs.std()))
 
 
-# Field dependent aberration class for JWST instruments
+def _trim_nan_image(xgrid, ygrid, zgrid):
+    """NaN Trimming of Image
+    
+    Remove rows/cols with NaN's while trying to preserve
+    the maximum footprint of real data.
+    """
+    
+    xgrid2, ygrid2, zgrid2 = xgrid, ygrid, zgrid
+    
+    # Create a mask of NaN'ed values
+    nan_mask = np.isnan(zgrid2)
+    nrows, ncols = nan_mask.shape
+    # Determine number of NaN's along each row and col
+    num_nans_cols = nan_mask.sum(axis=0)
+    num_nans_rows = nan_mask.sum(axis=1)
+    
+    # First, crop all rows/cols that are only NaN's
+    xind_good = np.where(num_nans_cols < nrows)[0]
+    yind_good = np.where(num_nans_rows < ncols)[0]
+    # get border limits
+    x1, x2 = (xind_good.min(), xind_good.max()+1)
+    y1, y2 = (yind_good.min(), yind_good.max()+1)
+    # Trim of NaN borders
+    xgrid2 = xgrid2[x1:x2]
+    ygrid2 = ygrid2[y1:y2]
+    zgrid2 = zgrid2[y1:y2,x1:x2]
+    
+    # Find a optimal rectangule subsection free of NaN's
+    # Iterative cropping
+    ndiff = 5
+    while np.isnan(zgrid2.sum()):
+        # Make sure ndiff is not negative
+        if ndiff<0:
+            break
 
+        npix = zgrid2.size
+
+        # Create a mask of NaN'ed values
+        nan_mask = np.isnan(zgrid2)
+        nrows, ncols = nan_mask.shape
+        # Determine number of NaN's along each row and col
+        num_nans_cols = nan_mask.sum(axis=0)
+        num_nans_rows = nan_mask.sum(axis=1)
+
+        # Look for any appreciable diff row-to-row/col-to-col
+        col_diff = num_nans_cols - np.roll(num_nans_cols,-1) 
+        row_diff = num_nans_rows - np.roll(num_nans_rows,-1)
+        # For edge wrapping, just use last minus previous
+        col_diff[-1] = col_diff[-2]
+        row_diff[-1] = row_diff[-2]
+        
+        # Keep rows/cols composed mostly of real data 
+        # and where number of NaN's don't change dramatically
+        xind_good = np.where( ( np.abs(col_diff) <= ndiff  ) & 
+                              ( num_nans_cols < 0.5*nrows ) )[0]
+        yind_good = np.where( ( np.abs(row_diff) <= ndiff  ) & 
+                              ( num_nans_rows < 0.5*ncols ) )[0]
+        # get border limits
+        x1, x2 = (xind_good.min(), xind_good.max()+1)
+        y1, y2 = (yind_good.min(), yind_good.max()+1)
+    
+        # Trim of NaN borders
+        xgrid2 = xgrid2[x1:x2]
+        ygrid2 = ygrid2[y1:y2]
+        zgrid2 = zgrid2[y1:y2,x1:x2]
+        
+        # Check for convergence
+        # If we've converged, reduce 
+        if npix==zgrid2.size:
+            ndiff -= 1
+                
+    # Last ditch effort in case there are still NaNs
+    # If so, remove rows/cols 1 by 1 until no NaNs
+    while np.isnan(zgrid2.sum()):
+        xgrid2 = xgrid2[1:-1]
+        ygrid2 = ygrid2[1:-1]
+        zgrid2 = zgrid2[1:-1,1:-1]
+            
+    return xgrid2, ygrid2, zgrid2
+
+
+def _fix_zgrid_NaNs(xgrid, ygrid, zgrid, rot_ang=0):
+    """Fix NaN's in Zernike Grid
+    
+    We trim NaN's within `zgrid`, then generate an extrapolation function
+    using `RegularGridInterpolator`. A rotation angle can also be specified
+    to maximize the number of remaining data points due to irregular
+    polygons of the real `zgrid` data.
+    
+    Returns `zgrid` with the NaN's fixed using the extrapolation function.
+    
+    Parameter
+    =========
+    xgrid : ndarray
+        1D V2 regular grid information
+    ygrid : ndarray
+        1D V3 regular grid information
+    zgrid : ndarray
+        2D Zernike grid
+    rot_ang : float
+        Option to rotate grid data for more optimal
+        trimming of NaN's.
+    """
+            
+    # Rotate zgrid
+    if rot_ang != 0:
+        zgrid = rotate(zgrid, rot_ang, reshape=False, order=1, cval=np.nan)
+        
+    # There will be some NaN's along the border that need to be replaced
+    ind_nan = np.isnan(zgrid)
+    # Remove rows/cols with NaN's
+    xgrid2, ygrid2, zgrid2 = _trim_nan_image(xgrid, ygrid, zgrid)
+    
+    # Create regular grid interpolator function for extrapolation of NaN's
+    func = RegularGridInterpolator((ygrid2,xgrid2), zgrid2, method='linear',
+                                   bounds_error=False, fill_value=None)
+
+    # Replace NaNs
+    X, Y = np.meshgrid(xgrid,ygrid)
+    pts = np.array([Y[ind_nan], X[ind_nan]]).transpose()
+    zgrid[ind_nan] = func(pts)
+
+    # De-rotate clipped zgrid image and redo RegularGridInterpolator
+    if rot_ang != 0:
+        # De-rotate
+        zgrid = rotate(zgrid, -rot_ang, reshape=False, order=1, cval=np.nan)
+        # There will be some NaNs along the border that need to be replaced
+        ind_nan = np.isnan(zgrid)
+        # Remove rows/cols 1 by 1 until no NaNs
+        xgrid2, ygrid2, zgrid2 = _trim_nan_image(xgrid, ygrid, zgrid)
+
+        # Create regular grid interpolator function for extrapolation of NaN's
+        func = RegularGridInterpolator((ygrid2,xgrid2), zgrid2, method='linear',
+                                       bounds_error=False, fill_value=None)
+
+        # Replace NaNs
+        pts = np.array([Y[ind_nan], X[ind_nan]]).transpose()
+        zgrid[ind_nan] = func(pts)
+        
+    return zgrid
+
+
+# Field dependent aberration class for JWST instruments
 class WebbFieldDependentAberration(poppy.OpticalElement):
     """ Field dependent aberration generated from Zernikes measured in ISIM CV testing
 
@@ -1058,11 +1200,18 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
 
         self.tel_coords = instrument._tel_coords()
 
-        # load the Zernikes table here
-        zernike_file = os.path.join(utils.get_webbpsf_data_path(), 'si_zernikes_isim_cv3.fits')
+        # load the Zernikes table here         
+        zfile = "si_zernikes_isim_cv3.fits"
+        # Check special case NIRCam coronagraphy
+        if instrument.name == 'NIRCam':
+            pupil_mask = self.instrument._pupil_mask
+            if (pupil_mask is not None) and ('LYOT' in pupil_mask.upper()):
+                zfile = "si_zernikes_coron_wfe.fits"
+        zernike_file = os.path.join(utils.get_webbpsf_data_path(), zfile)
 
         if not os.path.exists(zernike_file):
-            raise RuntimeError("Could not find Zernike coefficients file in WebbPSF data directory")
+            raise RuntimeError("Could not find Zernike coefficients file {} \
+                               in WebbPSF data directory".format(zfile))
         else:
             self.ztable_full = Table.read(zernike_file)
 
@@ -1093,6 +1242,7 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
         r = np.sqrt((telcoords_am[0] - v2) ** 2 + (telcoords_am[1] - v3) ** 2)
         closest = np.argmin(r)
 
+        # Save closest ISIM CV3 WFE measured field point for reference
         self.row = self.ztable[closest]
 
         self.name = "{instrument} internal WFE at V2V3=({v2:.2f},{v3:.2f})', near {field_point}".format(
@@ -1100,8 +1250,10 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
             field_point=self.row['field_point_name'],
             v2=telcoords_am[0], v3=telcoords_am[1]
         )
-        # Retrieve those Zernike coeffs (no interpolation for now)
-        # coeffs = [self.row['Zernike_{}'.format(i)] for i in range(1, 36)]
+        self.si_wfe_type = ("Interpolated", 
+                "SI WFE was interpolated between available meas.")
+
+        # Retrieve those Zernike coeffs
         # Field point interpolation
         v2_tel, v3_tel = telcoords_am
         coeffs = []
@@ -1111,8 +1263,82 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
 
             # Cubic interpolation of of non-uniform 2D grid
             cf = griddata((v2, v3), zvals, (v2_tel, v3_tel), method='cubic').tolist()
+            
+            # Want to perform extrapolation if field point outside of bounds
             if np.isnan(cf):
-                cf = self.row[zkey]
+                if i==1:
+                    self.si_wfe_type = ("Extrapolated", 
+                            "SI WFE was extrapolated outside available meas.")
+
+                # To extrapolate outside the measured field points, we proceed 
+                # in two steps.  This first creates a fine-meshed cubic fit 
+                # over the known field points, fixes any NaN's using 
+                # RegularGridInterpolator, then again uses RegularGridInterpolator 
+                # on the fixed data to extrapolate the requested field point.
+
+                # In principle, the first call of RegularGridInterpolator can be 
+                # used to extrapolate the requested field point to eliminate 
+                # the intermediate step, but this method enables use of all the 
+                # real data rather than the trimmed data set. RGI is a rather
+                # quick process, so added overheads should be negligible.
+
+                # Full field V2/V3 limits for each instrument.
+                # Produces better initial extrapolation with fewer 
+                # interpolation artifacts in RGI.
+                if lookup_name == 'Guider1':
+                    v2_min, v2_max, v3_min, v3_max = (2.2, 4.7, -12.9, -10.4)
+                elif lookup_name == 'Guider2':
+                    v2_min, v2_max, v3_min, v3_max = (-0.8, 1.6, -12.9, -10.4)
+                elif lookup_name == 'NIRISS': 
+                    v2_min, v2_max, v3_min, v3_max = (-6.0, -3.6, -12.9, -10.4)
+                elif lookup_name == 'MIRI': 
+                    v2_min, v2_max, v3_min, v3_max = (-8.3, -6.1, -7.3, -5.2)
+                elif lookup_name == 'NIRSpec': 
+                    v2_min, v2_max, v3_min, v3_max = (3.7, 9.0, -9.8, -4.5)
+                elif (lookup_name == 'NIRCamLWA') or (lookup_name == 'NIRCamSWA'): 
+                    v2_min, v2_max, v3_min, v3_max = (0.2, 2.7, -9.5, -7.0)
+                elif (lookup_name == 'NIRCamLWB') or (lookup_name == 'NIRCamSWB'): 
+                    v2_min, v2_max, v3_min, v3_max = (-2.7, -0.2, -9.5, -7.0)
+                else:
+                    v2_min, v2_max, v3_min, v3_max = (v2.min(), v2.max(), v3.min(), v3.max())
+
+                # For NIRCam coronagraphy, add 50" to V3 limits
+                if instrument.name == 'NIRCam':
+                    pupil_mask = self.instrument._pupil_mask
+                    if (pupil_mask is not None) and ('LYOT' in pupil_mask.upper()):
+                        v3_min += 50. / 60.
+                        v3_max += 50. / 60.
+
+                # Create fine mesh grid
+                dstep = 1. / 60. # 1" steps
+                xgrid = np.arange(v2_min, v2_max+dstep, dstep)
+                ygrid = np.arange(v3_min, v3_max+dstep, dstep)
+                X, Y = np.meshgrid(xgrid,ygrid)
+
+                # Cubic interpolation of all points
+                # Will produce a number of NaN's that need to be extrapolated over
+                zgrid = griddata((v2, v3), zvals, (X, Y), method='cubic')
+
+                # Want to rotate zgrid image of some SIs to minimize NaN clipping
+                if 'NIRSpec' in lookup_name:
+                    rot_ang = 43
+                elif 'MIRI' in lookup_name:
+                    rot_ang = -5
+                elif 'NIRISS' in lookup_name:
+                    rot_ang = 2
+                else:
+                    rot_ang = 0
+
+                # Fix the NaN's within zgrid array
+                # Perform specified rotation for certain SIs
+                # Trim rows/cols
+                zgrid = _fix_zgrid_NaNs(xgrid, ygrid, zgrid, rot_ang=rot_ang)
+
+                # Create final function for extrapolation
+                func = RegularGridInterpolator((ygrid,xgrid), zgrid, method='linear',
+                                               bounds_error=False, fill_value=None)
+                # Extrapolate at requested (V2,V3) coordinates
+                cf = func( (v3_tel, v2_tel) ).tolist()
 
             coeffs.append(cf)
 
@@ -1171,13 +1397,13 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
                 outside=0
             )
             self.amplitude = (self.opd != 0).astype(int)
-
+    
     def header_keywords(self):
         """ Return info we would like to save in FITS header of output PSFs
         """
         from collections import OrderedDict
         keywords = OrderedDict()
-        keywords['SIWFETYP'] = ("Interpolated", "SI WFE was interpolated between available meas.")
+        keywords['SIWFETYP'] = self.si_wfe_type
         keywords['SIWFEFPT'] = (self.row['field_point_name'], "Closest ISIM CV3 WFE meas. field point")
         for i in range(1, 36):
             keywords['SIZERN{}'.format(i)] = (self.zernike_coeffs[i - 1], "[nm] SI WFE coeff for Zernike term {}".format(i))
@@ -1243,37 +1469,20 @@ class NIRCamFieldAndWavelengthDependentAberration(WebbFieldDependentAberration):
             instrument,
             **kwargs)
 
-        # TODO load here the wavelength dependence info.
-        self.focusmodel_file = os.path.join(
-            utils.get_webbpsf_data_path(),
-            'NIRCam',
-            'optics',
-            'nircam_defocus_vs_wavelength.fits')
-        model_hdul = fits.open(self.focusmodel_file)
-        assert model_hdul[1].header['XTENSION'] == 'BINTABLE'
-        self.focus_model_data = model_hdul[1].data
-        model_wavelengths, model_defocus = (
-            self.focus_model_data['wavelength'].astype('=f8'),
-            self.focus_model_data['defocus_in_rms_wfe'].astype('=f8')
-        )
-
-        # Read in model data and set up interpolators.
-
-        short_wavelengths_mask = model_wavelengths < 2.45
-        self.fm_short = scipy.interpolate.interp1d(
-            model_wavelengths[short_wavelengths_mask],
-            model_defocus[short_wavelengths_mask],
-            kind='cubic'
-        )
-
-        long_wavelengths_mask = model_wavelengths > 2.45
-        # (n.b. row where model_wavelengths == 2.45 is nan)
-        self.fm_long = scipy.interpolate.interp1d(
-            model_wavelengths[long_wavelengths_mask],
-            model_defocus[long_wavelengths_mask],
-            kind='cubic'
-        )
-
+        # Polynomial equations fit to defocus model (RMS WFE).
+        # Fits were performed to the SW and LW optical design focus model 
+        # as provided by Randal Telfer. 
+        # See plot at https://github.com/spacetelescope/webbpsf/issues/179
+        # The relative wavelength dependence of these focus models are very
+        # similar for coronagraphic mode in the Zemax optical prescription,
+        # so we opt to use the same focus model in both imaging and coronagraphy.
+        cf_scale = -1.09746e7 # convert from mm defocus to meters RMS wfe
+        sw_cf = np.array([-5.169185169, 50.62919436, -201.5444129, 415.9031962,  
+                          -465.9818413, 265.843112, -59.64330811]) / cf_scale
+        lw_cf = np.array([0.175718713, -1.100964635, 0.986462016, 1.641692934]) / cf_scale
+        self.fm_short = np.poly1d(sw_cf)
+        self.fm_long  = np.poly1d(lw_cf)
+        
         # Get the representation of focus in the same Zernike basis as used for
         # making the OPD. While it looks like this does more work here than needed
         # by making a whole basis set, in fact because of caching behind the scenes
@@ -1285,38 +1494,34 @@ class NIRCamFieldAndWavelengthDependentAberration(WebbFieldDependentAberration):
         )
         self.defocus_zern = basis[3]
 
-        model_hdul.close()
-
+        
     def get_opd(self, wave):
         # Which wavelength was used to generate the OPD map we have already
         # created from zernikes?
         if self.instrument.channel.upper() == 'SHORT':
-            opd_ref_wave = 2.12
             focusmodel = self.fm_short
+            opd_ref_wave = 2.12
+            opd_ref_focus = focusmodel(opd_ref_wave)
         else:
-            opd_ref_wave = 3.23
             focusmodel = self.fm_long
-
-        try:
-            wave_um = wave.wavelength.to(units.micron).value
-            focus_at_wave = focusmodel(wave_um)
-        except ValueError:
-            # apply linear extrapolation if we are slightly outside the range of the focus model
-            # inputs. This is required to support the full range of the LW channel.
-            if wave_um < focusmodel.x[0]:
-                focus_at_wave = (
-                        focusmodel.y[0] +
-                        (wave_um - focusmodel.x[0]) * (focusmodel.y[0] - focusmodel.y[1]) /
-                        (focusmodel.x[0] - focusmodel.x[1])
-                )
+            opd_ref_wave = 3.23
+            # All LW WFE measurements were made using F323N,
+            # which has it's own focus that deviates from focusmodel().
+            # But only do this for direct imaging SI WFE values,
+            # because coronagraph WFE was measured in Zemax (no additional focus power).
+            pupil_mask = self.instrument._pupil_mask
+            if (pupil_mask is not None) and ('LYOT' in pupil_mask.upper()):
+                opd_ref_focus = focusmodel(opd_ref_wave)
             else:
-                focus_at_wave = (
-                        focusmodel.y[-1] +
-                        (wave_um - focusmodel.x[-1]) * (focusmodel.y[-1] - focusmodel.y[-2]) /
-                        (focusmodel.x[-1] - focusmodel.x[-2])
-                )
+                opd_ref_focus = 1.206e-7 # Not coronagraphy (e.g., imaging)
 
-        deltafocus = focus_at_wave - focusmodel(opd_ref_wave)
+        # If F323N or F212N, then no focus offset necessary
+        if ('F323N' in self.instrument.filter) or ('F212N' in self.instrument.filter):
+            deltafocus = 0
+        else:
+            wave_um = wave.wavelength.to(units.micron).value
+            deltafocus = focusmodel(wave_um) - opd_ref_focus
+
         _log.info("  Applying OPD focus adjustment based on NIRCam focus vs wavelength model")
         _log.info("  Delta focus from {} to {}: {:.3f} nm rms".format(
             opd_ref_wave,
