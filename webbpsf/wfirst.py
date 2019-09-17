@@ -438,17 +438,6 @@ class WFIPupilController:
             # correct shape it should have
             pass
 
-    def user_pupil_mask_override(self, set_pupil_mask_on):
-        """
-        Only used if the user overrides the pupil selection at
-        the initiation of the WFI class.
-        """
-        if isinstance(set_pupil_mask_on, bool):
-            _log.info("Using custom pupil mask")
-            self.pupil_mask = 'COLD_PUPIL' if set_pupil_mask_on else 'UNMASKED'
-        else:
-            raise TypeError("set_pupil_mask_on parameter must be boolean")
-
     def remove_pupil_mask_override(self):
         _log.info("Removing custom pupil mask")
         self.pupil_mask = 'AUTO'
@@ -464,7 +453,7 @@ class WFI(WFIRSTInstrument):
              mirror polishing errors, which are taken from HST).
     """
 
-    def __init__(self, set_pupil_mask_on=None):
+    def __init__(self):
         """
         Initiate WFI
 
@@ -482,8 +471,7 @@ class WFI(WFIRSTInstrument):
         super(WFI, self).__init__("WFI", pixelscale=pixelscale)
 
         self._pupil_controller.set_base_path(self._datapath)
-        if set_pupil_mask_on is not None:
-            self._pupil_controller.user_pupil_mask_override(set_pupil_mask_on)
+
         self.pupil_mask_list = self._pupil_controller.pupil_mask_list
 
         self._detector_npixels = 4096
