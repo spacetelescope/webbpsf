@@ -493,7 +493,7 @@ class WFI(WFIRSTInstrument):
         self._pupil_controller.validate_pupil(self.filter, **kwargs)
         super(WFI, self)._validate_config(**kwargs)
 
-    @SpaceTelescopeInstrument.detector.setter
+    @WFIRSTInstrument.detector.setter
     def detector(self, value):
         if value.upper() not in self.detector_list:
             raise ValueError("Invalid detector. Valid detector names are: {}".format(', '.join(self.detector_list)))
@@ -515,12 +515,7 @@ class WFI(WFIRSTInstrument):
     def pupil_mask(self):
         return self._pupil_controller.pupil_mask
 
-    @property
-    def filter(self):
-        """Currently selected filter name (e.g. F200W)"""
-        return self._filter
-
-    @SpaceTelescopeInstrument.filter.setter
+    @WFIRSTInstrument.filter.setter
     def filter(self, value):
         value = value.upper()  # force to uppercase
         if value not in self.filter_list:
