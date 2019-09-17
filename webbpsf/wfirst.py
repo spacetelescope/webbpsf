@@ -456,7 +456,7 @@ class WFIPupilController:
 
 class WFI(WFIRSTInstrument):
     """
-    WFI represents to the to-be-named wide field imager
+    WFI represents the WFIRST wide field imager
     for the WFIRST mission
 
     WARNING: This model has not yet been validated against other PSF
@@ -505,15 +505,7 @@ class WFI(WFIRSTInstrument):
         self._pupil_controller.validate_pupil(self.filter, **kwargs)
         super(WFI, self)._validate_config(**kwargs)
 
-    @property
-    def detector(self):
-        """Detector selected for simulated PSF
-        Used in calculation of field-dependent aberrations. Must be
-        selected from detectors in the `detector_list` attribute.
-        """
-        return self._detector
-
-    @detector.setter
+    @SpaceTelescopeInstrument.detector.setter
     def detector(self, value):
         if value.upper() not in self.detector_list:
             raise ValueError("Invalid detector. Valid detector names are: {}".format(', '.join(self.detector_list)))
@@ -540,7 +532,7 @@ class WFI(WFIRSTInstrument):
         """Currently selected filter name (e.g. F200W)"""
         return self._filter
 
-    @filter.setter
+    @SpaceTelescopeInstrument.filter.setter
     def filter(self, value):
         value = value.upper()  # force to uppercase
         if value not in self.filter_list:
