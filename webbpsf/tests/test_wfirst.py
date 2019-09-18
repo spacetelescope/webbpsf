@@ -97,26 +97,12 @@ def test_WFI_pupil_controller():
                 assert wfi.pupil == unmasked_pupil_path, \
                     "Pupil did not set to correct value according to filter {}".format(filter)
 
-    # Test initialisation mask overriding
-    wfi = wfirst.WFI(set_pupil_mask_on=True)
-    wfi.detector = detector
-    assert wfi._pupil_controller.auto_pupil is False
-    assert wfi._pupil_controller._pupil_mask == wfi.pupil_mask, "pupil mask was not set correctly"
-    assert wfi.pupil_mask == MASKED_FLAG, "User override did not set pupil_mask to correct value"
-    assert wfi.pupil == masked_pupil_path, "Pupil did not set to correct value according to override"
-
-    wfi = wfirst.WFI(set_pupil_mask_on=False)
-    wfi.detector = detector
-    assert wfi._pupil_controller.auto_pupil is False
-    assert wfi._pupil_controller._pupil_mask == wfi.pupil_mask, "pupil mask was not set correctly"
-    assert wfi.pupil_mask == UNMASKED_FLAG, "User override did not set pupil_mask to correct value"
-    assert wfi.pupil == unmasked_pupil_path, "Pupil did not set to correct value according to override"
-
     # Test calculating a single PSF
-    wfi = wfirst.WFI(set_pupil_mask_on=True)
+    wfi = wfirst.WFI()
     wfi.detector = detector
     valid_pos = (4000, 1000)
     wfi.detector_position = valid_pos
+    wfi.pupil_mask = "COLD_PUPIL"
     assert wfi.pupil == masked_pupil_path, "Pupil did not set to correct value according to override"
     wfi.calc_psf(fov_pixels=4)
     assert wfi.pupil == masked_pupil_path, "Pupil did not set to correct value according to override"
