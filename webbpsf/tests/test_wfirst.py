@@ -1,6 +1,6 @@
 import os
 import pytest
-from webbpsf import wfirst
+from webbpsf import wfirst, measure_fwhm
 from numpy import allclose
 
 MASKED_FLAG = "COLD_PUPIL"
@@ -55,16 +55,16 @@ def test_WFI_fwhm():
     Test that computed PSFs are physically realistic, at least relatively.
     Loose test...
     """
-    wfi = webbpsf.wfirst.WFI()
+    wfi = wfirst.WFI()
 
     wfi.pupilopd = None
     wfi.options['jitter'] = None
 
     wfi.filter = 'F062'
-    fwhm_f062 = webbpsf.measure_fwhm(wfi.calc_psf(oversample= 6))
+    fwhm_f062 = measure_fwhm(wfi.calc_psf(oversample= 6))
 
     wfi.filter = 'F184'
-    fwhm_f184 = webbpsf.measure_fwhm(wfi.calc_psf(oversample= 6))
+    fwhm_f184 = measure_fwhm(wfi.calc_psf(oversample= 6))
 
     assert (4.0 > fwhm_f184/fwhm_f062 > 2.0)
 
