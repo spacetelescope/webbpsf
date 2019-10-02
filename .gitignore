@@ -78,3 +78,6 @@ my_log.txt
 
 # Logs, assorted
 *.log
+test_log_file.txt
+lastfailed
+nodeids

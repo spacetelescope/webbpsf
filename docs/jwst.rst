@@ -192,12 +192,6 @@ easily actually achieve that pointing with the flight hardware.
     for that mask's field point. Note, this will also invoke the automatic pixelscale functionality
     to get the right scale for SW or LW, too.
 
-.. warning:: Coronagraph field point WFE not yet included
-
-    The coronagraph field points are far off axis, and this comes with significant WFE added compared to
-    the inner portion of the NIRCam field of view. This is not yet included in WebbPSF, but is work in
-    progress for the next version expected in 2019.
-
 
 Weak Lenses for Wavefront Sensing
 ---------------------------------
@@ -223,14 +217,33 @@ SI WFE
 SI internal WFE measurements are from ISIM CV3 testing (See JWST-RPT-032131 by David Aronstein et al.)
 The SI internal WFE measurements are distinct for each of the modules and
 channels. When enabled, these are added to the final pupil of the optical
-train, i.e. after the coronagraphic image planes.
+train, i.e. after the coronagraphic image planes. For field-points outside of
+the measurement bounds, WebbPSF performs an extrapolation routine.
 
-**Caution** WFE is not yet included for the coronagraph field points; it will use the closest imaging field point. See issue #180.
+The coronagraph field points are far off axis, and this comes with significant WFE 
+added compared to the inner portion of the NIRCam field of view. While SI WFE for
+imaging mode were measured directly from the instrument during ISIM CV3, the 
+coronagraphic WFE maps were built based on the NIRCam Zemax optical model.
+This model was first validated in imaging mode, and then the appropriate optical
+elements were inserted to produce the coronagraphic configuration.
+In this case, both modules were assumed have the exact same (albeit, mirrored) 
+field-dependent WFE maps.
 
 Wavelength-Dependent Focus Variations
 ---------------------------------------
 
-**TODO**  Add documentation here for the focus variations vs wavelength and how webbpsf models those.
+NIRCam's wavelength-dependent defocus was measured during ISIM CV2 at a given field point
+(See JWST-RPT-029985 by Randal Telfer). Overall, the measurements are consistent with
+predictions from the nominal optical model. The departure of the data from the 
+model curve has been determined to be from residual power in individual filters.
+In particular, the F323N filter has a significant extra defocus; WebbPSF includes 
+this measured defocus if the selected filter is F323N.
+
+All SI WFE maps were derived from measurements with the F212N and F323N filters. 
+WebbPSF utilizes polynomial fits to the nominal focus model to derive focus offset values
+relative to these narrowband filters for a given wavelength. The derived delta focus
+is then translated to a Zernike focus image, which is subsequently applied to the 
+instrument OPD map.
 
 
 NIRSpec
