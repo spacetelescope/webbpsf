@@ -83,7 +83,7 @@ install:
 
 before_script:
     # Get WebbPSF data files (just a subset of the full 250 MB!) and set up environment variable
-    - wget https://stsci.box.com/shared/static/1lp219kcya4paab0epyp1g94rg9tzsn8.gz -O /tmp/minimal-webbpsf-data.tar.gz
+    - wget https://stsci.box.com/shared/static/qpmg4njgeb4jg3qikce7wg6rmk4n7vx2.gz -O /tmp/minimal-webbpsf-data.tar.gz
     - tar -xzvf /tmp/minimal-webbpsf-data.tar.gz
     - export WEBBPSF_PATH=$PWD/webbpsf-data
 
