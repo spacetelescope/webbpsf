@@ -49,6 +49,26 @@ def test_aberration_detector_position_setter():
     assert detector._field_position == valid_pos, 'Setting field position through setter did not ' \
                                                   'update private `_field_position` value'
 
+
+def test_WFI_fwhm():
+    """
+    Test that computed PSFs are physically realistic, at least relatively.
+    Loose test...
+    """
+    wfi = webbpsf.wfirst.WFI()
+
+    wfi.pupilopd = None
+    wfi.options['jitter'] = None
+
+    wfi.filter = 'F062'
+    fwhm_f062 = webbpsf.measure_fwhm(wfi.calc_psf(oversample= 6))
+
+    wfi.filter = 'F184'
+    fwhm_f184 = webbpsf.measure_fwhm(wfi.calc_psf(oversample= 6))
+
+    assert (4.0 > fwhm_f184/fwhm_f062 > 2.0)
+
+
 def test_WFI_pupil_controller():
     wfi = wfirst.WFI()
 
