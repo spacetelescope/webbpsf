@@ -251,10 +251,11 @@ def test_wfi():
     calcpsf = wfi.calc_psf(oversample=oversample, fov_pixels=fov_pixels)["OVERSAMP"].data
     kernel = astropy.convolution.Box2DKernel(width=oversample)
     convpsf = astropy.convolution.convolve(calcpsf, kernel)
+    scalefactor = oversample ** 2  # normalization as used internally in GriddedPSFModel; see #302
 
     # Compare to make sure they are in fact the same PSF
-    assert gridpsf.shape == calcpsf.shape
-    assert np.array_equal(gridpsf, convpsf)
+    assert gridpsf.shape == calcpsf.shape, "Shape mismatch"
+    assert np.allclose(gridpsf, convpsf*scalefactor), "Data values not as expected"
 
 
 def test_wfi_error():
