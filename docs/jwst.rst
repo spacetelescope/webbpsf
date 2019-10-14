@@ -33,7 +33,7 @@ All classes share some common attributes:
    ``detector_position`` attribute which is a 2-tuple giving the pixel coordinates
    on that detector for the center location in any calculated output PSF.
    Note that the ``detector_position`` value should be
-   specified using the Python (Y,X) axes order convention.
+   specified using the order (X,Y).
 
 .. warning::
 
