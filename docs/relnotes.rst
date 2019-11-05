@@ -32,11 +32,11 @@ Road Map for Future Releases
 Version History and Change Log
 -------------------------------
 
-Version 0.8.1
+Version 0.9.0
 =============
-*2019 July X*
+*2019 November X*
 
-Note, when upgrading to this version you will need to update to the latest data files as well. This is handled automatically if you use `conda`, otherwise you will need to download and install the data from: `webbpsf-data-0.8.1.tar.gz <LINK_TO_DATA_HERE>`_.
+Note, when upgrading to this version you will need to update to the latest data files as well. This is handled automatically if you use `conda`, otherwise you will need to download and install the data from: `webbpsf-data-0.9.0.tar.gz <LINK_TO_DATA_HERE>`_.
 
 
 **JWST Improvements**
@@ -45,10 +45,11 @@ Note, when upgrading to this version you will need to update to the latest data 
 
 **WFIRST Improvements**
 
-- *The WFI optical model has been updated to use optical data from the Cycle 8 design revision.* These include updated Zernike coefficients, filter throughputs, masked and unmasked pupil images for each SCA, and detector aberrations. The filters have been renamed so they all begin with “F”, see the table `here <https://github.com/spacetelescope/webbpsf/pull/309>`_ . [#309 @robelgeda]
+- *The WFI optical model has been updated to use optical data from the Cycle 8 design revision.* These include updated Zernike coefficients, detailed filter throughputs from Pandeia 1.4.2, masked and unmasked pupil images for each SCA, and detector aberrations. The filters have been renamed so they all begin with “F”, see the table `here <https://github.com/spacetelescope/webbpsf/pull/309>`_ . [#309 @robelgeda]
 - *The WFI wavelength range has now been extended to cover the 0.48 - 2.0 µm range.* [#309 @robelgeda]
 - *Expanded ``psf_grid`` method’s functionality so it can also be used to make grids of WFIRST PSFs.* Note that applying detector distortion is not possible for WFIRST PSFs and so ``add_distortion`` keyword should not be used for this case. [#294, @shanosborne]
 - *The WFIRST F062 filter bandpass red edge was corrected* from 8000A to 7600A [@robelgeda]
+- *WFI pupil images were resized to have the same pixel scale*  [#309 @robelgeda]
 
 **General bug fixes and small changes:**
 
@@ -70,8 +71,9 @@ Note, when upgrading to this version you will need to update to the latest data 
 **Software and Package Infrastructure Updates:**
 
 - Added unit tests for WFIRST F062 filter [#288, @robelgeda]
+- Added ``environment.yml`` file [#319, @shanosborne]
 - Remove leftover deprecated syntax ``_getOpticalSystem`` for ``_get_optical_system`` and ``display_PSF`` for ``display_psf`` [#280, #294, @mperrin, @shanosborne]
-- Documentation added and/or updated for a variety of features [#277, #280,  @mperrin]
+- Documentation added and/or updated for a variety of features [#277, #280, #318 @mperrin, @shanosborne]
 
 
 --------
