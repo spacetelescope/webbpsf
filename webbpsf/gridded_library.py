@@ -343,9 +343,8 @@ class CreatePSFLibrary:
             meta["NORMALIZ"] = (psf[ext].header["NORMALIZ"], "PSF normalization method")
             meta["TEL_WFE"] = (psf[ext].header["TEL_WFE"], "[nm] Telescope pupil RMS wavefront error")
 
-            if self.webb.name != "WFI":
-                meta["JITRTYPE"] = (psf[ext].header["JITRTYPE"], "Type of jitter applied")
-                meta["JITRSIGM"] = (psf[ext].header["JITRSIGM"], "Gaussian sigma for jitter [arcsec]")
+            meta["JITRTYPE"] = (psf[ext].header["JITRTYPE"], "Type of jitter applied")
+            meta["JITRSIGM"] = (psf[ext].header["JITRSIGM"], "Gaussian sigma for jitter [arcsec]")
 
             meta["DATE"] = (psf[ext].header["DATE"], "Date of calculation")
             meta["AUTHOR"] = (psf[ext].header["AUTHOR"], "username@host for calculation")
