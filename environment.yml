@@ -1,0 +1,14 @@
+channels:
+  - http://ssb.stsci.edu/astroconda
+  - defaults
+dependencies:
+  - python>=3.5
+  - ipython>=6.0.0
+  - numpy>=1.13.0
+  - scipy>=1.0.0
+  - matplotlib>=2.0.0
+  - astropy>=2.0.0
+  - photutils>=0.6
+  - poppy>=0.8.0
+  - jwxml>=0.3.0
+  - pysiaf>=0.6.0
