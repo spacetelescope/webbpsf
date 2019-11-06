@@ -209,7 +209,7 @@ def test_saving(tmpdir):
 
 
 def test_2d_to_griddedpsfmodel():
-    """Test that utils.to_griddedpsfmodel function works fof a 2D HDUList input"""
+    """Test that utils.to_griddedpsfmodel function works for a 2D HDUList input"""
 
     # Set up example 2D fits image
     data = np.ones((10, 10))
