@@ -237,6 +237,8 @@ class WFIRSTInstrument(webbpsf_core.SpaceTelescopeInstrument):
 
     def __init__(self, *args, **kwargs):
         super(WFIRSTInstrument, self).__init__(*args, **kwargs)
+        self.options['jitter'] = 'gaussian'
+        self.options['jitter_sigma'] = 0.014   # See https://wfirst.ipac.caltech.edu/sims/Param_db.html#telescope
 
     # slightly different versions of the following two functions
     # from the parent superclass
