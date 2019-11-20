@@ -43,7 +43,7 @@ Contents
    intro.rst
    installation.rst
    relnotes.rst
-   webbpsf.rst
+   usage.rst
    jwst.rst
    wfirst.rst
    psf_grids.rst
