@@ -3,10 +3,14 @@
 Requirements & Installation
 ===========================
 
-The latest released version of WebbPSF can be installed with the conda package management system or `using pip <install_pip>`_.
+.. note:: 
+
+   This is entirely optional, but you may wish to sign up to the mailing list ``webbpsf-users@maillist.stsci.edu``. This is a very low-traffic moderated announce-only list, to which we will periodically post announcements of updates to this software.
+
+   To subscribe, visit  the `maillist.stsci.edu server <https://maillist.stsci.edu/scripts/wa.exe?SUBED1=Webbpsf-users&A=1>`_
 
 
-Recommended best method: Installing via AstroConda
+Recommended: Installing via AstroConda
 --------------------------------------------------
 
 For ease of installation, we recommend using `AstroConda <http://astroconda.readthedocs.io/en/latest/>`_, an astronomy-optimized software distribution for scientific Python built on Anaconda. Install AstroConda according to `their instructions <http://astroconda.readthedocs.io/en/latest/installation.html>`_, then activate the environment with::
@@ -19,17 +23,15 @@ Next, install WebbPSF (along with all its dependencies and required reference da
 
    (astroconda)$ conda install webbpsf
 
+Updates to the latest version can be done as for any conda package::
 
-.. admonition:: Optional: sign up to receive announcement of updates
+   (astroconda)$ conda update webbpsf
 
-   This is entirely optional, but you may wish to sign up to the mailing list ``webbpsf-users@stsci.edu``. This is a low-traffic moderated announce-only list, to which we will periodically post announcements of updates to this software.
-
-   To subscribe, visit  the `maillist.stsci.edu server <https://maillist.stsci.edu/scripts/wa.exe?SUBED1=Webbpsf-users&A=1>`_
 
 .. _install-with-conda:
 
-Installing with conda (but no AstroConda)
------------------------------------------
+Installing with conda (but not AstroConda)
+-------------------------------------------
 
 If you already use ``conda``, but do not want to install the full suite of STScI software, you can simply add the AstroConda *channel* and install WebbPSF as follows (creating a new environment named ``webbpsf-env``)::
 
@@ -55,7 +57,7 @@ WebbPSF and its underlying optical library POPPY may be installed from the `Pyth
 
     Successfully installed webbpsf
 
-Note that ``pip install webbpsf`` only installs the program code. **If you install via pip, you must manually download and install the data files, as :ref:`described below <data_install>`.**
+Note that ``pip install webbpsf`` only installs the program code. **If you install via pip, you must manually download and install the data files, as :ref:`described <data_install>` below.**
 To obtain source spectra for calculations, you should also follow :ref:`installation instructions for pysynphot <pysynphot_install>`.
 
 
@@ -64,7 +66,7 @@ To obtain source spectra for calculations, you should also follow :ref:`installa
 Installing or updating pysynphot
 --------------------------------
 
-Pysynphot is an optional dependency, but is highly recommended.  Pysynphot is best installed via AstroConda. Further installation instructions can be found `here in the POPPY docs <http://poppy-optics.readthedocs.io/en/stable/installation.html#installing-or-updating-pysynphot>`_.
+Pysynphot is an optional dependency, but is highly recommended.  Pysynphot is best installed via AstroConda. Further installation instructions can be found in `the pysynphot docs <https://pysynphot.readthedocs.io/en/latest/#installation-and-setup>` or `a discussion in the POPPY docs <http://poppy-optics.readthedocs.io/en/stable/installation.html#installing-or-updating-pysynphot>`_.
 
 .. _data_install:
 
@@ -90,9 +92,9 @@ You should now be able to successfully ``import webbpsf`` in a Python session, o
    If you have previously installed the data files for an earlier version of WebbPSF, and then update to a newer version, the
    software may prompt you that you must download and install a new updated version of the data files.
 
-.. admonition:: For STScI Users Only
+.. Note:: 
 
-   Users at STScI may access the required data files from the Central Storage network. Set the following environment variables in your ``bash`` shell. (You will probably want to add this to your ``.bashrc``.) ::
+   **For STScI Users Only:** Users at STScI may access the required data files from the Central Storage network. Set the following environment variables in your ``bash`` shell. (You will probably want to add this to your ``.bashrc``.) ::
 
       export WEBBPSF_PATH="/grp/jwst/ote/webbpsf-data"
       export PYSYN_CDBS="/grp/hst/cdbs"
@@ -100,19 +102,18 @@ You should now be able to successfully ``import webbpsf`` in a Python session, o
 Software Requirements
 ---------------------
 
+
+See `the environment.yml specification file <https://github.com/spacetelescope/webbpsf/blob/master/environment.yml>`_ for the required package dependencies. 
+
 **Required Python version**: WebbPSF 0.8 and above require Python 3.5 or higher.
 
-**Required Python packages**:
-
-* Recent versions of `NumPy, SciPy <http://www.scipy.org/scipylib/download.html>`_ and `matplotlib <http://matplotlib.org>`_, if not installed already.
-* `Astropy <http://astropy.org>`_
-* `POPPY <https://pypi.python.org/pypi/poppy>`_
+The major dependencies are the standard `NumPy, SciPy <http://www.scipy.org/scipylib/download.html>`_, `matplotlib <http://matplotlib.org>`_ stack, and `Astropy <http://astropy.org>`_
 
 **Recommended Python packages**:
 
 * `pysynphot <https://pypi.python.org/pypi/pysynphot>`_ enables the simulation
   of PSFs with proper spectral response to realistic source spectra.  Without
-  this, PSF fidelity is reduced. See below for :ref:`installation instructions
+  this, PSF fidelity is reduced. See above for :ref:`installation instructions
   for pysynphot <pysynphot_install>`.  Pysynphot is recommended for most users.
 
 **Optional Python packages**:
