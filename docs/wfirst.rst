@@ -62,6 +62,8 @@ Field points are specified in a WebbPSF calculation by selecting a detector and 
 .. figure:: ./wfirst_figures/field_layout.png
    :alt: The Wide Field Instrument's field of view, as projected on the sky.
 
+   The Wide Field Instrument's field of view, as projected on the sky.
+
 
 The WFI field of view is laid out as shown in the figure. To select a different detector, assign its name to the ``detector`` attribute::
 
@@ -75,12 +77,7 @@ The usable region of the 4096 by 4096 pixel detectors specified for the Wide Fie
 
 .. warning::
 
-   WebbPSF will not prevent you from setting an out of range detector position, but an error will be raised if you try to calculate a PSF with one. ::
-
-      >>> wfi.detector_position = (1, 1)
-      >>> wfi.calc_psf()
-      [ ... traceback omitted ... ]
-      RuntimeError: Attempted to get aberrations for an out-of-bounds field point
+   WebbPSF will approximate the aberrations for an out of range detector position by using the nearest field point.
 
 The reference information available gives the field dependent aberrations in terms of Zernike polynomial coefficients from :math:`Z_1` to :math:`Z_{22}`. These coefficients were calculated for five field points on each of 18 detectors, each at 16 unique wavelengths providing coverage from 0.76 :math:`\mu m` to 2.0 :math:`\mu m` (that is, the entire wavelength range of the WFI). WebbPSF interpolates the coefficients in position and wavelength space to allow the user to simulate PSFs at any valid pixel position and wavelength.
 
@@ -98,7 +95,7 @@ This example shows the power of WebbPSF to simulate and analyze field dependent 
 ::
 
    >>> wfi = wfirst.WFI()
-   >>> wfi.filter = 'J129'
+   >>> wfi.filter = 'F129'
    >>> wfi.detector = 'SCA09'
    >>> wfi.detector_position = (4, 4)
    >>> psf_sca09 = wfi.calc_psf()
@@ -106,14 +103,40 @@ This example shows the power of WebbPSF to simulate and analyze field dependent 
    >>> wfi.detector_position = (4092, 4092)
    >>> psf_sca17 = wfi.calc_psf()
    >>> fig, (ax_sca09, ax_sca17, ax_diff) = plt.subplots(1, 3, figsize=(16, 4))
-   >>> webbpsf.display_psf(psf_sca09, ax=ax_sca09, imagecrop=2.0, title='WFI SCA09, bottom left - J129')
-   >>> webbpsf.display_psf(psf_sca17, ax=ax_sca17, imagecrop=2.0, title='WFI SCA17, top right - J129')
+   >>> webbpsf.display_psf(psf_sca09, ax=ax_sca09, imagecrop=2.0, title='WFI SCA09, bottom left - F129')
+   >>> webbpsf.display_psf(psf_sca17, ax=ax_sca17, imagecrop=2.0, title='WFI SCA17, top right - F129')
    >>> webbpsf.display_psf_difference(psf_sca09, psf_sca17, vmax=5e-3, title='(SCA09) - (SCA17)', imagecrop=2.0, ax=ax_diff)
 
 .. figure:: ./wfirst_figures/compare_wfi_sca09_sca17.png
    :alt: This figure shows oversampled PSFs in the J129 filter at two different field points, and the intensity difference image between the two.
 
    This figure shows oversampled PSFs in the J129 filter at two different field points, and the intensity difference image between the two.
+
+The cycle 8 reference data from the GSFC introduced field dependent pupil images for the WFI.
+The first set of pupil images ("Rim Mask") is for filters F062, F087, F129, F158, F146, and the prism. For these filters,
+the cold pupil mask consists only of an outer rim that blocks most rays from outside the primary mirror aperture stop.
+The second set of pupil images ("Full Mask") is for filters F184. For these filters, the cold pupil mask blocks most rays
+from the central baffles and the secondary mirror support tubes as well as material outside the primary mirror aperture stop.
+We have updated the pupil_mask attribute names to match the project’s current nomenclature for “rim mask” and “full mask”.
+For back compatibility, the setting names used in prior versions of webbpsf will continue to work.
+The old “COLD_PUPIL” is synonymous with the new “RIM_MASK”, and so on.
+
+.. figure:: ./wfirst_figures/pupil_mask_by_sca.gif
+   :alt: Pupil masks at different field points.
+
+   Pupil masks at different field points.
+
+The pupil is automatically selected when a detector or filter is changed.
+You can override the type of pupil by setting
+the `WFI.pupil_mask` attribute. The following pupils are available:
+
+============   ====================================
+Pupil Mask     pupil_mask setting
+============   ====================================
+Auto Select    'AUTO'
+Rim Mask       'RIM_MASK'  (outdated 'UNMASKED')
+Full Mask      'FULL_MASK' (outdated 'COLD_PUPIL')
+============   ====================================
 
 .. _wfirst_cgi:
 
@@ -146,19 +169,17 @@ Here we briefly summarize the key points, but see that for more detail.
 
 
 The CGI class has attributes for  ``filter``, etc., like other instrument classes, but since these masks are designed to be
-used in specific combinations, a ``mode`` attribute exists that allows easy specification of all those attributes at once. For example, setting
-
-::
-    >> cgi = wfirst.CGI()
-    >> cgi.mode='CHARSPC_F770'
+used in specific combinations, a ``mode`` attribute exists that allows easy specification of all those attributes at once. For example, setting ::
+    >>> cgi = wfirst.CGI()
+    >>> cgi.mode = "CHARSPC_F770"
 
 is equivalent to::
 
-    >> cgi.camera = 'IFS'
-    >> cgi.filter = 'F770'
-    >> cgi.apodizer = 'CHARSPC'
-    >> cgi.fpm = 'CHARSPC_F770_BOWTIE'
-    >> cgi.lyotstop = 'LS30D88'
+    >>> cgi.camera = 'IFS'
+    >>> cgi.filter = 'F770'
+    >>> cgi.apodizer = 'CHARSPC'
+    >>> cgi.fpm = 'CHARSPC_F770_BOWTIE'
+    >>> cgi.lyotstop = 'LS30D88'
 
 There are ``_list`` attributes that tell you the allowed values for each attribute, including a ``mode_list`` for all the available meta-modes.
 
