@@ -3,8 +3,8 @@ import pytest
 from webbpsf import wfirst, measure_fwhm
 from numpy import allclose
 
-MASKED_FLAG = "COLD_PUPIL"
-UNMASKED_FLAG = "UNMASKED"
+MASKED_FLAG = "FULL_MASK"
+UNMASKED_FLAG = "RIM_MASK"
 AUTO_FLAG = "AUTO"
 
 def test_WFI_psf():
@@ -99,6 +99,17 @@ def test_WFI_pupil_controller():
         assert wfi._pupil_controller._pupil_mask == wfi.pupil_mask, "pupil mask was not set correctly"
 
         wfi.pupil_mask = UNMASKED_FLAG
+        assert wfi.pupil == unmasked_pupil_path, "pupil was not set correctly"
+        assert wfi._pupil_controller.auto_pupil is False, "auto_pupil is active after user override"
+        assert wfi._pupil_controller._pupil_mask == wfi.pupil_mask, "pupil mask was not set correctly"
+
+        # Outdated mask overriding backward comparability test:
+        wfi.pupil_mask = "COLD_PUPIL"
+        assert wfi.pupil == masked_pupil_path, "pupil was not set correctly"
+        assert wfi._pupil_controller.auto_pupil is False, "auto_pupil is active after user override"
+        assert wfi._pupil_controller._pupil_mask == wfi.pupil_mask, "pupil mask was not set correctly"
+
+        wfi.pupil_mask = "UNMASKED"
         assert wfi.pupil == unmasked_pupil_path, "pupil was not set correctly"
         assert wfi._pupil_controller.auto_pupil is False, "auto_pupil is active after user override"
         assert wfi._pupil_controller._pupil_mask == wfi.pupil_mask, "pupil mask was not set correctly"

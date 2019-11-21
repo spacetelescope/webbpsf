@@ -306,7 +306,8 @@ class WFIPupilController:
         self.auto_pupil = True
 
         self._pupil_mask = "AUTO"
-        self.pupil_mask_list = ['AUTO', 'COLD_PUPIL', 'UNMASKED']
+        # 'COLD_PUPIL' and 'UNMASKED' are outdated but available for backward comparability
+        self.pupil_mask_list = ['AUTO', 'FULL_MASK', 'RIM_MASK', 'COLD_PUPIL', 'UNMASKED']
         self._currently_masked = False
 
     def set_base_path(self, datapath):
@@ -354,20 +355,20 @@ class WFIPupilController:
             Settings:
                 - "AUTO":
                     Automatically select pupil
-                - "COLD_PUPIL":
-                    Masked pupil override
-                - "UNMASKED":
-                    Unmasked pupil override
+                - "FULL_MASK":
+                    Full mask pupil override (outdated version: "COLD_PUPIL")
+                - "RIM_MASK":
+                    Rim mask pupil override (outdated version: "UNMASKED")
         """
         if name and isinstance(name, str):
             name = name.upper()
             if "AUTO" == name:
                 self.auto_pupil = True
                 _log.info("Using default pupil mask.")
-            elif "COLD_PUPIL" == name:
+            elif name in ["FULL_MASK", "COLD_PUPIL"]:
                 self.auto_pupil = False
                 _log.info("Using custom pupil mask: Masked Pupil.")
-            elif "UNMASKED" == name:
+            elif name in ["RIM_MASK", "UNMASKED"]:
                 self.auto_pupil = False
                 _log.info("Using custom pupil mask: Unmasked Pupil.")
             else:
@@ -411,9 +412,9 @@ class WFIPupilController:
                 self.pupil = self._masked_pupil_path
             else:
                 self.pupil = self._unmasked_pupil_path
-        elif "COLD_PUPIL" == self.pupil_mask:
+        elif self.pupil_mask in ["FULL_MASK", "COLD_PUPIL"]:
             self.pupil = self._masked_pupil_path
-        elif "UNMASKED" == self.pupil_mask:
+        elif self.pupil_mask in ["RIM_MASK", "UNMASKED"]:
             self.pupil = self._unmasked_pupil_path
         else:
             raise ValueError("Pupil mask setting is not valid or empty.")
@@ -535,10 +536,10 @@ class WFI(WFIRSTInstrument):
             Settings:
                 - "AUTO":
                     Automatically select pupil
-                - "COLD_PUPIL":
-                    Masked pupil override
-                - "UNMASKED":
-                    Unmasked pupil override
+                - "FULL_MASK":
+                    Full mask pupil override (outdated version: "COLD_PUPIL")
+                - "RIM_MASK"
+                    Rim mask pupil override (outdated version: "UNMASKED")
         """
         self._pupil_controller.pupil_mask = name
 
