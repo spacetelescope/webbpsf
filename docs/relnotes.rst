@@ -44,6 +44,7 @@ Note, when upgrading to this version you will need to update to the latest data 
 - *Improved wavefront error extrapolation method for field points near FOV corners* that are outside the bounds of Zernike reference table data, in order to provide more seamless extrapolation.  [:pr:`283`, :user:`JarronL`]
 - *Improvements in NIRCam optical model*: Updated polynomial model for NIRCam defocus versus wavelength. Adds Zernike coefficients for the wavefront error at NIRCam coronagraphy field points. [:pr:`283`, :user:`JarronL`]
 - NIRISS NRM mask was flipped along the X axis to match the as-built instrument and measured PSFs [:pr:`275`, :user:`KevinVolkSTScI`, :user:`anand0xff`, :user:`mperrin`]
+- Updated FGS throughput values to use data from the instrument sub-level testing that was done by Comdev/Honeywell, detector quantum efficiency as measured by Teledyne, and the OTE throughput from Lightsey 2012. The throughput file was also updated to include the WAVEUNIT keyword, which removes a warning. [:user:`shanosborne`]]
 
 **WFIRST Improvements**
 
@@ -51,6 +52,7 @@ Note, when upgrading to this version you will need to update to the latest data 
 - *The WFI wavelength range has now been extended to cover the 0.48 - 2.0 µm range.* [:pr:`309` :user:`robelgeda`]
 - *Expanded ``psf_grid`` method’s functionality so it can also be used to make grids of WFIRST PSFs.* Note that focal plane distortion is not yet implemented for WFIRST PSFs and so ``add_distortion`` keyword should not be used for this case. [:pr:`294`, :user:`shanosborne`]
 - *The WFIRST F062 filter bandpass red edge was corrected* from 8000A to 7600A, and associated unit tests were updated to include F062  [:pr:`288`, :user:`robelgeda`]
+- The WFI simulations now include the pointing jitter model, using the predicted WFI pointing stability of 14 milliarcseconds per axis. [:pr:`322`, :user:`mperrin`]
 
 **General bug fixes and small changes:**
 
@@ -70,7 +72,7 @@ Note, when upgrading to this version you will need to update to the latest data 
 
 **Software and Package Infrastructure Updates:**
 
-- Added ``environment.yml`` file [:pr:`319`, :user:`shanosborne`]
+- Added ``environment.yml`` file [:pr:`321`, :user:`shanosborne`, :user:`mperrin`]
 - Remove leftover deprecated syntax ``_getOpticalSystem`` for ``_get_optical_system`` and ``display_PSF`` for ``display_psf`` [:pr:`280`, :pr:`294`, :user:`mperrin`, :user:`shanosborne`]
 - Various smaller code cleanup and doc improvements, including code cleanup for better Python PEP8 style guide compliance [:user:`mperrin`, :user:`shanosborne`, :user:`robelgeda`]
 - Documentation added and/or updated for a variety of features [:pr:`277`, :pr:`280`, :pr:`318`, :user:`mperrin, @shanosborne`]
