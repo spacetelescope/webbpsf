@@ -7,8 +7,9 @@ Using WebbPSF via the Python API
 ********************************
 
 
-This module provides the primary interface for programmers and for interactive non-GUI use. It provides
-five classes corresponding to the JWST instruments, with consistent interfaces.
+WebbPSF provides
+five classes corresponding to the JWST instruments and two for the WFIRST instruments, with consistent interfaces. It also provides a variety of
+supporting tools for measuring PSF properties and manipulating telescope state models.
 See :ref:`this page <detailed_api>` for the detailed API; for now let's dive into some example code.
 
 :ref:`Additional code examples <more_examples>` are available later in this documentation.
