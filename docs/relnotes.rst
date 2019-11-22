@@ -33,9 +33,9 @@ Version History and Change Log
 
 Version 0.9.0
 =============
-*2019 November X*
+*2019 November 25*
 
-Note, when upgrading to this version you will need to update to the latest data files as well. This is handled automatically if you use `conda`, otherwise you will need to download and install the data from: `webbpsf-data-0.9.0.tar.gz <LINK_TO_DATA_HERE>`_.
+Note, when upgrading to this version you will need to update to the latest data files as well. This is handled automatically if you use `conda`, otherwise you will need to download and install the data from: `webbpsf-data-0.9.0.tar.gz <https://stsci.box.com/shared/static/qcptcokkbx7fgi3c00w2732yezkxzb99.gz>`_.
 
 
 **JWST Improvements**
@@ -48,7 +48,8 @@ Note, when upgrading to this version you will need to update to the latest data 
 
 **WFIRST Improvements**
 
-- *The WFI optical model has been updated to use optical data from the Cycle 8 design revision.* These include updated Zernike coefficients for field-dependent wavefront error, and masked and unmasked pupil images for each SCA, and updated filter throughputs (consistent with values used in Pandeia 1.4.2). The correct pupil file will automatically be selected for each calculation based on the chosen detector position and filter.   Note, filters have been renamed so they all begin with “F”; see the table `here <https://github.com/spacetelescope/webbpsf/pull/309>`_ . The pupil files are consistent with those provided in the WFI cycle 8 reference information, but have been resampled onto a common pixel scale. [:pr:`309` :user:`robelgeda`]
+- *The WFI optical model has been updated to use optical data from the Cycle 8 design revision.* These include updated Zernike coefficients for field-dependent wavefront error, and masked and unmasked pupil images for each SCA, and updated filter throughputs (consistent with values used in Pandeia 1.4.2). The correct pupil file will automatically be selected for each calculation based on the chosen detector position and filter.   The pupil files are consistent with those provided in the WFI cycle 8 reference information, but have been resampled onto a common pixel scale.  See :ref:`WFIRST instrument model details <wfirst_wfi>` for more.  [:pr:`309` :user:`robelgeda`] 
+- Note, WFI's filters have been renamed so they all begin with “F”; see the table `here <https://github.com/spacetelescope/webbpsf/pull/309>`_ .
 - *The WFI wavelength range has now been extended to cover the 0.48 - 2.0 µm range.* [:pr:`309` :user:`robelgeda`]
 - *Expanded ``psf_grid`` method’s functionality so it can also be used to make grids of WFIRST PSFs.* Note that focal plane distortion is not yet implemented for WFIRST PSFs and so ``add_distortion`` keyword should not be used for this case. [:pr:`294`, :user:`shanosborne`]
 - *The WFIRST F062 filter bandpass red edge was corrected* from 8000A to 7600A, and associated unit tests were updated to include F062  [:pr:`288`, :user:`robelgeda`]

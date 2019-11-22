@@ -29,7 +29,9 @@ Usage of the WFI model class is, for the most part, just like any other WebbPSF 
 
 The WFI model includes a model for field dependent PSF aberrations. With as large a field of view as the WFI is designed to cover, there will be variation in the PSF from one end of the field of view to the other. WebbPSF's WFI model faithfully reproduces the field dependent aberrations calculated from the Goddard WFIRST team's Cycle 8 WFI design. This provides a toolkit for users to assess the impact of inter-SCA and intra-SCA PSF variations on science cases of interest.
 
-.. admonition:: Tutorial notebook for WFIRST
+.. note:: 
+
+   *Tutorial notebook for WFIRST*
 
    This documentation is complemented by an `IPython Notebook tutorial for WFIRST PSFs <http://nbviewer.ipython.org/github/spacetelescope/webbpsf/blob/master/notebooks/WebbPSF-WFIRST_Tutorial.ipynb>`_. Downloading and run that notebook to use a beta notebook GUI for the WFI model, and to explore code samples for common tasks interactively.
 
@@ -75,11 +77,9 @@ The usable region of the 4096 by 4096 pixel detectors specified for the Wide Fie
 
    >>> wfi.detector_position = (4, 400)
 
-.. warning::
-
-   WebbPSF will approximate the aberrations for an out of range detector position by using the nearest field point.
 
 The reference information available gives the field dependent aberrations in terms of Zernike polynomial coefficients from :math:`Z_1` to :math:`Z_{22}`. These coefficients were calculated for five field points on each of 18 detectors, each at 16 unique wavelengths providing coverage from 0.76 :math:`\mu m` to 2.0 :math:`\mu m` (that is, the entire wavelength range of the WFI). WebbPSF interpolates the coefficients in position and wavelength space to allow the user to simulate PSFs at any valid pixel position and wavelength.
+WebbPSF will approximate the aberrations for an out of range detector position by using the nearest field point.
 
 Bear in mind that the pixel position you set does not automatically set the **centering** of your calculated PSF. As with other models in WebbPSF, an ``options`` dictionary key can be set to specify 'even' (center on crosshairs between four pixels) or 'odd' (center on pixel center) parity. ::
 
@@ -112,7 +112,12 @@ This example shows the power of WebbPSF to simulate and analyze field dependent 
 
    This figure shows oversampled PSFs in the J129 filter at two different field points, and the intensity difference image between the two.
 
-The cycle 8 reference data from the GSFC introduced field dependent pupil images for the WFI.
+
+Pupil variation and pupil masks in the WFI model
+------------------------------------------------
+
+
+The cycle 8 reference data from the GSFC introduced field-dependent pupil images for the WFI.
 The first set of pupil images ("Rim Mask") is for filters F062, F087, F129, F158, F146, and the prism. For these filters,
 the cold pupil mask consists only of an outer rim that blocks most rays from outside the primary mirror aperture stop.
 The second set of pupil images ("Full Mask") is for filters F184. For these filters, the cold pupil mask blocks most rays
@@ -154,6 +159,10 @@ coronagraph modes only, for both the CGI imager and IFS. Future releases will in
 static and dynamic, to produce realistic speckle fields.  We also plan to 
 add the hybrid Lyot modes.
 
+.. warning::
+    The CGI model has not been actively updated or developed since circa 2017.
+    It does not well represent the current PDR-level state of CGI. There are plans
+    to refresh this model in 2020. Interested users should contact Ewan Douglas.
 
 .. warning::
     Current functionality is limited to the Shaped Pupil Coronagraph (SPC)
