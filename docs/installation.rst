@@ -66,7 +66,7 @@ To obtain source spectra for calculations, you should also follow :ref:`installa
 Installing or updating pysynphot
 --------------------------------
 
-Pysynphot is an optional dependency, but is highly recommended.  Pysynphot is best installed via AstroConda. Further installation instructions can be found in `the pysynphot docs <https://pysynphot.readthedocs.io/en/latest/#installation-and-setup>` or `a discussion in the POPPY docs <http://poppy-optics.readthedocs.io/en/stable/installation.html#installing-or-updating-pysynphot>`_.
+Pysynphot is an optional dependency, but is highly recommended.  Pysynphot is best installed via AstroConda. Further installation instructions can be found in `the pysynphot docs <https://pysynphot.readthedocs.io/en/latest/#installation-and-setup>`_ or `a discussion in the POPPY docs <http://poppy-optics.readthedocs.io/en/stable/installation.html#installing-or-updating-pysynphot>`_.
 
 .. _data_install:
 
