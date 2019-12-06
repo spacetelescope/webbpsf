@@ -57,7 +57,7 @@ WebbPSF and its underlying optical library POPPY may be installed from the `Pyth
 
     Successfully installed webbpsf
 
-Note that ``pip install webbpsf`` only installs the program code. **If you install via pip, you must manually download and install the data files, as :ref:`described <data_install>` below.**
+Note that ``pip install webbpsf`` only installs the program code. **If you install via pip, you must manually download and install the data files, as** :ref:`described <data_install>` **below.**
 To obtain source spectra for calculations, you should also follow :ref:`installation instructions for pysynphot <pysynphot_install>`.
 
 
