@@ -1476,12 +1476,12 @@ class NIRCamFieldAndWavelengthDependentAberration(WebbFieldDependentAberration):
         # The relative wavelength dependence of these focus models are very
         # similar for coronagraphic mode in the Zemax optical prescription,
         # so we opt to use the same focus model in both imaging and coronagraphy.
-        cf_scale = -1.09746e7 # convert from mm defocus to meters RMS wfe
-        sw_cf = np.array([-5.169185169, 50.62919436, -201.5444129, 415.9031962,  
-                          -465.9818413, 265.843112, -59.64330811]) / cf_scale
-        lw_cf = np.array([0.175718713, -1.100964635, 0.986462016, 1.641692934]) / cf_scale
-        self.fm_short = np.poly1d(sw_cf)
-        self.fm_long  = np.poly1d(lw_cf)
+        defocus_to_rmswfe = -1.09746e7 # convert from mm defocus to meters RMS wfe
+        sw_focus_cf = np.array([-5.169185169, 50.62919436, -201.5444129, 415.9031962,  
+                                -465.9818413, 265.843112, -59.64330811]) / defocus_to_rmswfe
+        lw_focus_cf = np.array([0.175718713, -1.100964635, 0.986462016, 1.641692934]) / defocus_to_rmswfe
+        self.fm_short = np.poly1d(sw_focus_cf)
+        self.fm_long  = np.poly1d(lw_focus_cf)
         
         # Get the representation of focus in the same Zernike basis as used for
         # making the OPD. While it looks like this does more work here than needed
@@ -1493,9 +1493,16 @@ class NIRCamFieldAndWavelengthDependentAberration(WebbFieldDependentAberration):
             outside=0
         )
         self.defocus_zern = basis[3]
+        self.tilt_zern = basis[2]
+        self.tip_zern = basis[1]
+        self.pist_zern = basis[0]
 
         
     def get_opd(self, wave):
+
+        # Check for coronagraphy
+        pupil_mask = self.instrument._pupil_mask
+
         # Which wavelength was used to generate the OPD map we have already
         # created from zernikes?
         if self.instrument.channel.upper() == 'SHORT':
@@ -1509,7 +1516,6 @@ class NIRCamFieldAndWavelengthDependentAberration(WebbFieldDependentAberration):
             # which has it's own focus that deviates from focusmodel().
             # But only do this for direct imaging SI WFE values,
             # because coronagraph WFE was measured in Zemax (no additional focus power).
-            pupil_mask = self.instrument._pupil_mask
             if (pupil_mask is not None) and ('LYOT' in pupil_mask.upper()):
                 opd_ref_focus = focusmodel(opd_ref_wave)
             else:
