@@ -1,8 +1,16 @@
 .. _gui:
 
 **********************************************
-Using WebbPSF via the Graphical User Interface
+(Deprecated)  Graphical User Interface
 **********************************************
+
+.. warning::
+
+   The GUI is deprecated, no longer actively developed, and not a priority for support. It is
+   not recommended for more than the most basic use cases. The functionality and the following 
+   documentation is maintained for the time being, but this will likely go away in the next 
+   major release.
+
 
 The WebbPSF GUI provides an easy interface to much, but not all, of the functionality of WebbPSF. (Many advanced settings in the class attributes and :py:attr:`~webbpsf.JWInstrument.options` structure for :py:class:`webbpsf.JWInstrument` are not exposed in the GUI. The programming API is also much better suited for scripting calculations.)
 

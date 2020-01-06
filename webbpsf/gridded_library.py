@@ -19,8 +19,8 @@ class CreatePSFLibrary:
     nrca_short_detectors = ['NRCA1', 'NRCA2', 'NRCA3', 'NRCA4', 'NRCB1', 'NRCB2', 'NRCB3', 'NRCB4']
     nrca_long_detectors = ['NRCA5', 'NRCB5']
 
-    def __init__(self, instrument, filters="all", detectors="all", num_psfs=16, psf_location=None,
-                 use_detsampled_psf=False, save=True, filename=None, overwrite=True, verbose=True,
+    def __init__(self, instrument, filter_name, detectors="all", num_psfs=16, psf_location=None,
+                 use_detsampled_psf=False, save=True, outdir=None, filename=None, overwrite=True, verbose=True,
                  **kwargs):
         """
         Description
@@ -36,7 +36,7 @@ class CreatePSFLibrary:
             The instance of WebbPSF that is calling this class inside the psf_grid
             method.
 
-        filters : str
+        filter_name : str
             The name of the filter you want to create a library for. Spelling/
             capitalization must match what WebbPSF expects.
 
@@ -67,10 +67,15 @@ class CreatePSFLibrary:
         save : bool
             True/False boolean if you want to save your file
 
+        outdir : str
+            If "save" keyword is set to True, your file will be saved in the
+            specified directory. Default of None will save it in the current
+            directory
+
         filename : str
-            If "save" keyword is set to True, your current file will be saved under
-            "{filename}_det_filt.fits". Default of None will save it in the current
-            directory as: instr_det_filt_fovp#_samp#_npsf#.fits
+            If "save" keyword is set to True, your file will be saved as
+            {filename}_det.fits. Default of None will save it as
+            instr_det_filt_fovp#_samp#_npsf#.fits
 
         overwrite : bool
             True/False boolean to overwrite the output file if it already exists. Default
@@ -90,8 +95,8 @@ class CreatePSFLibrary:
 
         Use
         ---
-        c = CreatePSFLibrary(instrument, filters, detectors, num_psfs, add_distortion,
-                             fov_pixels, oversample, save, fileloc, filename, overwrite,
+        c = CreatePSFLibrary(instrument, filter_name, detectors, num_psfs, add_distortion,
+                             fov_pixels, oversample, save, outdir, filename, overwrite,
                              verbose)
         grid = c.create_files()
 
@@ -103,7 +108,6 @@ class CreatePSFLibrary:
         except ImportError:
             raise ImportError("This method requires photutils >= 0.6")
 
-
         # Pull WebbPSF instance
         self.webb = instrument
         self.instr = instrument.name
@@ -113,7 +117,11 @@ class CreatePSFLibrary:
             psf_location = (int(self.webb._detector_npixels / 2), int(self.webb._detector_npixels / 2))
 
         # Setting the filter and detector(s)
-        self.filter = filters
+        if isinstance(filter_name, str):
+            self.filter = filter_name
+        else:
+            raise TypeError("Filter input must be a string with spelling/capitalization matching what WebbPSF expects")
+
         self.detector_list = self._set_detectors(self.filter, detectors)
 
         # Set the locations on the detector of the fiducial PSFs
@@ -122,6 +130,8 @@ class CreatePSFLibrary:
         # Set PSF attributes for the 3 kwargs that will be used before the calc_psf() call
         if "add_distortion" in kwargs:
             self.add_distortion = kwargs["add_distortion"]
+            if self.webb.name == "WFI":
+                del kwargs["add_distortion"]
         else:
             self.add_distortion = True
             kwargs["add_distortion"] = self.add_distortion
@@ -156,6 +166,7 @@ class CreatePSFLibrary:
         # Set saving attributes
         self.save = save
         self.overwrite = overwrite
+        self.outdir = outdir
         self.filename = filename
 
         self.verbose = verbose
@@ -166,7 +177,7 @@ class CreatePSFLibrary:
         # Set detector list to loop over
         if detectors == "all":
             if self.instr != "NIRCam":
-                det= self.webb.detector_list
+                det = self.webb.detector_list
             elif self.instr == "NIRCam" and filt in CreatePSFLibrary.nrca_short_filters:
                 det = CreatePSFLibrary.nrca_short_detectors
             elif self.instr == "NIRCam" and filt in CreatePSFLibrary.nrca_long_filters:
@@ -255,6 +266,7 @@ class CreatePSFLibrary:
 
                 if self.verbose is True:
                     print("    Position {}/{}: {} pixels".format(i+1, len(self.location_list), loc))
+
                 # Create PSF
                 psf = self.webb.calc_psf(**self._kwargs)
 
@@ -264,19 +276,33 @@ class CreatePSFLibrary:
                 # Add PSF to 5D array
                 psf_arr[i, :, :] = psf_conv
 
+            # Normalize the output PSFs as expected by photutils.GriddedPSFModel:
+            #  PSFs should be in surface brightness units, independent of oversampling.
+            #  This is diferent than webbpsf/poppy's default in which PSFs usually sum to 1
+            #  so the counts/pixel varies based on sampling. Apply the necessary conversion
+            #  factor here. See issue #302.
+            psf_arr *= self.oversample**2
+
             # Define meta data
             meta = OrderedDict()
 
             meta["INSTRUME"] = (self.instr, "Instrument name")
             meta["DETECTOR"] = (det, "Detector name")
             meta["FILTER"] = (self.filter, "Filter name")
-            meta["PUPILOPD"] = (self.webb.pupilopd, "Pupil OPD source name")
+            meta["PUPILOPD"] = (psf[ext].header["PUPILOPD"], "Pupil OPD source name")
+            meta['OPD_FILE'] = (psf[ext].header["OPD_FILE"], 'Pupil OPD file name')
+            meta['OPDSLICE'] = (psf[ext].header["OPDSLICE"], 'Pupil OPD slice number')
 
             meta["FOVPIXEL"] = (self.fov_pixels, "Field of view in pixels (full array)")
             meta["FOV"] = (psf[ext].header["FOV"], "Field of view in arcsec (full array)")
             meta["OVERSAMP"] = (psf[ext].header["OVERSAMP"], "Oversampling factor for FFTs in computation")
             meta["DET_SAMP"] = (psf[ext].header["DET_SAMP"], "Oversampling factor for MFT to detector plane")
             meta["NWAVES"] = (psf[ext].header["NWAVES"], "Number of wavelengths used in calculation")
+
+            if self.webb.image_mask is not None:
+                meta["CORONMSK"] = (self.webb.image_mask, "Image plane mask")
+            if self.webb.pupil_mask is not None:
+                meta["PUPIL"] = (self.webb.pupil_mask, "Pupil plane mask")
 
             for h, loc in enumerate(self.location_list):  # these were originally written out in (x,y)
                 loc = np.asarray(loc, dtype=float)
@@ -306,18 +332,19 @@ class CreatePSFLibrary:
                 if self.instr is "MIRI":
                     meta["MIR_DIST"] = (psf[ext].header["MIR_DIST"], "MIRI detector scattering applied")
                     meta["KERN_AMP"] = (psf[ext].header["KERN_AMP"],
-                                          "Amplitude(A) in kernel function A * exp(-x / B)")
+                                        "Amplitude(A) in kernel function A * exp(-x / B)")
                     meta["KERNFOLD"] = (psf[ext].header["KERNFOLD"],
-                                          "e - folding length(B) in kernel func A * exp(-x / B)")
+                                        "e - folding length(B) in kernel func A * exp(-x / B)")
 
             # Pull values from the last made psf
             meta["WAVELEN"] = (psf[ext].header["WAVELEN"], "Weighted mean wavelength in meters")
             meta["DIFFLMT"] = (psf[ext].header["DIFFLMT"], "Diffraction limit lambda/D in arcsec")
             meta["FFTTYPE"] = (psf[ext].header["FFTTYPE"], "Algorithm for FFTs: numpy or fftw")
             meta["NORMALIZ"] = (psf[ext].header["NORMALIZ"], "PSF normalization method")
+            meta["TEL_WFE"] = (psf[ext].header["TEL_WFE"], "[nm] Telescope pupil RMS wavefront error")
+
             meta["JITRTYPE"] = (psf[ext].header["JITRTYPE"], "Type of jitter applied")
             meta["JITRSIGM"] = (psf[ext].header["JITRSIGM"], "Gaussian sigma for jitter [arcsec]")
-            meta["TEL_WFE"] = (psf[ext].header["TEL_WFE"], "[nm] Telescope pupil RMS wavefront error")
 
             meta["DATE"] = (psf[ext].header["DATE"], "Date of calculation")
             meta["AUTHOR"] = (psf[ext].header["AUTHOR"], "username@host for calculation")
@@ -340,7 +367,8 @@ class CreatePSFLibrary:
         else:
             return model_list
 
-    def to_model(self, data, meta):
+    @staticmethod
+    def to_model(data, meta):
         """
         Create a photutils GriddedPSFModel object from input data and meta information
 
@@ -369,7 +397,7 @@ class CreatePSFLibrary:
                                   for key in ndd.meta.keys() if "DET_YX" in key]
 
         ndd.meta['oversampling'] = meta["OVERSAMP"][0]  # just pull the value
-        ndd.meta = {key.lower(): ndd.meta[key] for key in ndd.meta if "DET_YX" not in key and "OVERSAMP" not in key}
+        ndd.meta = {key.lower(): ndd.meta[key] for key in ndd.meta}
 
         model = GriddedPSFModel(ndd)
 
@@ -416,15 +444,15 @@ class CreatePSFLibrary:
 
         # Set file information
         if self.filename is None:
-            path = ""
-
             # E.g. filename: nircam_nrca1_f090w_fovp1000_samp4_npsf16.fits
-            name = "{}_{}_{}_fovp{}_samp{}_npsf{}.fits".format(self.instr.lower(), detector.lower(),
+            file = "{}_{}_{}_fovp{}_samp{}_npsf{}.fits".format(self.instr.lower(), detector.lower(),
                                                                self.filter.lower(), self.fov_pixels,
                                                                self.oversample, self.num_psfs)
-            file = os.path.join(path, name)
         else:
-            file = self.filename.split(".")[0] + "_{}_{}.fits".format(detector.lower(), self.filter.lower())
+            file = self.filename.split(".fits")[0] + "_{}.fits".format(detector.lower())
+
+        if self.outdir is not None:
+            file = os.path.join(self.outdir, file)
 
         if self.verbose is True:
             print("  Saving file: {}".format(file))

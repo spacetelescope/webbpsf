@@ -488,9 +488,9 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, displa
     if display:
         plt.clf()
         plt.subplot(121)
-        display_PSF(HDUlist, title="Observed PSF")
+        display_psf(HDUlist, title="Observed PSF")
         plt.subplot(122)
-        display_PSF(comparison_psf, title="Perfect PSF")
+        display_psf(comparison_psf, title="Perfect PSF")
         plt.gcf().suptitle("Strehl ratio = %.3f" % strehl)
 
     if verbose:
@@ -676,19 +676,21 @@ def combine_docstrings(cls):
     return cls
 
 
-def to_griddedpsfmodel(HDUlist_or_filename=None, ext=0):
+def to_griddedpsfmodel(HDUlist_or_filename=None, ext_data=0, ext_header=0):
     """
     Create a photutils GriddedPSFModel object from either a FITS file or
     an HDUlist object. The input must have header keywords "DET_YX{}" and
-    "OVERSAMP" (will be present if psf_grid() is used to create the
-    file).
+    "OVERSAMP" (will already be present if psf_grid() is used to create
+    the file).
 
     Parameters
     ----------
-    HDUlist_or_filename : string
+    HDUlist_or_filename : HDUList or str
         Either a fits.HDUList object or a filename of a FITS file on disk
-    ext : int
-        Extension in that FITS file
+    ext_data : int
+        Extension of the data in the FITS file
+    ext_header : int
+        Extension of the header in the FITS file
 
     Returns
     -------
@@ -708,8 +710,12 @@ def to_griddedpsfmodel(HDUlist_or_filename=None, ext=0):
     else:
         raise ValueError('Input must be a filename or HDUlist')
 
-    data = HDUlist[ext].data
-    header = HDUlist[ext].header
+    data = HDUlist[ext_data].data
+    header = HDUlist[ext_header].header
+
+    # If there's only 1 PSF and the data is 2D, make the data 3D for photutils can use it
+    if len(data.shape) == 2 and len(header['DET_YX*']) == 1:
+        data = np.array([data])
 
     # Check necessary keys are there
     if not any("DET_YX" in key for key in header.keys()):
@@ -719,8 +725,9 @@ def to_griddedpsfmodel(HDUlist_or_filename=None, ext=0):
 
     # Convert header to meta dict
     header = header.copy(strip=True)
-    header.remove('COMMENT', remove_all=True)
-    header.remove('', remove_all=True)
+    header.pop('COMMENT', None)
+    header.pop('', None)
+    header.pop('HISTORY', None)
     meta = OrderedDict((a, (b, c)) for (a, b, c) in header.cards)
 
     ndd = NDData(data, meta=meta, copy=True)
@@ -733,8 +740,8 @@ def to_griddedpsfmodel(HDUlist_or_filename=None, ext=0):
     if 'oversampling' not in ndd.meta:
         ndd.meta['oversampling'] = ndd.meta['OVERSAMP'][0]  # pull the value
 
-    # Remove keys with duplicate information
-    ndd.meta = {key.lower(): ndd.meta[key] for key in ndd.meta if 'DET_YX' not in key and 'OVERSAMP' not in key}
+    # Turn all metadata keys into lowercase
+    ndd.meta = {key.lower(): ndd.meta[key] for key in ndd.meta}
 
     # Create model
     model = GriddedPSFModel(ndd)

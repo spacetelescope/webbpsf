@@ -7,8 +7,9 @@ Using WebbPSF via the Python API
 ********************************
 
 
-This module provides the primary interface for programmers and for interactive non-GUI use. It provides
-five classes corresponding to the JWST instruments, with consistent interfaces.
+WebbPSF provides
+five classes corresponding to the JWST instruments and two for the WFIRST instruments, with consistent interfaces. It also provides a variety of
+supporting tools for measuring PSF properties and manipulating telescope state models.
 See :ref:`this page <detailed_api>` for the detailed API; for now let's dive into some example code.
 
 :ref:`Additional code examples <more_examples>` are available later in this documentation.
@@ -174,12 +175,9 @@ pixel scale in a variety of ways, as follows. See the :py:class:`JWInstrument.ca
 
 1. Set the ``oversample`` parameter to calc_psf(). This will produce a PSF with a pixel grid this many times more finely sampled.
    ``oversample=1`` is the native detector scale, ``oversample=2`` means divide each pixel into 2x2 finer pixels, and so forth.
-   You can automatically obtain both the oversampled PSF and a version rebinned down onto the detector pixel scale by setting `rebin=True`
-   in the call to calc_psf:
 
-   >>> hdulist = instrument.calc_psf(oversample=2, rebin=True)    # hdulist will contain a primary HDU with the
-   >>>                                                            # oversampled data, plus an image extension
-   >>>                                                            # with the PSF rebinned down to regular sampling.
+   >>> hdulist = instrument.calc_psf(oversample=2)    # hdulist will contain a primary HDU with the
+   >>>                                                # oversampled data
 
 
 
