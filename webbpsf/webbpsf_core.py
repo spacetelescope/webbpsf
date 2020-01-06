@@ -92,15 +92,15 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
     source_offset_theta : float
         Position angle for that offset, in degrees CCW.
     pupil_shift_x, pupil_shift_y : float
-        Relative shift of the intermediate (coronagraphic) pupil in X and Y 
+        Relative shift of the intermediate (coronagraphic) pupil in X and Y
         relative to the telescope entrance pupil, expressed as a decimal between -1.0-1.0
         Note that shifting an array too much will wrap around to the other side unphysically, but
         for reasonable values of shift this is a non-issue.  This option only has an effect for optical models that
         have something at an intermediate pupil plane between the telescope aperture and the detector.
     pupil_rotation : float
-        Relative rotation of the intermediate (coronagraphic) pupil relative to 
+        Relative rotation of the intermediate (coronagraphic) pupil relative to
         the telescope entrace pupil, expressed in degrees counterclockwise.
-        This option only has an effect for optical models that have something at 
+        This option only has an effect for optical models that have something at
         an intermediate pupil plane between the telescope aperture and the detector.
     rebin : bool
         For output files, write an additional FITS extension including a version of the output array
@@ -120,10 +120,10 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         to intermediate pupil and image planes whether or not they contain any actual optics, rather than
         taking the straight-to-MFT shortcut)
     no_sam : bool
-        Set this to prevent the SemiAnalyticMethod coronagraph mode from being 
-        used when possible, and instead do the brute-force FFT calculations. 
+        Set this to prevent the SemiAnalyticMethod coronagraph mode from being
+        used when possible, and instead do the brute-force FFT calculations.
         This is usually not what you want to do, but is available for comparison tests.
-        The SAM code will in general be much faster than the FFT method, 
+        The SAM code will in general be much faster than the FFT method,
         particularly for high oversampling.
 
     """
@@ -183,9 +183,9 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         """Filename *or* fits.HDUList for pupil OPD.
 
         This can be either a full absolute filename, or a relative name in which case it is
-        assumed to be within the instrument's `data/OPDs/` directory, or an actual 
-        fits.HDUList object corresponding to such a file. If the file contains a 
-        datacube, you may set this to a tuple (filename, slice) to select a 
+        assumed to be within the instrument's `data/OPDs/` directory, or an actual
+        fits.HDUList object corresponding to such a file. If the file contains a
+        datacube, you may set this to a tuple (filename, slice) to select a
         given slice, or else the first slice will be used."""
         self.pupil_radius = None  # Set when loading FITS file in _get_optical_system
 
@@ -605,6 +605,105 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         filterfits.close()
         return band
 
+    def psf_grid(self, num_psfs=16, all_detectors=True, save=False,
+                 outdir=None, outfile=None, overwrite=True, verbose=True,
+                 use_detsampled_psf=False, single_psf_centered=True, **kwargs):
+        """
+        Create a PSF library in the form of a grid of PSFs across the detector
+        based on the specified instrument, filter, and detector. The output
+        GriddedPSFModel object will contain a 3D array with axes [i, y, x]
+        where i is the PSF position on the detector grid and (y,x) is the 2D
+        PSF.
+
+        Parameters
+        ----------
+        num_psfs : int
+            The total number of fiducial PSFs to be created and saved in the files.
+            This number must be a square number. Default is 16.
+            E.g. num_psfs = 16 will create a 4x4 grid of fiducial PSFs.
+        all_detectors : bool
+            If True, run all detectors for the instrument. If False, run for
+            the detector set in the instance. Default is True
+        save : bool
+            True/False boolean if you want to save your file. Default is False.
+        outdir : str
+            If "save" keyword is set to True, your file will be saved in the
+            specified directory. Default of None will save it in the current
+            directory
+        outfile : str
+            If "save" keyword is set to True, your file will be saved as
+            {outfile}_det.fits. Default of None will save it as
+            instr_det_filt_fovp#_samp#_npsf#.fits
+        overwrite : bool
+            True/False boolean to overwrite the output file if it already exists.
+            Default is True.
+        verbose : bool
+            True/False boolean to print status updates. Default is True.
+        use_detsampled_psf : bool
+            If True, the grid of PSFs returned will be detector sampled (made
+            by binning down the oversampled PSF). If False, the PSFs will be
+            oversampled by the factor defined by the
+            oversample/detector_oversample/fft_oversample keywords. Default is False.
+            This is rarely needed - if uncertain, leave this alone.
+        single_psf_centered : bool
+            If num_psfs is set to 1, this defines where that psf is located.
+            If True it will be the center of the detector, if False it will
+            be the location defined in the WebbPSF attribute detector_position
+            (reminder - detector_position is (x,y)). Default is True
+            This is also rarely needed.
+        **kwargs
+            Any extra arguments to pass the WebbPSF calc_psf() method call.
+
+        Returns
+        -------
+        gridmodel : photutils GriddedPSFModel object or list of objects
+            Returns a GriddedPSFModel object or a list of objects if more than one
+            configuration is specified (1 per instrument, detector, and filter)
+            User also has the option to save the grid as a fits.HDUlist object.
+
+        Use
+        ----
+        nir = webbpsf.NIRCam()
+        nir.filter = "F090W"
+        list_of_grids = nir.psf_grid(all_detectors=True, num_psfs=4)
+
+        wfi = webbpsf.WFI()
+        wfi.filter = "Z087"
+        wfi.detector = "SCA02"
+        grid = wfi.psf_grid(all_detectors=False, oversample=5, fov_pixels=101)
+
+        """
+
+        # Keywords that could be set before the method call
+        filt = self.filter
+
+        if all_detectors is True:
+            detectors = "all"
+        else:
+            detectors = self.detector
+
+        if single_psf_centered is True:
+            psf_location = (int((self._detector_npixels - 1) / 2), int((self._detector_npixels - 1) / 2))  # center pt
+        else:
+            psf_location = self.detector_position[::-1]  # (y,x)
+
+        # add_distortion keyword is not implemented for WFI Class
+        if self.name == "WFI" and "add_distortion" not in kwargs:
+            kwargs["add_distortion"] = False
+        elif self.name == "WFI" and kwargs["add_distortion"] == True:
+            raise NotImplementedError("Geometric distortions are not implemented in WebbPSF for WFI Instrument. "
+                                      "The add_distortion keyword must be set to False for this case.")
+
+        # Call CreatePSFLibrary class
+        inst = gridded_library.CreatePSFLibrary(instrument=self, filter_name=filt, detectors=detectors,
+                                                num_psfs=num_psfs, psf_location=psf_location,
+                                                use_detsampled_psf=use_detsampled_psf, save=save,
+                                                outdir=outdir, filename=outfile, overwrite=overwrite,
+                                                verbose=verbose, **kwargs)
+        gridmodel = inst.create_grid()
+
+        return gridmodel
+
 
 #######  JWInstrument classes  #####
 
@@ -627,10 +726,10 @@ class JWInstrument(SpaceTelescopeInstrument):
     pupilopd = None
     """Filename *or* fits.HDUList for JWST pupil OPD.
 
-    This can be either a full absolute filename, or a relative name in which 
-    case it is assumed to be within the instrument's `data/OPDs/` directory, 
-    or an actual fits.HDUList object corresponding to such a file. If the file 
-    contains a datacube, you may set this to a tuple (filename, slice) to 
+    This can be either a full absolute filename, or a relative name in which
+    case it is assumed to be within the instrument's `data/OPDs/` directory,
+    or an actual fits.HDUList object corresponding to such a file. If the file
+    contains a datacube, you may set this to a tuple (filename, slice) to
     select a given slice, or else the first slice will be used."""
 
     def __init__(self, *args, **kwargs):
@@ -924,96 +1023,6 @@ class JWInstrument(SpaceTelescopeInstrument):
             outhdu.close()
 
         return fits.HDUList(fits.ImageHDU(newopd, header=hdr))
-
-    def psf_grid(self, num_psfs=16, all_detectors=True,
-                 save=False, outfile=None, overwrite=True, verbose=True,
-                 use_detsampled_psf=False, single_psf_centered=True,
-                 **kwargs):
-        """
-        Create a PSF library in the form of a grid of PSFs across the detector
-        based on the specified instrument, filter, and detector. The output
-        GriddedPSFModel object will contain a 3D array with axes [i, y, x]
-        where i is the PSF position on the detector grid and (y,x) is the 2D
-        PSF.
-
-        Parameters
-        ----------
-        num_psfs : int
-            The total number of fiducial PSFs to be created and saved in the files.
-            This number must be a square number. Default is 16.
-            E.g. num_psfs = 16 will create a 4x4 grid of fiducial PSFs.
-        all_detectors : bool
-            If True, run all detectors for the instrument. If False, run for
-            the detector set in the instance. Default is True
-        save : bool
-            True/False boolean if you want to save your file. Default is False.
-        outfile : str
-            If "save" keyword is set to True, your current file will be saved under
-            "{outfile}_det_filt.fits". Default of None will save it in the current
-            directory as: instr_det_filt_fovp#_samp#_npsf#.fits
-        overwrite : bool
-            True/False boolean to overwrite the output file if it already exists.
-            Default is True.
-        verbose : bool
-            True/False boolean to print status updates. Default is True.
-        use_detsampled_psf : bool
-            If True, the grid of PSFs returned will be detector sampled (made
-            by binning down the oversampled PSF). If False, the PSFs will be
-            oversampled by the factor defined by the
-            oversample/detector_oversample/fft_oversample keywords. Default is False.
-            This is rarely needed - if uncertain, leave this alone.
-        single_psf_centered : bool
-            If num_psfs is set to 1, this defines where that psf is located.
-            If True it will be the center of the detector, if False it will
-            be the location defined in the WebbPSF attribute detector_position
-            (reminder - detector_position is (x,y)). Default is True
-            This is also rarely needed.
-        **kwargs
-            Any extra arguments to pass the WebbPSF calc_psf() method call.
-
-        Returns
-        -------
-        gridmodel : photutils GriddedPSFModel object
-            Returns a GriddedPSFModel object or a list of objects if more than one
-            configuration is specified (1 per instrument, detector, and filter)
-            User also has the option to save the grid as a fits.HDUlist object.
-
-        Use
-        ----
-        nir = webbpsf.NIRCam()
-        nir.filter = "F090W"
-        grid = nir.psf_grid(all_detectors=True, num_psfs=4)
-
-        nir = webbpsf.NIRCam()
-        nir.filter = "F090W"
-        nir.detector = "NRCA2"
-        grid = nir.psf_grid(all_detectors=False, oversample=5, fov_pixels=101)
-
-        """
-
-        # Keywords that could be set before the method call
-        filters = self.filter
-
-        if all_detectors is True:
-            detectors = "all"
-        else:
-            detectors = self.detector
-
-        if single_psf_centered is True:
-            psf_location = (int((self._detector_npixels - 1) / 2), int((self._detector_npixels - 1) / 2))  # center pt
-        else:
-            psf_location = self.detector_position[::-1]  # (y,x)
-
-        # Call CreatePSFLibrary class
-        inst = gridded_library.CreatePSFLibrary(instrument=self, filters=filters, detectors=detectors,
-                                                num_psfs=num_psfs, psf_location=psf_location,
-                                                use_detsampled_psf=use_detsampled_psf, save=save,
-                                                filename=outfile, overwrite=overwrite, verbose=verbose,
-                                                **kwargs)
-        gridmodel = inst.create_grid()
-
-        return gridmodel
-
 
     def _get_pupil_shift(self):
         """ Return a tuple of pupil shifts, for passing to OpticalElement constructors
@@ -2108,4 +2117,3 @@ def one_segment_pupil(segmentname):
 
     newpupil[0].header['SEGMENT'] = segment_official_name
     return newpupil
-
