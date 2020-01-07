@@ -465,13 +465,18 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
     def get_opd(self, wave):
         """ Make an OPD array corresponding to the cylindrical weak lens
         used for defocusing the spectrum in the perpendicular-to-dispersion direction.
+        
+        Parameters
+        ----------
+        wave : float or obj
+            either a scalar wavelength (meters) or a Wavefront object
         """
 
         if isinstance(wave, poppy.Wavefront):
             wavelength = wave.wavelength
         else:
-            wavelength = float(wave)
-            wave = poppy.Wavefront(wavelength=wave)
+            wave = poppy.Wavefront(wavelength=float(wave))
+            wavelength = wave.wavelength
 
         # compute indices in pixels, relative to center of plane, with rotation
         # units of these are meters
@@ -538,10 +543,11 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
         # scale for index of refraction
         index = self.ZnS_index(wavelength)
         opd = sag * (index - 1)
-        _log.debug(" Scaling for ZnS index of refraction {0} at {1:.3g} microns".format(index, wavelength * 1e6))
+        lambda_micron = wavelength.to(units.micron).value
+        _log.debug(" Scaling for ZnS index of refraction {0} at {1:.3g} microns".format(index, lambda_micron))
         _log.debug(
             " Cylinder P-V: {0:.4g} meters optical sag at {1:.3g} microns across clear aperture".format(opd[wnz].max() - opd[wnz].min(),
-                                                                                                        wavelength * 1e6))
+                                                                                                        lambda_micron))
         return opd
 
     def get_transmission(self, wave):
@@ -551,8 +557,9 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
         if isinstance(wave, poppy.Wavefront):
             wavelength = wave.wavelength
         else:
-            wavelength = float(wave)
-            wave = poppy.Wavefront(wavelength=wave)
+            wave = poppy.Wavefront(wavelength=float(wave))
+            wavelength = wave.wavelength
+            
         y, x = wave.coordinates()
         ang = np.deg2rad(self.pupil_rotation_angle)
         x = np.cos(ang) * x - np.sin(ang) * y
@@ -1499,6 +1506,18 @@ class NIRCamFieldAndWavelengthDependentAberration(WebbFieldDependentAberration):
 
         
     def get_opd(self, wave):
+        """
+        Parameters
+        ----------
+        wave : float or obj
+            either a scalar wavelength (meters) or a Wavefront object
+        """
+        
+        if isinstance(wave, poppy.Wavefront):
+            wavelength = wave.wavelength
+        else:
+            wave = poppy.Wavefront(wavelength=float(wave))
+            wavelength = wave.wavelength
 
         # Check for coronagraphy
         pupil_mask = self.instrument._pupil_mask
@@ -1522,17 +1541,15 @@ class NIRCamFieldAndWavelengthDependentAberration(WebbFieldDependentAberration):
                 opd_ref_focus = 1.206e-7 # Not coronagraphy (e.g., imaging)
 
         # If F323N or F212N, then no focus offset necessary
+        wave_um = wavelength.to(units.micron).value
         if ('F323N' in self.instrument.filter) or ('F212N' in self.instrument.filter):
             deltafocus = 0
         else:
-            wave_um = wave.wavelength.to(units.micron).value
             deltafocus = focusmodel(wave_um) - opd_ref_focus
 
         _log.info("  Applying OPD focus adjustment based on NIRCam focus vs wavelength model")
-        _log.info("  Delta focus from {} to {}: {:.3f} nm rms".format(
-            opd_ref_wave,
-            wave.wavelength.to(units.micron),
-            deltafocus * 1e9)
+        _log.info("  Delta focus from {} to {} um: {:.3f} nm rms".format(
+            opd_ref_wave, wave_um, deltafocus * 1e9)
         )
 
         mod_opd = self.opd - deltafocus * self.defocus_zern
