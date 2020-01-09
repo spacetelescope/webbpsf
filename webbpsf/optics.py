@@ -1540,7 +1540,7 @@ class NIRCamFieldAndWavelengthDependentAberration(WebbFieldDependentAberration):
         if self.instrument.channel.upper() == 'SHORT':
             focusmodel = self.fm_short
             opd_ref_wave = 2.12
-            opd_ref_focus = focusmodel(opd_ref_wave)            
+            opd_ref_focus = focusmodel(opd_ref_wave)
         else:
             focusmodel = self.fm_long
             opd_ref_wave = 3.23
