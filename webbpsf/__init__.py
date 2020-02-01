@@ -19,11 +19,13 @@ import sys
 from warnings import warn
 from astropy import config as _config
 
+from . import version
+
 try:
     __version__ = get_distribution(__name__).version
 except DistributionNotFound:
      # package is not installed
-    pass
+     __version__ = ''
 
 __all__ = ['__version__']
 
@@ -118,8 +120,6 @@ from poppy import ( display_psf, display_psf_difference, display_ee, measure_ee,
         display_profiles, radial_profile,
         measure_radial, measure_fwhm, measure_sharpness, measure_centroid,
         specFromSpectralType, fwcentroid)
-
-from . import version
 
 from .webbpsf_core import (Instrument, JWInstrument, NIRCam, NIRISS, NIRSpec,
     MIRI, FGS)
