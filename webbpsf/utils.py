@@ -293,7 +293,12 @@ def system_diagnostic():
     import poppy
     import numpy
     import scipy
-    from .version import version
+
+    try:
+        from .version import version
+    except ImportError:
+        version = ''
+
     try:
         import ttk
         ttk_version = ttk.__version__
