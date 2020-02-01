@@ -12,14 +12,16 @@ Developed by Marshall Perrin and collaborators at STScI, 2010-2018.
 
 Documentation can be found online at https://webbpsf.readthedocs.io/
 """
+
+import os
+import sys
+from warnings import warn
+from astropy import config as _config
+
 try:
     from .version import *
 except ImportError:
     pass
-
-# Enforce Python version check during package import.
-# This is the same check as the one at the top of setup.py
-import sys
 
 __minimum_python_version__ = "3.5"
 
@@ -35,8 +37,6 @@ if sys.version_info < tuple((int(val) for val in __minimum_python_version__.spli
 # properly with an old data package, increment this version number.
 # (It's checked against $WEBBPSF_DATA/version.txt)
 DATA_VERSION_MIN = (0, 9, 0)
-
-from astropy import config as _config
 
 
 class Conf(_config.ConfigNamespace):
@@ -88,6 +88,24 @@ def _save_config():
     from astropy.config import configuration
     configuration._save_config("webbpsf")
 
+# add these here so we only need to cleanup the namespace at the end
+config_dir = os.path.dirname(__file__)
+config_template = os.path.join(config_dir, __package__ + ".cfg")
+if os.path.isfile(config_template):
+    try:
+        _config.configuration.update_default_config(
+            __package__, config_dir, version=version)
+    except TypeError as orig_error:
+        try:
+            _config.configuration.update_default_config(
+                __package__, config_dir)
+        except _config.configuration.ConfigurationDefaultMissingError as e:
+            wmsg = (e.args[0] + " Cannot install default profile. If you are "
+                    "importing from source, this is expected.")
+            warn(_config.configuration.ConfigurationDefaultMissingWarning(wmsg))
+            del e
+        except:
+            raise orig_error
 
 from . import utils
 from .utils import setup_logging, restart_logging, system_diagnostic, measure_strehl
