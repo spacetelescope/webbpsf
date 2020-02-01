@@ -11,8 +11,8 @@ WebbPSF: Simulated Point Spread Functions for JWST and WFIRST
    :target: https://travis-ci.org/spacetelescope/webbpsf
    :alt: Badge showing continuous integration test status
 
-.. image:: https://coveralls.io/repos/github/spacetelescope/webbpsf/badge.svg?branch=master
-   :target: https://coveralls.io/github/spacetelescope/webbpsf?branch=master
+.. image:: https://codecov.io/gh/spacetelescope/webbpsf/branch/master/graph/badge.svg
+  :target: https://codecov.io/gh/spacetelescope/webbpsf
 
 .. image:: https://img.shields.io/badge/ascl-1504.007-blue.svg?colorB=262255
    :target: http://ascl.net/1504.007

@@ -1,6 +1,6 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.md
 
-__all__ = ['__version__', '__githash__', 'test']
+__all__ = ['__version__', 'test']
 
 # this indicates whether or not we are in the package's setup.py
 try:
@@ -17,16 +17,14 @@ try:
     from .version import version as __version__
 except ImportError:
     __version__ = ''
-try:
-    from .version import githash as __githash__
-except ImportError:
-    __githash__ = ''
+
 
 # set up the test command
 def _get_test_runner():
     import os
     from astropy.tests.helper import TestRunner
     return TestRunner(os.path.dirname(__file__))
+
 
 def test(package=None, test_path=None, args=None, plugins=None,
          verbose=False, pastebin=None, remote_data=False, pep8=False,

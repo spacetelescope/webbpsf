@@ -1,16 +1,16 @@
 [run]
-source = {packagename}
+source = webbpsf
 omit =
-   {packagename}/_astropy_init*
-   {packagename}/conftest*
-   {packagename}/cython_version*
-   {packagename}/setup_package*
-   {packagename}/*/setup_package*
-   {packagename}/*/*/setup_package*
-   {packagename}/tests/*
-   {packagename}/*/tests/*
-   {packagename}/*/*/tests/*
-   {packagename}/version*
+   webbpsf/_astropy_init*
+   webbpsf/conftest*
+   webbpsf/cython_version*
+   webbpsf/setup_package*
+   webbpsf/*/setup_package*
+   webbpsf/*/*/setup_package*
+   webbpsf/tests/*
+   webbpsf/*/tests/*
+   webbpsf/*/*/tests/*
+   webbpsf/version*
 
 [report]
 exclude_lines =
@@ -29,3 +29,14 @@ exclude_lines =
 
    # Ignore branches that don't pertain to this version of Python
    pragma: py{ignore_python_version}
+omit =
+   webbpsf/_astropy_init*
+   webbpsf/conftest*
+   webbpsf/cython_version*
+   webbpsf/setup_package*
+   webbpsf/*/setup_package*
+   webbpsf/*/*/setup_package*
+   webbpsf/tests/*
+   webbpsf/*/tests/*
+   webbpsf/*/*/tests/*
+   webbpsf/version*
