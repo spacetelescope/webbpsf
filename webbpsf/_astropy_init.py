@@ -15,6 +15,7 @@ except NameError:
 
 try:
     from .version import version as __version__
+    from .version import *
 except ImportError:
     __version__ = ''
 
