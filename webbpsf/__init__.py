@@ -12,14 +12,10 @@ Developed by Marshall Perrin and collaborators at STScI, 2010-2018.
 
 Documentation can be found online at https://webbpsf.readthedocs.io/
 """
-
-# Affiliated packages may add whatever they like to this file, but
-# should keep this content at the top.
-# ----------------------------------------------------------------------------
-# make use of astropy affiliate framework to set __version__ and
-# add the test() helper function
-from ._astropy_init import *
-# ----------------------------------------------------------------------------
+try:
+    from .version import *
+except ImportError:
+    pass
 
 # Enforce Python version check during package import.
 # This is the same check as the one at the top of setup.py
@@ -40,7 +36,6 @@ if sys.version_info < tuple((int(val) for val in __minimum_python_version__.spli
 # (It's checked against $WEBBPSF_DATA/version.txt)
 DATA_VERSION_MIN = (0, 9, 0)
 
-import astropy
 from astropy import config as _config
 
 
@@ -97,14 +92,7 @@ def _save_config():
 from . import utils
 from .utils import setup_logging, restart_logging, system_diagnostic, measure_strehl
 
-if not _ASTROPY_SETUP_:
-    if conf.autoconfigure_logging:
-        restart_logging(verbose=True)
-
-from poppy import ( display_psf, display_psf_difference, display_ee, measure_ee, # current names
-        display_profiles, radial_profile,
-        measure_radial, measure_fwhm, measure_sharpness, measure_centroid,
-        specFromSpectralType, fwcentroid)
+from .constants import __all__
 
 from .webbpsf_core import (Instrument, JWInstrument, NIRCam, NIRISS, NIRSpec,
     MIRI, FGS)
