@@ -14,20 +14,16 @@ Documentation can be found online at https://webbpsf.readthedocs.io/
 """
 
 import os
+from pkg_resources import get_distribution, DistributionNotFound
 import sys
 from warnings import warn
 from astropy import config as _config
 
 try:
-    from . import version
-    __version__ = version.version
-except ImportError:
-    __version__ = ''
-
-if sys.version_info[0] >= 3:
-    import builtins
-else:
-    import __builtin__ as builtins
+    __version__ = get_distribution(__name__).version
+except DistributionNotFound:
+     # package is not installed
+    pass
 
 __all__ = ['__version__']
 
