@@ -12,7 +12,6 @@ env:
 
         - TOX_CMD='tox --'
         - TOX_ARGS=''
-        - WEBBPSF_PATH=$PWD/webbpsf-data
 
 matrix:
 
@@ -49,6 +48,7 @@ before_script:
     # Get WebbPSF data files (just a subset of the full 250 MB!) and set up environment variable
     - wget https://stsci.box.com/shared/static/qcptcokkbx7fgi3c00w2732yezkxzb99.gz -O /tmp/minimal-webbpsf-data.tar.gz
     - tar -xzvf /tmp/minimal-webbpsf-data.tar.gz
+    - export WEBBPSF_PATH=TRAVIS_BUILD_DIR/webbpsf-data
 
 script:
    - conda info
