@@ -119,7 +119,7 @@ from poppy import ( display_psf, display_psf_difference, display_ee, measure_ee,
         measure_radial, measure_fwhm, measure_sharpness, measure_centroid,
         specFromSpectralType, fwcentroid)
 
-from .version import *
+from . import version
 
 from .webbpsf_core import (Instrument, JWInstrument, NIRCam, NIRISS, NIRSpec,
     MIRI, FGS)
