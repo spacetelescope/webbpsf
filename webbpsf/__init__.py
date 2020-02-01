@@ -19,9 +19,16 @@ from warnings import warn
 from astropy import config as _config
 
 try:
-    from .version import version
+    from .version import version as __version__
 except ImportError:
-    version = ''
+    __version__ = ''
+
+if sys.version_info[0] >= 3:
+    import builtins
+else:
+    import __builtin__ as builtins
+
+__all__ = ['__version__']
 
 __minimum_python_version__ = "3.5"
 
@@ -94,7 +101,7 @@ config_template = os.path.join(config_dir, __package__ + ".cfg")
 if os.path.isfile(config_template):
     try:
         _config.configuration.update_default_config(
-            __package__, config_dir, version=version)
+            __package__, config_dir, version=__version__)
     except TypeError as orig_error:
         try:
             _config.configuration.update_default_config(
@@ -114,8 +121,6 @@ from poppy import ( display_psf, display_psf_difference, display_ee, measure_ee,
         display_profiles, radial_profile,
         measure_radial, measure_fwhm, measure_sharpness, measure_centroid,
         specFromSpectralType, fwcentroid)
-
-from .constants import __all__
 
 from .webbpsf_core import (Instrument, JWInstrument, NIRCam, NIRISS, NIRSpec,
     MIRI, FGS)
