@@ -92,6 +92,11 @@ def _save_config():
 from . import utils
 from .utils import setup_logging, restart_logging, system_diagnostic, measure_strehl
 
+from poppy import ( display_psf, display_psf_difference, display_ee, measure_ee, # current names
+        display_profiles, radial_profile,
+        measure_radial, measure_fwhm, measure_sharpness, measure_centroid,
+        specFromSpectralType, fwcentroid)
+
 from .constants import __all__
 
 from .webbpsf_core import (Instrument, JWInstrument, NIRCam, NIRISS, NIRSpec,
