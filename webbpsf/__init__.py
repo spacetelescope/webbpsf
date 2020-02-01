@@ -19,8 +19,10 @@ from warnings import warn
 from astropy import config as _config
 
 try:
-    from .version import version as __version__
+    from .version import version
+    __version__ = version
 except ImportError:
+    version = ''
     __version__ = ''
 
 if sys.version_info[0] >= 3:
