@@ -26,7 +26,6 @@
 # be accessible, and the documentation will not build correctly.
 
 import datetime
-import importlib
 import os
 import sys
 import stsci_rtd_theme
@@ -113,7 +112,6 @@ __import__(setup_cfg['name'])
 package = sys.modules[setup_cfg['name']]
 
 # The short X.Y version.
-package = importlib.import_module(setup_cfg['name'])
 try:
     version = package.__version__.split('-', 1)[0]
     # The full version, including alpha/beta/rc tags.

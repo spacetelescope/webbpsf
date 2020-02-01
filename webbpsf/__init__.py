@@ -16,7 +16,7 @@ Documentation can be found online at https://webbpsf.readthedocs.io/
 # Affiliated packages may add whatever they like to this file, but
 # should keep this content at the top.
 # ----------------------------------------------------------------------------
-# make use of astropy affiliate framework to set __version__, __githash__, and
+# make use of astropy affiliate framework to set __version__ and
 # add the test() helper function
 from ._astropy_init import *
 # ----------------------------------------------------------------------------
