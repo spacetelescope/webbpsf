@@ -19,9 +19,9 @@ from warnings import warn
 from astropy import config as _config
 
 try:
-    from .version import *
+    from .version import version
 except ImportError:
-    pass
+    version = ''
 
 __minimum_python_version__ = "3.5"
 
