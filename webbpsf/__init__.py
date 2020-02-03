@@ -14,22 +14,19 @@ Documentation can be found online at https://webbpsf.readthedocs.io/
 """
 
 import os
-from pkg_resources import get_distribution, DistributionNotFound
 import sys
 from warnings import warn
 from astropy import config as _config
 
-from . import version
-
 try:
-    __version__ = get_distribution(__name__).version
-except DistributionNotFound:
-     # package is not installed
-     __version__ = ''
+    from .version import version as __version__
+except ImportError:
+    __version__ = ''
 
 __all__ = ['__version__']
 
 __minimum_python_version__ = "3.5"
+
 
 class UnsupportedPythonError(Exception):
     pass
