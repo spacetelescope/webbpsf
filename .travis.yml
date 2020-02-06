@@ -19,7 +19,7 @@ matrix:
         # do the actual tests against dev version of POPPY
 
         # Do a coverage test in Python 3.
-        - env: TOXENV='coverage'
+        - env: TOXENV='py37-cov'
 
         # Check for Sphinx doc build errors
         - env: TOXENV='docbuild' TOX_ARGS=''
