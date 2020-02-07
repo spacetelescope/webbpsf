@@ -1694,7 +1694,7 @@ class LookupTableFieldDependentAberration(poppy.OpticalElement):
     """
 
     def __init__(self, instrument, field_points_file=None, phasemap_file=None,
-            add_niriss_defocus=True, rm_ptt=True, rm_center_ptt=True, **kwargs):
+            add_niriss_defocus=True, rm_ptt=True, rm_center_ptt=True, add_mimf_defocus=False, **kwargs):
         super().__init__(
             name="Aberrations",
             **kwargs
@@ -1809,6 +1809,10 @@ class LookupTableFieldDependentAberration(poppy.OpticalElement):
             ptt_only = poppy.zernike.opd_from_zernikes(coeffs, aperture=apmask, npix=self.opd.shape[0], outside=0)
             self.opd -= ptt_only
             print(f"Removing piston, tip, tilt from the input wavefront. Coeffs for  {self.instr_name}: {coeffs},")
+
+        if add_mimf_defocus:
+            self.instrument.options['defocus_waves'] = 0.8
+            self.instrument.options['defocus_wavelength'] = 1e-6  # Add 0.8 microns PTV defocus
 
         if add_niriss_defocus and self.instr_name=='NIRISS':
             # The Ball delivery was supposed to have defocused NIRISS for rehearsal purposes, but didn't.
