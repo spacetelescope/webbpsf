@@ -39,11 +39,15 @@ import pysiaf
 
 from . import conf
 from . import utils
-from . import version
 from . import optics
 from . import DATA_VERSION_MIN
 from . import distortion
 from . import gridded_library
+
+try:
+    from .version import version
+except ImportError:
+    version = ''
 
 try:
     import pysynphot
@@ -307,7 +311,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         if self.pupil_mask is not None:
             result[0].header['PUPIL'] = (self.pupil_mask, "Pupil plane mask")
 
-        result[0].header['VERSION'] = (version.version, "WebbPSF software version")
+        result[0].header['VERSION'] = (version, "WebbPSF software version")
         result[0].header['DATAVERS'] = (self._data_version, "WebbPSF reference data files version")
 
         result[0].header['DET_NAME'] = (self.detector, "Name of detector on this instrument")
