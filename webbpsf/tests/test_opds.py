@@ -104,6 +104,28 @@ def test_thermal_slew_update_opd():
     max_truth = 4.13338e-08 / 1e-9 # Convert the max truth to units of nm
     assert np.isclose(np.max(otelm.opd)/1e-9, max_truth), "OPD max does not match expected value after 1 day slew."
 
+
+def test_thermal_slew_reproducibility():
+    """ If you call the thermal slew model multiple times, the OPD values should depend
+    only on the LAST set of function call parameters. Not on the full time history.
+
+    See issue #338
+    """
+    ote = webbpsf.opds.OTE_Linear_Model_WSS()
+
+    ote.thermal_slew(12*u.hour, start_angle=-5, end_angle=45)
+    opd1 = ote.opd.copy()
+
+    ote.thermal_slew(24*u.hour, start_angle=-5, end_angle=45)
+    opd2 = ote.opd.copy()
+
+    ote.thermal_slew(12*u.hour, start_angle=-5, end_angle=45)
+    opd3 = ote.opd.copy()
+
+    assert np.allclose(opd1, opd2)==False, "OPDs expected to differ didn't"
+    assert np.allclose(opd1, opd3), "OPDs expected to match didn't"
+
+
 def test_update_opd():
     ''' The start of what should be many tests of this function'''
     otelm = webbpsf.opds.OTE_Linear_Model_WSS()
