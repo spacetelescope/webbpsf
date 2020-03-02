@@ -1688,7 +1688,7 @@ class OTE_Linear_Model_WSS(OPD):
             self.update_opd(display=display)
 
     def move_global_zernikes(self, zvector, unit='micron',
-                             absolute=False):
+                             absolute=False, delay_update=False, display=False):
         """ Add one or more aberrations specified arbitrarily as Zernike polynomials.
         This assumes no particular physics for the mirror motions, and allows adding
         any arbitrary WFE.
@@ -1820,6 +1820,12 @@ class OTE_Linear_Model_WSS(OPD):
         The HOT to COLD vs COLD to HOT nature of the slew is determined by the start
         and end angles
 
+        Note, multiple calls in a row to this function are NOT cumulative; rather, the
+        model internally resets to the initial starting OPD each time, and calculates
+        a single slew. This is intentional to be more reproducible and well defined,
+        with less hidden history state. If you need a more complex time evolution,
+        build that yourself by summing individual delta OPDs.
+
         Parameters
         ----------
         delta_time: astropy.units quantity object
@@ -1923,11 +1929,21 @@ class OTE_Linear_Model_WSS(OPD):
 
                 self._apply_hexikes_to_seg(segname, hexike_coeffs_combined)
 
+        # The thermal slew model for the SM global defocus is implemented as a global hexike.
+        # So we have to modify the _global_hexikes array here, and then undo that
+        # modification so the effect isn't cumulative over multiple function calls.
         if self.delta_time != 0.0:
             self._global_hexike_coeffs[4] += self._get_thermal_slew_coeffs('SM')
-        # Apply Global Zernikes
+
+        # Apply Global Zernikes, and/or hexikes
         if not np.all(self._global_hexike_coeffs == 0):
             self._apply_global_hexikes()
+        if not np.all(self._global_zernike_coeffs == 0):
+            self._apply_global_zernikes()
+
+        # Undo any changes made just above to the SM coefficients (avoid persistent side effects)
+        if self.delta_time != 0.0:
+            self._global_hexike_coeffs[4] -= self._get_thermal_slew_coeffs('SM')
 
         # Apply NASA JSC OTIS test ACF tilts (not relevant in flight)
         if self._jsc and np.any(self._jsc_acf_tilts != 0):
