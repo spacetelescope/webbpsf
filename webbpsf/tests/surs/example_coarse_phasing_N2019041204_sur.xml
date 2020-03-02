@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<SEGMENT_UPDATE_REQUEST creator="test" date="2019-04-12" operational="false" time="12:32:00.786" version="1.12" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="test">
+
+  <CONFIGURATION_NAME>test</CONFIGURATION_NAME>
+
+  <CORRECTION_ID>N2019012345</CORRECTION_ID>
+
+  <GROUP id="1">
+    <UPDATE absolute="false" coord="local" id="1" seg_id="A1-1" stage_type="fine_only" type="pose">
+      <X_TRANS units="meters">0.0000000000000000E+00</X_TRANS>
+      <Y_TRANS units="meters">0.0000000000000000E+00</Y_TRANS>
+      <PISTON units="meters">3.0000000000000001E-06</PISTON>
+      <X_TILT units="radians">0.0000000000000000E+00</X_TILT>
+      <Y_TILT units="radians">0.0000000000000000E+00</Y_TILT>
+      <CLOCK units="radians">0.0000000000000000E+00</CLOCK>
+    </UPDATE>
+    <UPDATE absolute="false" coord="local" id="2" seg_id="A2-2" stage_type="fine_only" type="pose">
+      <X_TRANS units="meters">0.0000000000000000E+00</X_TRANS>
+      <Y_TRANS units="meters">0.0000000000000000E+00</Y_TRANS>
+      <PISTON units="meters">3.0000000000000001E-06</PISTON>
+      <X_TILT units="radians">0.0000000000000000E+00</X_TILT>
+      <Y_TILT units="radians">0.0000000000000000E+00</Y_TILT>
+      <CLOCK units="radians">0.0000000000000000E+00</CLOCK>
+    </UPDATE>
+    <UPDATE absolute="false" coord="local" id="3" seg_id="A3-3" stage_type="fine_only" type="pose">
+      <X_TRANS units="meters">0.0000000000000000E+00</X_TRANS>
+      <Y_TRANS units="meters">0.0000000000000000E+00</Y_TRANS>
+      <PISTON units="meters">3.0000000000000001E-06</PISTON>
+      <X_TILT units="radians">0.0000000000000000E+00</X_TILT>
+      <Y_TILT units="radians">0.0000000000000000E+00</Y_TILT>
+      <CLOCK units="radians">0.0000000000000000E+00</CLOCK>
+    </UPDATE>
+    <UPDATE absolute="false" coord="local" id="4" seg_id="A4-4" stage_type="fine_only" type="pose">
+      <X_TRANS units="meters">0.0000000000000000E+00</X_TRANS>
+      <Y_TRANS units="meters">0.0000000000000000E+00</Y_TRANS>
+      <PISTON units="meters">3.0000000000000001E-06</PISTON>
+      <X_TILT units="radians">0.0000000000000000E+00</X_TILT>
+      <Y_TILT units="radians">0.0000000000000000E+00</Y_TILT>
+      <CLOCK units="radians">0.0000000000000000E+00</CLOCK>
+    </UPDATE>
+    <UPDATE absolute="false" coord="local" id="5" seg_id="A5-5" stage_type="fine_only" type="pose">
+      <X_TRANS units="meters">0.0000000000000000E+00</X_TRANS>
+      <Y_TRANS units="meters">0.0000000000000000E+00</Y_TRANS>
+      <PISTON units="meters">3.0000000000000001E-06</PISTON>
+      <X_TILT units="radians">0.0000000000000000E+00</X_TILT>
+      <Y_TILT units="radians">0.0000000000000000E+00</Y_TILT>
+      <CLOCK units="radians">0.0000000000000000E+00</CLOCK>
+    </UPDATE>
+    <UPDATE absolute="false" coord="local" id="6" seg_id="A6-6" stage_type="fine_only" type="pose">
+      <X_TRANS units="meters">0.0000000000000000E+00</X_TRANS>
+      <Y_TRANS units="meters">0.0000000000000000E+00</Y_TRANS>
+      <PISTON units="meters">3.0000000000000001E-06</PISTON>
+      <X_TILT units="radians">0.0000000000000000E+00</X_TILT>
+      <Y_TILT units="radians">0.0000000000000000E+00</Y_TILT>
+      <CLOCK units="radians">0.0000000000000000E+00</CLOCK>
+    </UPDATE>
+    <UPDATE absolute="false" coord="local" id="7" seg_id="C2-10" stage_type="fine_only" type="pose">
+      <X_TRANS units="meters">0.0000000000000000E+00</X_TRANS>
+      <Y_TRANS units="meters">0.0000000000000000E+00</Y_TRANS>
+      <PISTON units="meters">3.0000000000000001E-06</PISTON>
+      <X_TILT units="radians">0.0000000000000000E+00</X_TILT>
+      <Y_TILT units="radians">0.0000000000000000E+00</Y_TILT>
+      <CLOCK units="radians">0.0000000000000000E+00</CLOCK>
+    </UPDATE>
+    <UPDATE absolute="false" coord="local" id="8" seg_id="C5-16" stage_type="fine_only" type="pose">
+      <X_TRANS units="meters">0.0000000000000000E+00</X_TRANS>
+      <Y_TRANS units="meters">0.0000000000000000E+00</Y_TRANS>
+      <PISTON units="meters">3.0000000000000001E-06</PISTON>
+      <X_TILT units="radians">0.0000000000000000E+00</X_TILT>
+      <Y_TILT units="radians">0.0000000000000000E+00</Y_TILT>
+      <CLOCK units="radians">0.0000000000000000E+00</CLOCK>
+    </UPDATE>
+  </GROUP>
+
+  <GROUP id="2">
+    <UPDATE absolute="false" coord="local" id="1" seg_id="C2-10" stage_type="fine_only" type="pose">
+      <X_TRANS units="meters">0.0000000000000000E+00</X_TRANS>
+      <Y_TRANS units="meters">0.0000000000000000E+00</Y_TRANS>
+      <PISTON units="meters">-3.0000000000000001E-06</PISTON>
+      <X_TILT units="radians">0.0000000000000000E+00</X_TILT>
+      <Y_TILT units="radians">0.0000000000000000E+00</Y_TILT>
+      <CLOCK units="radians">0.0000000000000000E+00</CLOCK>
+    </UPDATE>
+    <UPDATE absolute="false" coord="local" id="2" seg_id="C5-16" stage_type="fine_only" type="pose">
+      <X_TRANS units="meters">0.0000000000000000E+00</X_TRANS>
+      <Y_TRANS units="meters">0.0000000000000000E+00</Y_TRANS>
+      <PISTON units="meters">-3.0000000000000001E-06</PISTON>
+      <X_TILT units="radians">0.0000000000000000E+00</X_TILT>
+      <Y_TILT units="radians">0.0000000000000000E+00</Y_TILT>
+      <CLOCK units="radians">0.0000000000000000E+00</CLOCK>
+    </UPDATE>
+    <UPDATE absolute="false" coord="local" id="3" seg_id="C1-8" stage_type="fine_only" type="pose">
+      <X_TRANS units="meters">0.0000000000000000E+00</X_TRANS>
+      <Y_TRANS units="meters">0.0000000000000000E+00</Y_TRANS>
+      <PISTON units="meters">3.0000000000000001E-06</PISTON>
+      <X_TILT units="radians">0.0000000000000000E+00</X_TILT>
+      <Y_TILT units="radians">0.0000000000000000E+00</Y_TILT>
+      <CLOCK units="radians">0.0000000000000000E+00</CLOCK>
+    </UPDATE>
+    <UPDATE absolute="false" coord="local" id="4" seg_id="C4-14" stage_type="fine_only" type="pose">
+      <X_TRANS units="meters">0.0000000000000000E+00</X_TRANS>
+      <Y_TRANS units="meters">0.0000000000000000E+00</Y_TRANS>
+      <PISTON units="meters">3.0000000000000001E-06</PISTON>
+      <X_TILT units="radians">0.0000000000000000E+00</X_TILT>
+      <Y_TILT units="radians">0.0000000000000000E+00</Y_TILT>
+      <CLOCK units="radians">0.0000000000000000E+00</CLOCK>
+    </UPDATE>
+  </GROUP>
+
+  <GROUP id="3">
+    <UPDATE absolute="false" coord="local" id="1" seg_id="A1-1" stage_type="fine_only" type="pose">
+      <X_TRANS units="meters">0.0000000000000000E+00</X_TRANS>
+      <Y_TRANS units="meters">0.0000000000000000E+00</Y_TRANS>
+      <PISTON units="meters">-3.0000000000000001E-06</PISTON>
+      <X_TILT units="radians">0.0000000000000000E+00</X_TILT>
+      <Y_TILT units="radians">0.0000000000000000E+00</Y_TILT>
+      <CLOCK units="radians">0.0000000000000000E+00</CLOCK>
+    </UPDATE>
+    <UPDATE absolute="false" coord="local" id="2" seg_id="A2-2" stage_type="fine_only" type="pose">
+      <X_TRANS units="meters">0.0000000000000000E+00</X_TRANS>
+      <Y_TRANS units="meters">0.0000000000000000E+00</Y_TRANS>
+      <PISTON units="meters">-3.0000000000000001E-06</PISTON>
+      <X_TILT units="radians">0.0000000000000000E+00</X_TILT>
+      <Y_TILT units="radians">0.0000000000000000E+00</Y_TILT>
+      <CLOCK units="radians">0.0000000000000000E+00</CLOCK>
+    </UPDATE>
+    <UPDATE absolute="false" coord="local" id="3" seg_id="A3-3" stage_type="fine_only" type="pose">
+      <X_TRANS units="meters">0.0000000000000000E+00</X_TRANS>
+      <Y_TRANS units="meters">0.0000000000000000E+00</Y_TRANS>
+      <PISTON units="meters">-3.0000000000000001E-06</PISTON>
+      <X_TILT units="radians">0.0000000000000000E+00</X_TILT>
+      <Y_TILT units="radians">0.0000000000000000E+00</Y_TILT>
+      <CLOCK units="radians">0.0000000000000000E+00</CLOCK>
+    </UPDATE>
+    <UPDATE absolute="false" coord="local" id="4" seg_id="A4-4" stage_type="fine_only" type="pose">
+      <X_TRANS units="meters">0.0000000000000000E+00</X_TRANS>
+      <Y_TRANS units="meters">0.0000000000000000E+00</Y_TRANS>
+      <PISTON units="meters">-3.0000000000000001E-06</PISTON>
+      <X_TILT units="radians">0.0000000000000000E+00</X_TILT>
+      <Y_TILT units="radians">0.0000000000000000E+00</Y_TILT>
+      <CLOCK units="radians">0.0000000000000000E+00</CLOCK>
+    </UPDATE>
+    <UPDATE absolute="false" coord="local" id="5" seg_id="A5-5" stage_type="fine_only" type="pose">
+      <X_TRANS units="meters">0.0000000000000000E+00</X_TRANS>
+      <Y_TRANS units="meters">0.0000000000000000E+00</Y_TRANS>
+      <PISTON units="meters">-3.0000000000000001E-06</PISTON>
+      <X_TILT units="radians">0.0000000000000000E+00</X_TILT>
+      <Y_TILT units="radians">0.0000000000000000E+00</Y_TILT>
+      <CLOCK units="radians">0.0000000000000000E+00</CLOCK>
+    </UPDATE>
+    <UPDATE absolute="false" coord="local" id="6" seg_id="A6-6" stage_type="fine_only" type="pose">
+      <X_TRANS units="meters">0.0000000000000000E+00</X_TRANS>
+      <Y_TRANS units="meters">0.0000000000000000E+00</Y_TRANS>
+      <PISTON units="meters">-3.0000000000000001E-06</PISTON>
+      <X_TILT units="radians">0.0000000000000000E+00</X_TILT>
+      <Y_TILT units="radians">0.0000000000000000E+00</Y_TILT>
+      <CLOCK units="radians">0.0000000000000000E+00</CLOCK>
+    </UPDATE>
+    <UPDATE absolute="false" coord="local" id="7" seg_id="C1-8" stage_type="fine_only" type="pose">
+      <X_TRANS units="meters">0.0000000000000000E+00</X_TRANS>
+      <Y_TRANS units="meters">0.0000000000000000E+00</Y_TRANS>
+      <PISTON units="meters">-3.0000000000000001E-06</PISTON>
+      <X_TILT units="radians">0.0000000000000000E+00</X_TILT>
+      <Y_TILT units="radians">0.0000000000000000E+00</Y_TILT>
+      <CLOCK units="radians">0.0000000000000000E+00</CLOCK>
+    </UPDATE>
+    <UPDATE absolute="false" coord="local" id="8" seg_id="C4-14" stage_type="fine_only" type="pose">
+      <X_TRANS units="meters">0.0000000000000000E+00</X_TRANS>
+      <Y_TRANS units="meters">0.0000000000000000E+00</Y_TRANS>
+      <PISTON units="meters">-3.0000000000000001E-06</PISTON>
+      <X_TILT units="radians">0.0000000000000000E+00</X_TILT>
+      <Y_TILT units="radians">0.0000000000000000E+00</Y_TILT>
+      <CLOCK units="radians">0.0000000000000000E+00</CLOCK>
+    </UPDATE>
+  </GROUP>
+
+</SEGMENT_UPDATE_REQUEST>
