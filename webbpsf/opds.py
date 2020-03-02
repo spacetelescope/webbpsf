@@ -2485,3 +2485,103 @@ def convert_quantity(input_quantity, from_units=None, to_units=u.day):
         output_quantity = input_quantity.to(to_units)
 
     return output_quantity
+
+
+#--------------------------------------------------------------------------------
+# WFE decomposition
+
+
+class JWST_WAS_PTT_Basis(object):
+    def __init__(self):
+        """ Segment piston/tip/tilt basis using the same conventions as JWST WAS
+        i.e. local mechanical control coordinates per each segment and its local
+        orientation.
+
+        Similar to poppy.zernike.Segment_PTT_Basis, but:
+            (a) specifically matches the JWST aperture geometry exactly, and
+            (b) matches the local control coordinates for JWST segment controls.
+
+        Useful for decomposing WFE maps into segment piston, tip, tilts.
+        See poppy.zernike.opd_expand_segments()
+        and coeffs_to_seg_state() in this file.
+
+        """
+
+        # Internally this is implemented as a wrapper on OTE Linear WEE model
+
+        self.ote = OTE_Linear_Model_WSS()
+        self.nsegments=18
+
+    def aperture(self):
+        """ Return the overall aperture across all segments """
+        return self.ote.amplitude
+
+    def __call__(self, nterms=None, npix=1024, outside=np.nan):
+        """ Generate PTT basis ndarray for the specified aperture
+
+        Parameters
+        ----------
+        nterms : int
+            Number of terms. Set to 3x the number of segments.
+        npix : int
+            Size, in pixels, of the aperture array.
+        outside : float
+            Value for pixels outside the specified aperture.
+            Default is `np.nan`, but you may also find it useful for this to
+            be 0.0 sometimes.
+
+        """
+        if npix != 1024:
+            raise ValueError("Only npix=1024 supported for now")
+
+        if nterms is None:
+            nterms = 3*self.nsegments
+        elif nterms > 3*self.nsegments:
+            raise ValueError("nterms must be <= {} for the specified segment aperture.".format(3*self.nsegments))
+
+        # Re-use the machinery inside the OTE Linear model class class to set up the
+        # arrays defining the segment and zernike geometry.
+
+        # For simplicity we always generate the basis for all the segments
+        # even if for some reason the user has set a smaller nterms.
+        basis = np.zeros((self.nsegments*3, npix, npix))
+        basis[:] = outside
+        for i, segname in enumerate(self.ote.segnames[0:18]):
+            # We do these intentionally with the base units, though those result in unphysically large moves
+
+            # Piston
+            self.ote.zero()
+            self.ote.move_seg_local(segname, piston=1, trans_unit='meter')
+            basis[i*3] = self.ote.opd
+
+            # Tip
+            self.ote.zero()
+            self.ote.move_seg_local(segname, xtilt=1, rot_unit='radian')
+            basis[i*3+1] = self.ote.opd
+
+            #Tilt
+            self.ote.zero()
+            self.ote.move_seg_local(segname, ytilt=1, rot_unit='radian')
+            basis[i*3+2] = self.ote.opd
+
+        return basis[0:nterms]
+
+
+def coeffs_to_seg_state(coeffs):
+    """ Convert coefficients from Zernike fit to OTE linear model segment state
+
+    Unit conversion and axis index reordering.
+
+    Example usage:
+
+    coeffs = poppy.zernike.opd_expand_segments(some_opd, aperture=ote.amplitude, basis=jw_ptt_basis, nterms=54)
+    ote.segment_state = coeffs_to_seg_state(coeffs)
+
+
+    """
+    seg_state = np.zeros((18,6))
+    coeffs_tab = coeffs.reshape(18,3)
+    seg_state[:,2] = coeffs_tab[:,0]  # piston is 3rd column
+    seg_state[:,0] = coeffs_tab[:,1]  # tip in 1st column
+    seg_state[:,1] = coeffs_tab[:,2]  # tilt in 2nd column
+    return seg_state*1e6   # convert from meters & radians to micro units
