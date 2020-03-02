@@ -191,7 +191,7 @@ class OPD(poppy.FITSOpticalElement):
             Include the pupil mask as a FITS extension?
         """
 
-        output = fits.HDUList([fits.ImageHDU(self.opd, self.opd_header)])
+        output = fits.HDUList([fits.PrimaryHDU(self.opd, self.opd_header)])
         output[0].header['EXTNAME'] = 'OPD'
         output[0].header['BUNIT'] = 'meter'  # Rescaled to meters in poppy_core
 
@@ -201,9 +201,9 @@ class OPD(poppy.FITSOpticalElement):
 
         return output
 
-    def writeto(self, outname, clobber=True, **kwargs):
+    def writeto(self, outname, overwrite=True, **kwargs):
         """ Write OPD to a FITS file on disk """
-        self.as_fits(**kwargs).writeto(outname, clobber=clobber)
+        self.as_fits(**kwargs).writeto(outname, overwrite=overwrite)
 
     # ---- display and analysis
     def powerspectrum(self, max_cycles=50, sampling=5, vmax=100, iterate=False):
@@ -2263,7 +2263,7 @@ def segment_primary(infile='JWpupil.fits'):
         hdu.header.update('PMSA_' + str(i + 1), segs[i])
 
     # TODO copy relevant keywords and history from input FITS file header
-    hdu.writeto("JWpupil_segments.fits", clobber=True)
+    hdu.writeto("JWpupil_segments.fits", overwrite=True)
 
 
 def create_jsc_pupil(plot=False):
