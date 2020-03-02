@@ -1982,6 +1982,68 @@ class OTE_Linear_Model_WSS(OPD):
             self.display()
 
 
+    def apply_frill_drift(self, amplitude, random=False, case='BOL', delay_update=False):
+        """ Apply model of segment PTT motions for the frill-induced drift.
+
+        Note, this applies a persistent change to the segment_state array attribute.
+
+        Parameters
+        ----------
+        amplitude : float
+            Amplitude of drift in nm rms to apply
+        random : bool
+            if True, choose a random amplitude from within the expected range
+            for either the BOL or EOL cases.
+        case : string
+            either "BOL" for current best estimate at beginning of life, or
+            "EOL" for more conservative prediction at end of life. Only relevant
+            if random=True.
+        delay_update : bool
+            hold off on computing the WFE change? This is useful for computational efficiency if you're
+            making many changes at once.
+        """
+
+        # These segment piston/tip/tilt misalignments are normalized to give 1 nm rms.
+        # This segment state approximates the OTE in-flight prediction from John Johnston / Joe Howard.
+        # Developed in "Generate Mock Flight Predicts.ipynb" by Perrin.
+        ote_seg_motions_frill = np.array(
+             [ [-0.00728 ,  0.      ,  0.00273 ,  0.      ,  0.      ,  0.      ],
+               [ 0.00364 ,  0.00364 ,  0.00091 ,  0.      ,  0.      ,  0.      ],
+               [-0.00455 ,  0.00182 , -0.00455 ,  0.      ,  0.      ,  0.      ],
+               [ 0.      ,  0.      , -0.00273 ,  0.      ,  0.      ,  0.      ],
+               [ 0.001092, -0.00364 , -0.0091  ,  0.      ,  0.      ,  0.      ],
+               [ 0.00455 , -0.00455 ,  0.00455 ,  0.      ,  0.      ,  0.      ],
+               [-0.00728 ,  0.      ,  0.00273 ,  0.      ,  0.      ,  0.      ],
+               [ 0.00273 ,  0.      ,  0.00273 ,  0.      ,  0.      ,  0.      ],
+               [-0.002275, -0.00455 ,  0.00728 ,  0.      ,  0.      ,  0.      ],
+               [-0.00273 ,  0.      ,  0.009555,  0.      ,  0.      ,  0.      ],
+               [-0.00273 , -0.00091 ,  0.01183 ,  0.      ,  0.      ,  0.      ],
+               [ 0.      , -0.0091  , -0.00091 ,  0.      ,  0.      ,  0.      ],
+               [ 0.0091  , -0.00182 ,  0.0182  ,  0.      ,  0.      ,  0.      ],
+               [ 0.      ,  0.      , -0.00455 ,  0.      ,  0.      ,  0.      ],
+               [ 0.002275,  0.00455 ,  0.01183 ,  0.      ,  0.      ,  0.      ],
+               [ 0.00273 ,  0.      ,  0.009555,  0.      ,  0.      ,  0.      ],
+               [-0.00182 ,  0.00364 ,  0.00728 ,  0.      ,  0.      ,  0.      ],
+               [-0.00273 ,  0.      ,  0.00273 ,  0.      ,  0.      ,  0.      ],
+               [ 0.      ,  0.      ,  0.      ,  0.      ,  0.      ,  0.      ]])/16
+
+        if random:
+            if case.upper() == 'BOL':
+                max_amp = 8.6
+            elif case.upper() == 'EOL':
+                max_amp = 18.4
+            else:
+                raise ValueError(f"Unknown value for parameter case: {case}.")
+
+            amplitude = np.random.uniform(0, max_amp)
+            _log.info(f"Applying random frill drift with amplitude {amplitude} nm rms (out of max {max_amp} nm rms).")
+
+        self.segment_state[0:18] += ote_seg_motions_frill * amplitude
+        if not delay_update:
+            self.update_opd()
+
+
+
 ################################################################################
 
 
