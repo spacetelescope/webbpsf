@@ -128,12 +128,29 @@ def test_thermal_slew_reproducibility():
 
 def test_update_opd():
     ''' The start of what should be many tests of this function'''
-    otelm = webbpsf.opds.OTE_Linear_Model_WSS()
-    otelm.update_opd()
-    assert np.max(otelm.opd) == 0.0
+
+    # Test the very basics
+    ote = webbpsf.opds.OTE_Linear_Model_WSS()
+    ote.update_opd()
+    assert np.max(ote.opd) == 0.0
+
+    # can we add a deterministic frill drift?
+    requested_wfe = 5
+    ote.apply_frill_drift(requested_wfe)
+    assert np.allclose(ote.rms(), requested_wfe, rtol=0.1), "Frill WFE amplitude not as expected"
+    ote.apply_frill_drift(0.0)
+
+    # can we add a deterministic IEC drift?
+    requested_wfe = 15
+    ote.apply_iec_drift(requested_wfe)
+    assert np.allclose(ote.rms(), requested_wfe, rtol=0.1), "IEC WFE amplitude not as expected"
+
+    # Todo test random drifts
 
 
 def test_move_sur(plot=False):
+    """ Test we can move mirrors using Segment Update Requests
+    """
     import webbpsf
     import os
     import glob

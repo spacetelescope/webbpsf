@@ -1108,6 +1108,9 @@ class OTE_Linear_Model_WSS(OPD):
         self.scaling = None
         self._thermal_model = OteThermalModel() # Initialize thermal model object
 
+        self._frill_wfe_amplitude = 0.0
+        self._iec_wfe_amplitude = 0.0
+
         if self._jsc:
             self._jsc_acf_tilts = np.zeros((3, 2))  # only for JSC sims. Tilts in microradians.
 
@@ -1145,6 +1148,8 @@ class OTE_Linear_Model_WSS(OPD):
         """
         self.opd *= 0
         self.segment_state *= 0
+        self._frill_wfe_amplitude = 0
+        self._iec_wfe_amplitude = 0
         if zero_original:
             self._opd_original *= 0
         self.name = "Null OPD"
@@ -1827,7 +1832,7 @@ class OTE_Linear_Model_WSS(OPD):
 
 
     def thermal_slew(self, delta_time, start_angle=-5,end_angle=45,
-                     scaling=None, display=False, delay_update=False):
+                     scaling=None, display=False, case='BOL', delay_update=False):
         """ Update the OPD based on presence of a pitch angle change between
         observations.
 
@@ -1862,9 +1867,15 @@ class OTE_Linear_Model_WSS(OPD):
             The ending sun pitch angle, in degrees between -5 and +45
         scaling: float between 0 and 1
             Scaling factor that can be used instead of the start_angle
-            and end_angle parameters.
+            and end_angle parameters. This directly sets the amplitude
+            of the drift and overrides the angles and case settings.
         display: bool
             Display the updated OPD
+        case : string
+            either "BOL" for current best estimate at beginning of life, or
+            "EOL" for more conservative prediction at end of life. The amplitude
+            of the thermal drift is roughly 3x lower for BOL (13 nm after 14 days)
+            versus EOL (43 nm after 14 days).
         delay_update: bool
             Users typically only need to call this directly if they have set the
             "delay_update" parameter to True in some function call to move mirrors.
@@ -1880,12 +1891,14 @@ class OTE_Linear_Model_WSS(OPD):
         self.start_angle = start_angle
         self.end_angle = end_angle
         self.scaling = scaling
+        self._thermal_model.case = case
 
         # Update the header info
         self.opd_header['BUNIT'] = 'meter'
         self.opd_header['DELTA_T'] = (self.delta_time, "Delta time after slew [d]")
         self.opd_header['STARTANG'] = (self.start_angle, "Starting sun pitch angle [deg]")
         self.opd_header['ENDANG'] = (self.end_angle, "Ending sun pitch angle [deg]")
+        self.opd_header['THRMCASE'] = (self._thermal_model.case, "Thermal model case, beginning or end of life")
         if scaling:
             self.opd_header['SCALING'] = (self.scaling, 'Scaling factor for delta slew')
 
@@ -1906,6 +1919,7 @@ class OTE_Linear_Model_WSS(OPD):
         """
         if not self.scaling:
             scaling = np.sin(np.radians(self.end_angle) - np.radians(self.start_angle)) / np.sin(np.radians(45.) - np.radians(-5.))
+
         else:
             scaling = self.scaling
 
@@ -1928,8 +1942,11 @@ class OTE_Linear_Model_WSS(OPD):
         sm_pose_coeffs = self.segment_state[sm].copy()[0:5]  # 6th row is n/a for SM
         sm_pose_coeffs.shape = (5, 1)  # to allow broadcasting below
 
+
+        total_segment_state = self.segment_state + self._get_frill_drift_poses() + self._get_iec_drift_poses()
+
         for iseg, segname in enumerate(self.segnames[0:18]):
-            pose_coeffs = self.segment_state[iseg].copy()
+            pose_coeffs = total_segment_state[iseg].copy()
             if np.all(pose_coeffs == 0) and np.all(sm_pose_coeffs == 0) and self.delta_time==0:
                 continue
             else:
@@ -1982,10 +1999,10 @@ class OTE_Linear_Model_WSS(OPD):
             self.display()
 
 
-    def apply_frill_drift(self, amplitude, random=False, case='BOL', delay_update=False):
+    def apply_frill_drift(self, amplitude=None, random=False, case='BOL', delay_update=False):
         """ Apply model of segment PTT motions for the frill-induced drift.
 
-        Note, this applies a persistent change to the segment_state array attribute.
+        This is additive with other WFE terms.
 
         Parameters
         ----------
@@ -1993,7 +2010,9 @@ class OTE_Linear_Model_WSS(OPD):
             Amplitude of drift in nm rms to apply
         random : bool
             if True, choose a random amplitude from within the expected range
-            for either the BOL or EOL cases.
+            for either the BOL or EOL cases. The assumed model is a uniform
+            distribution between 0 and a maximum amplitude of 8.6 or 18.4 nm rms
+            respectively.
         case : string
             either "BOL" for current best estimate at beginning of life, or
             "EOL" for more conservative prediction at end of life. Only relevant
@@ -2003,6 +2022,28 @@ class OTE_Linear_Model_WSS(OPD):
             making many changes at once.
         """
 
+        if random:
+            if case.upper() == 'BOL':
+                max_amp = 8.6
+            elif case.upper() == 'EOL':
+                max_amp = 18.4
+            else:
+                raise ValueError(f"Unknown value for parameter case: {case}.")
+
+            amplitude = np.random.uniform(0, max_amp)
+            _log.info(f"Applying random frill drift with amplitude {amplitude} nm rms (out of max {max_amp} nm rms).")
+        elif amplitude is None:
+            raise ValueError("if random=False, you must provide a value for the amplitude.")
+        else:
+            _log.info(f"Applying frill drift with amplitude {amplitude} nm rms.")
+        self._frill_wfe_amplitude = amplitude
+
+        if not delay_update:
+            self.update_opd()
+
+    def _get_frill_drift_poses(self):
+        """ Return segment poses for current frill drift state
+        """
         # These segment piston/tip/tilt misalignments are normalized to give 1 nm rms.
         # This segment state approximates the OTE in-flight prediction from John Johnston / Joe Howard.
         # Developed in "Generate Mock Flight Predicts.ipynb" by Perrin.
@@ -2027,21 +2068,82 @@ class OTE_Linear_Model_WSS(OPD):
                [-0.00273 ,  0.      ,  0.00273 ,  0.      ,  0.      ,  0.      ],
                [ 0.      ,  0.      ,  0.      ,  0.      ,  0.      ,  0.      ]])/16
 
+        return ote_seg_motions_frill * self._frill_wfe_amplitude
+
+
+    def apply_iec_drift(self, amplitude=None, random=False, case='BOL', delay_update=False):
+        """ Apply model of segment PTT motions for the drift seen at OTIS induced by the IEC
+        (Instrument Electronics Compartment) heater resistors. This effect was in part due to
+        non-flight-like ground support equipment mountings, and is not expected in flight at
+        the same levels it was seen at JSC. We model it anyway, at an amplitude consistent with
+        upper limits for flight.
+
+        This is additive with other WFE terms.
+
+        Parameters
+        ----------
+        amplitude : float
+            Amplitude of drift in nm rms to apply
+        random : bool
+            if True, choose a random amplitude from within the expected range
+            for either the BOL or EOL cases. The assumed model is a sinusoidal drift
+            between 0 and 3.5 nm, i.e. a random variate from the arcsine distribution
+            times 3.5.
+        case : string
+            either "BOL" for current best estimate at beginning of life, or
+            "EOL" for more conservative prediction at end of life. Only relevant
+            if random=True. (Note, for IEC drift the amplitude is the same regardless.)
+        delay_update : bool
+            hold off on computing the WFE change? This is useful for computational efficiency if you're
+            making many changes at once.
+        """
+
+        # These segment piston/tip/tilt misalignments are normalized to give 1 nm rms.
         if random:
-            if case.upper() == 'BOL':
-                max_amp = 8.6
-            elif case.upper() == 'EOL':
-                max_amp = 18.4
-            else:
-                raise ValueError(f"Unknown value for parameter case: {case}.")
+            max_amp = 3.5  # regardless of EOL or BOL
 
-            amplitude = np.random.uniform(0, max_amp)
-            _log.info(f"Applying random frill drift with amplitude {amplitude} nm rms (out of max {max_amp} nm rms).")
+            amplitude = scipy.stats.arcsine().rvs() * max_amp
+            _log.info(f"Applying random IEC-induced drift with amplitude {amplitude} nm rms (out of max {max_amp} nm rms).")
+        elif amplitude is None:
+            raise ValueError("if random=False, you must provide a value for the amplitude.")
+        else:
+            _log.info(f"Applying IEC-induced drift with amplitude {amplitude} nm rms.")
+        self._iec_wfe_amplitude = amplitude
 
-        self.segment_state[0:18] += ote_seg_motions_frill * amplitude
         if not delay_update:
             self.update_opd()
 
+    def _get_iec_drift_poses(self):
+
+        # These segment piston/tip/tilt motions approximate the OTE observed
+        # oscillation seen at JSC OTIS cryo vac test, due to IEC heater thermal loading
+        # through GSE paths.
+
+        # Developed in the PFR190 study by Perrin & Telfer as
+        # oscillation_opd_case1_var2_ptt.fits.gz; decomposed into segment PTT by Perrin
+        # in "Make PSF Sim Library for JWST cycle 1 props - Development.ipynb"
+
+        ote_seg_motions_iec = np.array(
+              [[ 0.5211,  0.2925, -0.3567,  0.    ,  0.    ,  0.    ],
+               [-0.0652,  0.2788,  0.1896,  0.    ,  0.    ,  0.    ],
+               [ 0.2491, -0.2203,  0.1522,  0.    ,  0.    ,  0.    ],
+               [ 0.4078,  0.1386,  0.0301,  0.    ,  0.    ,  0.    ],
+               [-0.0663, -0.0702,  0.2119,  0.    ,  0.    ,  0.    ],
+               [ 0.3488, -0.3986, -0.2216,  0.    ,  0.    ,  0.    ],
+               [ 0.4363, -0.4034, -0.5762,  0.    ,  0.    ,  0.    ],
+               [-0.584 , -0.4198, -0.0271,  0.    ,  0.    ,  0.    ],
+               [ 1.1319, -0.195 ,  0.8383,  0.    ,  0.    ,  0.    ],
+               [ 0.3116, -0.4376,  0.4631,  0.    ,  0.    ,  0.    ],
+               [-0.0052,  0.6276, -0.1083,  0.    ,  0.    ,  0.    ],
+               [ 0.1727,  0.6529, -0.5457,  0.    ,  0.    ,  0.    ],
+               [-0.3807, -0.4189, -0.602 ,  0.    ,  0.    ,  0.    ],
+               [-0.4924, -0.1094,  0.0996,  0.    ,  0.    ,  0.    ],
+               [ 1.0861, -0.1953,  0.8371,  0.    ,  0.    ,  0.    ],
+               [ 0.4202, -0.6961,  0.3543,  0.    ,  0.    ,  0.    ],
+               [ 0.7644,  0.6466, -0.0861,  0.    ,  0.    ,  0.    ],
+               [ 0.1887,  0.0825, -0.7851,  0.    ,  0.    ,  0.    ],
+               [ 0.    ,  0.    ,  0.    ,  0.    ,  0.    ,  0.    ]])/1000
+        return ote_seg_motions_iec * self._iec_wfe_amplitude
 
 
 ################################################################################
@@ -2437,6 +2539,9 @@ class OteThermalModel(object):
     -----------
     delta_time: tuple, (number, astropy.units quantity object)
         Include the number and units for the delta time between observations.
+    case : string, 'BOL' or 'EOL'
+        Model case for drift amplitudes. As of the 2020 PSR modeling cycle, the beginning of life
+        has 13 nm rms after about a week, EOL has about 43 nm rms after a week.
 
     Returns:
     --------
@@ -2445,7 +2550,7 @@ class OteThermalModel(object):
         delta_time
 
     """
-    def __init__(self):
+    def __init__(self, case='BOL'):
         """
         Set up the object such that it can be used for any time, delta_time
         """
@@ -2508,6 +2613,12 @@ class OteThermalModel(object):
                 coeffs = self.check_units(coeffs[0])
             else:
                 coeffs = self.check_units(coeffs)
+
+            if self.case.upper()=='BOL':
+                # Beginning of life predictions as of 2020 have much lower amplitude WFE drift
+                # than the EOL model that was fit to produce the coefficients here.
+                coeffs *= 0.35
+
             return coeffs
 
 
@@ -2611,20 +2722,23 @@ class JWST_WAS_PTT_Basis(object):
         for i, segname in enumerate(self.ote.segnames[0:18]):
             # We do these intentionally with the base units, though those result in unphysically large moves
 
+            iseg = i+1
+            wseg = np.where(self.ote._segment_masks==iseg)
+
             # Piston
             self.ote.zero()
             self.ote.move_seg_local(segname, piston=1, trans_unit='meter')
-            basis[i*3] = self.ote.opd
+            basis[i*3][wseg] = self.ote.opd[wseg]
 
             # Tip
             self.ote.zero()
             self.ote.move_seg_local(segname, xtilt=1, rot_unit='radian')
-            basis[i*3+1] = self.ote.opd
+            basis[i*3+1][wseg] = self.ote.opd[wseg]
 
             #Tilt
             self.ote.zero()
             self.ote.move_seg_local(segname, ytilt=1, rot_unit='radian')
-            basis[i*3+2] = self.ote.opd
+            basis[i*3+2][wseg] = self.ote.opd[wseg]
 
         return basis[0:nterms]
 
