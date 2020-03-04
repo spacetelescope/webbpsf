@@ -1081,6 +1081,12 @@ class OTE_Linear_Model_WSS(OPD):
 
         # load influence function table:
         self._influence_fns = astropy.table.Table.read(os.path.join(__location__, 'otelm', 'JWST_influence_functions_control_with_sm.fits'))
+
+        #fix IFM sign convention for consistency to WSS
+        cnames = self._influence_fns.colnames
+        for icol in cnames[3:]:
+            self._influence_fns[icol] *= -1
+
         self._control_modes = ['Xtilt', 'Ytilt', 'Piston', 'Clocking', 'Radial', 'ROC']
         self._sm_control_modes = ['Xtilt', 'Ytilt', 'Xtrans', 'Ytrans', 'Piston']
         # controllable modes in WAS order; yes it's not an obvious ordering but that's the order of the
