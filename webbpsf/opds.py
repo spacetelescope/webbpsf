@@ -2047,9 +2047,9 @@ def setup_image_array(ote, radius=1, size=None, inverted=False, reset=False, ver
         # Image Arrays used in flight
         size = radius * -1 if inverted else radius
         for i in range(1, 7):
-            ote.move_seg_local('A' + str(i), xtilt=-size * arcsec_urad / 2, delay_update=True)
-            ote.move_seg_local('B' + str(i), xtilt=size * arcsec_urad, delay_update=True)
-            ote.move_seg_local('C' + str(i), ytilt=-size * np.sqrt(3) / 2 * arcsec_urad, delay_update=True)
+            ote.move_seg_local('A' + str(i), xtilt=size * arcsec_urad / 2, delay_update=True)
+            ote.move_seg_local('B' + str(i), xtilt=-size * arcsec_urad, delay_update=True)
+            ote.move_seg_local('C' + str(i), ytilt=size * np.sqrt(3) / 2 * arcsec_urad, delay_update=True)
     else:
         if not acfs_only:
             # Image Arrays used for JSC OTIS Cryo
