@@ -1126,8 +1126,11 @@ class JWInstrument(SpaceTelescopeInstrument):
 
             # Now we'll do the linear jitter part
             smear_length = 0.4 # arcsec
-            smear_length_pix = smear_length /  result[0].header['PIXELSCL']
-            smear_model  = np.identity(int(np.round(smear_length_pix)))
+            smear_length_pix = int(np.round(smear_length /  result[0].header['PIXELSCL']))
+            if smear_length_pix % 2 ==0:
+                smear_length_pix += 1   # Astropy convolution requires odd sized kernels only
+
+            smear_model  = np.identity(smear_length_pix)
             import astropy
             from astropy.convolution.kernels import CustomKernel
             _log.info("Jitter: Convolving with linear smear of {0:.3f} arcsec".format(smear_length))
