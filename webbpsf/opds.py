@@ -1081,6 +1081,12 @@ class OTE_Linear_Model_WSS(OPD):
 
         # load influence function table:
         self._influence_fns = astropy.table.Table.read(os.path.join(__location__, 'otelm', 'JWST_influence_functions_control_with_sm.fits'))
+
+        #fix IFM sign convention for consistency to WSS
+        cnames = self._influence_fns.colnames
+        for icol in cnames[3:]:
+            self._influence_fns[icol] *= -1
+
         self._control_modes = ['Xtilt', 'Ytilt', 'Piston', 'Clocking', 'Radial', 'ROC']
         self._sm_control_modes = ['Xtilt', 'Ytilt', 'Xtrans', 'Ytrans', 'Piston']
         # controllable modes in WAS order; yes it's not an obvious ordering but that's the order of the
@@ -2077,9 +2083,9 @@ def setup_image_array(ote, radius=1, size=None, inverted=False, reset=False, ver
         # Image Arrays used in flight
         size = radius * -1 if inverted else radius
         for i in range(1, 7):
-            ote.move_seg_local('A' + str(i), xtilt=-size * arcsec_urad / 2, delay_update=True)
-            ote.move_seg_local('B' + str(i), xtilt=size * arcsec_urad, delay_update=True)
-            ote.move_seg_local('C' + str(i), ytilt=-size * np.sqrt(3) / 2 * arcsec_urad, delay_update=True)
+            ote.move_seg_local('A' + str(i), xtilt=size * arcsec_urad / 2, delay_update=True)
+            ote.move_seg_local('B' + str(i), xtilt=-size * arcsec_urad, delay_update=True)
+            ote.move_seg_local('C' + str(i), ytilt=size * np.sqrt(3) / 2 * arcsec_urad, delay_update=True)
     else:
         if not acfs_only:
             # Image Arrays used for JSC OTIS Cryo
