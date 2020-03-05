@@ -1063,6 +1063,94 @@ class JWInstrument(SpaceTelescopeInstrument):
         return shift_x, shift_y
 
 
+    def _apply_jitter(self,  result, local_options=None):
+        """ Modify a PSF to account for the blurring effects of image jitter.
+        Parameter arguments are taken from the options dictionary.
+
+        This adds options to model JWST coarse point ("PCS=Coarse") under
+        two sets of assumptions:
+            "PCS=Coarse": 67 mas Gaussian jitter, as advised by Nelan & Maghamni based on
+                          detailed sims of observatory performance in coarse point mode.
+            "PCS=Coarse_Like_ITM": Attempt to replicate same assumptions as in Ball's ITM tool.
+                          This includes 200 mas sigma Gaussian jitter, plus a linear drift of
+                          400 mas per exposure.
+
+        Other types of jitter, in particular plain Gaussian jitter, are implemented by the
+        superclass version of this function, in poppy.Instrument.
+
+        Parameters
+        -----------
+        result : fits.HDUList
+            HDU list containing a point spread function
+        local_options : dict, optional
+            Options dictionary. If not present, options will be taken from self.options.
+
+
+        The image in the 'result' HDUlist will be modified by this function.
+        """
+        if local_options is None:
+            local_options = self.options
+        if 'jitter' not in local_options:
+            result[0].header['JITRTYPE'] = ('None', 'Type of jitter applied')
+            return
+
+        _log.info("Calculating jitter using " + str(local_options['jitter']))
+
+        if local_options['jitter'] is None:
+            return
+        elif local_options['jitter'].lower() == 'gaussian':
+            # Regular version in poppy
+            return super()._apply_jitter(result, local_options=local_options)
+        elif local_options['jitter'].lower() == 'pcs=coarse':
+            # JWST coarse point, current best estimate assumptions from Nelan & Maghami
+            #   67 mas
+            local_options_cp = local_options.copy()
+            local_options_cp['jitter'] = 'gaussian'
+            local_options_cp['jitter_sigma'] = 0.067
+            return super()._apply_jitter(result, local_options=local_options_cp)
+        elif local_options['jitter'].lower() == 'pcs=coarse_like_itm':
+            # JWST coarse point, assumptions in ITM
+            # Acton says:
+            #  it is actually 0.4 for a boresight error, 0.4 smear, and 0.2 jitter. Boresight error is a random term for image placement, smear is mostly a linear uniform blur, and jitter is gaussian.
+
+            # First we do the fast jitter part
+            local_options['jitter_sigma'] = 0.2
+            import scipy.ndimage
+
+            sigma = local_options.get('jitter_sigma')
+
+            # that will be in arcseconds, we need to convert to pixels:
+
+            _log.info("Jitter: Convolving with Gaussian with sigma={0:.3f} arcsec".format(sigma))
+            out = scipy.ndimage.gaussian_filter(result[0].data, sigma / result[0].header['PIXELSCL'])
+
+            # Now we'll do the linear jitter part
+            smear_length = 0.4 # arcsec
+            smear_length_pix = smear_length /  result[0].header['PIXELSCL']
+            smear_model  = np.identity(int(np.round(smear_length_pix)))
+            import astropy
+            from astropy.convolution.kernels import CustomKernel
+            _log.info("Jitter: Convolving with linear smear of {0:.3f} arcsec".format(smear_length))
+            kern = CustomKernel(smear_model)
+            out = astropy.convolution.convolve_fft(out, kern)
+
+            peak = result[0].data.max()
+            newpeak = out.max()
+            strehl = newpeak / peak  # not really the whole Strehl ratio, just the part due to jitter
+
+
+            _log.info("        resulting image peak drops to {0:.3f} of its previous value".format(strehl))
+            result[0].header['JITRTYPE'] = ('PCS Coarse, like ITM', 'Type of jitter applied')
+            result[0].header['JITRSIGM'] = (sigma, 'Gaussian sigma for jitter, per axis [arcsec]')
+            result[0].header['JITSMEAR'] = (smear_length, 'Linear smear [arcsec]')
+            result[0].header['JITRSTRL'] = (strehl, 'Strehl reduction from jitter ')
+
+            result[0].data = out
+        else:
+            raise ValueError('Unknown jitter option value: ' + local_options['jitter'])
+
+
+
 class MIRI(JWInstrument):
     """ A class modeling the optics of MIRI, the Mid-InfraRed Instrument.
 
