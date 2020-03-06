@@ -357,3 +357,48 @@ def test_ways_to_specify_weak_lenses():
         assert expected in [p.name for p in nrc._get_optical_system().planes], "Optical system did not contain expected plane {} for {}, {}".format(expected, filt, pup)
 
 
+def test_nircam_coron_wfe_offset(fov_pix=15, oversample=2):
+    """
+    Test offset of LW coronagraphic PSF 
+    w.r.t. wavelength due to optical wedge dispersion
+    """
+
+    from astropy.modeling import models, fitting
+
+    inst = webbpsf_core.NIRCam()
+    inst.filter = 'F335M'
+    inst.pupil_mask = 'CIRCLYOT'
+    inst.image_mask = None
+    inst.include_si_wfe = True
+
+    # size of an oversampled pixel in mm (detector pixels are 18um)
+    mm_per_pix = 18e-3/oversample
+
+    # Investigate the differences between three wavelengths
+    warr = np.array([2.5,3.35,5.0])
+
+    # Find PSF position for each wavelength
+    yloc = []
+    for w in warr:
+        hdul = inst.calc_psf(monochromatic=w*1e-6, oversample=oversample, add_distortion=False, fov_pixels=fov_pix)
+
+        # Fit 1D Gaussian to vertical cross section of PSF
+        im = hdul[0].data
+        sh = im.shape
+        
+        # Values to fit Gaussian
+        xvals = mm_per_pix * (np.arange(sh[0]) - sh[0]/2)
+        yvals = im[:,int(sh[1]/2)]
+
+        # Create Gaussian model fit of PSF core to determine y offset
+        g_init = models.Gaussian1D(amplitude=yvals.max(), mean=0, stddev=0.01)
+        fit_g = fitting.LevMarLSQFitter()
+        g = fit_g(g_init, xvals, yvals)
+        yloc.append(g.mean.value)
+    yloc = np.array(yloc_on)
+
+    # Difference values should be greater than 0.010mm
+    # Should be along the lines of 0.013mm between wave=3.23 and 2.5um, 
+    # and 0.031mm between wave=3.23 and 5.0um.
+    assert np.abs(yloc[0] - yloc[1]) > 0.01, "Expected PSF shift between {:.2f} and {:.2f} um is too small".format(warr[1], warr[0])
+    assert np.abs(yloc[2] - yloc[1]) > 0.01, "Expected PSF shift between {:.2f} and {:.2f} um is too small".format(warr[1], warr[2])
