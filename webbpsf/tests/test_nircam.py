@@ -395,7 +395,7 @@ def test_nircam_coron_wfe_offset(fov_pix=15, oversample=2):
         fit_g = fitting.LevMarLSQFitter()
         g = fit_g(g_init, xvals, yvals)
         yloc.append(g.mean.value)
-    yloc = np.array(yloc_on)
+    yloc = np.array(yloc)
 
     # Difference values should be greater than 0.010mm
     # Should be along the lines of 0.013mm between wave=3.23 and 2.5um, 
