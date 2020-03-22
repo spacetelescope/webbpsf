@@ -357,48 +357,67 @@ def test_ways_to_specify_weak_lenses():
         assert expected in [p.name for p in nrc._get_optical_system().planes], "Optical system did not contain expected plane {} for {}, {}".format(expected, filt, pup)
 
 
-def test_nircam_coron_wfe_offset(fov_pix=15, oversample=2):
+def test_nircam_coron_wfe_offset(fov_pix=15, oversample=2, fit_gaussian=True):
     """
-    Test offset of LW coronagraphic PSF 
-    w.r.t. wavelength due to optical wedge dispersion
+    Test offset of LW coronagraphic PSF w.r.t. wavelength due to optical wedge dispersion.
+    Option to fit a Gaussian to PSF core in order to better determine peak position.
+    Difference from 2.5 to 3.3 um should be ~0.015mm.
+    Difference from 3.3 to 5.0 um should be ~0.030mm.
     """
 
-    from astropy.modeling import models, fitting
+    # Disable Gaussian fit if astropy not installed
+    if fit_guassian:
+        try:
+            from astropy.modeling import models, fitting
+        except ImportError:
+            fit_gaussian = False
 
+    # Ensure oversample to >1 no Gaussian fitting
+    if fit_gaussian == False:
+        oversample = 2 if oversample<2 else oversample
+
+    # Set up an off-axis coronagraphic PSF
     inst = webbpsf_core.NIRCam()
     inst.filter = 'F335M'
     inst.pupil_mask = 'CIRCLYOT'
     inst.image_mask = None
     inst.include_si_wfe = True
+    inst.options['jitter'] = None
 
     # size of an oversampled pixel in mm (detector pixels are 18um)
     mm_per_pix = 18e-3/oversample
 
     # Investigate the differences between three wavelengths
-    warr = np.array([2.5,3.35,5.0])
+    warr = np.array([2.5,3.3,5.0])
 
     # Find PSF position for each wavelength
     yloc = []
     for w in warr:
         hdul = inst.calc_psf(monochromatic=w*1e-6, oversample=oversample, add_distortion=False, fov_pixels=fov_pix)
 
-        # Fit 1D Gaussian to vertical cross section of PSF
+        # Vertical image cross section of oversampled PSF
         im = hdul[0].data
         sh = im.shape
-        
-        # Values to fit Gaussian
         xvals = mm_per_pix * (np.arange(sh[0]) - sh[0]/2)
         yvals = im[:,int(sh[1]/2)]
 
-        # Create Gaussian model fit of PSF core to determine y offset
-        g_init = models.Gaussian1D(amplitude=yvals.max(), mean=0, stddev=0.01)
-        fit_g = fitting.LevMarLSQFitter()
-        g = fit_g(g_init, xvals, yvals)
-        yloc.append(g.mean.value)
+        # Fit 1D Gaussian to vertical cross section of PSF
+        if fit_gaussian:
+            # Create Gaussian model fit of PSF core to determine y offset
+            g_init = models.Gaussian1D(amplitude=yvals.max(), mean=0, stddev=0.01)
+            fit_g = fitting.LevMarLSQFitter()
+            g = fit_g(g_init, xvals, yvals)
+            yloc.append(g.mean.value)
+        else:
+            # Just use PSF max location
+            yloc.append(xvals[yvals==yvals.max()][0])
     yloc = np.array(yloc)
 
-    # Difference values should be greater than 0.010mm
-    # Should be along the lines of 0.013mm between wave=3.23 and 2.5um, 
-    # and 0.031mm between wave=3.23 and 5.0um.
-    assert np.abs(yloc[0] - yloc[1]) > 0.01, "Expected PSF shift between {:.2f} and {:.2f} um is too small".format(warr[1], warr[0])
-    assert np.abs(yloc[2] - yloc[1]) > 0.01, "Expected PSF shift between {:.2f} and {:.2f} um is too small".format(warr[1], warr[2])
+    # Difference from 2.5 to 3.3 um should be ~0.015mm
+    diff_25_33 = np.abs(yloc[0] - yloc[1])
+    assert diff_25_33 > 0.01, "Expected PSF shift between {:.2f} and {:.2f} um is too small ({:.3f} mm).".format(warr[1], warr[0], diff_25_33)
+    assert diff_25_33 < 0.02, "Expected PSF shift between {:.2f} and {:.2f} um is too large ({:.3f} mm).".format(warr[1], warr[0], diff_25_33)
+    # Difference from 3.3 to 5.0 um should be ~0.030mm
+    diff_50_33 = np.abs(yloc[2] - yloc[1])
+    assert diff_50_33 > 0.02, "Expected PSF shift between {:.2f} and {:.2f} um is too small ({:.3f} mm).".format(warr[1], warr[2], diff_50_33)
+    assert diff_50_33 < 0.04, "Expected PSF shift between {:.2f} and {:.2f} um is too large ({:.3f} mm).".format(warr[1], warr[2], diff_50_33)
