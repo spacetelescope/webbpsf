@@ -421,4 +421,4 @@ def test_nircam_coron_wfe_offset(fov_pix=15, oversample=2, fit_gaussian=True):
     assert np.allclose( diff_25_33, 0.016, rtol=rtol), "PSF shift between {:.2f} and {:.2f} um of {:.3f} mm does not match expected value (~0.016 mm).".format(warr[1], warr[0], diff_25_33)
     # Difference from 3.3 to 5.0 um should be ~0.030mm
     diff_50_33 = np.abs(yloc[2] - yloc[1])
-    assert np.allclose( diff_50_33, 0.032, rtol=rtol), "PSF shift between {:.2f} and {:.2f} um of {:.3f} mm does not match expected value (~0.032 mm).".format(warr[1], warr[0], diff_25_33)
+    assert np.allclose( diff_50_33, 0.032, rtol=rtol), "PSF shift between {:.2f} and {:.2f} um of {:.3f} mm does not match expected value (~0.032 mm).".format(warr[1], warr[2], diff_50_33)
