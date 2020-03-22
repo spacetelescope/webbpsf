@@ -366,7 +366,7 @@ def test_nircam_coron_wfe_offset(fov_pix=15, oversample=2, fit_gaussian=True):
     """
 
     # Disable Gaussian fit if astropy not installed
-    if fit_guassian:
+    if fit_gaussian:
         try:
             from astropy.modeling import models, fitting
         except ImportError:
@@ -375,6 +375,9 @@ def test_nircam_coron_wfe_offset(fov_pix=15, oversample=2, fit_gaussian=True):
     # Ensure oversample to >1 no Gaussian fitting
     if fit_gaussian == False:
         oversample = 2 if oversample<2 else oversample
+        rtol = 0.2
+    else:
+        rtol = 0.1
 
     # Set up an off-axis coronagraphic PSF
     inst = webbpsf_core.NIRCam()
@@ -415,9 +418,7 @@ def test_nircam_coron_wfe_offset(fov_pix=15, oversample=2, fit_gaussian=True):
 
     # Difference from 2.5 to 3.3 um should be ~0.015mm
     diff_25_33 = np.abs(yloc[0] - yloc[1])
-    assert diff_25_33 > 0.01, "Expected PSF shift between {:.2f} and {:.2f} um is too small ({:.3f} mm).".format(warr[1], warr[0], diff_25_33)
-    assert diff_25_33 < 0.02, "Expected PSF shift between {:.2f} and {:.2f} um is too large ({:.3f} mm).".format(warr[1], warr[0], diff_25_33)
+    assert np.allclose( diff_25_33, 0.016, rtol=rtol), "PSF shift between {:.2f} and {:.2f} um of {:.3f} mm does not match expected value (~0.016 mm).".format(warr[1], warr[0], diff_25_33)
     # Difference from 3.3 to 5.0 um should be ~0.030mm
     diff_50_33 = np.abs(yloc[2] - yloc[1])
-    assert diff_50_33 > 0.02, "Expected PSF shift between {:.2f} and {:.2f} um is too small ({:.3f} mm).".format(warr[1], warr[2], diff_50_33)
-    assert diff_50_33 < 0.04, "Expected PSF shift between {:.2f} and {:.2f} um is too large ({:.3f} mm).".format(warr[1], warr[2], diff_50_33)
+    assert np.allclose( diff_50_33, 0.032, rtol=rtol), "PSF shift between {:.2f} and {:.2f} um of {:.3f} mm does not match expected value (~0.032 mm).".format(warr[1], warr[0], diff_25_33)
