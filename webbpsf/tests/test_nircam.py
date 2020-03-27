@@ -357,3 +357,68 @@ def test_ways_to_specify_weak_lenses():
         assert expected in [p.name for p in nrc._get_optical_system().planes], "Optical system did not contain expected plane {} for {}, {}".format(expected, filt, pup)
 
 
+def test_nircam_coron_wfe_offset(fov_pix=15, oversample=2, fit_gaussian=True):
+    """
+    Test offset of LW coronagraphic PSF w.r.t. wavelength due to optical wedge dispersion.
+    Option to fit a Gaussian to PSF core in order to better determine peak position.
+    Difference from 2.5 to 3.3 um should be ~0.015mm.
+    Difference from 3.3 to 5.0 um should be ~0.030mm.
+    """
+
+    # Disable Gaussian fit if astropy not installed
+    if fit_gaussian:
+        try:
+            from astropy.modeling import models, fitting
+        except ImportError:
+            fit_gaussian = False
+
+    # Ensure oversample to >1 no Gaussian fitting
+    if fit_gaussian == False:
+        oversample = 2 if oversample<2 else oversample
+        rtol = 0.2
+    else:
+        rtol = 0.1
+
+    # Set up an off-axis coronagraphic PSF
+    inst = webbpsf_core.NIRCam()
+    inst.filter = 'F335M'
+    inst.pupil_mask = 'CIRCLYOT'
+    inst.image_mask = None
+    inst.include_si_wfe = True
+    inst.options['jitter'] = None
+
+    # size of an oversampled pixel in mm (detector pixels are 18um)
+    mm_per_pix = 18e-3/oversample
+
+    # Investigate the differences between three wavelengths
+    warr = np.array([2.5,3.3,5.0])
+
+    # Find PSF position for each wavelength
+    yloc = []
+    for w in warr:
+        hdul = inst.calc_psf(monochromatic=w*1e-6, oversample=oversample, add_distortion=False, fov_pixels=fov_pix)
+
+        # Vertical image cross section of oversampled PSF
+        im = hdul[0].data
+        sh = im.shape
+        xvals = mm_per_pix * (np.arange(sh[0]) - sh[0]/2)
+        yvals = im[:,int(sh[1]/2)]
+
+        # Fit 1D Gaussian to vertical cross section of PSF
+        if fit_gaussian:
+            # Create Gaussian model fit of PSF core to determine y offset
+            g_init = models.Gaussian1D(amplitude=yvals.max(), mean=0, stddev=0.01)
+            fit_g = fitting.LevMarLSQFitter()
+            g = fit_g(g_init, xvals, yvals)
+            yloc.append(g.mean.value)
+        else:
+            # Just use PSF max location
+            yloc.append(xvals[yvals==yvals.max()][0])
+    yloc = np.array(yloc)
+
+    # Difference from 2.5 to 3.3 um should be ~0.015mm
+    diff_25_33 = np.abs(yloc[0] - yloc[1])
+    assert np.allclose( diff_25_33, 0.016, rtol=rtol), "PSF shift between {:.2f} and {:.2f} um of {:.3f} mm does not match expected value (~0.016 mm).".format(warr[1], warr[0], diff_25_33)
+    # Difference from 3.3 to 5.0 um should be ~0.030mm
+    diff_50_33 = np.abs(yloc[2] - yloc[1])
+    assert np.allclose( diff_50_33, 0.032, rtol=rtol), "PSF shift between {:.2f} and {:.2f} um of {:.3f} mm does not match expected value (~0.032 mm).".format(warr[1], warr[2], diff_50_33)
