@@ -2761,3 +2761,94 @@ def coeffs_to_seg_state(coeffs):
     seg_state[:,0] = coeffs_tab[:,1]  # tip in 1st column
     seg_state[:,1] = coeffs_tab[:,2]  # tilt in 2nd column
     return seg_state*1e6   # convert from meters & radians to micro units
+
+#--------------------------------------------------------------------------------
+# Coarse track pointing (for early commissioning)
+
+def get_coarse_blur_parameters(t0, duration, pixelscale, plot=False, case=1,):
+    """ Extract coarse blur center offset and convolution kernel from the Coarse Point sim time series
+
+    Parameters
+    -----------
+
+    pcsmodel : astropy.Table
+        High resolution time series data from JWST ACS sims
+    t0 : float
+        Start time, in seconds, for the time period of interest (typically the exposure start time.)
+    duration : float
+        Exposure duration, in seconds
+    pixelscale : float
+        Pixelscale in arcsec/pix for the output convolution kernel. Typically the NIRCam
+        detector pixel scale, or an oversampled version thereof.
+    case : int
+        Which model output case to use.
+        Model 1 has lower drift rate and yields approximately Gaussian jitter with 1 sigma = 0.15 per axis
+        Model 2 has a larger linear drift/trend of about 2 arcsec over the 2 hours.
+
+    Returns
+    -------
+    cen : 2-tuple of floats
+        Mean offset in V2,V3 during the exposure
+    kernel : 2D ndarray
+        Convolution kernel to pass to WebbPSF, generated from the LOS model during the observation
+        sampled/rasterized into the specified pixel scale.
+    """
+
+    pcsmodel = astropy.table.Table.read(os.path.join(__location__, 'otelm', f'coarse_track{case}_sim_pointing.fits'))
+
+    wt = (t0 < pcsmodel['time']) & (pcsmodel['time'] < t0+duration)
+    ns = wt.sum()
+
+    # Extract coordinates for the requested time period
+    coords = np.zeros((2,wt.sum()), float )
+    coords[0] = pcsmodel['deltaV2'][wt]
+    coords[1] = pcsmodel['deltaV3'][wt]
+
+    cen = coords.mean(axis=1)       # Center
+
+    dc = (coords-cen.reshape(2,1) )   # differential coords, in arcsec
+
+    # Set up box to raster the curve into
+    halfbox = np.ceil(np.abs(dc).max()/pixelscale)
+    boxsize = int(2*halfbox+1) # must be an odd number for astropy convolution
+    kernel = np.zeros((boxsize, boxsize))
+
+    # Compute coords relative to lower right corner of raster box
+    lowerright = -halfbox*pixelscale
+    dc_pixels = np.array(np.round((dc - lowerright)/pixelscale), int)
+
+    # Raster the curve into the array
+    # have to do this via for loop rather than array indexing, to handle repeated indices
+    for x, y in dc_pixels.transpose():
+        kernel[y, x] += 1
+
+    # optional display
+    if plot:
+        plt.figure()
+        plt.plot(pcsmodel['deltaV2'], pcsmodel['deltaV3'], label='every 0.25 s')
+        plt.plot(coords[0], coords[1], label='during exposure')
+
+        plt.plot(pcsmodel['deltaV2'][0], pcsmodel['deltaV3'][0], marker='*', color='cyan', label='start of time series')
+        plt.plot(cen[0], cen[1], marker='*', color='black', label='mean in exposure')
+
+        plt.gca().set_aspect('equal')
+        plt.legend(fontsize=7)
+        plt.xlabel("Delta V2 [mas]")
+        plt.ylabel("Delta V3 [mas]")
+
+
+        plt.figure()
+        plt.plot(dc[0], dc[1], color='C1', label='during exposure' )
+        plt.plot((dc_pixels[0]-halfbox)*pixelscale, (dc_pixels[1]-halfbox)*pixelscale, color='C2', label='rounded to pixels')
+        plt.gca().set_aspect('equal')
+        plt.legend(fontsize=7)
+        plt.xlabel("Delta V2 [mas]")
+        plt.ylabel("Delta V3 [mas]")
+
+
+        plt.figure()
+        plt.imshow(kernel, cmap = matplotlib.cm.gray)
+        plt.title(f"Convolution kernel at t={t0}, d={duration} s\nOffset={cen} arcsec", fontsize=10)
+        plt.ylabel('Delta V3 [pixels]')
+
+    return cen, kernel
