@@ -2136,9 +2136,12 @@ def setup_image_array(ote, radius=1, size=None, inverted=False, reset=False, ver
         Desired radius to B segments, in arcseconds as seen on the focal plane.
     size : string, optional
         Another way of specifying the image array size. Use one of 'small', 'medium', or
-        'large' for the standard sizes used in OTE commissioning.
+        'large' for the standard sizes used in OTE commissioning. Or 'cmimf' for the size
+        used in Coarse MIMF, which is in between small and medium.
     guide_seg : string
         relevant mostly for coarse MIMF and image stacking. Kick out a segment to guide?
+        The segment will be offset during coarse MIMF to its position desired during GA2, i.e.
+        to its position in the large array.
     acfs_only : bool
         Only tilt the ACFs (applicable to JSC OTIS only)
     inverted : bool
@@ -2151,15 +2154,15 @@ def setup_image_array(ote, radius=1, size=None, inverted=False, reset=False, ver
 
     assert isinstance(ote, OTE_Linear_Model_WSS), "First argument has to be a linear optical model instance."
 
-    jsc = ((size == 'jsc') or (size == 'jsc_compact') or (size == 'jsc_inverted'))
+    nircam_pixelscale = 0.0311
+    standard_sizes = {'small': 80 * nircam_pixelscale,
+                      'cmimf': 120 * nircam_pixelscale,
+                      'medium': 300 * nircam_pixelscale,
+                      'large': 812 * nircam_pixelscale
+                      }
+
     if size is not None:
-        if not jsc:
-            nircam_pixelscale = 0.0311
-            standard_sizes = {'small': 80 * nircam_pixelscale,
-                              'medium': 300 * nircam_pixelscale,
-                              'large': 812 * nircam_pixelscale
-                              }
-            radius = standard_sizes[size]
+        radius = standard_sizes[size]
 
     # how many microradians of segment tilt per arcsecond of PSF motion?
     # note factor of 2 since reflection
