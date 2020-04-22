@@ -1832,7 +1832,7 @@ class OTE_Linear_Model_WSS(OPD):
 
 
     def thermal_slew(self, delta_time, start_angle=-5,end_angle=45,
-                     scaling=None, display=False, case='BOL', delay_update=False):
+                     scaling=None, display=False, case='EOL', delay_update=False):
         """ Update the OPD based on presence of a pitch angle change between
         observations.
 
