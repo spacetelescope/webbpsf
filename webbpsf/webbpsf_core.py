@@ -1760,6 +1760,7 @@ class NIRSpec(JWInstrument):
         self._detectors = dict()
         for name in det_list: self._detectors[name] = '{0}_FULL'.format(name)
         self.detector = self.detector_list[0]
+        self.detector_position = (1380, 1024)   # near S1600A1 square aperture / ISIM1 field point. see #348.
         self._si_wfe_class = optics.NIRSpecFieldDependentAberration  # note we end up adding 2 instances of this.
 
     def _validate_config(self, **kwargs):
