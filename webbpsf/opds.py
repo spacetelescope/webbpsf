@@ -1052,7 +1052,7 @@ class OTE_Linear_Model_WSS(OPD):
     """
 
     def __init__(self, name='Unnamed OPD', opd=None, opd_index=0, transmission=None, segment_mask_file='JWpupil_segments.fits',
-                 zero=False, jsc=False, rm_ptt=False):
+                 zero=False, rm_ptt=False):
         """
         Parameters
         ----------
@@ -1069,8 +1069,6 @@ class OTE_Linear_Model_WSS(OPD):
             use JWpupil_segments.fits
         zero: ??
             ??
-        jsc : bool
-            Enable JSC OTIS test specific options?
         rm_ptt : bool
             Remove piston, tip, and tilt? This is mostly for visualizing the higher order parts of
             the LOM.
@@ -1096,7 +1094,6 @@ class OTE_Linear_Model_WSS(OPD):
         self.segnames = np.asarray(list(self.segnames) + ['SM'])  # this model, unlike the above, knows about the SM.
 
         self._opd_original = self.opd.copy()  # make a separate copy
-        self._jsc = jsc
         self.remove_piston_tip_tilt = rm_ptt
         self._global_zernike_coeffs = np.zeros(15)
         self._global_hexike_coeffs = np.zeros(15)
@@ -1111,16 +1108,6 @@ class OTE_Linear_Model_WSS(OPD):
         self._frill_wfe_amplitude = 0.0
         self._iec_wfe_amplitude = 0.0
 
-        if self._jsc:
-            self._jsc_acf_tilts = np.zeros((3, 2))  # only for JSC sims. Tilts in microradians.
-
-            # helper diagram taped to WSS monitor says:
-            # 'ACF1' = ABC4, 'ACF2' = ABC6, 'ACF3' = ABC2.
-
-            self._jsc_acf_cens = np.array([[1.90478, 0.6781127],  # Segs ABC2  V2, V3
-                                           [-0.382703, -1.96286],  # Secs ABC4
-                                           [-1.52316, 1.342146]])  # Segs ABC6
-            self._jsc_acf_centers_pixels = self.shape[0] / 2 + self._jsc_acf_cens / self.pixelscale.value
         if zero:
             self.zero()
 
@@ -1170,11 +1157,6 @@ class OTE_Linear_Model_WSS(OPD):
             segment = 18
             thatsegment = self.segment_state[18]
             print("%2s\t %10.4f %10.4f %10.4f %10.4f %10.4f %10.4f" % tuple([segment] + thatsegment.tolist()))
-        if self._jsc:
-            print("JSC Autocollimating flat tilts: ")
-            print("  \t %10s %10s " % ("Xtilt", "Ytilt"))
-            for i in range(3):
-                print("  \t %10s %10s " % tuple(self._jsc_acf_tilts[i]))
 
     # ---- segment manipulation via linear model
 
@@ -1197,9 +1179,6 @@ class OTE_Linear_Model_WSS(OPD):
                 raise RuntimeError("Influence function table has unexpected ordering")
             for h in range(nhexike):
                 coeffs[i, h] = table[i]['Hexike_{}'.format(h)]
-
-        if self._jsc:
-            coeffs *= 2  # double pass on the SM for PAAH config
 
         # the coefficients are in the table natively in units of microns,
         # as preferred by most Ball code. WebbPSF works natively in meters
@@ -1225,9 +1204,6 @@ class OTE_Linear_Model_WSS(OPD):
                 raise RuntimeError("Influence function table has unexpected ordering")
             for h in range(nhexike):
                 coeffs[i, h] = table[i]['Hexike_{}'.format(h)]
-
-        if self._jsc:
-            coeffs *= 2  # double pass on the SM for PAAH config
 
         # the coefficients are in the table natively in units of microns,
         # as preferred by most Ball code. WebbPSF works natively in meters
@@ -1290,29 +1266,6 @@ class OTE_Linear_Model_WSS(OPD):
 
         # outtxt="Hs=["+", ".join(['%.1e'%z for z in hexike_coeffs])+"]"
         # _log.debug("     "+outtxt)
-
-    def _apply_acf_tilt(self, acfnum):
-        """ Apply tilt moves for one of the JSC autocollimating flats
-
-        """
-
-        coeffs = self._jsc_acf_tilts[acfnum]  # Xtilt, Ytilt
-
-        Y, X = np.indices(self.opd.shape, dtype=float)
-        cx, cy = self._jsc_acf_centers_pixels[acfnum]
-        acf_radius = 1.52 / 2 / self.pixelscale.value
-        Y = (Y - cy) / acf_radius
-        X = (X - cx) / acf_radius
-        R = np.sqrt(X ** 2 + Y ** 2)
-        wacf = np.where(R <= 1)
-        Xc = X[wacf]
-        Yc = Y[wacf]
-
-        zern_xtilt = Yc * 2e-6  # remember, "Xtilt" means tilt around the X axis
-        zern_ytilt = Xc * 2e-6  # Times 1e-6 to convert from microradians of tilt to meters of WFE
-        # Times 2 since double pass, negative since facing the other way
-
-        self.opd[wacf] += coeffs[0] * zern_xtilt + coeffs[1] * zern_ytilt
 
     def _apply_global_zernikes(self):
         """ Apply Zernike perturbations to the whole primary
@@ -1682,22 +1635,6 @@ class OTE_Linear_Model_WSS(OPD):
         if not delay_update:
             self.update_opd(display=display)
 
-    def move_jsc_acf(self, acfnum, xtilt=0.0, ytilt=0.0, unit='urad', absolute=False,
-                     delay_update=False, display=False):
-        """ Move autocollimating flats at JSC.
-            NOTE - THIS IS ONLY APPLICABLE TO JSC OTIS CRYO - NOT FLIGHT!
-
-        """
-        if not self._jsc:
-            raise RuntimeError("This instance of the linear model is not configured for JSC.")
-        if absolute:
-            self._jsc_acf_tilts[acfnum] = [xtilt, ytilt]
-        else:
-            self._jsc_acf_tilts[acfnum] += [xtilt, ytilt]
-
-        if not delay_update:
-            self.update_opd(display=display)
-
     def move_global_zernikes(self, zvector, unit='micron',
                              absolute=False, delay_update=False, display=False):
         """ Add one or more aberrations specified arbitrarily as Zernike polynomials.
@@ -1988,13 +1925,6 @@ class OTE_Linear_Model_WSS(OPD):
         if self.delta_time != 0.0:
             self._global_hexike_coeffs[4] -= self._get_thermal_slew_coeffs('SM')
 
-        # Apply NASA JSC OTIS test ACF tilts (not relevant in flight)
-        if self._jsc and np.any(self._jsc_acf_tilts != 0):
-            for iacf in range(3):
-                self._apply_acf_tilt(iacf)
-                if verbose:
-                    print("Tilted JSC ACF {} by {}".format(iacf, self._jsc_acf_tilts[iacf]))
-
         if display:
             self.display()
 
@@ -2149,7 +2079,7 @@ class OTE_Linear_Model_WSS(OPD):
 ################################################################################
 
 
-def enable_adjustable_ote(instr, jsc=False):
+def enable_adjustable_ote(instr):
     """
     Set up a WebbPSF instrument instance to have a modifiable OTE
     wavefront error OPD via an OTE linear optical model (LOM).
@@ -2158,8 +2088,6 @@ def enable_adjustable_ote(instr, jsc=False):
     ----------
     inst : WebbPSF Instrument instance
         an instance of one of the WebbPSF instrument classes.
-    jsc : bool
-        Use ACF pupil for JSC pass and a half test configuration
 
     Returns
     --------
@@ -2182,14 +2110,11 @@ def enable_adjustable_ote(instr, jsc=False):
         else:
             opdpath = instr.pupilopd
 
-    if jsc:
-        pupilpath = os.path.join(utils.get_webbpsf_data_path(), "jwst_pupil_JSC_OTIS_Cryo.fits")
-    else:
-        pupilpath = instr.pupil
+    pupilpath = instr.pupil
 
     name = "Modified OPD from " + str(instr.pupilopd)
     opd = OTE_Linear_Model_WSS(name=name,
-                               opd=opdpath, transmission=pupilpath, jsc=jsc)
+                               opd=opdpath, transmission=pupilpath)
 
     instcopy.pupilopd = opd
     instcopy.pupil = opd
@@ -2243,65 +2168,19 @@ def setup_image_array(ote, radius=1, size=None, inverted=False, reset=False, ver
     if reset:
         ote.reset()
 
-    if not jsc:
-        # Image Arrays used in flight
-        size = radius * -1 if inverted else radius
-        for i in range(1, 7):
-            ote.move_seg_local('A' + str(i), xtilt=size * arcsec_urad / 2, delay_update=True)
-            ote.move_seg_local('B' + str(i), xtilt=-size * arcsec_urad, delay_update=True)
-            ote.move_seg_local('C' + str(i), ytilt=size * np.sqrt(3) / 2 * arcsec_urad, delay_update=True)
-    else:
-        if not acfs_only:
-            # Image Arrays used for JSC OTIS Cryo
-            # 6 umicradian tilt of each of ABC 2,4,6
-            # plus 50 microradian tilt of the ACFs
-            # Standard tilts used at JSC are as follows. See BATC SER 2508696 by K. Smith and L. Coyle.
-            xt = -5.1961524228
-            yt = 3
-
-            if size == 'jsc_inverted':
-                xt *= -1
-                yt *= -1
-            for i in [2, 4, 6]:
-                ote.move_seg_local('A' + str(i), xtilt=xt, ytilt=yt, delay_update=True)
-                ote.move_seg_local('B' + str(i), xtilt=xt, ytilt=-yt, delay_update=True)
-                ote.move_seg_local('C' + str(i), xtilt=-xt, ytilt=yt, delay_update=True)
-
-        # ACF tilts. Also see BATC SER 2508696
-
-        if size == 'jsc':  # regular "radial array"
-            # acftilts = [[  6.868, -20.901],
-            # [-21.647,   3.926],
-            # [ 14.228,  16.780] ]
-            acftilts = [  # rV2       rV3
-                [6.868, -20.901],  # ABC2
-                [-21.647, 3.926],  # ABC4
-                [14.228, 16.780]]  # ABC6
-        elif size == 'jsc_inverted':  # inverted "radial array"
-            acftilts = [  # rV2       rV3
-                [-14.228, -16.780],  # ABC2
-                [21.647, -3.926],  # ABC4  CORRECT
-                [-6.868, 20.901]]  # ABC6
-        elif size == 'jsc_compact':
-            acftilts = [[20.901, 6.868],  # ACF1 = ABC2
-                        [-3.926, -21.647],  # ACF2 = ABC4
-                        [-16.780, 14.228]]  # ACF3 = ABC6
-            # acftilts = [[-16.780,  14.228],      # ACF1 = ABC4
-            # [ -3.926, -21.647],      # ACF2 = ABC6
-            # [ 20.901,   6.868] ]     # ACF3 = ABC2
-
-        else:
-            raise ValueError("Unknown array configuration.")
-
-        for i in range(3):
-            ote.move_jsc_acf(i, xtilt=acftilts[i][0], ytilt=acftilts[i][1], absolute=True, delay_update=True)
+    # Image Arrays used in flight
+    size = radius * -1 if inverted else radius
+    for i in range(1, 7):
+        ote.move_seg_local('A' + str(i), xtilt=size * arcsec_urad / 2, delay_update=True)
+        ote.move_seg_local('B' + str(i), xtilt=-size * arcsec_urad, delay_update=True)
+        ote.move_seg_local('C' + str(i), ytilt=size * np.sqrt(3) / 2 * arcsec_urad, delay_update=True)
 
     if guide_seg is not None:
         # Undo the regular tilt for this segment, and then move it to
         # the side.
         if 'A' in guide_seg:
-            xtilt = size * arcsec_urad / 2
-            ytilt = guide_radius * arcsec_urad
+            xtilt = (-size + standard_sizes['large']) / 2 * arcsec_urad
+            ytilt = 0
         elif 'B' in guide_seg:
             xtilt = -size * arcsec_urad
             ytilt = guide_radius * arcsec_urad
@@ -2428,50 +2307,6 @@ def segment_primary(infile='JWpupil.fits'):
 
     # TODO copy relevant keywords and history from input FITS file header
     hdu.writeto("JWpupil_segments.fits", overwrite=True)
-
-
-def create_jsc_pupil(plot=False):
-    """Create a pupil mask for the JSC Pass-and-a-half (PAAH)
-    configuration with the 3 ACFs"""
-    import webbpsf
-    # Infer properties of the default pupil used with WebbPSF
-    nc = webbpsf.NIRCam()
-    defaultpupil = fits.open(nc.pupil)
-    defpupilsize = defaultpupil[0].header['PUPLDIAM']
-
-    # Create masks for the ACFs
-    rad = 0.76  # Diam 1.52 per Randal Telfer
-
-    acfs = []
-
-    xcs = [-.382703, -1.52316, 1.90478]
-    ycs = [-1.96286, 1.342146, 0.6781127]
-    for x1, y1 in zip(xcs, ycs):
-        acf = poppy.CircularAperture(radius=rad, shift_x=x1, shift_y=y1)
-        acfs.append(acf)
-
-    acfs = poppy.CompoundAnalyticOptic(acfs, mergemode='or')
-    acfs.pupil_diam = defpupilsize
-
-    # Create a FITS Optical Element instance with this mask applied:
-    acfpupil = poppy.FITSOpticalElement(transmission=nc.pupil)
-    acfmask = acfs.sample(npix=1024)
-    acfpupil.amplitude *= acfmask
-    acfpupil.name = "JWST Pupil for JSC PAAH"
-
-    acfpupil.amplitude_header.add_history(" ")
-    acfpupil.amplitude_header.add_history("**Modified for JSC Cryo Pass and a Half**")
-    for x1, y1 in zip(xcs, ycs):
-        acfpupil.amplitude_header.add_history("  Added JSC ACF: r={:.2f}, center=({:.4f},{:.4f}) m V2/V3".format(
-            rad, x1, y1))
-    acfpupil.amplitude_header.add_history("   Coords from Code V models via R. Telfer")
-    acfpupil.amplitude_header['CONTENTS'] = "JWST Pupil for JSC OTIS Cryo"
-    if plot:
-        plt.figure(figsize=(10, 10))
-        plt.imshow(acfs.sample(npix=1024) + defaultpupil[0].data)
-
-    return acfpupil
-
 
 # --------------------------------------------------------------------------------
 
