@@ -19,13 +19,13 @@ matrix:
         # do the actual tests against dev version of POPPY
 
         # Do a coverage test in Python 3.
-        - env: TOXENV='py37-poppydev-pysiafdev-cov'
+        - env: TOXENV='py38-poppydev-pysiafdev-cov'
 
         # Check for Sphinx doc build errors
         - env: TOXENV='docbuild' TOX_ARGS=''
 
         # Try Astropy development version
-        - env: TOXENV='py37-astropydev-test'
+        - env: TOXENV='py38-astropydev-test'
 
         # Try minimum supported versions
         - env: TOXENV='py36-legacy36-test'
