@@ -29,6 +29,7 @@ import matplotlib.pyplot as plt
 import scipy.interpolate, scipy.ndimage
 import matplotlib
 
+import astropy
 import astropy.io.fits as fits
 import astropy.io.ascii as ioascii
 import astropy.units as units
@@ -43,6 +44,7 @@ from . import optics
 from . import DATA_VERSION_MIN
 from . import distortion
 from . import gridded_library
+from . import opds
 
 try:
     from .version import version
@@ -1096,18 +1098,50 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         _log.info("Calculating jitter using " + str(local_options['jitter']))
 
+        def _linear_smear(smear_length, image):
+            # Helper function, used below
+            smear_length_pix = int(np.round(smear_length /  result[0].header['PIXELSCL']))
+            if smear_length_pix % 2 ==0:
+                smear_length_pix += 1   # Astropy convolution requires odd sized kernels only
+
+            smear_model  = np.identity(smear_length_pix)
+            _log.info("Jitter: Convolving with linear smear of {0:.3f} arcsec; {1:d} pixels".format(smear_length, smear_length_pix))
+            kern = astropy.convolution.kernels.CustomKernel(smear_model)
+            return astropy.convolution.convolve_fft(image, kern, allow_huge=True)
+
         if local_options['jitter'] is None:
             return
         elif local_options['jitter'].lower() == 'gaussian':
             # Regular version in poppy
             return super()._apply_jitter(result, local_options=local_options)
+        elif local_options['jitter'].lower() == 'linear':
+            # Drift by 0.12 arcsec (1 mas/second for 2 minutes)
+
+            smear_length = 0.12 # arcsec
+
+            out = _linear_smear(smear_length, result[0].data)
+            result[0].header['JITRTYPE'] = ('Linear smear / drift', 'Type of jitter applied')
+            result[0].header['JITSMEAR'] = (smear_length, 'Linear smear [arcsec]')
+
         elif local_options['jitter'].lower() == 'pcs=coarse':
-            # JWST coarse point, current best estimate assumptions from Nelan & Maghami
-            #   67 mas
-            local_options_cp = local_options.copy()
-            local_options_cp['jitter'] = 'gaussian'
-            local_options_cp['jitter_sigma'] = 0.067
-            return super()._apply_jitter(result, local_options=local_options_cp)
+            # JWST coarse point, current best estimate based on high fidelity monte carlo sims by Peiman Maghami
+
+            cp_case = local_options.get('jitter_coarse_model_case', 2)      # Coarse pointing model case, 1 or 2
+            exp_duration = local_options.get('exp_duration', 75)     # Duration in seconds
+            exp_start_time = local_options.get('exp_start_time', 0)  # Start time in seconds
+
+            offset, kernel = opds.get_coarse_blur_parameters(exp_start_time, exp_duration, result[0].header['PIXELSCL'], case=cp_case)
+
+            kern = astropy.convolution.kernels.CustomKernel(kernel)
+            out = astropy.convolution.convolve_fft(result[0].data, kern, allow_huge=True)
+
+            result[0].header['JITRTYPE'] = ('PCS Coarse, high fidelity MC model results', 'Type of jitter applied')
+            result[0].header['JITRCASE'] = (cp_case, 'PCS Coarse mode: Monte Carlo model case used')
+            result[0].header['JITR_T0'] =  (exp_start_time, 'PCS Coarse mode: sim exposure start time [s]')
+            result[0].header['JITRTEXP'] = (exp_duration, 'PCS Coarse mode: sim exposure duration [s]')
+            result[0].header['JITRCPV2'] = (offset[0], "Coarse pointing offset in V2 [arcsec]")
+            result[0].header['JITRCPV3'] = (offset[1], "Coarse pointing offset in V3 [arcsec]")
+
         elif local_options['jitter'].lower() == 'pcs=coarse_like_itm':
             # JWST coarse point, assumptions in ITM
             # Acton says:
@@ -1120,38 +1154,38 @@ class JWInstrument(SpaceTelescopeInstrument):
             sigma = local_options.get('jitter_sigma')
 
             # that will be in arcseconds, we need to convert to pixels:
-
             _log.info("Jitter: Convolving with Gaussian with sigma={0:.3f} arcsec".format(sigma))
             out = scipy.ndimage.gaussian_filter(result[0].data, sigma / result[0].header['PIXELSCL'])
 
             # Now we'll do the linear jitter part
             smear_length = 0.4 # arcsec
-            smear_length_pix = int(np.round(smear_length /  result[0].header['PIXELSCL']))
-            if smear_length_pix % 2 ==0:
-                smear_length_pix += 1   # Astropy convolution requires odd sized kernels only
+            out = _linear_smear(smear_length, out)
 
-            smear_model  = np.identity(smear_length_pix)
-            import astropy
-            from astropy.convolution.kernels import CustomKernel
-            _log.info("Jitter: Convolving with linear smear of {0:.3f} arcsec".format(smear_length))
-            kern = CustomKernel(smear_model)
-            out = astropy.convolution.convolve_fft(out, kern)
-
-            peak = result[0].data.max()
-            newpeak = out.max()
-            strehl = newpeak / peak  # not really the whole Strehl ratio, just the part due to jitter
-
-
-            _log.info("        resulting image peak drops to {0:.3f} of its previous value".format(strehl))
             result[0].header['JITRTYPE'] = ('PCS Coarse, like ITM', 'Type of jitter applied')
             result[0].header['JITRSIGM'] = (sigma, 'Gaussian sigma for jitter, per axis [arcsec]')
             result[0].header['JITSMEAR'] = (smear_length, 'Linear smear [arcsec]')
-            result[0].header['JITRSTRL'] = (strehl, 'Strehl reduction from jitter ')
 
-            result[0].data = out
+        elif local_options['jitter'].lower() == 'custom':
+            # User-supplied arbitrary PSF convolution kernel
+
+            if ('jitter_kernel' not in local_options) or (not local_options['jitter_kernel'].ndim==2):
+                raise ValueError("You must supply an .options['jitter_kernel'] 2D array to use the custom jitter option")
+            _log.info("Jitter: Convolving with user-supplied custom convolution kernel")
+            kern = astropy.convolution.kernels.CustomKernel(local_options['jitter_kernel'])
+            out = astropy.convolution.convolve_fft(result[0].data, kern, allow_huge=True)
+
+            result[0].header['JITRTYPE'] = ('Custom jitter kernel', 'Type of jitter applied')
+
         else:
             raise ValueError('Unknown jitter option value: ' + local_options['jitter'])
 
+        peak = result[0].data.max()
+        newpeak = out.max()
+        strehl = newpeak / peak  # not really the whole Strehl ratio, just the part due to jitter
+        _log.info("        resulting image peak drops to {0:.3f} of its previous value".format(strehl))
+        result[0].header['JITRSTRL'] = (strehl, 'Strehl reduction from jitter ')
+
+        result[0].data = out
 
 
 class MIRI(JWInstrument):

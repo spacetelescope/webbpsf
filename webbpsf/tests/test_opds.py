@@ -83,7 +83,7 @@ def test_get_thermal_slew_coeffs(time, seg, scaling, start_angle, end_angle,
     delta_time = time
     # Create the thermal model
     otelm = webbpsf.opds.OTE_Linear_Model_WSS()
-    otelm.thermal_slew(delta_time, start_angle, end_angle, scaling)
+    otelm.thermal_slew(delta_time, start_angle, end_angle, scaling, case='EOL')
     coeffs = otelm._get_thermal_slew_coeffs(segid=seg)
     # Pull out coefficients
     if isinstance(coeffs, float):
@@ -100,7 +100,7 @@ def test_thermal_slew_update_opd():
     ''' Test that running webbpsf.opds.OTE_Linear_Model_WSS.thermal_slew() will
         give the expected output'''
     otelm = webbpsf.opds.OTE_Linear_Model_WSS()
-    otelm.thermal_slew(delta_time=1.0*u.day)
+    otelm.thermal_slew(delta_time=1.0*u.day, case='EOL')
     max_truth = 4.13338e-08 / 1e-9 # Convert the max truth to units of nm
     assert np.isclose(np.max(otelm.opd)/1e-9, max_truth), "OPD max does not match expected value after 1 day slew."
 
@@ -113,13 +113,13 @@ def test_thermal_slew_reproducibility():
     """
     ote = webbpsf.opds.OTE_Linear_Model_WSS()
 
-    ote.thermal_slew(12*u.hour, start_angle=-5, end_angle=45)
+    ote.thermal_slew(12*u.hour, start_angle=-5, end_angle=45, case='EOL')
     opd1 = ote.opd.copy()
 
-    ote.thermal_slew(24*u.hour, start_angle=-5, end_angle=45)
+    ote.thermal_slew(24*u.hour, start_angle=-5, end_angle=45, case='EOL')
     opd2 = ote.opd.copy()
 
-    ote.thermal_slew(12*u.hour, start_angle=-5, end_angle=45)
+    ote.thermal_slew(12*u.hour, start_angle=-5, end_angle=45, case='EOL')
     opd3 = ote.opd.copy()
 
     assert np.allclose(opd1, opd2)==False, "OPDs expected to differ didn't"
@@ -128,12 +128,29 @@ def test_thermal_slew_reproducibility():
 
 def test_update_opd():
     ''' The start of what should be many tests of this function'''
-    otelm = webbpsf.opds.OTE_Linear_Model_WSS()
-    otelm.update_opd()
-    assert np.max(otelm.opd) == 0.0
+
+    # Test the very basics
+    ote = webbpsf.opds.OTE_Linear_Model_WSS()
+    ote.update_opd()
+    assert np.max(ote.opd) == 0.0
+
+    # can we add a deterministic frill drift?
+    requested_wfe = 5
+    ote.apply_frill_drift(requested_wfe)
+    assert np.allclose(ote.rms(), requested_wfe, rtol=0.1), "Frill WFE amplitude not as expected"
+    ote.apply_frill_drift(0.0)
+
+    # can we add a deterministic IEC drift?
+    requested_wfe = 15
+    ote.apply_iec_drift(requested_wfe)
+    assert np.allclose(ote.rms(), requested_wfe, rtol=0.1), "IEC WFE amplitude not as expected"
+
+    # Todo test random drifts
 
 
 def test_move_sur(plot=False):
+    """ Test we can move mirrors using Segment Update Requests
+    """
     import webbpsf
     import os
     import glob
