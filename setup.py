@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-# Licensed under a 3-clause BSD style license - see LICENSE.rst
-# --based on setup.py from astropy--
+# Based on astropy affiliated package template's setup.py
+# Licensed under a 3-clause BSD style license - see LICENSE.md
 from __future__ import print_function
 
 import glob
@@ -8,6 +8,15 @@ import os
 import sys
 import imp
 import ast
+
+__packagename__ = 'webbpsf'
+__minimum_python_version__ = "3.5"
+
+# Enforce Python version check - this is the same check as in __init__.py but
+# this one has to happen before importing ah_bootstrap.
+if sys.version_info < tuple((int(val) for val in __minimum_python_version__.split('.'))):
+    sys.stderr.write("ERROR: {} requires Python {} or later\n".format(__packagename__, __minimum_python_version__))
+    sys.exit(1)
 
 try:
     import numpy
@@ -19,7 +28,8 @@ WARNING: NumPy was not found! setup.py will attempt to install it if asked, but
 """)
 
 import ah_bootstrap
-from setuptools import setup
+from setuptools import setup, Command
+from setuptools.command.test import test as TestCommand
 
 #A dirty hack to get around some early import/configurations ambiguities
 if sys.version_info[0] >= 3:
@@ -61,7 +71,7 @@ LONG_DESCRIPTION = ast.get_docstring(module_ast)
 builtins._ASTROPY_PACKAGE_NAME_ = PACKAGENAME
 
 # VERSION should be PEP386 compatible (http://www.python.org/dev/peps/pep-0386)
-VERSION = '0.7.1dev'
+VERSION = '0.9.1dev'
 
 # Indicates if this version is a release version
 RELEASE = 'dev' not in VERSION
@@ -105,20 +115,73 @@ for root, dirs, files in os.walk(PACKAGENAME):
                     os.path.relpath(root, PACKAGENAME), filename))
 package_info['package_data'][PACKAGENAME].extend(c_files)
 
+
+# allows you to build sphinx docs from the pacakge
+# main directory with python setup.py build_sphinx
+
+try:
+    from sphinx.cmd.build import build_main
+    from sphinx.setup_command import BuildDoc
+
+    class BuildSphinx(BuildDoc):
+        """Build Sphinx documentation after compiling C source files"""
+
+        description = 'Build Sphinx documentation'
+
+        def initialize_options(self):
+            BuildDoc.initialize_options(self)
+
+        def finalize_options(self):
+            BuildDoc.finalize_options(self)
+
+        def run(self):
+            build_cmd = self.reinitialize_command('build_ext')
+            build_cmd.inplace = 1
+            self.run_command('build_ext')
+            build_main(['-b', 'html', './docs', './docs/_build/html'])
+
+except ImportError:
+    class BuildSphinx(Command):
+        user_options = []
+
+        def initialize_options(self):
+            pass
+
+        def finalize_options(self):
+            pass
+
+        def run(self):
+            print('!\n! Sphinx is not installed!\n!', file=sys.stderr)
+            exit(1)
+
+
+class PyTest(TestCommand):
+    def finalize_options(self):
+        TestCommand.finalize_options(self)
+        self.test_args = ['packagename/tests']
+        self.test_suite = True
+
+    def run_tests(self):
+        # import here, cause outside the eggs aren't loaded
+        import pytest
+        errno = pytest.main(self.test_args)
+        sys.exit(errno)
+
+
 setup(name=PACKAGENAME,
       version=VERSION,
       description=DESCRIPTION,
       scripts=scripts,
+      python_requires='>=' + __minimum_python_version__,
       install_requires=[
-          'numpy>=1.10.0',
-          'matplotlib>=1.5.0',
-          'scipy>=0.16.0',
-          'poppy>=0.7.0',
-          'astropy>=1.2.0',
+          'numpy>=1.13.0',
+          'scipy>=1.0.0',
+          'matplotlib>=2.0.0',
+          'astropy>=3.0.0',
+          'photutils>=0.6.0',
+          'poppy>=0.9.0',
           'jwxml>=0.3.0',
-          'pysiaf>=0.1.8', 'six',
-          'pytest'  # unlisted requirement for pysiaf - see https://github.com/spacetelescope/pysiaf/issues/16
-                    # Remove this requirement once that issue is addressed.
+          'pysiaf>=0.6.0',
       ],
       provides=[PACKAGENAME],
       author=AUTHOR,
@@ -128,6 +191,5 @@ setup(name=PACKAGENAME,
       long_description=LONG_DESCRIPTION,
       cmdclass=cmdclassd,
       zip_safe=False,
-      use_2to3=True,
       **package_info
 )

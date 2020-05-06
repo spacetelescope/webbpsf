@@ -1,12 +1,12 @@
-**********************************
-Releasing a new version of WebbPSF
-**********************************
+***************************************************
+Developer Notes: Releasing a new version of WebbPSF
+***************************************************
 
 Prerequisites
 =============
 
- * Is the build `passing on Travis? <https://travis-ci.org/mperrin/webbpsf>`_
- * Are you up to date with ``master`` on the upstream branch (mperrin/webbpsf)?
+ * Is the build `passing on Travis? <https://travis-ci.org/spacetelescope/webbpsf>`_
+ * Are you up to date with ``master`` on the upstream branch (spacetelescope/webbpsf)?
  * Do you have `twine <https://pypi.python.org/pypi/twine>`_ installed?
  * Do you have access to WebbPSF on PyPI with the owner or maintainer role?
  * Do you have your ``~/.pypirc`` filled out? (`more info <https://python-packaging-user-guide.readthedocs.org/en/latest/distributing.html#register-your-project>`_)

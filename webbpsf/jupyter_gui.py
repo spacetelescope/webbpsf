@@ -1,8 +1,6 @@
-from __future__ import division, print_function, absolute_import, unicode_literals
 import logging
 import matplotlib
 import astropy.io.fits as fits
-import six
 
 import poppy
 from . import webbpsf_core
@@ -235,7 +233,7 @@ def show_notebook_interface_jwst(instrument):
     from matplotlib import pyplot as plt
 
 
-    if isinstance(instrument, six.string_types):
+    if isinstance(instrument, str):
         instrument = Instrument(instrument)
 
     try:

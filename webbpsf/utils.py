@@ -1,7 +1,7 @@
-from __future__ import division, print_function, absolute_import, unicode_literals
+from collections import OrderedDict
 import os, sys
-import six
 import astropy.io.fits as fits
+from astropy.nddata import NDData
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -439,7 +439,7 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, displa
     from .webbpsf_core import Instrument
     from poppy import display_psf
 
-    if isinstance(HDUlist_or_filename, six.string_types):
+    if isinstance(HDUlist_or_filename, str):
         HDUlist = fits.open(HDUlist_or_filename)
     elif isinstance(HDUlist_or_filename, fits.HDUList):
         HDUlist = HDUlist_or_filename
@@ -488,9 +488,9 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, displa
     if display:
         plt.clf()
         plt.subplot(121)
-        display_PSF(HDUlist, title="Observed PSF")
+        display_psf(HDUlist, title="Observed PSF")
         plt.subplot(122)
-        display_PSF(comparison_psf, title="Perfect PSF")
+        display_psf(comparison_psf, title="Perfect PSF")
         plt.gcf().suptitle("Strehl ratio = %.3f" % strehl)
 
     if verbose:
@@ -655,3 +655,95 @@ nlambda={nlambda:d}""".format(nlambda=nlambda))
 
 
     return _run_benchmark(timer, iterations=iterations)
+
+
+def combine_docstrings(cls):
+    """ Combine the docstrings of a method and earlier implementations of the same method in parent classes """
+    for name, func in cls.__dict__.items():
+
+        # Allow users to see the Poppy calc_psf docstring along with the JWInstrument version
+        if name == 'calc_psf':
+            jwinstrument_class = cls
+            spacetelescope_class = cls.__base__
+
+            ind0 = getattr(jwinstrument_class, 'calc_psf').__doc__.index("add_distortion")  # pull the new parameters
+            ind1 = getattr(spacetelescope_class, 'calc_psf').__doc__.index("Returns")  # end of parameters
+
+            func.__doc__ = getattr(spacetelescope_class, 'calc_psf').__doc__[0:ind1] + \
+                           getattr(jwinstrument_class, 'calc_psf').__doc__[ind0:] + \
+                           getattr(spacetelescope_class, 'calc_psf').__doc__[ind1:]
+
+    return cls
+
+
+def to_griddedpsfmodel(HDUlist_or_filename=None, ext_data=0, ext_header=0):
+    """
+    Create a photutils GriddedPSFModel object from either a FITS file or
+    an HDUlist object. The input must have header keywords "DET_YX{}" and
+    "OVERSAMP" (will already be present if psf_grid() is used to create
+    the file).
+
+    Parameters
+    ----------
+    HDUlist_or_filename : HDUList or str
+        Either a fits.HDUList object or a filename of a FITS file on disk
+    ext_data : int
+        Extension of the data in the FITS file
+    ext_header : int
+        Extension of the header in the FITS file
+
+    Returns
+    -------
+    model : GriddedPSFModel
+        Photutils object with 3D data array and metadata with specified
+        grid_xypos and oversampling keys
+    """
+    try:
+        from photutils import GriddedPSFModel
+    except ImportError:
+        raise ImportError("This method requires photutils >= 0.6")
+
+    if isinstance(HDUlist_or_filename, str):
+        HDUlist = fits.open(HDUlist_or_filename)
+    elif isinstance(HDUlist_or_filename, fits.HDUList):
+        HDUlist = HDUlist_or_filename
+    else:
+        raise ValueError('Input must be a filename or HDUlist')
+
+    data = HDUlist[ext_data].data
+    header = HDUlist[ext_header].header
+
+    # If there's only 1 PSF and the data is 2D, make the data 3D for photutils can use it
+    if len(data.shape) == 2 and len(header['DET_YX*']) == 1:
+        data = np.array([data])
+
+    # Check necessary keys are there
+    if not any("DET_YX" in key for key in header.keys()):
+        raise KeyError("You are missing 'DET_YX{}' keys: which are the detector locations of the PSFs")
+    if 'OVERSAMP' not in header.keys():
+        raise KeyError("You are missing 'OVERSAMP' key: which is the oversampling factor of the PSFs")
+
+    # Convert header to meta dict
+    header = header.copy(strip=True)
+    header.pop('COMMENT', None)
+    header.pop('', None)
+    header.pop('HISTORY', None)
+    meta = OrderedDict((a, (b, c)) for (a, b, c) in header.cards)
+
+    ndd = NDData(data, meta=meta, copy=True)
+
+    # Edit meta dictionary for GriddedPSFLibrary specifics
+    ndd.meta['grid_xypos'] = [((float(ndd.meta[key][0].split(',')[1].split(')')[0])),
+                              (float(ndd.meta[key][0].split(',')[0].split('(')[1])))
+                              for key in ndd.meta.keys() if "DET_YX" in key]  # from (y,x) to (x,y)
+
+    if 'oversampling' not in ndd.meta:
+        ndd.meta['oversampling'] = ndd.meta['OVERSAMP'][0]  # pull the value
+
+    # Turn all metadata keys into lowercase
+    ndd.meta = {key.lower(): ndd.meta[key] for key in ndd.meta}
+
+    # Create model
+    model = GriddedPSFModel(ndd)
+
+    return model

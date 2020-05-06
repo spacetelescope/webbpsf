@@ -33,7 +33,7 @@ All classes share some common attributes:
    ``detector_position`` attribute which is a 2-tuple giving the pixel coordinates
    on that detector for the center location in any calculated output PSF.
    Note that the ``detector_position`` value should be
-   specified using the Python (Y,X) axes order convention.
+   specified using the order (X,Y).
 
 .. warning::
 
@@ -83,7 +83,7 @@ For both the required and predicted cases, the OPD files contain 10 Monte Carlo 
    >>> nc.pupilopd = ('OPD_RevW_ote_for_NIRCam_predicted.fits.gz', 7)
 
 Note that these represent 10 distinct, totally independent realizations of JWST and its optical error budget. They do not represent any sort of time series or wavefront drift.
-The average levels of WFE from the telescope itself used in the OPD files are as follows. 
+The average levels of WFE from the telescope itself used in the OPD files are as follows.
 
 
 ==========  ============  ============
@@ -113,6 +113,8 @@ A1-A5 and B1-B5.  Additional attributes are then automatically set for ``channel
 just set the desired detector and the channel and module are inferred
 automatically.
 
+
+
 The choice of ``filter`` also impacts the channel selection: If you choose a
 long-wavelength filter such as F460M, then the detector will automatically
 switch to the long-wave detector for the current channel. For example, if the
@@ -122,6 +124,24 @@ then the detector will automatically change to A5.  If the user later selects
 need to manually select if a different short wave detector is desired).  This
 behavior on filter selection can be disabled by setting ``nircam.auto_channel = False``.
 
+.. admonition:: NIRCam class automatic pixelscale changes
+
+    The ``pixelscale`` will automatically toggle to the correct scale
+    for LW or SW based on user inputs for either detector or filter.
+    If you set the ``detector`` to NRCA1-4 or NRCB1-4, the scale will be set for
+    SW, otherwise for NRCA5 or NRCB5 the pixel scale will be for LW.
+    If you set the ``filter`` attribute to a filter in the short wave channel,
+    the pixel scale will be set for SW, otherwise for a filter in the long wave
+    challen the scale will be set for LW.
+
+    The intent is that the user should in general automatically get a PSF with the
+    appropriate pixelscale for whatever instrument config you're trying to simulate,
+    with no extra effort needed by the user to switch between NIRCam's two channels.
+
+    Note that this behavior is *not* invoked for monochromatic calculations; you
+    can't just iterate over calc_psf calls at different wavelengths and expect it to
+    toggle between SW and LW at some point. The workaround is simple, just set either the
+    filter or detector attribute whenever you want to toggle between SW or LW channels.
 
 
 Coronagraph Masks
@@ -136,9 +156,9 @@ WebbPSF won't prevent users from simulating configuration using a coronagraph
 image mask without the Lyot stop, but that's not something that can be done for
 real with NIRCam.
 
-Note, the Lyot masks have multiple names for historical reasons: The names 
+Note, the Lyot masks have multiple names for historical reasons: The names
 'CIRCLYOT' and 'WEDGELYOT' have been used since early in WebbPSF development, and
-can still be used, but the same masks can also be referred to as "MASKRND" and 
+can still be used, but the same masks can also be referred to as "MASKRND" and
 "MASKSWB" or "MASKLWB", the nomenclature that was eventually adopted for use in
 APT and other JWST documentation. Both ways work and will continue to do so.
 
@@ -164,6 +184,13 @@ easily actually achieve that pointing with the flight hardware.
     :scale: 50%
     :alt: MASKLWB Offsets
 
+.. admonition:: NIRCam class automatic detector position setting for coronagraphy
+
+    Each coronagraphic mask is imaged onto a specific area of a specific detector. Setting the
+    image mask attribute to a coronagraphic mask (e.g. MASKLWB or MASK335R) will
+    automatically configure the ``detector`` and ``detector_position`` attributes appropriately
+    for that mask's field point. Note, this will also invoke the automatic pixelscale functionality
+    to get the right scale for SW or LW, too.
 
 
 Weak Lenses for Wavefront Sensing
@@ -187,17 +214,36 @@ configuration that can be acheived with NIRCam.
 SI WFE
 ------
 
-(Not yet available)
-
+SI internal WFE measurements are from ISIM CV3 testing (See JWST-RPT-032131 by David Aronstein et al.)
 The SI internal WFE measurements are distinct for each of the modules and
 channels. When enabled, these are added to the final pupil of the optical
-train, i.e. after the coronagraphic image planes.
+train, i.e. after the coronagraphic image planes. For field-points outside of
+the measurement bounds, WebbPSF performs an extrapolation routine.
 
+The coronagraph field points are far off axis, and this comes with significant WFE 
+added compared to the inner portion of the NIRCam field of view. While SI WFE for
+imaging mode were measured directly from the instrument during ISIM CV3, the 
+coronagraphic WFE maps were built based on the NIRCam Zemax optical model.
+This model was first validated in imaging mode, and then the appropriate optical
+elements were inserted to produce the coronagraphic configuration.
+In this case, both modules were assumed have the exact same (albeit, mirrored) 
+field-dependent WFE maps.
 
 Wavelength-Dependent Focus Variations
 ---------------------------------------
 
-**TODO**  Add documentation here for the focus variations vs wavelength and how webbpsf models those.
+NIRCam's wavelength-dependent defocus was measured during ISIM CV2 at a given field point
+(See JWST-RPT-029985 by Randal Telfer). Overall, the measurements are consistent with
+predictions from the nominal optical model. The departure of the data from the 
+model curve has been determined to be from residual power in individual filters.
+In particular, the F323N filter has a significant extra defocus; WebbPSF includes 
+this measured defocus if the selected filter is F323N.
+
+All SI WFE maps were derived from measurements with the F212N and F323N filters. 
+WebbPSF utilizes polynomial fits to the nominal focus model to derive focus offset values
+relative to these narrowband filters for a given wavelength. The derived delta focus
+is then translated to a Zernike focus image, which is subsequently applied to the 
+instrument OPD map.
 
 
 NIRSpec
@@ -206,7 +252,7 @@ NIRSpec
 Imaging and spectroscopy
 ------------------------
 
-webbpsf models the optics of NIRSpec, mostly in **imaging** mode or for monochromatic PSFs that can be assembled into spectra using other tools.
+WebbPSF models the optics of NIRSpec, mostly in **imaging** mode or for monochromatic PSFs that can be assembled into spectra using other tools.
 
 This is not a substitute for a spectrograph model, but rather a way of
 simulating a PSF as it would appear with NIRSpec in imaging mode (e.g. for
@@ -214,7 +260,7 @@ target acquisition).  It can also be used to produce monochromatic PSFs
 appropriate for spectroscopic modes, but other software must be used for
 assembling those monochromatic PSFs into a spectrum.
 
-Slits: webbpsf includes models of each of the fixed slits in NIRSpec (S200A1, S1600A1, and so forth), plus a
+Slits: WebbPSF includes models of each of the fixed slits in NIRSpec (S200A1, S1600A1, and so forth), plus a
 few patterns with the MSA: (1) a single open shutter, (2) three adjacent
 open shutters to make a mini-slit, and (3) all shutters open at once.
 Other MSA patterns could be added if requested by users.
@@ -230,9 +276,9 @@ Perrin.
 SI WFE
 ------
 
-(Not yet available)
+SI internal WFE measurements are from ISIM CV3 testing (See JWST-RPT-032131 by David Aronstein et al.).
 
-SI WFE will most likely be added to the entrance pupil, prior to the MSA image plane. This model is still under development.
+The ISIM CV3 data on their own do not indicate how the sources of WFE are distributed within the NIRSpec optical train. For simulation purposes here, the SI WFE measurements are allocated as 1/3 in the foreoptics, prior to the MSA image plane, and 2/3 in the spectrograph optics, after the MSA image plane. This follows a recommendation from Maurice Te Plate of the NIRSpec team, based on metrology and testing of the NIRSpec flight model optics.
 
 NIRISS
 ======
@@ -247,15 +293,19 @@ Note that long wavelength filters (>2.5 microns) are used with a pupil
 obscuration which includes the pupil alignment reference fixture. This is called
 the "CLEARP" pupil.
 
-Based on the selected filter, webbpsf will automatically toggle the
+Based on the selected filter, WebbPSF will automatically toggle the
 ``pupil_mask`` between "CLEARP" and the regular clear pupil (i.e.
 ``pupil_mask = None``).
+
+AMI mask geometry is as provided to the WebbPSF team by Anand Sivaramakrishnan. To match the orientation of the
+mask as installed in the flight hardware, the simulated mask model was flipped in X coordinates as of the spring 2019 version of WebbPSF;
+thanks to Kevin Volk and Deepashri Thatte for determining this was necessary to match the test data.
 
 
 Slitless Spectroscopy
 ---------------------
 
-webbpsf provides preliminary support for
+WebbPSF provides preliminary support for
 the single-object slitless
 spectroscopy ("SOSS") mode using the GR700XD cross-dispersed grating. Currently
 this includes the clipping of the pupil due to the undersized grating and its
@@ -268,7 +318,7 @@ in one direction.
 
 Note that WebbPSF does not model the spectral dispersion in any of NIRISS'
 slitless spectroscopy modes.  For wide-field slitless spectroscopy, this
-can best be simulated by using webbpsf output PSFs as input to the aXe
+can best be simulated by using WebbPSF output PSFs as input to the aXe
 spectroscopy code. Contact Van Dixon at STScI for further information.
 For SOSS mode, contact Loic Albert at Universite de Montreal.
 
@@ -282,16 +332,12 @@ Coronagraph Masks
 NIRISS includes four coronagraphic occulters, machined as features on its
 pick-off mirror. These were part of its prior incarnation as TFI, and are not
 expected to see much use in NIRISS. However they remain a part of the physical
-instrument and we retain in webbpsf the capability to simulate them.
+instrument and we retain in WebbPSF the capability to simulate them.
 
 SI WFE
 -------
 
-(Not yet available)
-
-The SI internal WFE measurements are distinct for each of the modules and
-channels. When enabled, these are added to the final pupil of the optical
-train, i.e. after the coronagraphic image planes.
+SI internal WFE measurements are from ISIM CV3 testing (See JWST-RPT-032131 by David Aronstein et al.).
 
 
 MIRI
@@ -300,7 +346,7 @@ MIRI
 Imaging
 -------
 
-webbpsf models the MIRI imager; currently there is no specific support for MRS,
+WebbPSF models the MIRI imager; currently there is no specific support for MRS,
 however monochromatic PSFS computed for the imager may be used as a reasonable
 proxy for PSF properties at the entrance to the MRS slicers.
 
@@ -308,9 +354,9 @@ proxy for PSF properties at the entrance to the MRS slicers.
 Coronagraphy
 -------------
 
-webbpsf includes models for all three FQPM coronagraphs and the Lyot
+WebbPSF includes models for all three FQPM coronagraphs and the Lyot
 coronagraph. In practice, the wavelength selection filters and the Lyot stop are
-co-mounted. webbpsf models this by automatically setting the ``pupil_mask``
+co-mounted. WebbPSF models this by automatically setting the ``pupil_mask``
 element to one of the coronagraph masks or the regular pupil when the ``filter``
 is changed. If you want to disable this behavior, set ``miri.auto_pupil = False``.
 
@@ -318,7 +364,7 @@ is changed. If you want to disable this behavior, set ``miri.auto_pupil = False`
 LRS Spectroscopy
 ----------------
 
-webbpsf includes models for the LRS slit and the subsequent pupil stop on the
+WebbPSF includes models for the LRS slit and the subsequent pupil stop on the
 grism in the wheels. Users should select ``miri.image_mask = "LRS slit"`` and ``miri.pupil_mask = 'P750L LRS grating'``.
 That said, the LRS simulations have not been extensively tested yet;
 feedback is appreciated about any issues encountered.
@@ -327,7 +373,7 @@ feedback is appreciated about any issues encountered.
 SI WFE
 ------
 
-(Not yet available)
+SI internal WFE measurements are from ISIM CV3 testing (See JWST-RPT-032131 by David Aronstein et al.).
 
 The SI internal WFE measurements, when enabled, are added to the final pupil of the optical
 train, i.e. after the coronagraphic image planes.
@@ -354,4 +400,4 @@ either 'FGS1' or 'FGS2'.
 SI WFE
 ------
 
-(Not yet available)
+SI internal WFE measurements are from ISIM CV3 testing (See JWST-RPT-032131 by David Aronstein et al.).

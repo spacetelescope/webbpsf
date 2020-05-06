@@ -1,4 +1,3 @@
-from __future__ import division, print_function, absolute_import, unicode_literals
 import sys, os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -117,8 +116,9 @@ def do_test_nircam_blc(clobber=False, kind='circular', angle=0, save=False, disp
         nc.image_mask = 'MASK210R'
         nc.pupil_mask = 'CIRCLYOT'
         fn = 'm210r'
-        expected_total_fluxes=[1.35e-5, 0.0240, 0.1376]  # Based on a prior calculation with WebbPSF
+        expected_total_fluxes=[1.84e-5, 0.0240, 0.1376]  # Based on a prior calculation with WebbPSF
         # values updated slightly for Rev W aperture results
+        # Updated 2019-05-02 for coron WFE - changes from [1.35e-5, 0.0240, 0.1376] to [1.84e-5, 0.0240, 0.1376]
     else:
         nc.image_mask = 'MASKSWB'
         nc.pupil_mask = 'WEDGELYOT'
@@ -127,11 +127,13 @@ def do_test_nircam_blc(clobber=False, kind='circular', angle=0, save=False, disp
                                       # which are now the default.
         fn ='mswb'
         if angle==0:
-            expected_total_fluxes=[2.09e-6, .0415, 0.1442]  # Based on a prior calculation with WebbPSF
+            expected_total_fluxes=[3.71e-6, .0628, 0.1449]  # Based on a prior calculation with WebbPSF
+            # Updated 2019-05-02 for coron WFE - changes from [2.09e-6, .0415, 0.1442] to [3.71e-6, .0628, 0.1449]
         elif angle==45 or angle==-45:
-            expected_total_fluxes=[2.09e-6, 0.0220, 0.1192]  # Based on a prior calculation
+            expected_total_fluxes=[3.71e-6, 0.0221, 0.1192]  # Based on a prior calculation
             # Updated 2016-09-29 for Rev W results - slight change from 0.1171 to 0.1176
             # Updated 2018-02-20 for recoded MASKSWB - changes from 0.0219 to 0.0220; 0.1176 to 0.1192 ??
+            # Updated 2019-05-02 for coron WFE - changes from [2.09e-6, 0.0220, 0.1192] to [3.71e-6, 0.0221, 0.1192]
         else:
             raise ValueError("Don't know how to check fluxes for angle={0}".format(angle))
 
@@ -288,3 +290,32 @@ def test_nircam_coron_unocculted(plot=False):
     psf = nc.calc_psf(monochromatic=2.12e-6)
     return(psf)
 
+def test_defocus(fov_arcsec=1, display=False):
+    """Test we can apply a defocus to a PSF
+    via either a weak lens, or via the options dict,
+    and we get consistent results either way.
+
+    Test for #59 among other things
+    """
+    nrc = webbpsf_core.NIRCam()
+    nrc.pupilopd=None
+    nrc.include_si_wfe=False
+
+    # Calculate defocus with a weak lens
+    nrc.pupil_mask = 'WEAK LENS +4'
+    psf = nrc.calc_psf(nlambda=1, fov_arcsec=fov_arcsec, oversample=1, display=False, add_distortion=False)
+
+    # Calculate equivalent via the options structure
+    nrc.pupil_mask = None
+    nrc.options['defocus_waves']=3.9024 # as measured
+    nrc.options['defocus_wavelength']=2.12e-6
+    psf_2 = nrc.calc_psf(nlambda=1, fov_arcsec=fov_arcsec, oversample=1, display=False, add_distortion=False)
+
+    assert np.allclose(psf[0].data, psf_2[0].data), "Defocused PSFs calculated two ways don't agree"
+
+    if display:
+        import webbpsf
+        plt.figure()
+        webbpsf.display_psf(psf)
+        plt.figure()
+        webbpsf.display_psf(psf_2)

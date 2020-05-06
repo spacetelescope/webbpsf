@@ -7,8 +7,9 @@ Using WebbPSF via the Python API
 ********************************
 
 
-This module provides the primary interface for programmers and for interactive non-GUI use. It provides
-five classes corresponding to the JWST instruments, with consistent interfaces.
+WebbPSF provides
+five classes corresponding to the JWST instruments and two for the WFIRST instruments, with consistent interfaces. It also provides a variety of
+supporting tools for measuring PSF properties and manipulating telescope state models.
 See :ref:`this page <detailed_api>` for the detailed API; for now let's dive into some example code.
 
 :ref:`Additional code examples <more_examples>` are available later in this documentation.
@@ -174,12 +175,9 @@ pixel scale in a variety of ways, as follows. See the :py:class:`JWInstrument.ca
 
 1. Set the ``oversample`` parameter to calc_psf(). This will produce a PSF with a pixel grid this many times more finely sampled.
    ``oversample=1`` is the native detector scale, ``oversample=2`` means divide each pixel into 2x2 finer pixels, and so forth.
-   You can automatically obtain both the oversampled PSF and a version rebinned down onto the detector pixel scale by setting `rebin=True`
-   in the call to calc_psf:
 
-   >>> hdulist = instrument.calc_psf(oversample=2, rebin=True)    # hdulist will contain a primary HDU with the
-   >>>                                                            # oversampled data, plus an image extension
-   >>>                                                            # with the PSF rebinned down to regular sampling.
+   >>> hdulist = instrument.calc_psf(oversample=2)    # hdulist will contain a primary HDU with the
+   >>>                                                # oversampled data
 
 
 
@@ -324,6 +322,49 @@ Likewise, you can set the pupil transmission file in a similar manner by setting
 
 Please see the documentation for :py:class:`poppy.FITSOpticalElement` for information on the required formatting of the FITS file.
 In particular, you will need to set the `PUPLSCAL` keyword, and OPD values must be given in units of meters.
+
+
+Calculating Data Cubes
+----------------------
+
+Sometimes it is convenient to calculate many PSFs at different wavelengths with the same instrument
+config. You can do this just by iterating over calls to ``calc_psf``, but there's also a function to
+automate this: ``calc_datacube``. For example, here's something loosely like the NIRSpec IFU in
+F290LP:
+
+
+.. code-block:: Python
+
+    # Set up a NIRSpec instance
+    nrs = webbpsf.NIRSpec()
+    nrs.image_mask = None # No MSA for IFU mode
+    nl = np.linspace(2.87e-6, 5.27e-6, 6)
+
+    # Calculate PSF datacube
+    cube = nrs.calc_datacube(wavelengths=nl, fov_pixels=27, oversample=4)
+
+    # Display the contents of the data cube
+    fig, axes = plt.subplots(nrows=2, ncols=3, figsize=(10,7))
+    for iy in range(2):
+        for ix in range(3):
+            ax=axes[iy,ix]
+            i = iy*3+ix
+            wl = cube[0].header['WAVELN{:02d}'.format(i)]
+
+            # Note that when displaying datacubes, you have to set the "cube_slice" parameter
+            webbpsf.display_psf(cube, ax=ax, cube_slice=i,
+                                title="NIRSpec, $\lambda$ = {:.3f} $\mu$m".format(wl*1e6),
+                                vmax=.2, vmin=1e-4, ext=1, colorbar=False)
+            ax.xaxis.set_visible(False)
+            ax.yaxis.set_visible(False)
+
+
+.. image:: ./fig_nirspec_cube_f290lp.png
+   :scale: 100%
+   :align: center
+   :alt: Sample PSF cube image
+
+
 
 
 Subclassing a JWInstrument to add additional functionality

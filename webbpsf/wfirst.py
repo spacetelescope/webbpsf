@@ -1,5 +1,3 @@
-from __future__ import division, print_function, absolute_import, unicode_literals
-
 """
 ==============================
 WFIRST Instruments (pre-alpha)
@@ -16,6 +14,7 @@ import numpy as np
 from . import webbpsf_core
 from scipy.interpolate import griddata
 from astropy.io import fits
+import astropy.units as u
 import logging
 
 _log = logging.getLogger('webbpsf')
@@ -67,10 +66,16 @@ class WavelengthDependenceInterpolator(object):
             # we have to interpolate @ this wavelength
             aberration_terms = griddata(self._wavelengths, self._aberration_terms, wavelength, method='linear')
             if np.any(np.isnan(aberration_terms)):
-                raise RuntimeError("Attempted to get aberrations at wavelength "
-                                   "outside the range of the reference data")
-            return aberration_terms
+                if isinstance(wavelength, u.Quantity):
+                    wavelength = wavelength.to(u.m).value
+                wavelength_closest = np.clip(wavelength, np.min(self._wavelengths), np.max(self._wavelengths))
+                _log.warn("Attempted to get aberrations at wavelength {:.2g} "
+                          "outside the range of the reference data; clipping to closest wavelength {:.2g}".format(
+                    wavelength, wavelength_closest))
 
+                aberration_terms = griddata(self._wavelengths, self._aberration_terms, wavelength_closest,
+                                            method='linear')
+            return aberration_terms
 
 class FieldDependentAberration(poppy.ZernikeWFE):
     """FieldDependentAberration incorporates aberrations that
@@ -101,7 +106,7 @@ class FieldDependentAberration(poppy.ZernikeWFE):
             interp_order=interp_order
         )
 
-    def get_opd(self, wave, units='meters'):
+    def get_opd(self, wave):
         """Set the Zernike coefficients (for ZernikeWFE.getOPD) based
         on the wavelength of the incoming wavefront and the pixel
         position
@@ -111,7 +116,7 @@ class FieldDependentAberration(poppy.ZernikeWFE):
         else:
             wavelength = wave.wavelength
         self.coefficients = wavelength * self.get_aberration_terms(wavelength)
-        return super(FieldDependentAberration, self).get_opd(wave, units=units)
+        return super(FieldDependentAberration, self).get_opd(wave)
 
     @property
     def field_position(self):
@@ -153,14 +158,16 @@ class FieldDependentAberration(poppy.ZernikeWFE):
             assert len(aberration_array.shape) == 2, "computed aberration array is not 2D " \
                                                      "(inconsistent number of Zernike terms " \
                                                      "at each point?)"
+
+            field_position = tuple(np.clip(self.field_position, 4, 4092))
             coefficients = griddata(
                 np.asarray(field_points),
                 np.asarray(aberration_terms),
-                self.field_position,
+                field_position,
                 method='linear'
             )
             if np.any(np.isnan(coefficients)):
-                raise RuntimeError("Attempted to get aberrations for an out-of-bounds field point")
+                raise RuntimeError("Could not get aberrations for input field point")
         if self._omit_piston_tip_tilt:
             _log.debug("Omitting piston/tip/tilt")
             coefficients[:3] = 0.0  # omit piston, tip, and tilt Zernikes
@@ -230,6 +237,8 @@ class WFIRSTInstrument(webbpsf_core.SpaceTelescopeInstrument):
 
     def __init__(self, *args, **kwargs):
         super(WFIRSTInstrument, self).__init__(*args, **kwargs)
+        self.options['jitter'] = 'gaussian'
+        self.options['jitter_sigma'] = 0.014   # See https://wfirst.ipac.caltech.edu/sims/Param_db.html#telescope
 
     # slightly different versions of the following two functions
     # from the parent superclass
@@ -258,7 +267,7 @@ class WFIRSTInstrument(webbpsf_core.SpaceTelescopeInstrument):
 
     def _get_aberrations(self):
         """Get the OpticalElement that applies the field-dependent
-        optical aberrations. (Called in _getOpticalSystem.)"""
+        optical aberrations. (Called in _get_optical_system.)"""
         return self._detectors[self._detector]
 
     def _get_fits_header(self, result, options):
@@ -271,23 +280,186 @@ class WFIRSTInstrument(webbpsf_core.SpaceTelescopeInstrument):
         result[0].header['DETECTOR'] = (self.detector, 'Detector selected')
 
 
+class WFIPupilController:
+    """
+    This is a helper class for the WFI and is used to swap in
+    the correct pupil each time the detector is changed.
+    The pupil depends on the selected detector, filter and the
+    pupil_mask flag provided by the user.
+    The user should not interact with this class directly, only
+    through the API provided through the WFI class.
+    """
+
+    def __init__(self):
+        self._datapath = None
+        self._pupil_basepath = None
+
+        self._pupil = None
+
+        # Paths to the two possible pupils. The correct one is selected based on requested
+        # wavelengths in _validate_config()
+        self._unmasked_pupil_path = None
+        self._masked_pupil_path = None
+
+        # List of filters that need the masked pupil
+        self._masked_filters = ['F184']
+
+        # Flag to en-/disable automatic selection of the appropriate pupil_mask
+        self.auto_pupil = True
+
+        self._pupil_mask = "AUTO"
+        # 'COLD_PUPIL' and 'UNMASKED' are outdated but available for backward comparability
+        self.pupil_mask_list = ['AUTO', 'FULL_MASK', 'RIM_MASK', 'COLD_PUPIL', 'UNMASKED']
+        self._currently_masked = False
+
+    def set_base_path(self, datapath):
+        """
+        Sets the path to the WebbPSF data files.
+        This should be set before this class is used.
+        Parameters
+        ----------
+        datapath : string
+            Path to WebbPSF-WFI data files
+        """
+        self._datapath = datapath
+        self._pupil_basepath = os.path.join(self._datapath, "pupils")
+
+    @property
+    def pupil(self):
+        return self._pupil
+
+    @pupil.setter
+    def pupil(self, value):
+        self._pupil = value
+
+    @property
+    def pupil_mask(self):
+        """
+        pupil_mask types:
+        - "AUTO":
+            Automatically select pupil
+        - "COLD_PUPIL":
+            Masked pupil override
+        - "UNMASKED":
+            Unmasked pupil override
+        """
+        return self._pupil_mask
+
+    @pupil_mask.setter
+    def pupil_mask(self, name):
+        """
+        Set the pupil mask
+
+        Parameters
+        ------------
+        name : string
+            Name of setting.
+            Settings:
+                - "AUTO":
+                    Automatically select pupil
+                - "FULL_MASK":
+                    Full mask pupil override (outdated version: "COLD_PUPIL")
+                - "RIM_MASK":
+                    Rim mask pupil override (outdated version: "UNMASKED")
+        """
+        if name and isinstance(name, str):
+            name = name.upper()
+            if "AUTO" == name:
+                self.auto_pupil = True
+                _log.info("Using default pupil mask.")
+            elif name in ["FULL_MASK", "COLD_PUPIL"]:
+                self.auto_pupil = False
+                _log.info("Using custom pupil mask: Masked Pupil.")
+            elif name in ["RIM_MASK", "UNMASKED"]:
+                self.auto_pupil = False
+                _log.info("Using custom pupil mask: Unmasked Pupil.")
+            else:
+                raise ValueError("Instrument {0} doesn't have a pupil mask called '{1}'.".format(self.name, name))
+        else:
+            raise ValueError("Pupil mask setting is not valid or empty.")
+        self._pupil_mask = name
+
+        self._update_pupil()
+
+    def update_pupil_path(self, detector):
+        """
+        Update the masked and unmasked pupil paths according to the SCA selected
+        """
+        if self._pupil_basepath is None:
+            raise Exception("update_pupil_path called before pupil file path is set")
+        if detector is None:
+            raise ValueError("Detector was not set when trying to set pupil file path")
+        if 'SCA' not in detector:
+            raise ValueError("Unidentified detector selected, could not assign pupil")
+
+        detector = detector[:3] + str(int((detector[3:])))  # example "SCA01" -> "SCA1"
+
+        self._unmasked_pupil_path = os.path.join(self._pupil_basepath,
+                                                 '{}_rim_mask.fits.gz'.format(detector))
+
+        self._masked_pupil_path = os.path.join(self._pupil_basepath,
+                                               '{}_full_mask.fits.gz'.format(detector))
+        self._update_pupil()
+
+    def _update_pupil(self):
+        """
+        Update the actual pupil by setting the pupil variable
+        to the correct pupil path.
+        """
+        if self._pupil_basepath is None:
+            raise Exception("update pupil called before pupil file path is set")
+
+        if 'AUTO' == self.pupil_mask:
+            if self._currently_masked:
+                self.pupil = self._masked_pupil_path
+            else:
+                self.pupil = self._unmasked_pupil_path
+        elif self.pupil_mask in ["FULL_MASK", "COLD_PUPIL"]:
+            self.pupil = self._masked_pupil_path
+        elif self.pupil_mask in ["RIM_MASK", "UNMASKED"]:
+            self.pupil = self._unmasked_pupil_path
+        else:
+            raise ValueError("Pupil mask setting is not valid or empty.")
+
+    def validate_pupil(self, filter, **kwargs):
+        """Validates that the WFI is configured sensibly
+
+        This mainly consists of selecting the masked or unmasked pupil
+        appropriately based on the wavelengths requested.
+        """
+        if self.auto_pupil:
+            if filter in self._masked_filters:
+                # use masked pupil optic
+                self.pupil = self._masked_pupil_path
+                _log.info("Using the masked WFI pupil shape based on filter requested")
+            else:
+                # use unmasked pupil optic
+                self.pupil = self._unmasked_pupil_path
+                _log.info("Using the unmasked WFI pupil shape based on filter requested")
+        else:
+            # If the user has set the pupil to a custom value, let them worry about the
+            # correct shape it should have
+            pass
+
+    def remove_pupil_mask_override(self):
+        _log.info("Removing custom pupil mask")
+        self.pupil_mask = 'AUTO'
+
+
 class WFI(WFIRSTInstrument):
     """
-    WFI represents to the to-be-named wide field imager
+    WFI represents the WFIRST wide field imager
     for the WFIRST mission
 
     WARNING: This model has not yet been validated against other PSF
              simulations, and uses several approximations (e.g. for
              mirror polishing errors, which are taken from HST).
     """
-    # "The H158, F184 and W149 filters and the grism are mounted with proximate cold pupil masks"
-    # from the final draft of the SDT report, page 92, table 3-2
-    UNMASKED_PUPIL_WAVELENGTH_MIN, UNMASKED_PUPIL_WAVELENGTH_MAX = 0.760e-6, 1.454e-6
-    MASKED_PUPIL_WAVELENGTH_MIN, MASKED_PUPIL_WAVELENGTH_MAX = 1.380e-6, 2.000e-6
 
-    def __init__(self, set_pupil_mask_on=None):
+    def __init__(self):
         """
         Initiate WFI
+
         Parameters
         -----------
         set_pupil_mask_on : bool or None
@@ -295,35 +467,20 @@ class WFI(WFIRSTInstrument):
             or to None for the automatic behavior.
         """
         pixelscale = 110e-3  # arcsec/px, WFIRST-AFTA SDT report final version (p. 91)
+
+        # Initialize the pupil controller
+        self._pupil_controller = WFIPupilController()
+
         super(WFI, self).__init__("WFI", pixelscale=pixelscale)
 
+        self._pupil_controller.set_base_path(self._datapath)
+
+        self.pupil_mask_list = self._pupil_controller.pupil_mask_list
+
         self._detector_npixels = 4096
-        self._detectors = _load_wfi_detector_aberrations(os.path.join(self._datapath, 'wim_zernikes_cycle7.csv'))
+        self._detectors = _load_wfi_detector_aberrations(os.path.join(self._datapath, 'wim_zernikes_cycle8.csv'))
         assert len(self._detectors.keys()) > 0
         self.detector = 'SCA01'
-
-        # Paths to the two possible pupils. The correct one is selected based on requested
-        # wavelengths in _validate_config()
-        self._unmasked_pupil_path = os.path.join(self._WebbPSF_basepath,
-                                                 'WFIRST_SRR_WFC_Pupil_Mask_Shortwave_2048.fits')
-        self._masked_pupil_path = os.path.join(self._WebbPSF_basepath,
-                                               'WFIRST_SRR_WFC_Pupil_Mask_Longwave_2048.fits')
-
-        # Flag to en-/disable automatic selection of the appropriate pupil_mask
-        self.auto_pupil = True
-
-        self._pupil_mask = "AUTO"
-        self.pupil_mask_list = ['AUTO', 'COLD_PUPIL', 'UNMASKED']
-
-        self.pupil = self._unmasked_pupil_path
-        if set_pupil_mask_on is not None:
-            if isinstance(set_pupil_mask_on, bool):
-                self.auto_pupil = False
-                _log.info("Using custom pupil mask")
-                if set_pupil_mask_on:
-                    self.pupil = self._masked_pupil_path
-            else:
-                raise TypeError("set_pupil_mask_on parameter must be boolean")
 
         self.opd_list = [
             os.path.join(self._WebbPSF_basepath, 'upscaled_HST_OPD.fits'),
@@ -336,35 +493,43 @@ class WFI(WFIRSTInstrument):
         This mainly consists of selecting the masked or unmasked pupil
         appropriately based on the wavelengths requested.
         """
-        if self.auto_pupil and self.pupil in (self._unmasked_pupil_path, self._masked_pupil_path):
-            # Does the wavelength range fit entirely in an unmasked filter?
-            wavelengths = np.array(kwargs['wavelengths'])
-            wl_min, wl_max = np.min(wavelengths), np.max(wavelengths)
-            # test shorter filters first; if wl range fits entirely in one of them, it's not going
-            # to be the (masked) wideband filter
-            if wl_max <= self.UNMASKED_PUPIL_WAVELENGTH_MAX:
-                # use unmasked pupil optic
-                self.pupil = self._unmasked_pupil_path
-                _log.info("Using the unmasked WFI pupil shape based on wavelengths requested")
-            else:
-                if wl_max > self.MASKED_PUPIL_WAVELENGTH_MAX:
-                    _log.warn("Requested wavelength is > 2e-6 m, defaulting to masked pupil shape")
-                # use masked pupil optic
-                self.pupil = self._masked_pupil_path
-                _log.info("Using the masked WFI pupil shape based on wavelengths requested")
-        else:
-            # If the user has set the pupil to a custom value, let them worry about the
-            # correct shape it should have
-            pass
+        self._pupil_controller.validate_pupil(self.filter, **kwargs)
         super(WFI, self)._validate_config(**kwargs)
+
+    @WFIRSTInstrument.detector.setter
+    def detector(self, value):
+        if value.upper() not in self.detector_list:
+            raise ValueError("Invalid detector. Valid detector names are: {}".format(', '.join(self.detector_list)))
+        self._detector = value.upper()
+        self._pupil_controller.update_pupil_path(self.detector)
+
+    @property
+    def pupil(self):
+        return self._pupil_controller.pupil
+
+    @pupil.setter
+    def pupil(self, value):
+        # self._pupil_controller is not available at initiation thus
+        # we must ignore any assignments at super(WFI, self).__init__(...)
+        if self._pupil_controller:
+            self._pupil_controller.pupil = value
 
     @property
     def pupil_mask(self):
-        return self._pupil_mask
+        return self._pupil_controller.pupil_mask
+
+    @WFIRSTInstrument.filter.setter
+    def filter(self, value):
+        value = value.upper()  # force to uppercase
+        if value not in self.filter_list:
+            raise ValueError("Instrument %s doesn't have a filter called %s." % (self.name, value))
+        self._filter = value
+        self._pupil_controller.validate_pupil(self.filter)
 
     @pupil_mask.setter
     def pupil_mask(self, name):
-        """ Set the pupil mask
+        """
+        Set the pupil mask
 
         Parameters
         ------------
@@ -373,33 +538,23 @@ class WFI(WFIRSTInstrument):
             Settings:
                 - "AUTO":
                     Automatically select pupil
-                - "COLD_PUPIL":
-                    Masked pupil override
-                - "UNMASKED":
-                    Unmasked pupil override
+                - "FULL_MASK":
+                    Full mask pupil override (outdated version: "COLD_PUPIL")
+                - "RIM_MASK"
+                    Rim mask pupil override (outdated version: "UNMASKED")
         """
-
-        if name and isinstance(name, str):
-            name = name.upper()
-            if "AUTO" == name:
-                self.auto_pupil = True
-                _log.info("Using default pupil mask.")
-            elif "COLD_PUPIL" == name:
-                self.auto_pupil = False
-                _log.info("Using custom pupil mask: Masked Pupil.")
-                self.pupil = self._masked_pupil_path
-            elif "UNMASKED" == name:
-                self.auto_pupil = False
-                _log.info("Using custom pupil mask: Unmasked Pupil.")
-                self.pupil = self._unmasked_pupil_path
-            else:
-                raise ValueError("Instrument {0} doesn't have a pupil mask called '{1}'.".format(self.name, name))
-        else:
-            raise ValueError("Pupil mask setting is not valid or empty.")
-        self._pupil_mask = name
+        self._pupil_controller.pupil_mask = name
 
     def _addAdditionalOptics(self, optsys, **kwargs):
         return optsys, False, None
+
+    @property
+    def _unmasked_pupil_path(self):
+        return self._pupil_controller._unmasked_pupil_path
+
+    @property
+    def _masked_pupil_path(self):
+        return self._pupil_controller._masked_pupil_path
 
 
 class CGI(WFIRSTInstrument):
@@ -658,7 +813,7 @@ class CGI(WFIRSTInstrument):
 
     def _get_aberrations(self):
         """Get the OpticalElement that applies the field-dependent
-        optical aberrations. (Called in _getOpticalSystem.)"""
+        optical aberrations. (Called in _get_optical_system.)"""
         return None
 
     def _get_fits_header(self, result, options):

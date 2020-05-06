@@ -1,7 +1,7 @@
 Documentation for WebbPSF
 ===============================
 
-WebbPSF is a Python package that computes simulated PSFs for the JWST instruments (and now for WFIRST too), taking into account detector pixel scales, rotations, filter profiles, and point source spectra. It is *not* a full optical model of JWST, but rather a tool for transforming optical path difference (OPD) maps, created with some other tool, into the resulting PSFs as observed with JWST's instruments.
+WebbPSF is a Python package that computes simulated point spread functions (PSFs) for NASA's JWST and WFIRST observatories. WebbPSF transforms models of telescope and instrument optical state into PSFs, taking into account detector pixel scales, rotations, filter profiles, and point source spectra. It is *not* a full optical model of JWST, but rather a tool for transforming optical path difference (OPD) maps, created with some other tool, into the resulting PSFs as observed with JWST's or WFIRST's instruments.
 
 .. figure:: ./fig_instrument_comparison.png
    :scale: 45 %
@@ -18,56 +18,40 @@ WebbPSF is a Python package that computes simulated PSFs for the JWST instrument
    Sample PSFs for the filters in the WFIRST WFI.
 
 
-
-**What this software does:**
-
-* Uses OPD maps precomputed by detailed optical simulations of JWST and WFIRST, and in the case of JWST
-  based on instrument and telescope flight hardware cryo-vacuum test results.
-* For JWST, computes PSF images with requested properties for any of JWST's instruments. Supports imaging, coronagraphy, and most spectrographic modes with all of JWST's instruments. IFUs are yet to come.
-* For WFIRST, computes PSFs with the Wide Field Imager, based on recent GSFC optical models, including field- and wavelength-dependent aberrations. 
-  A preliminary version of the Coronagraph Instrument is also available.
-* Provides a suite of tools for quantifying PSF properties such as FWHM, Strehl ratio, etc.
-
-**What this software does NOT do:**
-
-* Contain in itself any detailed thermal or optical model of JWST or WFIRST. For the results of end-to-end integrated simulations of JWST, see for instance `Predicted JWST imaging performance (Knight, Lightsey, & Barto; Proc. SPIE 2012) <http://proceedings.spiedigitallibrary.org/proceeding.aspx?articleid=1362264>`_. For WFIRST modeling, see `the WFIRST Reference Info page <http://wfirst.gsfc.nasa.gov/science/Instrument_Reference_Information.html>`_
-* Model spectrally dispersed PSFs produced by any of the spectrograph gratings. It does, however, let you produce monochromatic PSFs in these modes, suitable for stitching together into spectra using some other software.
-* Model detector effects such as pixel MTF, intrapixel sensitivity variations, interpixel capacitance, or any noise sources. Add those separately with your favorite detector model code. (\*Note, one particularly significant
-  detector scattering for MIRI imaging has now been added.)
-
 **Contributors:**
-WebbPSF has been developed by Marshall Perrin, Joseph Long, Neil Zimmerman, Robel Geda, Shannon Osborne, and Marcio Melendez Hernandez, with contributions from Jarron Leisenring, Ewan Douglas, Charles Lajoie, Megan Sosey, and the developers of  the astropy-helpers template framework.
+WebbPSF has been developed by Marshall Perrin, Joseph Long, Shannon Osborne, Robel Geda, Neil Zimmerman, Marcio Melendez Hernandez, Lauren Chambers, Keira Brooks, and Anand Sivaramakrishnan, with contributions from Jarron Leisenring, Ewan Douglas, Charles Lajoie, Megan Sosey, Kathryn St.Laurent, and the developers of  the astropy-helpers template framework.
 
 Getting Started with WebbPSF
 ----------------------------
 
-The WebbPSF software system is composed of two Python packages: a lower-level optical propagation library (:py:mod:`POPPY <poppy>`) plus an implementation of the JWST instruments using that library (:py:mod:`WebbPSF <webbpsf>`).  This documentation explains the programming interfaces and graphical user interface of WebbPSF, as well as providing a :ref:`quick overview <poppy_overiew>` of POPPY.
-
 .. admonition:: Quickstart Jupyter Notebook
 
-   This documentation is complemented by an `Jupyter Notebook format quickstart tutorial <http://nbviewer.jupyter.org/github/mperrin/webbpsf/blob/master/notebooks/WebbPSF_tutorial.ipynb>`_. Downloading and running that notebook is a great way to get started using WebbPSF.
+   This documentation is complemented by an `Jupyter Notebook format quickstart tutorial <http://nbviewer.jupyter.org/github/spacetelescope/webbpsf/blob/master/notebooks/WebbPSF_tutorial.ipynb>`_. Downloading and running that notebook is a great way to get started using WebbPSF.
+
+.. note:: 
+   *Getting help:* For help using or installing webbpsf, you can contact the STScI Help Desk, help@stsci.edu. Note that WebbPSF is included in the Astroconda  python distribution, as well as being installable via :ref:`standard Python packaging tools <installation>`.
+
 
 :ref:`What's new in the latest release? <whatsnew>`
 
+Contents
+--------
 
 .. toctree::
    :maxdepth: 1
 
    intro.rst
    installation.rst
-   webbpsf.rst
+   relnotes.rst
+   usage.rst
    jwst.rst
    wfirst.rst
-   gui.rst
+   psf_grids.rst
    more_examples.rst
    poppy.rst
 
-.. admonition:: Getting Help
-
-   For help using or installing webbpsf, you can contact the STScI Help Desk, help@stsci.edu. Note that WebbPSF is included in the Astroconda  python distribution, as well as being installable via :ref:`standard Python packaging tools <installation>`..
-
 Advanced Usage
---------------
+^^^^^^^^^^^^^^
 
 .. toctree::
    :maxdepth: 1
@@ -79,14 +63,14 @@ Advanced Usage
    fft_optimization.rst
 
 Appendices and Reference
-------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. toctree::
    :maxdepth: 1
 
-   relnotes.rst
    available_opds.rst
    references.rst
+   gui.rst
    release.rst
 
 

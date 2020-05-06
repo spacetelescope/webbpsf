@@ -1,23 +1,10 @@
 language: python
 
 python:
-    - 2.7
-    - 3.6
+    - 3.7
 
 # Setting sudo to false opts in to Travis-CI container-based builds.
 sudo: false
-
-# The apt packages below are needed for sphinx builds. A full list of packages
-# that can be included can be found here:
-#
-# https://github.com/travis-ci/apt-package-whitelist/blob/master/ubuntu-precise
-
-addons:
-    apt:
-        packages:
-            - graphviz
-            - texlive-latex-extra
-            - dvipng
 
 env:
     global:
@@ -27,41 +14,47 @@ env:
         - NUMPY_VERSION=stable
         - ASTROPY_VERSION=stable
         - SETUP_CMD='test'
-        - PIP_DEPENDENCIES='git+https://github.com/mperrin/poppy.git#egg=poppy jwxml git+https://github.com/spacetelescope/pysiaf.git#egg=pysiaf'
-        - CONDA_DEPENDENCIES='scipy matplotlib six'
+        - PIP_DEPENDENCIES='git+https://github.com/spacetelescope/poppy.git#egg=poppy jwxml git+https://github.com/spacetelescope/pysiaf.git#egg=pysiaf'
+        - CONDA_DEPENDENCIES='scipy matplotlib cython photutils'
 
         # For headless testing of code that imports PyPlot:
         - MPLBACKEND=Agg
 
 matrix:
+
+    # Don't wait for allowed failures
+    fast_finish: true
+
     include:
         # do the actual tests against dev version of POPPY
 
         # Do a coverage test in Python 3.
-        - python: 3.6
+        - python: 3.7
           env: SETUP_CMD='test --coverage'
 
         # Check for Sphinx doc build errors
-        - python: 3.6
+        - python: 3.7
           env: SETUP_CMD='build_sphinx'
+                CONDA_DEPENDENCIES='scipy matplotlib nbsphinx pandoc sphinx-issues'
+                PIP_DEPENDENCIES='git+https://github.com/spacetelescope/poppy.git#egg=poppy jwxml git+https://github.com/spacetelescope/pysiaf.git#egg=pysiaf nbsphinx sphinx_rtd_theme stsci_rtd_theme sphinx-automodapi'
 
         # Try Astropy development version
-        - python: 3.6
+        - python: 3.7
           env: SETUP_CMD='test' ASTROPY_VERSION=development
 
-        # Try older numpy versions
-        - python: 2.7
-          env: SETUP_CMD='test' NUMPY_VERSION=1.12
-        - python: 2.7
-          env: SETUP_CMD='test' NUMPY_VERSION=1.11
+        # Try minimum supported versions
+        - python: 3.5
+          env: SETUP_CMD='test' NUMPY_VERSION=1.13
+        - python: 3.6
+          env: SETUP_CMD='test' NUMPY_VERSION=1.13
 
         # Try released POPPY
-        - python: 3.6
-          env: SETUP_CMD='test' PIP_DEPENDENCIES='poppy jwxml'
+        - python: 3.7
+          env: SETUP_CMD='test' PIP_DEPENDENCIES='poppy pysiaf'
 
     allow_failures:
-        # Released POPPY may be missing new functionality used by dev WebbPSF
-        - env: SETUP_CMD='test' PIP_DEPENDENCIES='poppy jwxml'
+        # Released POPPY and/or pySIAF may be missing new functionality used by dev WebbPSF
+        - env: SETUP_CMD='test' PIP_DEPENDENCIES='poppy pysiaf'
 
 install:
 
@@ -90,7 +83,7 @@ install:
 
 before_script:
     # Get WebbPSF data files (just a subset of the full 250 MB!) and set up environment variable
-    - wget http://www.stsci.edu/~mperrin/software/webbpsf/minimal-webbpsf-data-0.6rc.tar.gz  -O /tmp/minimal-webbpsf-data.tar.gz
+    - wget https://stsci.box.com/shared/static/qcptcokkbx7fgi3c00w2732yezkxzb99.gz -O /tmp/minimal-webbpsf-data.tar.gz
     - tar -xzvf /tmp/minimal-webbpsf-data.tar.gz
     - export WEBBPSF_PATH=$PWD/webbpsf-data
 
@@ -99,7 +92,6 @@ script:
 
 after_success:
     # coveralls.io integration
-    # - if [[ $SETUP_CMD == 'test --coverage' && TRAVIS_REPO_SLUG == "mperrin/webbpsf" ]]; then coveralls --rcfile='webbpsf/tests/coveragerc'; fi
     - if [[ $SETUP_CMD == 'test --coverage' ]]; then coveralls --rcfile='webbpsf/tests/coveragerc'; fi
 
 notifications:

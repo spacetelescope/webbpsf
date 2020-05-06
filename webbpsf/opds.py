@@ -27,8 +27,6 @@
 #
 ###############################################################################
 
-from __future__ import division
-
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -38,7 +36,6 @@ import astropy.table
 import astropy.io.fits as fits
 import astropy.units as u
 import logging
-import six
 
 import poppy
 import poppy.zernike as zernike
@@ -62,6 +59,7 @@ because of small differences in the parameter ranges used when
 deriving the linear approximations.
 
 """
+__location__ = os.path.dirname(os.path.abspath(__file__)) + os.sep
 
 
 ################################################################################
@@ -107,10 +105,9 @@ class OPD(poppy.FITSOpticalElement):
             slice of a datacube to load OPD from, if the selected extension contains a datacube.
 
         """
-        mypath = os.path.dirname(os.path.abspath(__file__)) + os.sep
         if opd is None and transmission is None:
             _log.debug('Neither a pupil mask nor OPD were specified. Using the default JWST pupil.')
-            transmission = os.path.join(utils.get_webbpsf_data_path(), "jwst_pupil_revW_npix1024.fits.gz")
+            transmission = os.path.join(utils.get_webbpsf_data_path(), "jwst_pupil_RevW_npix1024.fits.gz")
 
         super(OPD, self).__init__(name='Modified OPD',
                                   opd=opd, transmission=transmission,
@@ -186,7 +183,7 @@ class OPD(poppy.FITSOpticalElement):
         return output
 
     def as_fits(self, include_pupil=True):
-        """ Return an OPD as a fits.HDUList object
+        """ Return the OPD as a fits.HDUList object
 
         Parameters
         -----------
@@ -194,14 +191,14 @@ class OPD(poppy.FITSOpticalElement):
             Include the pupil mask as a FITS extension?
         """
 
-        output = fits.HDUList([self._opdHDU])
-        output[0].header.update('EXTNAME', 'OPD')
+        output = fits.HDUList([fits.ImageHDU(self.opd, self.opd_header)])
+        output[0].header['EXTNAME'] = 'OPD'
+        output[0].header['BUNIT'] = 'meter'  # Rescaled to meters in poppy_core
+
         if include_pupil:
-            # puphdu= fits.ImageHDU(self._pupilHDU, name='PUPIL')
-            self.amplitude_header.update('EXTNAME', 'PUPIL')
+            self.amplitude_header['EXTNAME'] = 'PUPIL'
             output.append(fits.ImageHDU(self.amplitude, self.amplitude_header))
-            # hdus.append(puphdu)
-            # hdus[0].header.update("EXTEND",'True', 'File may contain extensions')
+
         return output
 
     def writeto(self, outname, clobber=True, **kwargs):
@@ -387,7 +384,8 @@ class OPD(poppy.FITSOpticalElement):
 
         offset = 0.2 if show_axes else 0
 
-        if ax is None: ax = plt.gca()
+        if ax is None:
+            ax = plt.gca()
         label = ax.text(cx + offset, cy + offset, segment, color=color, horizontalalignment='center', verticalalignment='center')
 
         if show_axes:
@@ -581,13 +579,13 @@ class OTE_Linear_Model_Elliott(OPD):
 
         OPD.__init__(self, opd=opd, opd_index=opd_index, transmission=transmission)
 
-        mypath = os.path.dirname(os.path.abspath(__file__)) + os.sep
-        self._sensitivities = astropy.table.Table.read(os.path.join(mypath, 'otelm', 'seg_sens.txt'), format='ascii', delimiter='\t')
+        self._sensitivities = astropy.table.Table.read(os.path.join(__location__, 'otelm', 'seg_sens.txt'), format='ascii', delimiter='\t')
         self.state = {}
         self.remove_piston_tip_tilt = rm_ptt
 
         self._opd_original = self.opd.copy()
-        if zero: self.zero()
+        if zero:
+            self.zero()
 
     # ---- overall state manipulation
 
@@ -832,7 +830,8 @@ class OTE_Linear_Model_Elliott(OPD):
             self._record(segment, type, vector)
             self._apply_zernikes_to_seg(segment, zernike_coeffs)
 
-            if display: self.display()
+            if display:
+                self.display()
 
     def tilt(self, segment, tiltX=0.0, tiltY=0.0, tiltZ=0.0, unit='urad', display=False, coordsys='elliott'):
         """ Tilt/rotate a segment some angle around X, Y, or Z.
@@ -869,7 +868,8 @@ class OTE_Linear_Model_Elliott(OPD):
 
         # new sensitivity matrices are in urad for  alpha and beta, mrad for gamma.
         # first just convert all to urad.
-        if unit.endswith('s'): unit = unit[:-1]
+        if unit.endswith('s'):
+            unit = unit[:-1]
         unit = unit.lower()
         if unit == 'urad':
             pass
@@ -927,7 +927,8 @@ class OTE_Linear_Model_Elliott(OPD):
         vector = np.array([distX, distY, distZ])
 
         self.opd_header.add_history('Displacement: %s %s' % (str(tuple(vector)), unit))
-        if unit.endswith('s'): unit = unit[:-1]
+        if unit.endswith('s'):
+            unit = unit[:-1]
         unit = unit.lower()
         if unit == 'micron' or unit == 'um':
             pass
@@ -978,7 +979,8 @@ class OTE_Linear_Model_Elliott(OPD):
 
         _log.info("added sine wave: (%.2f, %.2f, %.2f)" % (cyclesX, cyclesY, amplitude))
 
-        if display: self.display()
+        if display:
+            self.display()
 
     def perturb_all(self, display=True, verbose=True, **kwargs):
         """ Randomly perturb all segments
@@ -1056,13 +1058,17 @@ class OTE_Linear_Model_WSS(OPD):
         ----------
         opdfile : str or fits.HDUList
             FITS file to load an OPD from. The OPD must be specified in microns.
-        ext : int, optional
+        opd_index : int, optional
             FITS extension to load OPD from
+        transmission: ??
+            ??
         slice : int, optional
             slice of a datacube to load OPD from, if the selected extension contains a datacube.
-        pupilfile : str
-            FITS file for pupil mask, with throughput from 0-1. If not explicitly provided, will be inferred from
-            wherever is nonzero in the OPD file.
+        segment_mask_file : str
+            FITS file for pupil mask, with throughput from 0-1. If not explicitly provided, will
+            use JWpupil_segments.fits
+        zero: ??
+            ??
         jsc : bool
             Enable JSC OTIS test specific options?
         rm_ptt : bool
@@ -1073,9 +1079,8 @@ class OTE_Linear_Model_WSS(OPD):
 
         OPD.__init__(self, name=name, opd=opd, opd_index=opd_index, transmission=transmission, segment_mask_file=segment_mask_file)
 
-        mypath = os.path.dirname(os.path.abspath(__file__)) + os.sep
         # load influence function table:
-        self._influence_fns = astropy.table.Table.read(os.path.join(mypath, 'otelm', 'JWST_influence_functions_control_with_sm.fits'))
+        self._influence_fns = astropy.table.Table.read(os.path.join(__location__, 'otelm', 'JWST_influence_functions_control_with_sm.fits'))
         self._control_modes = ['Xtilt', 'Ytilt', 'Piston', 'Clocking', 'Radial', 'ROC']
         self._sm_control_modes = ['Xtilt', 'Ytilt', 'Xtrans', 'Ytrans', 'Piston']
         # controllable modes in WAS order; yes it's not an obvious ordering but that's the order of the
@@ -1088,6 +1093,15 @@ class OTE_Linear_Model_WSS(OPD):
         self._jsc = jsc
         self.remove_piston_tip_tilt = rm_ptt
         self._global_zernike_coeffs = np.zeros(15)
+        self._global_hexike_coeffs = np.zeros(15)
+
+        # Thermal OPD parameters
+        self.delta_time = 0.0
+        self.start_angle = 0.0
+        self.end_angle = 0.0
+        self.scaling = None
+        self._thermal_model = OteThermalModel() # Initialize thermal model object
+
         if self._jsc:
             self._jsc_acf_tilts = np.zeros((3, 2))  # only for JSC sims. Tilts in microradians.
 
@@ -1098,7 +1112,8 @@ class OTE_Linear_Model_WSS(OPD):
                                            [-0.382703, -1.96286],  # Secs ABC4
                                            [-1.52316, 1.342146]])  # Segs ABC6
             self._jsc_acf_centers_pixels = self.shape[0] / 2 + self._jsc_acf_cens / self.pixelscale.value
-        if zero: self.zero()
+        if zero:
+            self.zero()
 
     # ---- overall state manipulation
 
@@ -1167,7 +1182,8 @@ class OTE_Linear_Model_WSS(OPD):
         assert len(table) == len(self._control_modes), 'Got wrong number of expected records from the table'
 
         for i, label in enumerate(self._control_modes):
-            if table[i]['control_mode'] != self._control_modes[i]: raise RuntimeError("Influence function table has unexpected ordering")
+            if table[i]['control_mode'] != self._control_modes[i]:
+                raise RuntimeError("Influence function table has unexpected ordering")
             for h in range(nhexike):
                 coeffs[i, h] = table[i]['Hexike_{}'.format(h)]
 
@@ -1194,7 +1210,8 @@ class OTE_Linear_Model_WSS(OPD):
         assert len(table) == len(self._sm_control_modes), 'Got wrong number of expected records from the table'
 
         for i, label in enumerate(self._sm_control_modes):
-            if table[i]['control_mode'] != self._sm_control_modes[i]: raise RuntimeError("Influence function table has unexpected ordering")
+            if table[i]['control_mode'] != self._sm_control_modes[i]:
+                raise RuntimeError("Influence function table has unexpected ordering")
             for h in range(nhexike):
                 coeffs[i, h] = table[i]['Hexike_{}'.format(h)]
 
@@ -1215,7 +1232,7 @@ class OTE_Linear_Model_WSS(OPD):
         segment : string
             name of segment, A1 through C6
         hexike_coeffs : iterable of floats
-            Zernike coefficients, in units of microns
+            Zernike coefficients, in units of meters
         """
         assert (segment in self.segnames)
 
@@ -1293,9 +1310,29 @@ class OTE_Linear_Model_WSS(OPD):
 
         if not self.opd.shape == (1024, 1024):
             raise NotImplementedError("Code need to be generalized for OPD sizes other than 1024**2")
+        perturbation = poppy.zernike.opd_from_zernikes(self._global_zernike_coeffs,
+                                                       npix=1024,
+                                                       basis=poppy.zernike.zernike_basis_faster)
 
-        perturbation = poppy.opd_from_zernikes(self._global_zernike_coeffs,
-                                               npix=1024, basis=poppy.zernike.zernike_basis_faster)
+    def _apply_global_hexikes(self):
+        """ Apply Hexike perturbations to the whole primary
+
+        """
+        def _get_basis(*args, **kwargs):
+            """ Conveince function to make basis callable """
+            return basis
+        # Define aperture as the full OTE
+        aperture = self._segment_masks != 0
+        # Get size of mask (1024)
+        npix = np.shape(aperture)[0]
+        basis = poppy.zernike.hexike_basis_wss(nterms=9, npix=npix, aperture=aperture > 0.)
+        # Use the Hexike basis to reconstruct the global terms
+        perturbation = poppy.zernike.opd_from_zernikes(self._global_hexike_coeffs,
+                                                       basis=_get_basis,
+                                                       aperture=aperture > 0.)
+        perturbation[~np.isfinite(perturbation)] = 0.0
+        # Add perturbation to the opd
+        self.opd += perturbation
 
     def move_seg_local(self, segment, xtilt=0.0, ytilt=0.0, clocking=0.0, rot_unit='urad',
                        radial=None, xtrans=None, ytrans=None, piston=0.0, roc=0.0, trans_unit='micron', display=False,
@@ -1321,7 +1358,7 @@ class OTE_Linear_Model_WSS(OPD):
         roc : float
             radius of curvature mechanism adjustment, in microns.
         trans_unit : str
-            Unit for translations. Can be 'micron', 'millimeter','nanometer', 'mm', 'nm', 'um'
+            Unit for translations. Can be 'meter', 'micron', 'millimeter', 'nanometer', 'm', 'mm', 'nm', 'um'
         rot_unit : str
             Unit for rotations. Can be 'urad', 'radian', 'milliradian', 'arcsec', 'arcmin', 'milliarcsec'
         absolute : bool
@@ -1345,7 +1382,8 @@ class OTE_Linear_Model_WSS(OPD):
 
             # sensitivity matrices are in microns per microradian
             # so convert all to urad.
-            if rot_unit.endswith('s'): rot_unit = rot_unit[:-1]
+            if rot_unit.endswith('s'):
+                rot_unit = rot_unit[:-1]
             rot_unit = rot_unit.lower()
             if rot_unit == 'urad':
                 pass
@@ -1380,7 +1418,8 @@ class OTE_Linear_Model_WSS(OPD):
         vector = np.asarray([piston, radial], dtype=float)
         if np.abs(vector).sum() > 0:
             # influence functions are in microns WFE per micron, so convert all to microns
-            if trans_unit.endswith('s'): trans_unit = trans_unit[:-1]
+            if trans_unit.endswith('s'):
+                trans_unit = trans_unit[:-1]
             trans_unit = trans_unit.lower()
             if trans_unit == 'micron' or trans_unit == 'um':
                 pass
@@ -1480,7 +1519,8 @@ class OTE_Linear_Model_WSS(OPD):
 
             # sensitivity matrices are in microns per microradian
             # so convert all to urad.
-            if rot_unit.endswith('s'): rot_unit = rot_unit[:-1]
+            if rot_unit.endswith('s'):
+                rot_unit = rot_unit[:-1]
             rot_unit = rot_unit.lower()
             if rot_unit == 'urad':
                 pass
@@ -1515,7 +1555,8 @@ class OTE_Linear_Model_WSS(OPD):
         vector = np.asarray([piston, radial], dtype=float)
         if np.abs(vector).sum() > 0:
             # influence functions are in microns WFE per micron, so convert all to microns
-            if trans_unit.endswith('s'): trans_unit = trans_unit[:-1]
+            if trans_unit.endswith('s'):
+                trans_unit = trans_unit[:-1]
             trans_unit = trans_unit.lower()
             if trans_unit == 'micron' or trans_unit == 'um':
                 pass
@@ -1581,7 +1622,8 @@ class OTE_Linear_Model_WSS(OPD):
 
             # sensitivity matrices are in microns per microradian
             # so convert all to urad.
-            if rot_unit.endswith('s'): rot_unit = rot_unit[:-1]
+            if rot_unit.endswith('s'):
+                rot_unit = rot_unit[:-1]
             rot_unit = rot_unit.lower()
             if rot_unit == 'urad':
                 pass
@@ -1602,7 +1644,8 @@ class OTE_Linear_Model_WSS(OPD):
         vector = np.asarray([xtrans, ytrans, piston])
         if np.abs(vector).sum() > 0:
 
-            if trans_unit.endswith('s'): trans_unit = trans_unit[:-1]
+            if trans_unit.endswith('s'):
+                trans_unit = trans_unit[:-1]
             trans_unit = trans_unit.lower()
             if trans_unit == 'micron' or trans_unit == 'um':
                 pass
@@ -1610,6 +1653,8 @@ class OTE_Linear_Model_WSS(OPD):
                 vector *= 1000
             elif trans_unit == 'nm' or trans_unit == 'nanometer' or trans_unit == 'nanometers':
                 vector /= 1000
+            elif trans_unit == 'meter':
+                vector *= 1000000
             else:
                 raise ValueError("Unknown trans_unit for length: %s" % trans_unit)
 
@@ -1664,7 +1709,8 @@ class OTE_Linear_Model_WSS(OPD):
 
         vector = np.asarray(zvector)
         # Convert to meters, since that's what the OPDs are in
-        if unit.endswith('s'): unit = unit[:-1]
+        if unit.endswith('s'):
+            unit = unit[:-1]
         unit = unit.lower()
         if unit == 'micron' or unit == 'um':
             vector *= 1e-6
@@ -1686,13 +1732,30 @@ class OTE_Linear_Model_WSS(OPD):
             self.update_opd(display=display)
 
     def move_sur(self, sur_file, group=None, verbose=False):
-        """ Move using a JWST Segment Update Request file
+        """
+        Move using a JWST Segment Update Request file
+
+        Parameters
+        ----------
+        sur_file : file name
+            Path to SUR XML file
+        group : zero-based int index
+            Index to a single group to run. Default is to run all groups.
+        verbose : bool
+            Flag controlling whether moves are printed.
+
+        Returns
+        -------
 
         """
         import jwxml
 
         sur = jwxml.SUR(sur_file)
-        for grp in sur.groups:
+        if group is not None:
+            groups = [sur.groups[group]]
+        else:
+            groups = sur.groups
+        for grp in groups:
             for update in grp:
                 if verbose:
                     print("Move seg {} by {}".format(update.segment, str(update)))
@@ -1701,20 +1764,30 @@ class OTE_Linear_Model_WSS(OPD):
                         raise NotImplementedError("Only local moves supported!")
 
                     # FIXME - consider whether we should check for
-                    # heterogenous sets of units here...
+                    # heterogeneous sets of units here...
                     rot_unit = update.units['X_TILT']
                     trans_unit = update.units['X_TRANS']
 
-                    self.move_seg_local(update.segment[0:2],
-                                        xtilt=update.moves['X_TILT'],
-                                        ytilt=update.moves['Y_TILT'],
-                                        xtrans=update.moves['X_TRANS'],
-                                        ytrans=update.moves['Y_TRANS'],
-                                        piston=update.moves['PISTON'],
-                                        absolute=update.absolute,
-                                        rot_unit=rot_unit,
-                                        trans_unit=trans_unit,
-                                        delay_update=True)
+                    if update.segment == 'SM':
+                        self.move_sm_local(xtilt=update.moves['X_TILT'],
+                                           ytilt=update.moves['Y_TILT'],
+                                           xtrans=update.moves['X_TRANS'],
+                                           ytrans=update.moves['Y_TRANS'],
+                                           piston=update.moves['PISTON'],
+                                           rot_unit=rot_unit,
+                                           trans_unit=trans_unit,
+                                           delay_update=True)
+                    else:
+                        self.move_seg_local(update.segment[0:2],
+                                            xtilt=update.moves['X_TILT'],
+                                            ytilt=update.moves['Y_TILT'],
+                                            xtrans=update.moves['X_TRANS'],
+                                            ytrans=update.moves['Y_TRANS'],
+                                            piston=update.moves['PISTON'],
+                                            absolute=update.absolute,
+                                            rot_unit=rot_unit,
+                                            trans_unit=trans_unit,
+                                            delay_update=True)
 
                 elif update.type == 'roc':
                     self.move_seg_local(update.segment[0:2],
@@ -1725,6 +1798,88 @@ class OTE_Linear_Model_WSS(OPD):
                 else:
                     raise NotImplementedError("Only moves of type='pose' or 'roc' are supported.")
         self.update_opd()
+
+
+    def thermal_slew(self, delta_time, start_angle=-5,end_angle=45,
+                     scaling=None, display=False, delay_update=False):
+        """ Update the OPD based on presence of a pitch angle change between
+        observations.
+
+        Use a delta slew time along with the beginning and ending angles of the
+        observatory relative to the sun (or the user can define a scaling factor)
+        to determine the expected WFE caused by thermal variations.
+        Note: The start_angle and end_angle are used together, but will be ignored
+        if the scaling variable is set to somthing other than "None".
+
+        The maximum HOT to COLD pitch angles are -5 to 45 degrees. With regards
+        to this, we make some assumptions:
+        1. A COLD to HOT slew is just the negative of the HOT to COLD slew
+        2. The scaling factor can be simplified to a simple ratio of angles (this is
+           a gross over-simplification due to lack of a better model)
+
+        The HOT to COLD vs COLD to HOT nature of the slew is determined by the start
+        and end angles
+
+        Parameters
+        ----------
+        delta_time: astropy.units quantity object
+            The time between observations. Default units: "hour"
+        start_angle: float
+            The starting sun pitch angle, in degrees between -5 and +45
+        end_angle: float
+            The ending sun pitch angle, in degrees between -5 and +45
+        scaling: float between 0 and 1
+            Scaling factor that can be used instead of the start_angle
+            and end_angle parameters.
+        display: bool
+            Display the updated OPD
+        delay_update: bool
+            Users typically only need to call this directly if they have set the
+            "delay_update" parameter to True in some function call to move mirrors.
+
+        """
+        # Check values
+        if (start_angle < -5) or (end_angle > 45):
+            raise ValueError("Start or end angle is outside of acceptable range of -5 to 45 degrees.")
+
+        # Convert Delta time to units of days
+        delta_time = convert_quantity(delta_time, to_units=u.day) #this returns astropy units quantity
+        self.delta_time = delta_time.value
+        self.start_angle = start_angle
+        self.end_angle = end_angle
+        self.scaling = scaling
+
+        # Update the header info
+        self.opd_header['BUNIT'] = 'meter'
+        self.opd_header['DELTA_T'] = (self.delta_time, "Delta time after slew [d]")
+        self.opd_header['STARTANG'] = (self.start_angle, "Starting sun pitch angle [deg]")
+        self.opd_header['ENDANG'] = (self.end_angle, "Ending sun pitch angle [deg]")
+        if scaling:
+            self.opd_header['SCALING'] = (self.scaling, 'Scaling factor for delta slew')
+
+        if not delay_update:
+            self.update_opd(display=display)
+
+
+    def _get_thermal_slew_coeffs(self, segid):
+        """
+        Get the WSS Hexike coefficients for the OPD describing the changes that have been
+        caused by a change in pitch angle between two observations.
+
+        Parameters:
+        -----------
+        segid: str
+            Segment to be fit. 'SM' will fit the global focus term. Any other
+            segment name will fits 9 Hexikes to that segment
+        """
+        if not self.scaling:
+            scaling = np.sin(np.radians(self.end_angle) - np.radians(self.start_angle)) / np.sin(np.radians(45.) - np.radians(-5.))
+        else:
+            scaling = self.scaling
+
+        coeffs = self._thermal_model.get_coeffs(segid, self.delta_time)
+        return scaling*coeffs
+
 
     def update_opd(self, display=False, verbose=False):
         """ Update the OPD based on the current linear model values.
@@ -1743,7 +1898,7 @@ class OTE_Linear_Model_WSS(OPD):
 
         for iseg, segname in enumerate(self.segnames[0:18]):
             pose_coeffs = self.segment_state[iseg].copy()
-            if np.all(pose_coeffs == 0) and np.all(sm_pose_coeffs == 0):
+            if np.all(pose_coeffs == 0) and np.all(sm_pose_coeffs == 0) and self.delta_time==0:
                 continue
             else:
 
@@ -1757,18 +1912,22 @@ class OTE_Linear_Model_WSS(OPD):
                 sm_sensitivities = self._get_seg_sensitivities_from_sm(segname)
                 hexike_coeffs_from_sm = sm_sensitivities * sm_pose_coeffs  # will be 5,9 array
                 hexike_coeffs_from_sm = hexike_coeffs_from_sm.sum(axis=0)  # sum to get 9
-                hexike_coeffs_combined = hexike_coeffs + hexike_coeffs_from_sm
+                hexike_coeffs_from_thermal = self._get_thermal_slew_coeffs(segname)
+                hexike_coeffs_combined = hexike_coeffs + hexike_coeffs_from_sm + hexike_coeffs_from_thermal
 
                 if verbose:
                     print("Need to move segment {} by {} ".format(segname, pose_coeffs.flatten()))
                     print("plus SM moved by {} ".format(sm_pose_coeffs.flatten()))
+                    print("plus segment moved by {} due to thermal contribution".format(hexike_coeffs_from_thermal))
                     print("   Hexike coeffs: {}".format(hexike_coeffs))
 
                 self._apply_hexikes_to_seg(segname, hexike_coeffs_combined)
 
+        if self.delta_time != 0.0:
+            self._global_hexike_coeffs[4] += self._get_thermal_slew_coeffs('SM')
         # Apply Global Zernikes
-        if not np.all(self._global_zernike_coeffs == 0):
-            self._apply_global_zernikes()
+        if not np.all(self._global_hexike_coeffs == 0):
+            self._apply_global_hexikes()
 
         # Apply NASA JSC OTIS test ACF tilts (not relevant in flight)
         if self._jsc and np.any(self._jsc_acf_tilts != 0):
@@ -1789,8 +1948,8 @@ def enable_adjustable_ote(instr, jsc=False):
     Set up a WebbPSF instrument instance to have a modifiable OTE
     wavefront error OPD via an OTE linear optical model (LOM).
 
-    Paramters
-    ---------
+    Parameters
+    ----------
     inst : WebbPSF Instrument instance
         an instance of one of the WebbPSF instrument classes.
     jsc : bool
@@ -1798,7 +1957,7 @@ def enable_adjustable_ote(instr, jsc=False):
 
     Returns
     --------
-    a modified copy of that instrumet set up to use the LOM, and
+    a modified copy of that instrument set up to use the LOM, and
     the associated instance of the LOM.
 
     """
@@ -2037,8 +2196,10 @@ def segment_primary(infile='JWpupil.fits'):
         plt.text(mx, my, str(i), color='k')
 
     segs = ['A' + str(i + 1) for i in range(6)]
-    for i in range(6): segs.append('B' + str(i + 1))
-    for i in range(6): segs.append('C' + str(i + 1))
+    for i in range(6):
+        segs.append('B' + str(i + 1))
+    for i in range(6):
+        segs.append('C' + str(i + 1))
     seg_inds = [9, 18, 10, 4, 8, 17, 15, 14, 5, 1, 3, 11, 13, 7, 2, 0, 6, 12]
 
     result = np.zeros_like(res3)
@@ -2052,7 +2213,8 @@ def segment_primary(infile='JWpupil.fits'):
 
     plt.subplot(122)
     plt.imshow(result)
-    for i in range(18): plt.text(mxs[i], mys[i], segs[i], color='k', horizontalalignment='center', verticalalignment='center')
+    for i in range(18):
+        plt.text(mxs[i], mys[i], segs[i], color='k', horizontalalignment='center', verticalalignment='center')
 
     hdu = fits.PrimaryHDU((result * im).astype(np.uint8))
     for i in range(18):
@@ -2150,3 +2312,134 @@ def test2_OPDbender(filename='OPD_RevV_nircam_132.fits'):
     plt.subplot(133)
     diff = (perturbed - orig)
     diff.draw(title='Difference ({0:.1f} nm rms)'.format(diff.rms()), **plot_kwargs)
+
+
+#-------------------------------------------------------------------------------
+# Thermal
+from copy import deepcopy
+from . import optics
+from scipy import io
+
+
+class OteThermalModel(object):
+    """
+    Create an object for a delta_time that predictes the WSS Hexike coeffcients
+    for an OPD that represents the impact of thermal variation caused by a change
+    in pitch angle relative to the sun.
+
+    Given a time in units of seconds, minutes, hours, or days.
+
+    Parameters:
+    -----------
+    delta_time: tuple, (number, astropy.units quantity object)
+        Include the number and units for the delta time between observations.
+
+    Returns:
+    --------
+    coeffs: array-like
+        WSS Hexike Coefficients for JWST OPD based on thermal variations over
+        delta_time
+
+    """
+    def __init__(self):
+        """
+        Set up the object such that it can be used for any time, delta_time
+        """
+        self.nterms = 9
+        # Load fitting values table:
+        mypath = os.path.dirname(os.path.abspath( __file__ ))+os.sep
+        # This table is in units of microns
+        self._fit_file = os.path.join(mypath, 'otelm', 'thermal_OPD_fitting_parameters_9H_um.fits')
+        self._fit_data = fits.getdata(self._fit_file)
+
+
+    @staticmethod
+    def second_order_thermal_response_function(x, tau_1, gn_1, tau_2, gn_2):
+        """ Second order thermal response function """
+        return gn_1 * (1 - np.exp(-1 * (x / tau_1))) + gn_2 * (1 - np.exp(-1 * (x / tau_2)))
+
+
+    def check_units(self, coeffs):
+        """
+        Make sure that the coefficients are in the correct units - meters.
+        (Adapted from poppy.poppy_core.FITSOpticalElement)
+        """
+        header = fits.getheader(self._fit_file, ext=1)
+        opdunits = header['BUNIT']
+        # normalize and drop any trailing 's'
+        opdunits = opdunits.lower()
+        if opdunits.endswith('s'):
+            opdunits = opdunits[:-1]
+        if opdunits in ('meter', 'm'):
+            pass
+        elif opdunits in ('micron', 'um', 'micrometer'):
+            coeffs *= 1e-6
+        elif opdunits in ('nanometer', 'nm'):
+            coeffs *= 1e-9
+        return coeffs
+
+
+    def get_coeffs(self, segid, delta_time):
+        """ Given the segid name (either 'SM' or any of the segment names under
+        constants.SEGNAMES), return the global or local (to each segment) Hexike
+        coefficiets
+
+        Assume that delta_time is a float in units of days.
+        """
+        if delta_time == 0.0:
+            if segid == 'SM':
+                return 0.0
+            else:
+                return np.zeros(self.nterms)
+        else:
+            coeffs = OteThermalModel.second_order_thermal_response_function(delta_time,
+                                         self._fit_data[self._fit_data['segs'] == segid]['tau1'],
+                                         self._fit_data[self._fit_data['segs'] == segid]['Gn1'],
+                                         self._fit_data[self._fit_data['segs'] == segid]['tau2'],
+                                         self._fit_data[self._fit_data['segs'] == segid]['Gn2'])
+            if len(coeffs) == 0:
+                _log.warning("Invalid segment ID. No coefficients returned")
+                coeffs = 0.0
+            elif segid == 'SM':
+                coeffs = self.check_units(coeffs[0])
+            else:
+                coeffs = self.check_units(coeffs)
+            return coeffs
+
+
+def convert_quantity(input_quantity, from_units=None, to_units=u.day):
+    """
+    Convert an input quantity (expecting an astropy units quantity), to a
+    specified output quantity.
+
+    (This defaults to units of time but can be used for any quantity as long
+    as both from_units and to_units are set. If the from_units is not set, it
+    will assume units of hours.)
+
+    Parameters:
+    -----------
+    input_quantity: astropy units quantity, int/float
+        Give an input quantity as an astropy units quantity or int/float.
+        If the user passes in an int or float, units of *HOURS* will be assumed.
+    from_units: astropy unit
+        If input_quantity is not an astropy units quantity, this needs to be
+        set, otherwise a unit of hours is assumed, regardless of to_units parameter
+    to_units: astropy unit
+        Default: u.day
+        Set the astropy unit the convert to.
+
+    Returns:
+    --------
+    output_quantity: astropy units quantity
+        Return a an astropy units quantity in units set by to_units
+    """
+    try:
+        output_quantity = input_quantity.to(to_units)
+    except AttributeError:
+        if from_units:
+            input_quantity *= from_units
+        else:
+            input_quantity *= u.hour
+        output_quantity = input_quantity.to(to_units)
+
+    return output_quantity

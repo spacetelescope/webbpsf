@@ -1,41 +1,51 @@
 Introduction
 ============
 
-Conceptually, this simulation code has three layers of abstraction:
- * A base package for wavefront propagation through generic optical systems (provided by :py:mod:`POPPY <poppy>`)
- * Models of the JWST instruments implemented on top of that base system (provided by :py:mod:`WebbPSF <webbpsf>`)
- * An optional :ref:`graphical user interface <gui>`
+**What this software does:**
 
-It is entirely possible (and indeed recommended for scripting) to just use the :py:mod:`WebbPSF <webbpsf>` interface without the GUI, but the
-GUI can provide a quicker method for many simple interactive calculations.
+* Uses OPD maps precomputed by detailed optical simulations of JWST and WFIRST, and in the case of JWST
+  based on instrument and telescope flight hardware cryo-vacuum test results.
+* For JWST, computes PSF images with requested properties for any of JWST's instruments. Supports imaging, coronagraphy, and most spectrographic modes with all of JWST's instruments. IFUs are yet to come.
+* For WFIRST, computes PSFs with the Wide Field Imager, based on recent GSFC optical models, including field- and wavelength-dependent aberrations. 
+  A preliminary version of the Coronagraph Instrument is also available.
+* Provides a suite of tools for quantifying PSF properties such as FWHM, Strehl ratio, etc.
+
+**What this software does NOT do:**
+
+* Contain in itself any detailed thermal or optical model of JWST or WFIRST. For the results of end-to-end integrated simulations of JWST, see for instance `Predicted JWST imaging performance (Knight, Lightsey, & Barto; Proc. SPIE 2012) <http://proceedings.spiedigitallibrary.org/proceeding.aspx?articleid=1362264>`_. For WFIRST modeling, see `the WFIRST Reference Info page <http://wfirst.gsfc.nasa.gov/science/Instrument_Reference_Information.html>`_
+* Model spectrally dispersed PSFs produced by any of the spectrograph gratings. It does, however, let you produce monochromatic PSFs in these modes, suitable for stitching together into spectra using some other software.
+* Model most detector effects such as pixel MTF, intrapixel sensitivity variations, interpixel capacitance, or any noise sources. Add those separately with your favorite detector model code. (\*Note, one particularly significant
+  detector scattering for MIRI imaging has now been added.)
+
+
+Conceptually, this simulation code has two layers of abstraction:
+ * A base package for wavefront propagation through generic optical systems (provided by :py:mod:`POPPY <poppy>`)
+ * Models of the JWST and WFIRST instruments implemented on top of that base system (provided by :py:mod:`WebbPSF <webbpsf>`)
+
+(There has formerly been a basic GUI front end, but that GUI is now deprecated and no longer recommended for use.)
 
 .. _intro_why_webbpsf:
 
 Why WebbPSF?
 ------------
 
-WebbPSF replaced an older PSF simulation package,  ``JWPSF``, that was in use prior to 2011.
-From a user's perspective WebbPSF provides the following enhancements over JWPSF:
+For any space telescope, an ability to predict the properties of
+point spread functions (PSFs) is needed before launch for a wide
+range of preparatory science studies and tool development.
+Tools for producing high
+quality model PSFs must be easily accessible to the entire astronomical
+community.
+WebbPSF provides an easy-to-use tool for PSF simulations of JWST and WFIRST, in
+the style of the highly successful "Tiny Tim" PSF simulator for Hubble.
 
-* Updated to the most recent JWST pupil and OPD models, Revision V.
-* Added TFI and FGS models. TFI then updated to NIRISS.
-* Updated lists of available filters.
-* Added support for coronagraphic and spectroscopic observing modes.
-* Includes the detector rotations, particularly for MIRI and NIRSpec
-* Adds ability to set output image FOV size and pixel sampling, separate from the oversampling factor used for the optical propagation.
-* New & improved graphical user interface.
+WebbPSF
+simulations are based on a mixture of observatory design parameters and
+as-built properties. The software provides a highly flexible and scriptable toolkit in
+Python for simulating a very wide range of observing modes and science scenarios, using
+efficient computational methods (including optional parallelization and use of GPUs). WebbPSF
+is a key building block in higher-level observatory simulators, including the
+JWST `Exposure Time Calculator <https://jwst.etc.stsci.edu>`_.
 
-
-Perhaps even more importantly, the underlying codebase has been entirely replaced and revamped. The most
-significant additions from a programmer's perspective include:
-
-* Much cleaner object-oriented interface. Better abstraction of details across layers.
-* Support for optics defined by analytic functions
-* Support for coordinate rotations and rotated optics.
-* Arbitrary oversampling for coronagraphic models.
-* Matrix Fourier Transform algorithm from Soummer et al. implemented for arbitrary detector sampling.
-* Optional parallelization for improved speed and efficient use of multiple processor cores.
-* Uses ``pysynphot`` library (same as the HST & JWST exposure time calculators) for consistent treatment of filter bandpasses and source spectra.
 
 .. _intro_algorithms:
 
@@ -110,27 +120,8 @@ For detailed installation instructions, refer to :ref:`installation`. (This docu
 
 Quick Start
 ------------
-First, download and install the software. Then just start ``python`` and
 
->>> import webbpsf
->>> webbpsf.gui()
+Once you have installed the software and data files, we recommend you begin with the 
+`Jupyter Notebook quickstart tutorial <http://nbviewer.jupyter.org/github/spacetelescope/webbpsf/blob/master/notebooks/WebbPSF_tutorial.ipynb>`_. Downloading and running that notebook is a great way to get started using WebbPSF.
 
-and you should be able to test drive things using the GUI:
 
-.. figure:: ./fig_gui_main.png
-   :scale: 75%
-   :align: center
-   :alt: The main window of the WebbPSF GUI when first launched.
-
-   The main window of the WebbPSF GUI when first launched.
-
-Most controls should be self-explanatory, so feel free to experiment. The article :ref:`gui` provides a detailed
-explanation of the GUI options.
-
-WebbPSF can save a detailed log of its calculations and results. This will by default be shown on screen but can also be saved to disk.
-
->>> webbpsf.setup_logging(filename='my_log_file.txt')
-
-Log settings are persistent between sessions, so you can just set this once the very first time you start WebbPSF and logging will be enabled thereafter until you explicitly change it.
-
-For further information, consult :ref:`using_api` or :ref:`gui`.

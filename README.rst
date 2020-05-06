@@ -7,12 +7,12 @@ WebbPSF: Simulated Point Spread Functions for JWST and WFIRST
    :target: https://pypi.python.org/pypi/webbpsf
    :alt: Badge showing current released PyPI version
 
-.. image:: https://travis-ci.org/mperrin/webbpsf.svg?branch=master
-   :target: https://travis-ci.org/mperrin/webbpsf
+.. image:: https://travis-ci.org/spacetelescope/webbpsf.svg?branch=master
+   :target: https://travis-ci.org/spacetelescope/webbpsf
    :alt: Badge showing continuous integration test status
 
-.. image:: https://coveralls.io/repos/github/mperrin/webbpsf/badge.svg?branch=master
-   :target: https://coveralls.io/github/mperrin/webbpsf?branch=master
+.. image:: https://coveralls.io/repos/github/spacetelescope/webbpsf/badge.svg?branch=master
+   :target: https://coveralls.io/github/spacetelescope/webbpsf?branch=master
 
 .. image:: https://img.shields.io/badge/ascl-1504.007-blue.svg?colorB=262255
    :target: http://ascl.net/1504.007
@@ -26,7 +26,7 @@ WebbPSF also supports simulating PSFs for the upcoming Wide Field Infrared Surve
 including its Wide Field Instrument and a preliminary version of the Coronagraph Instrument.
 
 Developed by Marshall Perrin, Joseph Long, Neil Zimmerman, Robel Geda, Shannon
-Osborne, Marcio Melendez Hernandez, and collaborators, 2010-2018.
+Osborne, Marcio Melendez Hernandez, Lauren Chambers, Keira Brooks, and collaborators, 2010-2018.
 
 Documentation can be found online at https://webbpsf.readthedocs.io
 

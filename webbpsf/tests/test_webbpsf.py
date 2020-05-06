@@ -1,4 +1,3 @@
-from __future__ import division, print_function, absolute_import, unicode_literals
 import sys, os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -184,28 +183,12 @@ def test_return_intermediates():
     nc.image_mask='maskswb'
     nc.pupil_mask='wedgelyot'
 
-    osys = nc._getOpticalSystem()
+    osys = nc._get_optical_system()
 
     psf, intermediates = nc.calc_psf(monochromatic=2e-6, return_intermediates=True)
     assert len(intermediates) == len(osys.planes)
     assert isinstance(intermediates[0], poppy.Wavefront)
     assert isinstance(psf, astropy.io.fits.HDUList)
-
-def test_unicode_filter_names():
-    """ See https://github.com/mperrin/webbpsf/issues/18
-    Bug reported by Brian York in which unicode filternames made
-    webbpsf 0.2.8 fail during atpy table lookup. Believed to actually be
-    an atpy bug, now irrelevant since we're using astropy.table, but
-    let's add an easy test case to be sure.
-    """
-
-    nc = webbpsf_core.NIRCam()
-    nc.filter=unicode('f212n')
-    psf_unicode = nc.calc_psf(nlambda=1)
-    nc.filter='f212n'
-    psf_str = nc.calc_psf(nlambda=1)
-
-    assert np.array_equal(psf_unicode[0].data, psf_str[0].data)
 
 
 def do_test_set_position_from_siaf(iname, more_apertures=[]):
@@ -278,4 +261,3 @@ def test_calc_or_load_PSF(outputdir=None):
     f2.close()
 
 #--------------------------------------------------------------------------------
-

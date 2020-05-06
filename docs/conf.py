@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Licensed under a 3-clause BSD style license - see LICENSE.rst
+# Licensed under a 3-clause BSD style license - see LICENSE.md
 #
 # Astropy documentation build configuration file.
 #
@@ -28,6 +28,7 @@
 import datetime
 import os
 import sys
+import stsci_rtd_theme
 
 try:
     import astropy_helpers
@@ -37,6 +38,9 @@ except ImportError:
         a_h_path = os.path.abspath(os.path.join('..', 'astropy_helpers'))
         if os.path.isdir(a_h_path):
             sys.path.insert(1, a_h_path)
+
+def setup(app):
+    app.add_stylesheet("stsci.css")
 
 # Load all of the global Astropy configuration
 from astropy_helpers.sphinx.conf import *
@@ -50,6 +54,26 @@ conf = ConfigParser()
 
 conf.read([os.path.join(os.path.dirname(__file__), '..', 'setup.cfg')])
 setup_cfg = dict(conf.items('metadata'))
+
+# If extensions (or modules to document with autodoc) are in another directory,
+# add these directories to sys.path here. If the directory is relative to the
+# documentation root, use os.path.abspath to make it absolute, like shown here.
+sys.path.insert(0, os.path.abspath('../'))
+sys.path.insert(0, os.path.abspath('../webbpsf/'))
+sys.path.insert(0, os.path.abspath('exts/'))
+
+extensions = [
+    'numfig',
+    'sphinx.ext.autodoc',
+    'sphinx.ext.intersphinx',
+    'sphinx.ext.todo',
+    'sphinx.ext.inheritance_diagram',
+    'sphinx.ext.viewcode',
+    'sphinx.ext.autosummary',
+    'sphinx_automodapi.automodapi',
+    'sphinx_issues'
+    ]
+numpydoc_show_class_members = False
 
 # -- General configuration ----------------------------------------------------
 
@@ -75,6 +99,13 @@ intersphinx_mapping.update({
 
 # -- Project information ------------------------------------------------------
 
+# Github integration via sphinx-issues plugin
+# See https://github.com/sloria/sphinx-issues
+
+# Github repo
+issues_github_path = "spacetelescope/webbpsf"
+
+
 # This does not *have* to match the package name, but typically does
 project = setup_cfg['package_name']
 author = setup_cfg['author']
@@ -93,6 +124,8 @@ version = package.__version__.split('-', 1)[0]
 # The full version, including alpha/beta/rc tags.
 release = package.__version__
 
+# The name of the Pygments (syntax highlighting) style to use.
+pygments_style = 'sphinx'
 
 # -- Options for HTML output --------------------------------------------------
 
@@ -105,12 +138,12 @@ release = package.__version__
 
 # Add any paths that contain custom themes here, relative to this directory.
 # To use a different custom theme, add the directory containing the theme.
-html_theme_path = ['_themes']
+html_theme_path = [stsci_rtd_theme.get_html_theme_path()]
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes. To override the custom theme, set this to the
 # name of a builtin theme or the name of a custom theme in html_theme_path.
-html_theme = 'theme_webbpsf'
+html_theme = 'stsci_rtd_theme'
 
 # Custom sidebar templates, maps document names to template names.
 #html_sidebars = {}
