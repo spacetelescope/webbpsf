@@ -20,7 +20,7 @@ test_nircam = lambda : generic_output_test('NIRCam')
 test_nircam_source_offset_00 = lambda : do_test_source_offset('NIRCam', theta=0.0, monochromatic=2e-6)
 test_nircam_source_offset_45 = lambda : do_test_source_offset('NIRCam', theta=45.0, monochromatic=2e-6)
 
-test_nircam_set_siaf = lambda : do_test_set_position_from_siaf('NIRCam', 
+test_nircam_set_siaf = lambda : do_test_set_position_from_siaf('NIRCam',
         ['NRCA5_SUB160', 'NRCA3_DHSPIL_SUB96','NRCA5_MASKLWB_F300M', 'NRCA2_TAMASK210R'])
 
 test_nircam_blc_circ_45 =  lambda : do_test_nircam_blc(kind='circular', angle=45)
@@ -319,3 +319,106 @@ def test_defocus(fov_arcsec=1, display=False):
         webbpsf.display_psf(psf)
         plt.figure()
         webbpsf.display_psf(psf_2)
+
+
+def test_ways_to_specify_weak_lenses():
+    """ There are multiple ways to specify combinations of weak lenses. Test they work as expected.
+
+    """
+
+
+    testcases = (
+        # FILTER  PUPIL   EXPECTED_DEFOCUS
+        # Test methods directly specifying a single element
+        ('F212N', 'WLM8', 'Weak Lens -8'),
+        ('F200W', 'WLP8', 'Weak Lens +8'),
+        ('F187N', 'WLP8', 'Weak Lens +8'),
+        # Note WLP4 can be specified as filter or pupil element or both
+        ('WLP4', 'WLP4', 'Weak Lens +4'),
+        (None, 'WLP4', 'Weak Lens +4'),
+        ('WLP4', None, 'Weak Lens +4'),
+        # Test methods directly specifying a pair of elements stacked together
+        ('WLP4', 'WLM8', 'Weak Lens Pair -4'),
+        ('WLP4', 'WLP8', 'Weak Lens Pair +12'),
+        # Test methods using virtual pupil elements WLM4 and WLP12
+        ('WLP4', 'WLM4', 'Weak Lens Pair -4'),
+        ('WLP4', 'WLP12', 'Weak Lens Pair +12'),
+        ('F212N', 'WLM4', 'Weak Lens Pair -4'),
+        ('F212N', 'WLP12', 'Weak Lens Pair +12'),
+    )
+
+    nrc = webbpsf_core.NIRCam()
+    nrc.pupilopd = None # irrelevant for this test and slows it down
+    nrc.include_si_wfe = False # irrelevant for this test and slows it down
+    for filt, pup, expected in testcases:
+        nrc.pupil_mask = pup
+        if filt is not None: nrc.filter = filt
+
+        assert expected in [p.name for p in nrc._get_optical_system().planes], "Optical system did not contain expected plane {} for {}, {}".format(expected, filt, pup)
+
+
+def test_nircam_coron_wfe_offset(fov_pix=15, oversample=2, fit_gaussian=True):
+    """
+    Test offset of LW coronagraphic PSF w.r.t. wavelength due to optical wedge dispersion.
+    Option to fit a Gaussian to PSF core in order to better determine peak position.
+    Difference from 2.5 to 3.3 um should be ~0.015mm.
+    Difference from 3.3 to 5.0 um should be ~0.030mm.
+    """
+
+    # Disable Gaussian fit if astropy not installed
+    if fit_gaussian:
+        try:
+            from astropy.modeling import models, fitting
+        except ImportError:
+            fit_gaussian = False
+
+    # Ensure oversample to >1 no Gaussian fitting
+    if fit_gaussian == False:
+        oversample = 2 if oversample<2 else oversample
+        rtol = 0.2
+    else:
+        rtol = 0.1
+
+    # Set up an off-axis coronagraphic PSF
+    inst = webbpsf_core.NIRCam()
+    inst.filter = 'F335M'
+    inst.pupil_mask = 'CIRCLYOT'
+    inst.image_mask = None
+    inst.include_si_wfe = True
+    inst.options['jitter'] = None
+
+    # size of an oversampled pixel in mm (detector pixels are 18um)
+    mm_per_pix = 18e-3/oversample
+
+    # Investigate the differences between three wavelengths
+    warr = np.array([2.5,3.3,5.0])
+
+    # Find PSF position for each wavelength
+    yloc = []
+    for w in warr:
+        hdul = inst.calc_psf(monochromatic=w*1e-6, oversample=oversample, add_distortion=False, fov_pixels=fov_pix)
+
+        # Vertical image cross section of oversampled PSF
+        im = hdul[0].data
+        sh = im.shape
+        xvals = mm_per_pix * (np.arange(sh[0]) - sh[0]/2)
+        yvals = im[:,int(sh[1]/2)]
+
+        # Fit 1D Gaussian to vertical cross section of PSF
+        if fit_gaussian:
+            # Create Gaussian model fit of PSF core to determine y offset
+            g_init = models.Gaussian1D(amplitude=yvals.max(), mean=0, stddev=0.01)
+            fit_g = fitting.LevMarLSQFitter()
+            g = fit_g(g_init, xvals, yvals)
+            yloc.append(g.mean.value)
+        else:
+            # Just use PSF max location
+            yloc.append(xvals[yvals==yvals.max()][0])
+    yloc = np.array(yloc)
+
+    # Difference from 2.5 to 3.3 um should be ~0.015mm
+    diff_25_33 = np.abs(yloc[0] - yloc[1])
+    assert np.allclose( diff_25_33, 0.016, rtol=rtol), "PSF shift between {:.2f} and {:.2f} um of {:.3f} mm does not match expected value (~0.016 mm).".format(warr[1], warr[0], diff_25_33)
+    # Difference from 3.3 to 5.0 um should be ~0.030mm
+    diff_50_33 = np.abs(yloc[2] - yloc[1])
+    assert np.allclose( diff_50_33, 0.032, rtol=rtol), "PSF shift between {:.2f} and {:.2f} um of {:.3f} mm does not match expected value (~0.032 mm).".format(warr[1], warr[2], diff_50_33)

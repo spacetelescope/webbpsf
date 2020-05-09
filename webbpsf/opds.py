@@ -191,7 +191,7 @@ class OPD(poppy.FITSOpticalElement):
             Include the pupil mask as a FITS extension?
         """
 
-        output = fits.HDUList([fits.ImageHDU(self.opd, self.opd_header)])
+        output = fits.HDUList([fits.PrimaryHDU(self.opd, self.opd_header)])
         output[0].header['EXTNAME'] = 'OPD'
         output[0].header['BUNIT'] = 'meter'  # Rescaled to meters in poppy_core
 
@@ -201,9 +201,9 @@ class OPD(poppy.FITSOpticalElement):
 
         return output
 
-    def writeto(self, outname, clobber=True, **kwargs):
+    def writeto(self, outname, overwrite=True, **kwargs):
         """ Write OPD to a FITS file on disk """
-        self.as_fits(**kwargs).writeto(outname, clobber=clobber)
+        self.as_fits(**kwargs).writeto(outname, overwrite=overwrite)
 
     # ---- display and analysis
     def powerspectrum(self, max_cycles=50, sampling=5, vmax=100, iterate=False):
@@ -1052,7 +1052,7 @@ class OTE_Linear_Model_WSS(OPD):
     """
 
     def __init__(self, name='Unnamed OPD', opd=None, opd_index=0, transmission=None, segment_mask_file='JWpupil_segments.fits',
-                 zero=False, jsc=False, rm_ptt=False):
+                 zero=False, rm_ptt=False):
         """
         Parameters
         ----------
@@ -1069,8 +1069,6 @@ class OTE_Linear_Model_WSS(OPD):
             use JWpupil_segments.fits
         zero: ??
             ??
-        jsc : bool
-            Enable JSC OTIS test specific options?
         rm_ptt : bool
             Remove piston, tip, and tilt? This is mostly for visualizing the higher order parts of
             the LOM.
@@ -1081,6 +1079,12 @@ class OTE_Linear_Model_WSS(OPD):
 
         # load influence function table:
         self._influence_fns = astropy.table.Table.read(os.path.join(__location__, 'otelm', 'JWST_influence_functions_control_with_sm.fits'))
+
+        #fix IFM sign convention for consistency to WSS
+        cnames = self._influence_fns.colnames
+        for icol in cnames[3:]:
+            self._influence_fns[icol] *= -1
+
         self._control_modes = ['Xtilt', 'Ytilt', 'Piston', 'Clocking', 'Radial', 'ROC']
         self._sm_control_modes = ['Xtilt', 'Ytilt', 'Xtrans', 'Ytrans', 'Piston']
         # controllable modes in WAS order; yes it's not an obvious ordering but that's the order of the
@@ -1090,7 +1094,6 @@ class OTE_Linear_Model_WSS(OPD):
         self.segnames = np.asarray(list(self.segnames) + ['SM'])  # this model, unlike the above, knows about the SM.
 
         self._opd_original = self.opd.copy()  # make a separate copy
-        self._jsc = jsc
         self.remove_piston_tip_tilt = rm_ptt
         self._global_zernike_coeffs = np.zeros(15)
         self._global_hexike_coeffs = np.zeros(15)
@@ -1102,16 +1105,9 @@ class OTE_Linear_Model_WSS(OPD):
         self.scaling = None
         self._thermal_model = OteThermalModel() # Initialize thermal model object
 
-        if self._jsc:
-            self._jsc_acf_tilts = np.zeros((3, 2))  # only for JSC sims. Tilts in microradians.
+        self._frill_wfe_amplitude = 0.0
+        self._iec_wfe_amplitude = 0.0
 
-            # helper diagram taped to WSS monitor says:
-            # 'ACF1' = ABC4, 'ACF2' = ABC6, 'ACF3' = ABC2.
-
-            self._jsc_acf_cens = np.array([[1.90478, 0.6781127],  # Segs ABC2  V2, V3
-                                           [-0.382703, -1.96286],  # Secs ABC4
-                                           [-1.52316, 1.342146]])  # Segs ABC6
-            self._jsc_acf_centers_pixels = self.shape[0] / 2 + self._jsc_acf_cens / self.pixelscale.value
         if zero:
             self.zero()
 
@@ -1139,6 +1135,8 @@ class OTE_Linear_Model_WSS(OPD):
         """
         self.opd *= 0
         self.segment_state *= 0
+        self._frill_wfe_amplitude = 0
+        self._iec_wfe_amplitude = 0
         if zero_original:
             self._opd_original *= 0
         self.name = "Null OPD"
@@ -1159,11 +1157,6 @@ class OTE_Linear_Model_WSS(OPD):
             segment = 18
             thatsegment = self.segment_state[18]
             print("%2s\t %10.4f %10.4f %10.4f %10.4f %10.4f %10.4f" % tuple([segment] + thatsegment.tolist()))
-        if self._jsc:
-            print("JSC Autocollimating flat tilts: ")
-            print("  \t %10s %10s " % ("Xtilt", "Ytilt"))
-            for i in range(3):
-                print("  \t %10s %10s " % tuple(self._jsc_acf_tilts[i]))
 
     # ---- segment manipulation via linear model
 
@@ -1186,9 +1179,6 @@ class OTE_Linear_Model_WSS(OPD):
                 raise RuntimeError("Influence function table has unexpected ordering")
             for h in range(nhexike):
                 coeffs[i, h] = table[i]['Hexike_{}'.format(h)]
-
-        if self._jsc:
-            coeffs *= 2  # double pass on the SM for PAAH config
 
         # the coefficients are in the table natively in units of microns,
         # as preferred by most Ball code. WebbPSF works natively in meters
@@ -1214,9 +1204,6 @@ class OTE_Linear_Model_WSS(OPD):
                 raise RuntimeError("Influence function table has unexpected ordering")
             for h in range(nhexike):
                 coeffs[i, h] = table[i]['Hexike_{}'.format(h)]
-
-        if self._jsc:
-            coeffs *= 2  # double pass on the SM for PAAH config
 
         # the coefficients are in the table natively in units of microns,
         # as preferred by most Ball code. WebbPSF works natively in meters
@@ -1279,29 +1266,6 @@ class OTE_Linear_Model_WSS(OPD):
 
         # outtxt="Hs=["+", ".join(['%.1e'%z for z in hexike_coeffs])+"]"
         # _log.debug("     "+outtxt)
-
-    def _apply_acf_tilt(self, acfnum):
-        """ Apply tilt moves for one of the JSC autocollimating flats
-
-        """
-
-        coeffs = self._jsc_acf_tilts[acfnum]  # Xtilt, Ytilt
-
-        Y, X = np.indices(self.opd.shape, dtype=float)
-        cx, cy = self._jsc_acf_centers_pixels[acfnum]
-        acf_radius = 1.52 / 2 / self.pixelscale.value
-        Y = (Y - cy) / acf_radius
-        X = (X - cx) / acf_radius
-        R = np.sqrt(X ** 2 + Y ** 2)
-        wacf = np.where(R <= 1)
-        Xc = X[wacf]
-        Yc = Y[wacf]
-
-        zern_xtilt = Yc * 2e-6  # remember, "Xtilt" means tilt around the X axis
-        zern_ytilt = Xc * 2e-6  # Times 1e-6 to convert from microradians of tilt to meters of WFE
-        # Times 2 since double pass, negative since facing the other way
-
-        self.opd[wacf] += coeffs[0] * zern_xtilt + coeffs[1] * zern_ytilt
 
     def _apply_global_zernikes(self):
         """ Apply Zernike perturbations to the whole primary
@@ -1671,24 +1635,8 @@ class OTE_Linear_Model_WSS(OPD):
         if not delay_update:
             self.update_opd(display=display)
 
-    def move_jsc_acf(self, acfnum, xtilt=0.0, ytilt=0.0, unit='urad', absolute=False,
-                     delay_update=False, display=False):
-        """ Move autocollimating flats at JSC.
-            NOTE - THIS IS ONLY APPLICABLE TO JSC OTIS CRYO - NOT FLIGHT!
-
-        """
-        if not self._jsc:
-            raise RuntimeError("This instance of the linear model is not configured for JSC.")
-        if absolute:
-            self._jsc_acf_tilts[acfnum] = [xtilt, ytilt]
-        else:
-            self._jsc_acf_tilts[acfnum] += [xtilt, ytilt]
-
-        if not delay_update:
-            self.update_opd(display=display)
-
     def move_global_zernikes(self, zvector, unit='micron',
-                             absolute=False):
+                             absolute=False, delay_update=False, display=False):
         """ Add one or more aberrations specified arbitrarily as Zernike polynomials.
         This assumes no particular physics for the mirror motions, and allows adding
         any arbitrary WFE.
@@ -1731,7 +1679,7 @@ class OTE_Linear_Model_WSS(OPD):
         if not delay_update:
             self.update_opd(display=display)
 
-    def move_sur(self, sur_file, group=None, verbose=False):
+    def move_sur(self, sur_file, group=None, verbose=False, reverse=False):
         """
         Move using a JWST Segment Update Request file
 
@@ -1739,10 +1687,17 @@ class OTE_Linear_Model_WSS(OPD):
         ----------
         sur_file : file name
             Path to SUR XML file
-        group : zero-based int index
-            Index to a single group to run. Default is to run all groups.
+        group : one-based int index
+            Index to a single group to run. Default is to run all groups. Note,
+            this index counts up from 1 (not 0) for consistency with group indexing
+            in the SUR files themselves.
+
         verbose : bool
             Flag controlling whether moves are printed.
+        reverse : bool
+            Run this SUR "backwards", i.e. in opposite order of all groups and
+            flipping the sign of all moves. (This can be useful for certain
+            testing and mock data generation scenarios.)
 
         Returns
         -------
@@ -1752,10 +1707,23 @@ class OTE_Linear_Model_WSS(OPD):
 
         sur = jwxml.SUR(sur_file)
         if group is not None:
-            groups = [sur.groups[group]]
+            if group==0:
+                raise ValueError("Group indices start at 1, not 0.")
+            groups = [sur.groups[group-1]]
         else:
             groups = sur.groups
-        for grp in groups:
+        groupnum = list(np.arange(len(groups))+1)
+
+        sign = -1 if reverse else 1
+        if reverse:
+            if verbose:
+                print("Applying SUR in reverse: flipping group order and sign of all moves.")
+            groups = reversed(groups)
+            groupnum = reversed(groupnum)
+
+        for igrp, grp in zip(groupnum, groups):
+            if verbose:
+                print("Moving segments for group {}".format(igrp))
             for update in grp:
                 if verbose:
                     print("Move seg {} by {}".format(update.segment, str(update)))
@@ -1769,21 +1737,21 @@ class OTE_Linear_Model_WSS(OPD):
                     trans_unit = update.units['X_TRANS']
 
                     if update.segment == 'SM':
-                        self.move_sm_local(xtilt=update.moves['X_TILT'],
-                                           ytilt=update.moves['Y_TILT'],
-                                           xtrans=update.moves['X_TRANS'],
-                                           ytrans=update.moves['Y_TRANS'],
-                                           piston=update.moves['PISTON'],
+                        self.move_sm_local(xtilt=update.moves['X_TILT']*sign,
+                                           ytilt=update.moves['Y_TILT']*sign,
+                                           xtrans=update.moves['X_TRANS']*sign,
+                                           ytrans=update.moves['Y_TRANS']*sign,
+                                           piston=update.moves['PISTON']*sign,
                                            rot_unit=rot_unit,
                                            trans_unit=trans_unit,
                                            delay_update=True)
                     else:
                         self.move_seg_local(update.segment[0:2],
-                                            xtilt=update.moves['X_TILT'],
-                                            ytilt=update.moves['Y_TILT'],
-                                            xtrans=update.moves['X_TRANS'],
-                                            ytrans=update.moves['Y_TRANS'],
-                                            piston=update.moves['PISTON'],
+                                            xtilt=update.moves['X_TILT']*sign,
+                                            ytilt=update.moves['Y_TILT']*sign,
+                                            xtrans=update.moves['X_TRANS']*sign,
+                                            ytrans=update.moves['Y_TRANS']*sign,
+                                            piston=update.moves['PISTON']*sign,
                                             absolute=update.absolute,
                                             rot_unit=rot_unit,
                                             trans_unit=trans_unit,
@@ -1791,7 +1759,7 @@ class OTE_Linear_Model_WSS(OPD):
 
                 elif update.type == 'roc':
                     self.move_seg_local(update.segment[0:2],
-                                        roc=update.moves['ROC'],
+                                        roc=update.moves['ROC']*sign,
                                         absolute=update.absolute,
                                         delay_update=True)
 
@@ -1801,7 +1769,7 @@ class OTE_Linear_Model_WSS(OPD):
 
 
     def thermal_slew(self, delta_time, start_angle=-5,end_angle=45,
-                     scaling=None, display=False, delay_update=False):
+                     scaling=None, display=False, case='EOL', delay_update=False):
         """ Update the OPD based on presence of a pitch angle change between
         observations.
 
@@ -1820,6 +1788,12 @@ class OTE_Linear_Model_WSS(OPD):
         The HOT to COLD vs COLD to HOT nature of the slew is determined by the start
         and end angles
 
+        Note, multiple calls in a row to this function are NOT cumulative; rather, the
+        model internally resets to the initial starting OPD each time, and calculates
+        a single slew. This is intentional to be more reproducible and well defined,
+        with less hidden history state. If you need a more complex time evolution,
+        build that yourself by summing individual delta OPDs.
+
         Parameters
         ----------
         delta_time: astropy.units quantity object
@@ -1830,9 +1804,15 @@ class OTE_Linear_Model_WSS(OPD):
             The ending sun pitch angle, in degrees between -5 and +45
         scaling: float between 0 and 1
             Scaling factor that can be used instead of the start_angle
-            and end_angle parameters.
+            and end_angle parameters. This directly sets the amplitude
+            of the drift and overrides the angles and case settings.
         display: bool
             Display the updated OPD
+        case : string
+            either "BOL" for current best estimate at beginning of life, or
+            "EOL" for more conservative prediction at end of life. The amplitude
+            of the thermal drift is roughly 3x lower for BOL (13 nm after 14 days)
+            versus EOL (43 nm after 14 days).
         delay_update: bool
             Users typically only need to call this directly if they have set the
             "delay_update" parameter to True in some function call to move mirrors.
@@ -1848,12 +1828,14 @@ class OTE_Linear_Model_WSS(OPD):
         self.start_angle = start_angle
         self.end_angle = end_angle
         self.scaling = scaling
+        self._thermal_model.case = case
 
         # Update the header info
         self.opd_header['BUNIT'] = 'meter'
         self.opd_header['DELTA_T'] = (self.delta_time, "Delta time after slew [d]")
         self.opd_header['STARTANG'] = (self.start_angle, "Starting sun pitch angle [deg]")
         self.opd_header['ENDANG'] = (self.end_angle, "Ending sun pitch angle [deg]")
+        self.opd_header['THRMCASE'] = (self._thermal_model.case, "Thermal model case, beginning or end of life")
         if scaling:
             self.opd_header['SCALING'] = (self.scaling, 'Scaling factor for delta slew')
 
@@ -1874,6 +1856,7 @@ class OTE_Linear_Model_WSS(OPD):
         """
         if not self.scaling:
             scaling = np.sin(np.radians(self.end_angle) - np.radians(self.start_angle)) / np.sin(np.radians(45.) - np.radians(-5.))
+
         else:
             scaling = self.scaling
 
@@ -1896,8 +1879,11 @@ class OTE_Linear_Model_WSS(OPD):
         sm_pose_coeffs = self.segment_state[sm].copy()[0:5]  # 6th row is n/a for SM
         sm_pose_coeffs.shape = (5, 1)  # to allow broadcasting below
 
+
+        total_segment_state = self.segment_state + self._get_frill_drift_poses() + self._get_iec_drift_poses()
+
         for iseg, segname in enumerate(self.segnames[0:18]):
-            pose_coeffs = self.segment_state[iseg].copy()
+            pose_coeffs = total_segment_state[iseg].copy()
             if np.all(pose_coeffs == 0) and np.all(sm_pose_coeffs == 0) and self.delta_time==0:
                 continue
             else:
@@ -1923,27 +1909,177 @@ class OTE_Linear_Model_WSS(OPD):
 
                 self._apply_hexikes_to_seg(segname, hexike_coeffs_combined)
 
+        # The thermal slew model for the SM global defocus is implemented as a global hexike.
+        # So we have to modify the _global_hexikes array here, and then undo that
+        # modification so the effect isn't cumulative over multiple function calls.
         if self.delta_time != 0.0:
             self._global_hexike_coeffs[4] += self._get_thermal_slew_coeffs('SM')
-        # Apply Global Zernikes
+
+        # Apply Global Zernikes, and/or hexikes
         if not np.all(self._global_hexike_coeffs == 0):
             self._apply_global_hexikes()
+        if not np.all(self._global_zernike_coeffs == 0):
+            self._apply_global_zernikes()
 
-        # Apply NASA JSC OTIS test ACF tilts (not relevant in flight)
-        if self._jsc and np.any(self._jsc_acf_tilts != 0):
-            for iacf in range(3):
-                self._apply_acf_tilt(iacf)
-                if verbose:
-                    print("Tilted JSC ACF {} by {}".format(iacf, self._jsc_acf_tilts[iacf]))
+        # Undo any changes made just above to the SM coefficients (avoid persistent side effects)
+        if self.delta_time != 0.0:
+            self._global_hexike_coeffs[4] -= self._get_thermal_slew_coeffs('SM')
 
         if display:
             self.display()
 
 
+    def apply_frill_drift(self, amplitude=None, random=False, case='BOL', delay_update=False):
+        """ Apply model of segment PTT motions for the frill-induced drift.
+
+        This is additive with other WFE terms.
+
+        Parameters
+        ----------
+        amplitude : float
+            Amplitude of drift in nm rms to apply
+        random : bool
+            if True, choose a random amplitude from within the expected range
+            for either the BOL or EOL cases. The assumed model is a uniform
+            distribution between 0 and a maximum amplitude of 8.6 or 18.4 nm rms
+            respectively.
+        case : string
+            either "BOL" for current best estimate at beginning of life, or
+            "EOL" for more conservative prediction at end of life. Only relevant
+            if random=True.
+        delay_update : bool
+            hold off on computing the WFE change? This is useful for computational efficiency if you're
+            making many changes at once.
+        """
+
+        if random:
+            if case.upper() == 'BOL':
+                max_amp = 8.6
+            elif case.upper() == 'EOL':
+                max_amp = 18.4
+            else:
+                raise ValueError(f"Unknown value for parameter case: {case}.")
+
+            amplitude = np.random.uniform(0, max_amp)
+            _log.info(f"Applying random frill drift with amplitude {amplitude} nm rms (out of max {max_amp} nm rms).")
+        elif amplitude is None:
+            raise ValueError("if random=False, you must provide a value for the amplitude.")
+        else:
+            _log.info(f"Applying frill drift with amplitude {amplitude} nm rms.")
+        self._frill_wfe_amplitude = amplitude
+
+        if not delay_update:
+            self.update_opd()
+
+    def _get_frill_drift_poses(self):
+        """ Return segment poses for current frill drift state
+        """
+        # These segment piston/tip/tilt misalignments are normalized to give 1 nm rms.
+        # This segment state approximates the OTE in-flight prediction from John Johnston / Joe Howard.
+        # Developed in "Generate Mock Flight Predicts.ipynb" by Perrin.
+        ote_seg_motions_frill = np.array(
+             [ [-0.00728 ,  0.      ,  0.00273 ,  0.      ,  0.      ,  0.      ],
+               [ 0.00364 ,  0.00364 ,  0.00091 ,  0.      ,  0.      ,  0.      ],
+               [-0.00455 ,  0.00182 , -0.00455 ,  0.      ,  0.      ,  0.      ],
+               [ 0.      ,  0.      , -0.00273 ,  0.      ,  0.      ,  0.      ],
+               [ 0.001092, -0.00364 , -0.0091  ,  0.      ,  0.      ,  0.      ],
+               [ 0.00455 , -0.00455 ,  0.00455 ,  0.      ,  0.      ,  0.      ],
+               [-0.00728 ,  0.      ,  0.00273 ,  0.      ,  0.      ,  0.      ],
+               [ 0.00273 ,  0.      ,  0.00273 ,  0.      ,  0.      ,  0.      ],
+               [-0.002275, -0.00455 ,  0.00728 ,  0.      ,  0.      ,  0.      ],
+               [-0.00273 ,  0.      ,  0.009555,  0.      ,  0.      ,  0.      ],
+               [-0.00273 , -0.00091 ,  0.01183 ,  0.      ,  0.      ,  0.      ],
+               [ 0.      , -0.0091  , -0.00091 ,  0.      ,  0.      ,  0.      ],
+               [ 0.0091  , -0.00182 ,  0.0182  ,  0.      ,  0.      ,  0.      ],
+               [ 0.      ,  0.      , -0.00455 ,  0.      ,  0.      ,  0.      ],
+               [ 0.002275,  0.00455 ,  0.01183 ,  0.      ,  0.      ,  0.      ],
+               [ 0.00273 ,  0.      ,  0.009555,  0.      ,  0.      ,  0.      ],
+               [-0.00182 ,  0.00364 ,  0.00728 ,  0.      ,  0.      ,  0.      ],
+               [-0.00273 ,  0.      ,  0.00273 ,  0.      ,  0.      ,  0.      ],
+               [ 0.      ,  0.      ,  0.      ,  0.      ,  0.      ,  0.      ]])/16
+
+        return ote_seg_motions_frill * self._frill_wfe_amplitude
+
+
+    def apply_iec_drift(self, amplitude=None, random=False, case='BOL', delay_update=False):
+        """ Apply model of segment PTT motions for the drift seen at OTIS induced by the IEC
+        (Instrument Electronics Compartment) heater resistors. This effect was in part due to
+        non-flight-like ground support equipment mountings, and is not expected in flight at
+        the same levels it was seen at JSC. We model it anyway, at an amplitude consistent with
+        upper limits for flight.
+
+        This is additive with other WFE terms.
+
+        Parameters
+        ----------
+        amplitude : float
+            Amplitude of drift in nm rms to apply
+        random : bool
+            if True, choose a random amplitude from within the expected range
+            for either the BOL or EOL cases. The assumed model is a sinusoidal drift
+            between 0 and 3.5 nm, i.e. a random variate from the arcsine distribution
+            times 3.5.
+        case : string
+            either "BOL" for current best estimate at beginning of life, or
+            "EOL" for more conservative prediction at end of life. Only relevant
+            if random=True. (Note, for IEC drift the amplitude is the same regardless.)
+        delay_update : bool
+            hold off on computing the WFE change? This is useful for computational efficiency if you're
+            making many changes at once.
+        """
+
+        # These segment piston/tip/tilt misalignments are normalized to give 1 nm rms.
+        if random:
+            max_amp = 3.5  # regardless of EOL or BOL
+
+            amplitude = scipy.stats.arcsine().rvs() * max_amp
+            _log.info(f"Applying random IEC-induced drift with amplitude {amplitude} nm rms (out of max {max_amp} nm rms).")
+        elif amplitude is None:
+            raise ValueError("if random=False, you must provide a value for the amplitude.")
+        else:
+            _log.info(f"Applying IEC-induced drift with amplitude {amplitude} nm rms.")
+        self._iec_wfe_amplitude = amplitude
+
+        if not delay_update:
+            self.update_opd()
+
+    def _get_iec_drift_poses(self):
+
+        # These segment piston/tip/tilt motions approximate the OTE observed
+        # oscillation seen at JSC OTIS cryo vac test, due to IEC heater thermal loading
+        # through GSE paths.
+
+        # Developed in the PFR190 study by Perrin & Telfer as
+        # oscillation_opd_case1_var2_ptt.fits.gz; decomposed into segment PTT by Perrin
+        # in "Make PSF Sim Library for JWST cycle 1 props - Development.ipynb"
+
+        ote_seg_motions_iec = np.array(
+              [[ 0.5211,  0.2925, -0.3567,  0.    ,  0.    ,  0.    ],
+               [-0.0652,  0.2788,  0.1896,  0.    ,  0.    ,  0.    ],
+               [ 0.2491, -0.2203,  0.1522,  0.    ,  0.    ,  0.    ],
+               [ 0.4078,  0.1386,  0.0301,  0.    ,  0.    ,  0.    ],
+               [-0.0663, -0.0702,  0.2119,  0.    ,  0.    ,  0.    ],
+               [ 0.3488, -0.3986, -0.2216,  0.    ,  0.    ,  0.    ],
+               [ 0.4363, -0.4034, -0.5762,  0.    ,  0.    ,  0.    ],
+               [-0.584 , -0.4198, -0.0271,  0.    ,  0.    ,  0.    ],
+               [ 1.1319, -0.195 ,  0.8383,  0.    ,  0.    ,  0.    ],
+               [ 0.3116, -0.4376,  0.4631,  0.    ,  0.    ,  0.    ],
+               [-0.0052,  0.6276, -0.1083,  0.    ,  0.    ,  0.    ],
+               [ 0.1727,  0.6529, -0.5457,  0.    ,  0.    ,  0.    ],
+               [-0.3807, -0.4189, -0.602 ,  0.    ,  0.    ,  0.    ],
+               [-0.4924, -0.1094,  0.0996,  0.    ,  0.    ,  0.    ],
+               [ 1.0861, -0.1953,  0.8371,  0.    ,  0.    ,  0.    ],
+               [ 0.4202, -0.6961,  0.3543,  0.    ,  0.    ,  0.    ],
+               [ 0.7644,  0.6466, -0.0861,  0.    ,  0.    ,  0.    ],
+               [ 0.1887,  0.0825, -0.7851,  0.    ,  0.    ,  0.    ],
+               [ 0.    ,  0.    ,  0.    ,  0.    ,  0.    ,  0.    ]])/1000
+        return ote_seg_motions_iec * self._iec_wfe_amplitude
+
+
 ################################################################################
 
 
-def enable_adjustable_ote(instr, jsc=False):
+def enable_adjustable_ote(instr):
     """
     Set up a WebbPSF instrument instance to have a modifiable OTE
     wavefront error OPD via an OTE linear optical model (LOM).
@@ -1952,8 +2088,6 @@ def enable_adjustable_ote(instr, jsc=False):
     ----------
     inst : WebbPSF Instrument instance
         an instance of one of the WebbPSF instrument classes.
-    jsc : bool
-        Use ACF pupil for JSC pass and a half test configuration
 
     Returns
     --------
@@ -1976,14 +2110,11 @@ def enable_adjustable_ote(instr, jsc=False):
         else:
             opdpath = instr.pupilopd
 
-    if jsc:
-        pupilpath = os.path.join(utils.get_webbpsf_data_path(), "jwst_pupil_JSC_OTIS_Cryo.fits")
-    else:
-        pupilpath = instr.pupil
+    pupilpath = instr.pupil
 
     name = "Modified OPD from " + str(instr.pupilopd)
     opd = OTE_Linear_Model_WSS(name=name,
-                               opd=opdpath, transmission=pupilpath, jsc=jsc)
+                               opd=opdpath, transmission=pupilpath)
 
     instcopy.pupilopd = opd
     instcopy.pupil = opd
@@ -2005,9 +2136,12 @@ def setup_image_array(ote, radius=1, size=None, inverted=False, reset=False, ver
         Desired radius to B segments, in arcseconds as seen on the focal plane.
     size : string, optional
         Another way of specifying the image array size. Use one of 'small', 'medium', or
-        'large' for the standard sizes used in OTE commissioning.
+        'large' for the standard sizes used in OTE commissioning. Or 'cmimf' for the size
+        used in Coarse MIMF, which is in between small and medium.
     guide_seg : string
         relevant mostly for coarse MIMF and image stacking. Kick out a segment to guide?
+        The segment will be offset during coarse MIMF to its position desired during GA2, i.e.
+        to its position in the large array.
     acfs_only : bool
         Only tilt the ACFs (applicable to JSC OTIS only)
     inverted : bool
@@ -2020,15 +2154,15 @@ def setup_image_array(ote, radius=1, size=None, inverted=False, reset=False, ver
 
     assert isinstance(ote, OTE_Linear_Model_WSS), "First argument has to be a linear optical model instance."
 
-    jsc = ((size == 'jsc') or (size == 'jsc_compact') or (size == 'jsc_inverted'))
+    nircam_pixelscale = 0.0311
+    standard_sizes = {'small': 80 * nircam_pixelscale,
+                      'cmimf': 120 * nircam_pixelscale,
+                      'medium': 300 * nircam_pixelscale,
+                      'large': 812 * nircam_pixelscale
+                      }
+
     if size is not None:
-        if not jsc:
-            nircam_pixelscale = 0.0311
-            standard_sizes = {'small': 80 * nircam_pixelscale,
-                              'medium': 300 * nircam_pixelscale,
-                              'large': 812 * nircam_pixelscale
-                              }
-            radius = standard_sizes[size]
+        radius = standard_sizes[size]
 
     # how many microradians of segment tilt per arcsecond of PSF motion?
     # note factor of 2 since reflection
@@ -2037,65 +2171,19 @@ def setup_image_array(ote, radius=1, size=None, inverted=False, reset=False, ver
     if reset:
         ote.reset()
 
-    if not jsc:
-        # Image Arrays used in flight
-        size = radius * -1 if inverted else radius
-        for i in range(1, 7):
-            ote.move_seg_local('A' + str(i), xtilt=-size * arcsec_urad / 2, delay_update=True)
-            ote.move_seg_local('B' + str(i), xtilt=size * arcsec_urad, delay_update=True)
-            ote.move_seg_local('C' + str(i), ytilt=-size * np.sqrt(3) / 2 * arcsec_urad, delay_update=True)
-    else:
-        if not acfs_only:
-            # Image Arrays used for JSC OTIS Cryo
-            # 6 umicradian tilt of each of ABC 2,4,6
-            # plus 50 microradian tilt of the ACFs
-            # Standard tilts used at JSC are as follows. See BATC SER 2508696 by K. Smith and L. Coyle.
-            xt = -5.1961524228
-            yt = 3
-
-            if size == 'jsc_inverted':
-                xt *= -1
-                yt *= -1
-            for i in [2, 4, 6]:
-                ote.move_seg_local('A' + str(i), xtilt=xt, ytilt=yt, delay_update=True)
-                ote.move_seg_local('B' + str(i), xtilt=xt, ytilt=-yt, delay_update=True)
-                ote.move_seg_local('C' + str(i), xtilt=-xt, ytilt=yt, delay_update=True)
-
-        # ACF tilts. Also see BATC SER 2508696
-
-        if size == 'jsc':  # regular "radial array"
-            # acftilts = [[  6.868, -20.901],
-            # [-21.647,   3.926],
-            # [ 14.228,  16.780] ]
-            acftilts = [  # rV2       rV3
-                [6.868, -20.901],  # ABC2
-                [-21.647, 3.926],  # ABC4
-                [14.228, 16.780]]  # ABC6
-        elif size == 'jsc_inverted':  # inverted "radial array"
-            acftilts = [  # rV2       rV3
-                [-14.228, -16.780],  # ABC2
-                [21.647, -3.926],  # ABC4  CORRECT
-                [-6.868, 20.901]]  # ABC6
-        elif size == 'jsc_compact':
-            acftilts = [[20.901, 6.868],  # ACF1 = ABC2
-                        [-3.926, -21.647],  # ACF2 = ABC4
-                        [-16.780, 14.228]]  # ACF3 = ABC6
-            # acftilts = [[-16.780,  14.228],      # ACF1 = ABC4
-            # [ -3.926, -21.647],      # ACF2 = ABC6
-            # [ 20.901,   6.868] ]     # ACF3 = ABC2
-
-        else:
-            raise ValueError("Unknown array configuration.")
-
-        for i in range(3):
-            ote.move_jsc_acf(i, xtilt=acftilts[i][0], ytilt=acftilts[i][1], absolute=True, delay_update=True)
+    # Image Arrays used in flight
+    size = radius * -1 if inverted else radius
+    for i in range(1, 7):
+        ote.move_seg_local('A' + str(i), xtilt=size * arcsec_urad / 2, delay_update=True)
+        ote.move_seg_local('B' + str(i), xtilt=-size * arcsec_urad, delay_update=True)
+        ote.move_seg_local('C' + str(i), ytilt=size * np.sqrt(3) / 2 * arcsec_urad, delay_update=True)
 
     if guide_seg is not None:
         # Undo the regular tilt for this segment, and then move it to
         # the side.
         if 'A' in guide_seg:
-            xtilt = size * arcsec_urad / 2
-            ytilt = guide_radius * arcsec_urad
+            xtilt = (-size + standard_sizes['large']) / 2 * arcsec_urad
+            ytilt = 0
         elif 'B' in guide_seg:
             xtilt = -size * arcsec_urad
             ytilt = guide_radius * arcsec_urad
@@ -2221,51 +2309,7 @@ def segment_primary(infile='JWpupil.fits'):
         hdu.header.update('PMSA_' + str(i + 1), segs[i])
 
     # TODO copy relevant keywords and history from input FITS file header
-    hdu.writeto("JWpupil_segments.fits", clobber=True)
-
-
-def create_jsc_pupil(plot=False):
-    """Create a pupil mask for the JSC Pass-and-a-half (PAAH)
-    configuration with the 3 ACFs"""
-    import webbpsf
-    # Infer properties of the default pupil used with WebbPSF
-    nc = webbpsf.NIRCam()
-    defaultpupil = fits.open(nc.pupil)
-    defpupilsize = defaultpupil[0].header['PUPLDIAM']
-
-    # Create masks for the ACFs
-    rad = 0.76  # Diam 1.52 per Randal Telfer
-
-    acfs = []
-
-    xcs = [-.382703, -1.52316, 1.90478]
-    ycs = [-1.96286, 1.342146, 0.6781127]
-    for x1, y1 in zip(xcs, ycs):
-        acf = poppy.CircularAperture(radius=rad, shift_x=x1, shift_y=y1)
-        acfs.append(acf)
-
-    acfs = poppy.CompoundAnalyticOptic(acfs, mergemode='or')
-    acfs.pupil_diam = defpupilsize
-
-    # Create a FITS Optical Element instance with this mask applied:
-    acfpupil = poppy.FITSOpticalElement(transmission=nc.pupil)
-    acfmask = acfs.sample(npix=1024)
-    acfpupil.amplitude *= acfmask
-    acfpupil.name = "JWST Pupil for JSC PAAH"
-
-    acfpupil.amplitude_header.add_history(" ")
-    acfpupil.amplitude_header.add_history("**Modified for JSC Cryo Pass and a Half**")
-    for x1, y1 in zip(xcs, ycs):
-        acfpupil.amplitude_header.add_history("  Added JSC ACF: r={:.2f}, center=({:.4f},{:.4f}) m V2/V3".format(
-            rad, x1, y1))
-    acfpupil.amplitude_header.add_history("   Coords from Code V models via R. Telfer")
-    acfpupil.amplitude_header['CONTENTS'] = "JWST Pupil for JSC OTIS Cryo"
-    if plot:
-        plt.figure(figsize=(10, 10))
-        plt.imshow(acfs.sample(npix=1024) + defaultpupil[0].data)
-
-    return acfpupil
-
+    hdu.writeto("JWpupil_segments.fits", overwrite=True)
 
 # --------------------------------------------------------------------------------
 
@@ -2333,6 +2377,9 @@ class OteThermalModel(object):
     -----------
     delta_time: tuple, (number, astropy.units quantity object)
         Include the number and units for the delta time between observations.
+    case : string, 'BOL' or 'EOL'
+        Model case for drift amplitudes. As of the 2020 PSR modeling cycle, the beginning of life
+        has 13 nm rms after about a week, EOL has about 43 nm rms after a week.
 
     Returns:
     --------
@@ -2341,7 +2388,7 @@ class OteThermalModel(object):
         delta_time
 
     """
-    def __init__(self):
+    def __init__(self, case='BOL'):
         """
         Set up the object such that it can be used for any time, delta_time
         """
@@ -2404,6 +2451,12 @@ class OteThermalModel(object):
                 coeffs = self.check_units(coeffs[0])
             else:
                 coeffs = self.check_units(coeffs)
+
+            if self.case.upper()=='BOL':
+                # Beginning of life predictions as of 2020 have much lower amplitude WFE drift
+                # than the EOL model that was fit to produce the coefficients here.
+                coeffs *= 0.35
+
             return coeffs
 
 
@@ -2443,3 +2496,197 @@ def convert_quantity(input_quantity, from_units=None, to_units=u.day):
         output_quantity = input_quantity.to(to_units)
 
     return output_quantity
+
+
+#--------------------------------------------------------------------------------
+# WFE decomposition
+
+
+class JWST_WAS_PTT_Basis(object):
+    def __init__(self):
+        """ Segment piston/tip/tilt basis using the same conventions as JWST WAS
+        i.e. local mechanical control coordinates per each segment and its local
+        orientation.
+
+        Similar to poppy.zernike.Segment_PTT_Basis, but:
+            (a) specifically matches the JWST aperture geometry exactly, and
+            (b) matches the local control coordinates for JWST segment controls.
+
+        Useful for decomposing WFE maps into segment piston, tip, tilts.
+        See poppy.zernike.opd_expand_segments()
+        and coeffs_to_seg_state() in this file.
+
+        """
+
+        # Internally this is implemented as a wrapper on OTE Linear WEE model
+
+        self.ote = OTE_Linear_Model_WSS()
+        self.nsegments=18
+
+    def aperture(self):
+        """ Return the overall aperture across all segments """
+        return self.ote.amplitude
+
+    def __call__(self, nterms=None, npix=1024, outside=np.nan):
+        """ Generate PTT basis ndarray for the specified aperture
+
+        Parameters
+        ----------
+        nterms : int
+            Number of terms. Set to 3x the number of segments.
+        npix : int
+            Size, in pixels, of the aperture array.
+        outside : float
+            Value for pixels outside the specified aperture.
+            Default is `np.nan`, but you may also find it useful for this to
+            be 0.0 sometimes.
+
+        """
+        if npix != 1024:
+            raise ValueError("Only npix=1024 supported for now")
+
+        if nterms is None:
+            nterms = 3*self.nsegments
+        elif nterms > 3*self.nsegments:
+            raise ValueError("nterms must be <= {} for the specified segment aperture.".format(3*self.nsegments))
+
+        # Re-use the machinery inside the OTE Linear model class class to set up the
+        # arrays defining the segment and zernike geometry.
+
+        # For simplicity we always generate the basis for all the segments
+        # even if for some reason the user has set a smaller nterms.
+        basis = np.zeros((self.nsegments*3, npix, npix))
+        basis[:] = outside
+        for i, segname in enumerate(self.ote.segnames[0:18]):
+            # We do these intentionally with the base units, though those result in unphysically large moves
+
+            iseg = i+1
+            wseg = np.where(self.ote._segment_masks==iseg)
+
+            # Piston
+            self.ote.zero()
+            self.ote.move_seg_local(segname, piston=1, trans_unit='meter')
+            basis[i*3][wseg] = self.ote.opd[wseg]
+
+            # Tip
+            self.ote.zero()
+            self.ote.move_seg_local(segname, xtilt=1, rot_unit='radian')
+            basis[i*3+1][wseg] = self.ote.opd[wseg]
+
+            #Tilt
+            self.ote.zero()
+            self.ote.move_seg_local(segname, ytilt=1, rot_unit='radian')
+            basis[i*3+2][wseg] = self.ote.opd[wseg]
+
+        return basis[0:nterms]
+
+
+def coeffs_to_seg_state(coeffs):
+    """ Convert coefficients from Zernike fit to OTE linear model segment state
+
+    Unit conversion and axis index reordering.
+
+    Example usage:
+
+    coeffs = poppy.zernike.opd_expand_segments(some_opd, aperture=ote.amplitude, basis=jw_ptt_basis, nterms=54)
+    ote.segment_state = coeffs_to_seg_state(coeffs)
+
+
+    """
+    seg_state = np.zeros((18,6))
+    coeffs_tab = coeffs.reshape(18,3)
+    seg_state[:,2] = coeffs_tab[:,0]  # piston is 3rd column
+    seg_state[:,0] = coeffs_tab[:,1]  # tip in 1st column
+    seg_state[:,1] = coeffs_tab[:,2]  # tilt in 2nd column
+    return seg_state*1e6   # convert from meters & radians to micro units
+
+#--------------------------------------------------------------------------------
+# Coarse track pointing (for early commissioning)
+
+def get_coarse_blur_parameters(t0, duration, pixelscale, plot=False, case=1,):
+    """ Extract coarse blur center offset and convolution kernel from the Coarse Point sim time series
+
+    Parameters
+    -----------
+
+    pcsmodel : astropy.Table
+        High resolution time series data from JWST ACS sims
+    t0 : float
+        Start time, in seconds, for the time period of interest (typically the exposure start time.)
+    duration : float
+        Exposure duration, in seconds
+    pixelscale : float
+        Pixelscale in arcsec/pix for the output convolution kernel. Typically the NIRCam
+        detector pixel scale, or an oversampled version thereof.
+    case : int
+        Which model output case to use.
+        Model 1 has lower drift rate and yields approximately Gaussian jitter with 1 sigma = 0.15 per axis
+        Model 2 has a larger linear drift/trend of about 2 arcsec over the 2 hours.
+
+    Returns
+    -------
+    cen : 2-tuple of floats
+        Mean offset in V2,V3 during the exposure
+    kernel : 2D ndarray
+        Convolution kernel to pass to WebbPSF, generated from the LOS model during the observation
+        sampled/rasterized into the specified pixel scale.
+    """
+
+    pcsmodel = astropy.table.Table.read(os.path.join(__location__, 'otelm', f'coarse_track{case}_sim_pointing.fits'))
+
+    wt = (t0 < pcsmodel['time']) & (pcsmodel['time'] < t0+duration)
+    ns = wt.sum()
+
+    # Extract coordinates for the requested time period
+    coords = np.zeros((2,wt.sum()), float )
+    coords[0] = pcsmodel['deltaV2'][wt]
+    coords[1] = pcsmodel['deltaV3'][wt]
+
+    cen = coords.mean(axis=1)       # Center
+
+    dc = (coords-cen.reshape(2,1) )   # differential coords, in arcsec
+
+    # Set up box to raster the curve into
+    halfbox = np.ceil(np.abs(dc).max()/pixelscale)
+    boxsize = int(2*halfbox+1) # must be an odd number for astropy convolution
+    kernel = np.zeros((boxsize, boxsize))
+
+    # Compute coords relative to lower right corner of raster box
+    lowerright = -halfbox*pixelscale
+    dc_pixels = np.array(np.round((dc - lowerright)/pixelscale), int)
+
+    # Raster the curve into the array
+    # have to do this via for loop rather than array indexing, to handle repeated indices
+    for x, y in dc_pixels.transpose():
+        kernel[y, x] += 1
+
+    # optional display
+    if plot:
+        plt.figure()
+        plt.plot(pcsmodel['deltaV2'], pcsmodel['deltaV3'], label='every 0.25 s')
+        plt.plot(coords[0], coords[1], label='during exposure')
+
+        plt.plot(pcsmodel['deltaV2'][0], pcsmodel['deltaV3'][0], marker='*', color='cyan', label='start of time series')
+        plt.plot(cen[0], cen[1], marker='*', color='black', label='mean in exposure')
+
+        plt.gca().set_aspect('equal')
+        plt.legend(fontsize=7)
+        plt.xlabel("Delta V2 [mas]")
+        plt.ylabel("Delta V3 [mas]")
+
+
+        plt.figure()
+        plt.plot(dc[0], dc[1], color='C1', label='during exposure' )
+        plt.plot((dc_pixels[0]-halfbox)*pixelscale, (dc_pixels[1]-halfbox)*pixelscale, color='C2', label='rounded to pixels')
+        plt.gca().set_aspect('equal')
+        plt.legend(fontsize=7)
+        plt.xlabel("Delta V2 [mas]")
+        plt.ylabel("Delta V3 [mas]")
+
+
+        plt.figure()
+        plt.imshow(kernel, cmap = matplotlib.cm.gray)
+        plt.title(f"Convolution kernel at t={t0}, d={duration} s\nOffset={cen} arcsec", fontsize=10)
+        plt.ylabel('Delta V3 [pixels]')
+
+    return cen, kernel

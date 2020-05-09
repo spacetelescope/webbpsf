@@ -343,8 +343,10 @@ class CreatePSFLibrary:
             meta["NORMALIZ"] = (psf[ext].header["NORMALIZ"], "PSF normalization method")
             meta["TEL_WFE"] = (psf[ext].header["TEL_WFE"], "[nm] Telescope pupil RMS wavefront error")
 
-            meta["JITRTYPE"] = (psf[ext].header["JITRTYPE"], "Type of jitter applied")
-            meta["JITRSIGM"] = (psf[ext].header["JITRSIGM"], "Gaussian sigma for jitter [arcsec]")
+            # copy all the jitter-related keys (the exact set of keywords varies based on jitter type)
+            for k in psf[ext].header.keys():   # do the rest
+                if k.startswith('JITR'):
+                    meta[k] = (psf[ext].header[k], psf[ext].header.comments[k])
 
             meta["DATE"] = (psf[ext].header["DATE"], "Date of calculation")
             meta["AUTHOR"] = (psf[ext].header["AUTHOR"], "username@host for calculation")

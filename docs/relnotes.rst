@@ -37,6 +37,10 @@ Version 0.9.1
 
  - Future changes here
 
+**Software and Package Infrastructure Updates:**
+ 
+ - The minimum Python version is now 3.6. 
+
 Version 0.9.0
 =============
 *2019 November 25*

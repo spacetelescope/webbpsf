@@ -105,7 +105,7 @@ Software Requirements
 
 See `the environment.yml specification file <https://github.com/spacetelescope/webbpsf/blob/master/environment.yml>`_ for the required package dependencies. 
 
-**Required Python version**: WebbPSF 0.8 and above require Python 3.5 or higher.
+**Required Python version**: WebbPSF 0.9.1 and above require Python 3.6 or higher.
 
 The major dependencies are the standard `NumPy, SciPy <http://www.scipy.org/scipylib/download.html>`_, `matplotlib <http://matplotlib.org>`_ stack, and `Astropy <http://astropy.org>`_
 

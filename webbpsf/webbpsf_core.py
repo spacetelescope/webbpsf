@@ -29,6 +29,7 @@ import matplotlib.pyplot as plt
 import scipy.interpolate, scipy.ndimage
 import matplotlib
 
+import astropy
 import astropy.io.fits as fits
 import astropy.io.ascii as ioascii
 import astropy.units as units
@@ -39,11 +40,16 @@ import pysiaf
 
 from . import conf
 from . import utils
-from . import version
 from . import optics
 from . import DATA_VERSION_MIN
 from . import distortion
 from . import gridded_library
+from . import opds
+
+try:
+    from .version import version
+except ImportError:
+    version = ''
 
 try:
     import pysynphot
@@ -307,7 +313,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         if self.pupil_mask is not None:
             result[0].header['PUPIL'] = (self.pupil_mask, "Pupil plane mask")
 
-        result[0].header['VERSION'] = (version.version, "WebbPSF software version")
+        result[0].header['VERSION'] = (version, "WebbPSF software version")
         result[0].header['DATAVERS'] = (self._data_version, "WebbPSF reference data files version")
 
         result[0].header['DET_NAME'] = (self.detector, "Name of detector on this instrument")
@@ -495,8 +501,9 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         if self.image_mask == "": self.image_mask = None
         if self.pupil_mask == "": self.pupil_mask = None
 
-        if self.image_mask is not None or self.pupil_mask is not None or \
-                ('force_coron' in options and options['force_coron']):
+        if (self.image_mask is not None or self.pupil_mask is not None or
+                'WL' in self.filter or  # special case handling for NIRCam WLP4 filter that is also a lens
+                ('force_coron' in options and options['force_coron'])):
             _log.debug("Adding coronagraph/spectrograph optics...")
             optsys, trySAM, SAM_box_size = self._addAdditionalOptics(optsys, oversample=fft_oversample)
         else:
@@ -1058,6 +1065,129 @@ class JWInstrument(SpaceTelescopeInstrument):
         return shift_x, shift_y
 
 
+    def _apply_jitter(self,  result, local_options=None):
+        """ Modify a PSF to account for the blurring effects of image jitter.
+        Parameter arguments are taken from the options dictionary.
+
+        This adds options to model JWST coarse point ("PCS=Coarse") under
+        two sets of assumptions:
+            "PCS=Coarse": 67 mas Gaussian jitter, as advised by Nelan & Maghamni based on
+                          detailed sims of observatory performance in coarse point mode.
+            "PCS=Coarse_Like_ITM": Attempt to replicate same assumptions as in Ball's ITM tool.
+                          This includes 200 mas sigma Gaussian jitter, plus a linear drift of
+                          400 mas per exposure.
+
+        Other types of jitter, in particular plain Gaussian jitter, are implemented by the
+        superclass version of this function, in poppy.Instrument.
+
+        Parameters
+        -----------
+        result : fits.HDUList
+            HDU list containing a point spread function
+        local_options : dict, optional
+            Options dictionary. If not present, options will be taken from self.options.
+
+
+        The image in the 'result' HDUlist will be modified by this function.
+        """
+        if local_options is None:
+            local_options = self.options
+        if 'jitter' not in local_options:
+            result[0].header['JITRTYPE'] = ('None', 'Type of jitter applied')
+            return
+
+        _log.info("Calculating jitter using " + str(local_options['jitter']))
+
+        def _linear_smear(smear_length, image):
+            # Helper function, used below
+            smear_length_pix = int(np.round(smear_length /  result[0].header['PIXELSCL']))
+            if smear_length_pix % 2 ==0:
+                smear_length_pix += 1   # Astropy convolution requires odd sized kernels only
+
+            smear_model  = np.identity(smear_length_pix)
+            _log.info("Jitter: Convolving with linear smear of {0:.3f} arcsec; {1:d} pixels".format(smear_length, smear_length_pix))
+            kern = astropy.convolution.kernels.CustomKernel(smear_model)
+            return astropy.convolution.convolve_fft(image, kern, allow_huge=True)
+
+        if local_options['jitter'] is None:
+            return
+        elif local_options['jitter'].lower() == 'gaussian':
+            # Regular version in poppy
+            return super()._apply_jitter(result, local_options=local_options)
+        elif local_options['jitter'].lower() == 'linear':
+            # Drift by 0.12 arcsec (1 mas/second for 2 minutes)
+
+            smear_length = 0.12 # arcsec
+
+            out = _linear_smear(smear_length, result[0].data)
+            result[0].header['JITRTYPE'] = ('Linear smear / drift', 'Type of jitter applied')
+            result[0].header['JITSMEAR'] = (smear_length, 'Linear smear [arcsec]')
+
+        elif local_options['jitter'].lower() == 'pcs=coarse':
+            # JWST coarse point, current best estimate based on high fidelity monte carlo sims by Peiman Maghami
+
+            cp_case = local_options.get('jitter_coarse_model_case', 2)      # Coarse pointing model case, 1 or 2
+            exp_duration = local_options.get('exp_duration', 75)     # Duration in seconds
+            exp_start_time = local_options.get('exp_start_time', 0)  # Start time in seconds
+
+            offset, kernel = opds.get_coarse_blur_parameters(exp_start_time, exp_duration, result[0].header['PIXELSCL'], case=cp_case)
+
+            kern = astropy.convolution.kernels.CustomKernel(kernel)
+            out = astropy.convolution.convolve_fft(result[0].data, kern, allow_huge=True)
+
+            result[0].header['JITRTYPE'] = ('PCS Coarse, high fidelity MC model results', 'Type of jitter applied')
+            result[0].header['JITRCASE'] = (cp_case, 'PCS Coarse mode: Monte Carlo model case used')
+            result[0].header['JITR_T0'] =  (exp_start_time, 'PCS Coarse mode: sim exposure start time [s]')
+            result[0].header['JITRTEXP'] = (exp_duration, 'PCS Coarse mode: sim exposure duration [s]')
+            result[0].header['JITRCPV2'] = (offset[0], "Coarse pointing offset in V2 [arcsec]")
+            result[0].header['JITRCPV3'] = (offset[1], "Coarse pointing offset in V3 [arcsec]")
+
+        elif local_options['jitter'].lower() == 'pcs=coarse_like_itm':
+            # JWST coarse point, assumptions in ITM
+            # Acton says:
+            #  it is actually 0.4 for a boresight error, 0.4 smear, and 0.2 jitter. Boresight error is a random term for image placement, smear is mostly a linear uniform blur, and jitter is gaussian.
+
+            # First we do the fast jitter part
+            local_options['jitter_sigma'] = 0.2
+            import scipy.ndimage
+
+            sigma = local_options.get('jitter_sigma')
+
+            # that will be in arcseconds, we need to convert to pixels:
+            _log.info("Jitter: Convolving with Gaussian with sigma={0:.3f} arcsec".format(sigma))
+            out = scipy.ndimage.gaussian_filter(result[0].data, sigma / result[0].header['PIXELSCL'])
+
+            # Now we'll do the linear jitter part
+            smear_length = 0.4 # arcsec
+            out = _linear_smear(smear_length, out)
+
+            result[0].header['JITRTYPE'] = ('PCS Coarse, like ITM', 'Type of jitter applied')
+            result[0].header['JITRSIGM'] = (sigma, 'Gaussian sigma for jitter, per axis [arcsec]')
+            result[0].header['JITSMEAR'] = (smear_length, 'Linear smear [arcsec]')
+
+        elif local_options['jitter'].lower() == 'custom':
+            # User-supplied arbitrary PSF convolution kernel
+
+            if ('jitter_kernel' not in local_options) or (not local_options['jitter_kernel'].ndim==2):
+                raise ValueError("You must supply an .options['jitter_kernel'] 2D array to use the custom jitter option")
+            _log.info("Jitter: Convolving with user-supplied custom convolution kernel")
+            kern = astropy.convolution.kernels.CustomKernel(local_options['jitter_kernel'])
+            out = astropy.convolution.convolve_fft(result[0].data, kern, allow_huge=True)
+
+            result[0].header['JITRTYPE'] = ('Custom jitter kernel', 'Type of jitter applied')
+
+        else:
+            raise ValueError('Unknown jitter option value: ' + local_options['jitter'])
+
+        peak = result[0].data.max()
+        newpeak = out.max()
+        strehl = newpeak / peak  # not really the whole Strehl ratio, just the part due to jitter
+        _log.info("        resulting image peak drops to {0:.3f} of its previous value".format(strehl))
+        result[0].header['JITRSTRL'] = (strehl, 'Strehl reduction from jitter ')
+
+        result[0].data = out
+
+
 class MIRI(JWInstrument):
     """ A class modeling the optics of MIRI, the Mid-InfraRed Instrument.
 
@@ -1401,7 +1531,11 @@ class NIRCam(JWInstrument):
 
         if self.auto_channel:
             # set the channel (via setting the detector) based on filter
-            wlnum = int(self.filter[1:4])
+            if self.filter=='WLP4':
+                # special case, weak lens 4 is actually a filter too but isn't named like one
+                wlnum =212
+            else:
+                wlnum = int(self.filter[1:4])
             new_channel = 'long' if wlnum >= 250 else 'short'
             self._switch_channel(new_channel)
 
@@ -1532,7 +1666,11 @@ class NIRCam(JWInstrument):
             optsys.add_pupil(transmission=self._datapath + "/optics/NIRCam_Lyot_Sinc.fits.gz", name=self.pupil_mask,
                              flip_y=True, shift_x=shift_x, shift_y=shift_y, rotation=rotation, index=3)
             optsys.planes[-1].wavefront_display_hint = 'intensity'
-        elif self.pupil_mask == 'WEAK LENS +4' or self.pupil_mask == 'WLP4':
+        # Note, for historical reasons there are multiple synonymous ways to specify the weak lenses
+        # This includes versions that elide over the fact that WLP4 is in the filter wheel, plus
+        # versions that take that into account explicitly.
+        elif self.pupil_mask == 'WEAK LENS +4' or self.pupil_mask == 'WLP4' or (
+                self.filter == 'WLP4' and self.pupil_mask is None) :
             optsys.add_pupil(poppy.ThinLens(
                 name='Weak Lens +4',
                 nwaves=WLP4_diversity / WL_wavelength,
@@ -1540,7 +1678,7 @@ class NIRCam(JWInstrument):
                 radius=self.pupil_radius,
                 shift_x=shift_x, shift_y=shift_y, rotation=rotation,
             ), index=3)
-        elif self.pupil_mask == 'WEAK LENS +8' or self.pupil_mask == 'WLP8':
+        elif self.pupil_mask == 'WEAK LENS +8' or (self.pupil_mask == 'WLP8' and self.filter != 'WLP4'):
             optsys.add_pupil(poppy.ThinLens(
                 name='Weak Lens +8',
                 nwaves=WLP8_diversity / WL_wavelength,
@@ -1548,7 +1686,7 @@ class NIRCam(JWInstrument):
                 radius=self.pupil_radius,
                 shift_x=shift_x, shift_y=shift_y, rotation=rotation,
             ), index=3)
-        elif self.pupil_mask == 'WEAK LENS -8' or self.pupil_mask == 'WLM8':
+        elif self.pupil_mask == 'WEAK LENS -8' or (self.pupil_mask == 'WLM8' and self.filter != 'WLP4'):
             optsys.add_pupil(poppy.ThinLens(
                 name='Weak Lens -8',
                 nwaves=WLM8_diversity / WL_wavelength,
@@ -1556,7 +1694,8 @@ class NIRCam(JWInstrument):
                 radius=self.pupil_radius,
                 shift_x=shift_x, shift_y=shift_y, rotation=rotation,
             ), index=3)
-        elif self.pupil_mask == 'WEAK LENS +12 (=4+8)' or self.pupil_mask == 'WLP12':
+        elif self.pupil_mask == 'WEAK LENS +12 (=4+8)' or self.pupil_mask == 'WLP12' or (
+                self.pupil_mask == 'WLP8' and self.filter == 'WLP4'):
             stack = poppy.CompoundAnalyticOptic(name='Weak Lens Pair +12', opticslist=[
                 poppy.ThinLens(
                     name='Weak Lens +4',
@@ -1574,7 +1713,8 @@ class NIRCam(JWInstrument):
                 )]
                                                 )
             optsys.add_pupil(stack, index=3)
-        elif self.pupil_mask == 'WEAK LENS -4 (=4-8)' or self.pupil_mask == 'WLM4':
+        elif self.pupil_mask == 'WEAK LENS -4 (=4-8)' or self.pupil_mask == 'WLM4' or (
+                self.pupil_mask == 'WLM8' and self.filter == 'WLP4'):
             stack = poppy.CompoundAnalyticOptic(name='Weak Lens Pair -4', opticslist=[
                 poppy.ThinLens(
                     name='Weak Lens +4',
@@ -1654,6 +1794,7 @@ class NIRSpec(JWInstrument):
         self._detectors = dict()
         for name in det_list: self._detectors[name] = '{0}_FULL'.format(name)
         self.detector = self.detector_list[0]
+        self.detector_position = (1380, 1024)   # near S1600A1 square aperture / ISIM1 field point. see #348.
         self._si_wfe_class = optics.NIRSpecFieldDependentAberration  # note we end up adding 2 instances of this.
 
     def _validate_config(self, **kwargs):
