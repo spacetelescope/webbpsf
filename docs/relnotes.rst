@@ -33,13 +33,33 @@ Version History and Change Log
 
 Version 0.9.1
 =============
-*2020 Date TBD*
+*2020 May X*
 
- - Future changes here
+**JWST Improvements**
+
+- *Improved the OTE linear model* by adding utility functions for decomposing WFE models into piston, tip, tilt motions in the JWST control coordinate system, adding a model for frill-induced WFE drift, adding a model for IEC-heater-induced WFE drift, and adding an option to adjust amplitude of OTE backplane thermal drift model for B.O.L. vs E.O.L. expected amplitudes. [:pr:`340`, :user:`mperrin`]
+- *Apply wavelength dependent offsets for NIRCam coronagraphic PSFs* due to the dispersion from the optical wedge in the coronagraphic pupil masks. This primarily affects the LW channel with approximately 0.015 mm/um dispersion. The SW channel is almost a factor of 10 smaller and mostly negligible, but has been included for completeness. [:pr:`347`, :user:`JarronL`]
+- Improve setting of detector geometry for NIRCam by adding ``auto_apname`` attribute which will automatically set the SIAF aperture name based on detector, filter, image mask, and pupil mask settings and update detector geometry using the SIAF aperture. This can be turned off by setting ``auto_apname=False``. [:pr:`351`, :user:`JarronL`]
+- Add model for image jitter with JWST in coarse point mode under two different assumptions about LOS stability: ``'PCS=Coarse'`` and ``'PCS=Coarse_Like_ITM'``. [:pr:`345`, :pr:`346`, :user:`mperrin`]
+
+**General bug fixes and small changes:**
+
+- Add ``allow_huge=True`` option to ``astropy.convolution.convolve_fft`` call when applying MIRI distortion so it can handle large arrays when calculating PSFs in very large FOV by using a higher resolution pupil and OPD. [:pr:`354`, :user:`obi-wan76`]
+- Update default NIRSpec detector coordinates to be the S1600A1 square aperture coordinates in imaging mode. [:pr:`348`, :user:`mperrin`]
+- Updated Simulated OTE Mirror Move Demo notebook. [:pr:`343`, :user:`kjbrooks`]
+- Improved the reproducibility of the thermal slew model with small updates to the ``update_opd`` and ``move_jsc_acf`` functions. [:pr:`339`, :user:`mperrin`]
 
 **Software and Package Infrastructure Updates:**
  
- - The minimum Python version is now 3.6. 
+- *The minimum Python version is now 3.6.* [:pr:`353`, :user:`mperrin`]
+- Removed dependency on ``astropy-helpers`` sub-package [:pr:`337`, :user:`shanosborne`]
+- Removed python 3.5 testing and added python 3.8 testing in Travis continuous integration. [:pr:`352`, :user:`mperrin`]
+- Documentation added and/or updated for a variety of features. [:pr:`330`, :user:`shanosborne`]
+
+--------
+
+
+
 
 Version 0.9.0
 =============
