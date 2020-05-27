@@ -2231,6 +2231,9 @@ class FGS(JWInstrument):
 
     Not a lot to see here, folks: There are no selectable options, just a great big detector-wide bandpass
     and two detectors.
+
+    The detectors are named as FGS1, FGS2 but may synonymously also be referred to as
+    GUIDER1, GUIDER2 for compatibility with DMS convention
     """
 
     def __init__(self):
@@ -2250,6 +2253,16 @@ class FGS(JWInstrument):
         """ Format FGS-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
         super(FGS, self)._get_fits_header(hdulist, options)
         hdulist[0].header['FOCUSPOS'] = (0, 'FGS focus mechanism not yet modeled.')
+
+    @JWInstrument.detector.setter # override setter in this subclass
+    def detector(self, value):
+        # allow either FGS1 or GUIDER1 as synonyms
+        if value.upper().startswith('GUIDER'):
+            value = 'FGS'+value[-1]
+        if value.upper() not in self.detector_list:
+            raise ValueError("Invalid detector. Valid detector names are: {}".format(', '.join(self.detector_list)))
+        self._detector = value.upper()
+        self._update_aperturename()
 
 
 ###########################################################################
