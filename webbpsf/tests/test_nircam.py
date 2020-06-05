@@ -422,3 +422,75 @@ def test_nircam_coron_wfe_offset(fov_pix=15, oversample=2, fit_gaussian=True):
     # Difference from 3.3 to 5.0 um should be ~0.030mm
     diff_50_33 = np.abs(yloc[2] - yloc[1])
     assert np.allclose( diff_50_33, 0.032, rtol=rtol), "PSF shift between {:.2f} and {:.2f} um of {:.3f} mm does not match expected value (~0.032 mm).".format(warr[1], warr[2], diff_50_33)
+
+def test_nircam_auto_apname():
+    """
+    Test that correct apertures are chosen depending on channel, module, detector, mode, etc.
+    """
+    import pysiaf 
+
+    nc = webbpsf_core.NIRCam()
+
+    nc.filter='F200W'
+    assert nc.apname == 'NRCA1_FULL'
+
+    # auto switch to long
+    nc.filter = 'F444W'
+    assert nc.apname == 'NRCA5_FULL'
+
+    # and it can switch back to short
+    nc.filter='F200W'
+    assert nc.apname == 'NRCA1_FULL'
+
+    # user is allowed to set custom something
+    nc.apname = 'NRCA3_SUB400P'
+    assert nc.apname == 'NRCA3_SUB400P'
+    assert nc.detector == 'NRCA3'
+    # switching to a different SW filter should not change apname
+    nc.filter = 'F212N'
+    assert nc.apname == 'NRCA3_SUB400P'
+    assert nc.detector == 'NRCA3'
+
+    # changing detector will update apname
+    nc.detector = 'NRCB5'
+    assert nc.apname == 'NRCB5_FULL'
+
+    # and switch it back to A1
+    nc.detector = 'NRCA1'
+    assert nc.apname == 'NRCA1_FULL'
+
+    # check Lyot stop modes but no coronagraphic occulter
+    nc.pupil_mask = 'CIRCLYOT'
+    assert (nc.apname == 'NRCA2_FULL_WEDGE_RND') or (nc.apname == 'NRCA2_FULL_MASK210R')
+    nc.pupil_mask = 'MASKRND'
+    assert (nc.apname == 'NRCA2_FULL_WEDGE_RND') or (nc.apname == 'NRCA2_FULL_MASK210R')
+
+    # Add in coronagraphic occulter
+    nc.image_mask = 'MASK210R'
+    assert nc.apname == 'NRCA2_FULL_MASK210R'
+
+    # Change to LW A
+    nc.filter = 'F444W'
+    nc.image_mask = 'MASK430R'
+    assert nc.apname == 'NRCA5_FULL_MASK430R'
+    nc.image_mask = None
+    assert (nc.apname == 'NRCA5_FULL_WEDGE_RND') or (nc.apname == 'NRCA5_FULL_MASK335R')
+    nc.pupil_mask = 'WEDGELYOT'
+    assert (nc.apname == 'NRCA5_FULL_WEDGE_BAR') or (nc.apname == 'NRCA5_FULL_MASKLWB')
+
+    # Switch back to LW imaging
+    nc.pupil_mask = None
+    assert nc.apname == 'NRCA5_FULL'
+    # Switch back to SW imaging
+    nc.filter='F200W'
+    assert nc.apname == 'NRCA1_FULL'
+
+    # Turn off auto_apname
+    nc.auto_apname = False
+    # now we can switch filters and apname should not change
+    nc.filter='F480M'
+    assert nc.apname == 'NRCA1_FULL'
+
+    # but changing the detector explicitly always updates apname
+    nc.detector = 'NRCA5'
+    assert nc.apname == 'NRCA5_FULL'
