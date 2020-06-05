@@ -1454,40 +1454,36 @@ class NIRCam(JWInstrument):
         )
         _log.debug(str_debug)
 
-        if self.auto_apname:
-            # Need to send correct aperture name for coronagraphic masks due to detector shift
-            if (self._image_mask is not None):
-                # Choose coronagraphic subarray apertures
-                aps_modA = {'MASKLWB': 'NRCA5_MASKLWB',
-                            'MASKSWB': 'NRCA4_MASKSWB',
-                            'MASK210R': 'NRCA2_MASK210R',
-                            'MASK335R': 'NRCA5_MASK335R',
-                            'MASK430R': 'NRCA5_MASK430R'}
-                aps_modB = {'MASKLWB': 'NRCB5_MASKLWB',
-                            'MASKSWB': 'NRCB3_MASKSWB',
-                            'MASK210R': 'NRCB1_MASK210R',
-                            'MASK335R': 'NRCB5_MASK335R',
-                            'MASK430R': 'NRCB5_MASK430R'}
-                apname = aps_modA[self._image_mask] if self.module=='A' else aps_modB[self._image_mask]
-            elif (self._pupil_mask is not None) and ('LYOT' in self._pupil_mask):
-                # Want to use full frame apertures if only Lyot stops defined (no image mask)
-                # Unfortunately, no full frame SIAF apertures are defined for Module B w/ Lyot
-                # so we must select the subarray apertures as a special case. 
-                if 'long' in self.channel:
-                    if ('WEDGE' in self._pupil_mask) or ('LWB' in self._pupil_mask):
-                        apname = 'NRCA5_FULL_MASKLWB' if self.module=='A' else 'NRCB5_MASKLWB'
-                    else:
-                        apname = 'NRCA5_FULL_MASK335R' if self.module=='A' else 'NRCB5_MASK335R'
+        # Need to send correct aperture name for coronagraphic masks due to detector shift
+        if (self._image_mask is not None):
+            aps_modA = {'MASKLWB': 'NRCA5_FULL_MASKLWB',
+                        'MASKSWB': 'NRCA4_FULL_MASKSWB',
+                        'MASK210R': 'NRCA2_FULL_MASK210R',
+                        'MASK335R': 'NRCA5_FULL_MASK335R',
+                        'MASK430R': 'NRCA5_FULL_MASK430R'}
+            # Choose coronagraphic subarray apertures for Module B
+            aps_modB = {'MASKLWB': 'NRCB5_MASKLWB',
+                        'MASKSWB': 'NRCB3_MASKSWB',
+                        'MASK210R': 'NRCB1_MASK210R',
+                        'MASK335R': 'NRCB5_MASK335R',
+                        'MASK430R': 'NRCB5_MASK430R'}
+            apname = aps_modA[self._image_mask] if self.module=='A' else aps_modB[self._image_mask]
+        elif (self._pupil_mask is not None) and (('LYOT' in self._pupil_mask) or ('MASK' in self._pupil_mask)):
+            # Want to use full frame apertures if only Lyot stops defined (no image mask)
+            # Unfortunately, no full frame SIAF apertures are defined for Module B w/ Lyot
+            # so we must select the subarray apertures as a special case. 
+            if 'long' in self.channel:
+                if ('WEDGE' in self._pupil_mask) or ('LWB' in self._pupil_mask):
+                    apname = 'NRCA5_FULL_WEDGE_BAR' if self.module=='A' else 'NRCB5_MASKLWB'
                 else:
-                    if ('WEDGE' in self._pupil_mask) or ('SWB' in self._pupil_mask):
-                        apname = 'NRCA4_FULL_MASKSWB' if self.module=='A' else 'NRCB3_MASKSWB'
-                    else:
-                        apname = 'NRCA2_FULL_MASK210R' if self.module=='A' else 'NRCB1_MASK210R'
+                    apname = 'NRCA5_FULL_WEDGE_RND' if self.module=='A' else 'NRCB5_MASK335R'
             else:
-                apname = self._detectors[self._detector]
-
+                if ('WEDGE' in self._pupil_mask) or ('SWB' in self._pupil_mask):
+                    apname = 'NRCA4_FULL_WEDGE_BAR' if self.module=='A' else 'NRCB3_MASKSWB'
+                else:
+                    apname = 'NRCA2_FULL_WEDGE_RND' if self.module=='A' else 'NRCB1_MASK210R'
         else:
-            apname = self._apname
+            apname = self._detectors[self._detector]
 
         # Call apname.setter to update ap ref coords and DetectorGeometry class
         self.apname = apname
@@ -1503,23 +1499,60 @@ class NIRCam(JWInstrument):
     
     @apname.setter
     def apname(self, value):
-        self._apname = value
         # Explicitly update detector reference coordinates, 
         # otherwise old coordinates can persist under certain circumstances
+
+        # Get NIRCam SIAF apertures
         siaf = pysiaf.Siaf(self.name)
-        ap = siaf[self._apname]
-        self.detector_position = (ap.XSciRef, ap.YSciRef)
-        # Update DetectorGeometry class
-        self._detector_geom_info = DetectorGeometry(self.name, self._apname)
+        try:
+            ap = siaf[value]
+        except KeyError:
+            _log.warning('Aperture name {} not a valid NIRCam pysiaf name'.format())
+            # Alternatives in case we are running an old pysiaf PRD
+            if value=='NRCA5_FULL_WEDGE_BAR':
+                newval = 'NRCA5_FULL_MASKLWB'
+            elif value=='NRCA5_FULL_WEDGE_RND':
+                newval = 'NRCA5_FULL_MASK335R'
+            elif value=='NRCA4_FULL_WEDGE_BAR':
+                newval = 'NRCA4_FULL_MASKSWB'
+            elif value=='NRCA2_FULL_WEDGE_RND':
+                newval = 'NRCA2_FULL_MASK210R'
+            else:
+                newval = None
+                
+            if newval is not None:
+                # Set altnerative apname as bandaid to continue
+                value = newval
+                _log.warning('Possibly running an old version of pysiaf missing some NIRCam apertures. Continuing with old apnames.')
+            else:
+                return
+
+        # Only update if new value is different
+        if self._apname != value:
+            self._apname = value
+            # Update detector reference coordinates
+            self.detector_position = (ap.XSciRef, ap.YSciRef)
+
+            # Check if detector is correct
+            new_det =  self._apname[0:5]
+            if new_det != self._detector:
+                new_channel = 'long' if new_det[-1] == '5' else 'short'
+                self._switch_channel(new_channel)
+                self._detector = new_det
+
+            # Update DetectorGeometry class
+            self._detector_geom_info = DetectorGeometry(self.name, self._apname)
+            _log.info("NIRCam aperture name updated to {}".format(self._apname))
+
 
     @property
     def module(self):
         return self._detector[3]
-        # note, you can't set channel directly; it's inferred based on detector.
+        # note, you can't set module directly; it's inferred based on detector.
 
     @module.setter
     def module(self, value):
-        raise RuntimeError("NIRCam module is not directly settable; set filter or detector instead.")
+        raise RuntimeError("NIRCam module is not directly settable; set detector instead.")
 
     @property
     def channel(self):
@@ -1572,15 +1605,22 @@ class NIRCam(JWInstrument):
     def filter(self, value):
         super(NIRCam, self.__class__).filter.__set__(self, value)
 
-        if self.auto_channel:
+        if self.auto_channel or self.auto_apname:
             # set the channel (via setting the detector) based on filter
             if self.filter=='WLP4':
                 # special case, weak lens 4 is actually a filter too but isn't named like one
-                wlnum =212
+                wlnum = 212
             else:
                 wlnum = int(self.filter[1:4])
             new_channel = 'long' if wlnum >= 250 else 'short'
-            self._switch_channel(new_channel)
+            cur_channel = self.channel
+
+            if self.auto_channel:
+                self._switch_channel(new_channel)
+
+            # Only change ap name if filter choice forces us to a different channel
+            if self.auto_apname and (cur_channel != new_channel):
+                self._update_apname()
 
     # Need to redefine image_mask.setter because _image_mask_apertures has limited aperture definitions
     @JWInstrument.image_mask.setter
@@ -1595,8 +1635,6 @@ class NIRCam(JWInstrument):
                     raise ValueError("Instrument %s doesn't have an image mask called '%s'." % (self.name, name))
         self._image_mask = name
 
-        # Update aperture name to something consistent with new image mask
-        self._update_apname()
         # Update aperture position, which updates detector and detector position
         self.set_position_from_aperture_name(self._apname)
 
@@ -1604,8 +1642,6 @@ class NIRCam(JWInstrument):
     def pupil_mask(self, name):
         super(NIRCam, self.__class__).pupil_mask.__set__(self, name)
 
-        # Update aperture name to something consistent with new pupil mask
-        self._update_apname()
         # Update aperture position, which updates detector and detector position
         self.set_position_from_aperture_name(self._apname)
 
