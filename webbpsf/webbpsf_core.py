@@ -1382,7 +1382,7 @@ class NIRCam(JWInstrument):
 
     Similarly, SIAF aperture names are automatically chosen based on detector, filter,
     image mask, and pupil mask settings. The auto-selection can be disabled by
-    setting `.auto_apname = False`. SIAF aperture information is mainly used for
+    setting `.auto_aperturname = False`. SIAF aperture information is mainly used for
     coordinate transformations between detector science pixels and telescope V2/V3.
 
     Special Options:
@@ -1414,8 +1414,8 @@ class NIRCam(JWInstrument):
         # need to set up a bunch of stuff here before calling superclass __init__
         # so the overridden filter setter will work successfully inside that.
         self.auto_channel = True
-        self.auto_apname = True
-        self._apname = None
+        self.auto_aperturename = True
+        self._aperturename = None
         self._filter = 'F200W'
         self._detector = 'NRCA1'
 
@@ -1442,15 +1442,15 @@ class NIRCam(JWInstrument):
         det_list = ['A1', 'A2', 'A3', 'A4', 'A5', 'B1', 'B2', 'B3', 'B4', 'B5']
         for name in det_list: self._detectors["NRC{0}".format(name)] = 'NRC{0}_FULL'.format(name)
         self.detector = self.detector_list[0]
-        self._apname = '{}_FULL'.format(self._detector)  # SIAF aperture name
+        self._aperturename = '{}_FULL'.format(self._detector)  # SIAF aperture name
 
         self._si_wfe_class = optics.NIRCamFieldAndWavelengthDependentAberration
 
-    def _update_apname(self):
+    def _update_aperturename(self):
         """Determine sensible SIAF aperture names"""
 
         str_debug = 'BEFORE - Det: {}, Ap: {}, ImMask: {}, PupMask: {}, DetPos: {}'.format(
-            self._detector, self._apname, self.image_mask, self.pupil_mask, self.detector_position
+            self._detector, self._aperturename, self.image_mask, self.pupil_mask, self.detector_position
         )
         _log.debug(str_debug)
 
@@ -1485,20 +1485,20 @@ class NIRCam(JWInstrument):
         else:
             apname = self._detectors[self._detector]
 
-        # Call apname.setter to update ap ref coords and DetectorGeometry class
-        self.apname = apname
+        # Call aperturename.setter to update ap ref coords and DetectorGeometry class
+        self.aperturename = apname
 
         str_debug = 'AFTER  - Det: {}, Ap: {}, ImMask: {}, PupMask: {}, DetPos: {}'.format(
-            self._detector, self._apname, self.image_mask, self.pupil_mask, self.detector_position
+            self._detector, self._aperturename, self.image_mask, self.pupil_mask, self.detector_position
         )
         _log.debug(str_debug)
 
     @property
-    def apname(self):
-        return self._apname
+    def aperturename(self):
+        return self._aperturename
     
-    @apname.setter
-    def apname(self, value):
+    @aperturename.setter
+    def aperturename(self, value):
         # Explicitly update detector reference coordinates, 
         # otherwise old coordinates can persist under certain circumstances
 
@@ -1521,28 +1521,28 @@ class NIRCam(JWInstrument):
                 newval = None
                 
             if newval is not None:
-                # Set altnerative apname as bandaid to continue
+                # Set altnerative aperture name as bandaid to continue
                 value = newval
-                _log.warning('Possibly running an old version of pysiaf missing some NIRCam apertures. Continuing with old apnames.')
+                _log.warning('Possibly running an old version of pysiaf missing some NIRCam apertures. Continuing with old aperture names.')
             else:
                 return
 
         # Only update if new value is different
-        if self._apname != value:
-            self._apname = value
+        if self._aperturename != value:
+            self._aperturename = value
             # Update detector reference coordinates
             self.detector_position = (ap.XSciRef, ap.YSciRef)
 
             # Check if detector is correct
-            new_det =  self._apname[0:5]
+            new_det =  self._aperturename[0:5]
             if new_det != self._detector:
                 new_channel = 'long' if new_det[-1] == '5' else 'short'
                 self._switch_channel(new_channel)
                 self._detector = new_det
 
             # Update DetectorGeometry class
-            self._detector_geom_info = DetectorGeometry(self.name, self._apname)
-            _log.info("NIRCam aperture name updated to {}".format(self._apname))
+            self._detector_geom_info = DetectorGeometry(self.name, self._aperturename)
+            _log.info("NIRCam aperture name updated to {}".format(self._aperturename))
 
 
     @property
@@ -1572,7 +1572,7 @@ class NIRCam(JWInstrument):
         new_channel = 'long' if value[-1] == '5' else 'short'
         self._switch_channel(new_channel)
         self._detector = value.upper()
-        self._update_apname()
+        self._update_aperturename()
 
     def _switch_channel(self,channel):
         """ Toggle to either SW or LW channel.
@@ -1605,7 +1605,7 @@ class NIRCam(JWInstrument):
     def filter(self, value):
         super(NIRCam, self.__class__).filter.__set__(self, value)
 
-        if self.auto_channel or self.auto_apname:
+        if self.auto_channel or self.auto_aperturename:
             # set the channel (via setting the detector) based on filter
             if self.filter=='WLP4':
                 # special case, weak lens 4 is actually a filter too but isn't named like one
@@ -1619,8 +1619,8 @@ class NIRCam(JWInstrument):
                 self._switch_channel(new_channel)
 
             # Only change ap name if filter choice forces us to a different channel
-            if self.auto_apname and (cur_channel != new_channel):
-                self._update_apname()
+            if self.auto_aperturename and (cur_channel != new_channel):
+                self._update_aperturename()
 
     # Need to redefine image_mask.setter because _image_mask_apertures has limited aperture definitions
     @JWInstrument.image_mask.setter
@@ -1636,14 +1636,14 @@ class NIRCam(JWInstrument):
         self._image_mask = name
 
         # Update aperture position, which updates detector and detector position
-        self.set_position_from_aperture_name(self._apname)
+        self.set_position_from_aperture_name(self._aperturename)
 
     @JWInstrument.pupil_mask.setter
     def pupil_mask(self, name):
         super(NIRCam, self.__class__).pupil_mask.__set__(self, name)
 
         # Update aperture position, which updates detector and detector position
-        self.set_position_from_aperture_name(self._apname)
+        self.set_position_from_aperture_name(self._aperturename)
 
     def _validate_config(self, **kwargs):
         """Validate instrument config for NIRCam
@@ -1857,7 +1857,7 @@ class NIRCam(JWInstrument):
         # filter, pupil added by calc_psf header code
         hdulist[0].header['PILIN'] = ('False', 'Pupil imaging lens in optical path: T/F')
         # Update APERNAME
-        hdulist[0].header["APERNAME"] = (self._apname, "SIAF aperture name")
+        hdulist[0].header["APERNAME"] = (self._aperturename, "SIAF aperture name")
 
 class NIRSpec(JWInstrument):
     """ A class modeling the optics of NIRSpec, in **imaging** mode.
