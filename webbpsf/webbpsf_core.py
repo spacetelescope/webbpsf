@@ -279,6 +279,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         if value.upper() not in self.detector_list:
             raise ValueError("Invalid detector. Valid detector names are: {}".format(', '.join(self.detector_list)))
         self._detector = value.upper()
+        self._update_aperturename()
 
     @property
     def detector_list(self):
@@ -287,7 +288,13 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
     @property
     def detector_position(self):
-        """The pixel position in (X, Y) on the detector"""
+        """The pixel position in (X, Y) on the detector, relative to the currently-selected SIAF aperture subarray.
+        By default the SIAF aperture will correspond to the full-frame detector, so (X,Y) will in that case be
+        absolute (X,Y) pixels on the detector. But if you select a subarray aperture name from the SIAF, then
+        the (X,Y) are interpreted as (X,Y) within that subarray.
+
+        Please note, this is X,Y order - **not** a Pythonic y,x axes ordering.
+        """
         return self._detector_position
 
     @detector_position.setter
@@ -303,6 +310,21 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
                 self._detector_npixels - 1))
 
         self._detector_position = (int(position[0]), int(position[1]))
+
+    @property
+    def aperturename(self):
+        """ SIAF aperture name for detector pixel to sky coords transformations"""
+        return self._aperturename
+
+    @aperturename.setter
+    def aperturename(self, value):
+        # Override in subclass to provide more specific functionality
+        self._aperturename = value
+
+    def _update_aperturename(self):
+        """ Update SIAF aperture name after change in detector or other relevant properties
+        """
+        self.aperturename = self._detectors[self._detector]
 
     def _get_fits_header(self, result, options):
         """ populate FITS Header keywords """
@@ -759,6 +781,7 @@ class JWInstrument(SpaceTelescopeInstrument):
         ))
         "Filename *or* fits.HDUList for JWST pupil mask. Usually there is no need to change this."
 
+        self._aperturename = None
         self._detector = None
 
         # where is the source on the detector, in 'Science frame' pixels?
@@ -801,12 +824,32 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         return optic
 
-    @SpaceTelescopeInstrument.detector.setter  # override setter in this subclass
-    def detector(self, value):
-        if value.upper() not in self.detector_list:
-            raise ValueError("Invalid detector. Valid detector names are: {}".format(', '.join(self.detector_list)))
-        self._detector = value.upper()
-        self._detector_geom_info = DetectorGeometry(self.name, self._detectors[self._detector])
+    @SpaceTelescopeInstrument.aperturename.setter
+    def aperturename(self, value):
+        """Set SIAF aperture name to new value, with validation
+        """
+        # Explicitly update detector reference coordinates to the default for the new selected aperture,
+        # otherwise old coordinates can persist under certain circumstances
+
+        siaf = pysiaf.Siaf(self.name)
+        try:
+            ap = siaf[value]
+        except KeyError:
+            raise ValueError(f'Aperture name {value} not a valid SIAF aperture name for {self.name}')
+
+        if self.detector not in value:
+            raise ValueError(f'Aperture name {value} does not match currently selected detector {self.detector}. '
+                             f'Change detector attribute first, then set desired aperture.')
+
+        # Only update if new value is different
+        if self._aperturename != value:
+            self._aperturename = value
+            # Update detector reference coordinates
+            self.detector_position = (ap.XSciRef, ap.YSciRef)
+
+            # Update DetectorGeometry class
+            self._detector_geom_info = DetectorGeometry(self.name, self._aperturename)
+            _log.info(f"{self.name} SIAF aperture name updated to {self._aperturename}")
 
     def _tel_coords(self):
         """ Convert from science frame coordinates to telescope frame coordinates using
@@ -932,19 +975,19 @@ class JWInstrument(SpaceTelescopeInstrument):
 
             # Apply distortions based on the instrument
             if self.name in ["NIRCam", "NIRISS", "FGS"]:
-                # Apply distortion effects: Rotation and Detector Distortion
+                # Apply distortion effects: Rotation and optical distortion
                 _log.debug("NIRCam/NIRISS/FGS: Adding rotation and optical distortion")
                 psf_rotated = distortion.apply_rotation(result, crop=crop_psf)  # apply rotation
-                psf_distorted = distortion.apply_distortion(psf_rotated)  # apply siaf distortion
+                psf_distorted = distortion.apply_distortion(psf_rotated)  # apply siaf distortion model
             elif self.name == "MIRI":
-                # Apply distortion effects to MIRI psf: SIAF and MIRI Scattering
+                # Apply distortion effects to MIRI psf: Distortion and MIRI Scattering
                 _log.debug("MIRI: Adding optical distortion and Si:As detector internal scattering")
                 psf_siaf = distortion.apply_distortion(result)  # apply siaf distortion
                 psf_distorted = distortion.apply_miri_scattering(psf_siaf)  # apply scattering effect
             elif self.name == "NIRSpec":
-                # Apply distortion effects to NIRSpec psf: SIAF only
+                # Apply distortion effects to NIRSpec psf: Distortion only
                 _log.debug("NIRSpec: Adding optical distortion")
-                psf_distorted = distortion.apply_distortion(result)  # apply siaf distortion
+                psf_distorted = distortion.apply_distortion(result)  # apply siaf distortion model
 
             # Edit the variable to match if input didn't request distortion
             # (cannot set result = psf_distorted due to return method)
@@ -1214,6 +1257,8 @@ class MIRI(JWInstrument):
                                       'FQPM1140': 'MIRIM_CORON1140',
                                       'FQPM1550': 'MIRIM_CORON1550',
                                       'LYOT2300': 'MIRIM_CORONLYOT'}
+        self.auto_aperturename = True
+
         self.monochromatic = 8.0
         self._IFU_pixelscale = {
             'Ch1': (0.18, 0.19),
@@ -1386,6 +1431,30 @@ class MIRI(JWInstrument):
 
         return (optsys, trySAM, SAM_box_size if trySAM else None)
 
+
+    def _update_aperturename(self):
+        """Determine sensible SIAF aperture names for MIRI. Implements the auto_aperturename functionality"""
+
+        str_debug = 'BEFORE - Det: {}, Ap: {}, ImMask: {}, PupMask: {}, DetPos: {}'.format(
+            self._detector, self._aperturename, self.image_mask, self.pupil_mask, self.detector_position
+        )
+        _log.debug(str_debug)
+
+        # Need to send correct aperture name for coronagraphic masks
+        if (self._image_mask is not None):
+            apname = self._image_mask_apertures[self._image_mask]
+        else:
+            apname = 'MIRIM_FULL'
+
+        # Call aperturename.setter to update ap ref coords and DetectorGeometry class
+        self.aperturename = apname
+
+        str_debug = 'AFTER  - Det: {}, Ap: {}, ImMask: {}, PupMask: {}, DetPos: {}'.format(
+            self._detector, self._aperturename, self.image_mask, self.pupil_mask, self.detector_position
+        )
+        _log.debug(str_debug)
+
+
     def _get_fits_header(self, hdulist, options):
         """ Format MIRI-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
         super(MIRI, self)._get_fits_header(hdulist, options)
@@ -1449,7 +1518,6 @@ class NIRCam(JWInstrument):
         # so the overridden filter setter will work successfully inside that.
         self.auto_channel = True
         self.auto_aperturename = True
-        self._aperturename = None
         self._filter = 'F200W'
         self._detector = 'NRCA1'
 
@@ -1481,7 +1549,7 @@ class NIRCam(JWInstrument):
         self._si_wfe_class = optics.NIRCamFieldAndWavelengthDependentAberration
 
     def _update_aperturename(self):
-        """Determine sensible SIAF aperture names"""
+        """Determine sensible SIAF aperture names for NIRCam. Implements the auto_aperturename functionality"""
 
         str_debug = 'BEFORE - Det: {}, Ap: {}, ImMask: {}, PupMask: {}, DetPos: {}'.format(
             self._detector, self._aperturename, self.image_mask, self.pupil_mask, self.detector_position
@@ -1527,11 +1595,7 @@ class NIRCam(JWInstrument):
         )
         _log.debug(str_debug)
 
-    @property
-    def aperturename(self):
-        return self._aperturename
-    
-    @aperturename.setter
+    @JWInstrument.aperturename.setter
     def aperturename(self, value):
         # Explicitly update detector reference coordinates, 
         # otherwise old coordinates can persist under certain circumstances
@@ -1541,7 +1605,7 @@ class NIRCam(JWInstrument):
         try:
             ap = siaf[value]
         except KeyError:
-            _log.warning('Aperture name {} not a valid NIRCam pysiaf name'.format())
+            _log.warning(f'Aperture name {value} not a valid NIRCam pysiaf name')
             # Alternatives in case we are running an old pysiaf PRD
             if value=='NRCA5_FULL_WEDGE_BAR':
                 newval = 'NRCA5_FULL_MASKLWB'
@@ -1578,7 +1642,6 @@ class NIRCam(JWInstrument):
             self._detector_geom_info = DetectorGeometry(self.name, self._aperturename)
             _log.info("NIRCam aperture name updated to {}".format(self._aperturename))
 
-
     @property
     def module(self):
         return self._detector[3]
@@ -1597,7 +1660,7 @@ class NIRCam(JWInstrument):
     def channel(self, value):
         raise RuntimeError("NIRCam channel is not directly settable; set filter or detector instead.")
 
-    @JWInstrument.detector.setter # override setter in this subclass
+    @JWInstrument.detector.setter # override setter in this subclass, to implement auto channel switch
     def detector(self, value):
         """ Set detector, including reloading the relevant info from SIAF """
         if value.upper() not in self.detector_list:

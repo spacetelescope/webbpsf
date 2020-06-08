@@ -55,3 +55,18 @@ def test_niriss_gr700xd():
     niriss.filter = 'CLEAR'
     niriss.pupil_mask = 'GR700XD'
     niriss.calc_psf(monochromatic=1e-6, fov_pixels=2)
+
+
+def test_niriss_aperturename():
+    """ Not a lot of options here """
+    niriss = webbpsf_core.NIRISS()
+    assert niriss.aperturename == niriss._detectors[niriss.detector], "Default SIAF aperture is not as expected"
+
+    ref_tel_coords = niriss._tel_coords()
+
+    niriss.aperturename = 'NIS_SUB128'
+    assert niriss.detector_position == (64, 64), "Changing to a subarray aperture didn't change the " \
+                                                 "reference pixel coords as expected"
+    assert np.any(
+        niriss._tel_coords() != ref_tel_coords), "Changing to a subarray aperture didn't change the V2V3 coords " \
+                                                 "as expected."

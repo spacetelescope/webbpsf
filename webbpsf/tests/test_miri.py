@@ -55,7 +55,20 @@ def test_miri_fqpm_centered(*args, **kwargs):
 def test_miri_fqpm_offset_00(*args, **kwargs):
     do_test_miri_fqpm(angle=0.0, offset=1.0)
 
+
 def test_miri_fqpm_offset_45(*args, **kwargs):
     do_test_miri_fqpm(angle=45.0, offset=1.0)
 
 
+def test_miri_aperturename():
+    """ Test aperture name functionality """
+    miri = webbpsf_core.MIRI()
+    assert miri.aperturename == miri._detectors[miri.detector], "Default SIAF aperture is not as expected"
+
+    ref_tel_coords = miri._tel_coords()
+
+    miri.aperturename = 'MIRIM_SUB128'
+    assert miri.detector_position == (
+        64, 64), "Changing to a subarray aperture didn't change the reference pixel coords as expected"
+    assert not np.all(
+        miri._tel_coords() != ref_tel_coords), "Changing to a subarray aperture didn't change the V2V3 coords as expected."
