@@ -1442,7 +1442,10 @@ class MIRI(JWInstrument):
 
         # Need to send correct aperture name for coronagraphic masks
         if (self._image_mask is not None):
-            apname = self._image_mask_apertures[self._image_mask]
+            if 'LRS' in self._image_mask:
+                apname = 'MIRIM_FULL'  # LRS slit uses full array readout
+            else:
+                apname = self._image_mask_apertures[self._image_mask]
         else:
             apname = 'MIRIM_FULL'
 

@@ -67,8 +67,7 @@ def test_miri_aperturename():
 
     ref_tel_coords = miri._tel_coords()
 
-    miri.aperturename = 'MIRIM_SUB128'
-    assert miri.detector_position == (
-        64, 64), "Changing to a subarray aperture didn't change the reference pixel coords as expected"
-    assert not np.all(
-        miri._tel_coords() != ref_tel_coords), "Changing to a subarray aperture didn't change the V2V3 coords as expected."
+    miri.aperturename = 'MIRIM_SUB256'
+    assert miri.detector_position == (128, 128), "Changing to a subarray aperture didn't change the " \
+                                                 "reference pixel coords as expected"
+    assert np.any( miri._tel_coords() != ref_tel_coords), "Changing to a subarray aperture didn't change the V2V3 coords as expected."
