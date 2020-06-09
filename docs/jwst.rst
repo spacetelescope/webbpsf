@@ -34,11 +34,13 @@ All classes share some common attributes:
    on that detector for the center location in any calculated output PSF.
    Note that the ``detector_position`` value should be
    specified using the order (X,Y).
- * The ``aperturename`` attribute provides the `SIAF <https://pysiaf.readthedocs.io>`_ aperture name 
+ * The ``aperturename`` attribute provides the `SIAF <https://pysiaf.readthedocs.io>`_ aperture name
    used for transforming between detector position and instrument field of view on the sky. By default
    this will be a full-frame aperture for the currently-selected detector, but you may select any
-   subarray aperture or other aperture named in the SIAF for that instrument. For NIRCam and MIRI,
-   the aperturename can (optionally) automatically update for coronagraphic subarrays.
+   subarray aperture or other aperture named in the SIAF for that instrument. The aperturename will always
+   update automatically when you select a new detector name. For NIRCam and MIRI,
+   the aperturename can also (optionally) automatically update for coronagraphic subarrays if/when a coronagraphic
+   optic is selected for the image or pupil mask. .
 
 .. warning::
 
