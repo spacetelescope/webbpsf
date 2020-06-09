@@ -899,7 +899,7 @@ class JWInstrument(SpaceTelescopeInstrument):
                                           "[arcmin] Det. pos. in telescope V2,V3 coord sys"), after=True)
         result[0].header.insert("DET_V2", ('DET_V3', v2v3pos[1].value,
                                            "[arcmin] Det. pos. in telescope V2,V3 coord sys"), after=True)
-        result[0].header["APERNAME"] = (self._detectors[self._detector], "SIAF aperture name")
+        hdulist[0].header["APERNAME"] = (self._aperturename, "SIAF aperture name")
 
     def calc_psf(self, outfile=None, source=None, nlambda=None, monochromatic=None,
                  fov_arcsec=None, fov_pixels=None, oversample=None, detector_oversample=None, fft_oversample=None,
@@ -1956,8 +1956,6 @@ class NIRCam(JWInstrument):
         hdulist[0].header['CHANNEL'] = ('Short' if self.channel == 'short' else 'Long', 'NIRCam channel: long or short')
         # filter, pupil added by calc_psf header code
         hdulist[0].header['PILIN'] = ('False', 'Pupil imaging lens in optical path: T/F')
-        # Update APERNAME
-        hdulist[0].header["APERNAME"] = (self._aperturename, "SIAF aperture name")
 
 class NIRSpec(JWInstrument):
     """ A class modeling the optics of NIRSpec, in **imaging** mode.
