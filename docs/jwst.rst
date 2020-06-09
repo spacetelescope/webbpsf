@@ -34,6 +34,13 @@ All classes share some common attributes:
    on that detector for the center location in any calculated output PSF.
    Note that the ``detector_position`` value should be
    specified using the order (X,Y).
+ * The ``aperturename`` attribute provides the `SIAF <https://pysiaf.readthedocs.io>`_ aperture name
+   used for transforming between detector position and instrument field of view on the sky. By default
+   this will be a full-frame aperture for the currently-selected detector, but you may select any
+   subarray aperture or other aperture named in the SIAF for that instrument. The aperturename will always
+   update automatically when you select a new detector name. For NIRCam and MIRI,
+   the aperturename can also (optionally) automatically update for coronagraphic subarrays if/when a coronagraphic
+   optic is selected for the image or pupil mask. .
 
 .. warning::
 
@@ -114,7 +121,6 @@ just set the desired detector and the channel and module are inferred
 automatically.
 
 
-
 The choice of ``filter`` also impacts the channel selection: If you choose a
 long-wavelength filter such as F460M, then the detector will automatically
 switch to the long-wave detector for the current channel. For example, if the
@@ -144,6 +150,7 @@ behavior on filter selection can be disabled by setting ``nircam.auto_channel = 
     filter or detector attribute whenever you want to toggle between SW or LW channels.
 
 
+
 Coronagraph Masks
 ------------------
 
@@ -161,6 +168,13 @@ Note, the Lyot masks have multiple names for historical reasons: The names
 can still be used, but the same masks can also be referred to as "MASKRND" and
 "MASKSWB" or "MASKLWB", the nomenclature that was eventually adopted for use in
 APT and other JWST documentation. Both ways work and will continue to do so.
+
+The NIRCam class can automatically switch its ``aperturename`` attribute when a
+coronagraphic mask is selected, to select the aperturename for the appropriate
+coronagraphic subarray.  The detector reference pixel location will also update
+to the center of the coronagraphic subarray. This behavior on image mask or
+pupil mask selection can be disabled by setting ``nircam.auto_aperturename =
+False``.
 
 **Offsets along the MASKLWB and MASKSWB masks**:
 
@@ -360,6 +374,11 @@ co-mounted. WebbPSF models this by automatically setting the ``pupil_mask``
 element to one of the coronagraph masks or the regular pupil when the ``filter``
 is changed. If you want to disable this behavior, set ``miri.auto_pupil = False``.
 
+The MIRI class can automatically switch its ``aperturename`` attribute when a
+coronagraphic mask is selected, to select the aperturename for the appropriate
+coronagraphic subarray.  The detector reference pixel location will also update
+to the center of the coronagraphic subarray. This behavior on image mask
+selection can be disabled by setting ``miri.auto_aperturename = False``.
 
 LRS Spectroscopy
 ----------------
