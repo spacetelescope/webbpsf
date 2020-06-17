@@ -346,7 +346,7 @@ class OPD(poppy.FITSOpticalElement):
         if ax is None:
             ax = plt.gca()
 
-        plot = ax.imshow(self.opd * mask * scalefact, vmin=-vmax, vmax=vmax, cmap=cmap, extent=extent)
+        plot = ax.imshow(self.opd * mask * scalefact, vmin=-vmax, vmax=vmax, cmap=cmap, extent=extent, origin='lower')
 
         _log.debug("Displaying OPD. Vmax is %f, data max is %f " % (vmax, self.opd.max()))
 
