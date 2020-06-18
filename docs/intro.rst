@@ -3,7 +3,7 @@ Introduction
 
 **What this software does:**
 
-* Uses OPD maps precomputed by detailed optical simulations of JWST and WFIRST, and in the case of JWST
+* Uses OPD maps precomputed by detailed optical simulations of JWST and the Nancy Grace Roman Space Telescope (formerly WFIRST), and in the case of JWST
   based on instrument and telescope flight hardware cryo-vacuum test results.
 * For JWST, computes PSF images with requested properties for any of JWST's instruments. Supports imaging, coronagraphy, and most spectrographic modes with all of JWST's instruments. IFUs are yet to come.
 * For WFIRST, computes PSFs with the Wide Field Imager, based on recent GSFC optical models, including field- and wavelength-dependent aberrations. 

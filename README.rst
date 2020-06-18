@@ -1,5 +1,5 @@
-WebbPSF: Simulated Point Spread Functions for JWST and WFIRST
-=============================================================
+WebbPSF: Simulated Point Spread Functions for the James Webb and Nancy Grace Roman Space Telescopes
+===================================================================================================
 
 .. image:: docs/readme_fig.png
 
@@ -22,7 +22,7 @@ flagship infrared space telescope. WebbPSF can simulate images for any of the
 four science instruments plus the fine guidance sensor, including both direct
 imaging and coronagraphic modes.
 
-WebbPSF also supports simulating PSFs for the upcoming Wide Field Infrared Survey Telescope (WFIRST),
+WebbPSF also supports simulating PSFs for the upcoming Nancy Grace Roman Space Telescope (formerly WFIRST),
 including its Wide Field Instrument and a preliminary version of the Coronagraph Instrument.
 
 Developed by Marshall Perrin, Joseph Long, Neil Zimmerman, Robel Geda, Shannon
