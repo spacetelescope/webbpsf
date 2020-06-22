@@ -33,7 +33,7 @@ Version History and Change Log
 
 Version 0.9.1
 =============
-*2020 June X*
+*2020 June 22*
 
 **JWST Improvements**
 
