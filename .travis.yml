@@ -65,7 +65,7 @@ deploy:
   username: "__token__"
   password:
     secure: McRW3+IUUn8m/wp/wop3tQax+pAgPhfaiDejbpQrQDMxWo2Uanyy/kcp7MO1MWeItmf/rPCcy3/LKD4EYG4/RU4rSrn/NjV8luYsM89Sti8vAmZ9yiC5u1mDLb0pknWt0KiL8se7pHz2myhg6ddkou44cYk3O9f8a6q/frygXExeOn7fsiZQCGX+PdyJQGVFnoOosHPRKk8kAXr2vlg+mBpEnGt+Pd2KorqIaz4Co6IaTE3VDf+Zo9mbiOsgY8CYbOhH0a3u3U5l12qUmCeQPw7+guJcy0zlBieiEjUB6aPN0VotRaLidc12N/pqZ0hXVVwgB/XKq0JJrECfsNQIxGDZCfKeadcwlFCiEki/zvvH7f2E5fuA4rAAej77tZC3AJXUxpBobv9Eed+MoLZCYq7F74CCuX6MbqUmoTtZdG75uRUfFf/mcTe3dy4cCuIrJG06/I+M0IUdyfCsFkE7HoXiSGJPcSvUsdI+lCyXYZC5l6d02n/v6rz8QTrQAbrveh5VSArj2XQCvNa0YiBz54eIzr9Fe3UQmVw8wlRdmNOcDo0LejwDYL44mm6MbX2VyPFyGqPRbe+NSSPC/LHdBCGEQX01HkmV3kmLFXnSIzpIbjJRzl+dRvN7CVSS3XL8efwPvqsmXReK+VnZ9IzMvYWboK1Bg4/Ri5PRSMKCWhc=
- on:
-     branch: stable
-     tags: true
- skip_existing: true
+  on:
+    branch: stable
+    tags: true
+  skip_existing: true
