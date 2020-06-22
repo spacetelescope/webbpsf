@@ -35,20 +35,21 @@ Version 0.9.1
 =============
 *2020 June 22*
 
+This minor release resolves several bugs and occasional installation issues and updates behind-the-scenes package infrastructure for consistency with current astropy and numpy releases. There are small improvements to a few aspects of JWST models as detailed below (in particular for wavelength dispersion in NIRCam LW coronagraphy and in tools for modeling time-dependent WFE) but the vast majority of JWST PSF calculations are not changed in any way. There are no changes in reference data, so the WebbPSF reference data files for 0.9.0 should continue to be used with this release.
+
 **JWST Improvements**
 
-- *Improved the OTE linear model* by adding utility functions for decomposing WFE models into piston, tip, tilt motions in the JWST control coordinate system, adding a model for frill-induced WFE drift, adding a model for IEC-heater-induced WFE drift, and adding an option to adjust amplitude of OTE backplane thermal drift model for B.O.L. vs E.O.L. expected amplitudes. [:pr:`340`, :user:`mperrin`]
 - *Apply wavelength dependent offsets for NIRCam coronagraphic PSFs* due to the dispersion from the optical wedge in the coronagraphic pupil masks. This primarily affects the LW channel with approximately 0.015 mm/um dispersion. The SW channel is almost a factor of 10 smaller and mostly negligible, but has been included for completeness. [:pr:`347`, :user:`JarronL`]
-- *Add new ``aperturename`` attribute* for JWST instruments which returns the SIAF aperture name used for transforming between the detector position and instrument field of view on the sky. [:pr:`360`, :user:`mperrin`]
-- Improve setting of detector geometry for NIRCam by adding ``auto_apname`` attribute which will automatically set the SIAF aperture name based on detector, filter, image mask, and pupil mask settings and update detector geometry using the SIAF aperture. This can be turned off by setting ``auto_apname=False``. [:pr:`351`, :user:`JarronL`]
-- Add model for image jitter with JWST in coarse point mode under two different assumptions about LOS stability: ``'PCS=Coarse'`` and ``'PCS=Coarse_Like_ITM'``. [:pr:`345`, :pr:`346`, :user:`mperrin`]
+- *Improved models for OTE wavefront variations over time* by adding utility functions for decomposing WFE models into piston, tip, tilt motions in the JWST control coordinate system, adding a model for frill-induced WFE drift, adding a model for IEC-heater-induced WFE drift, and adding an option to adjust amplitude of OTE backplane thermal drift model for B.O.L. vs E.O.L. expected amplitudes. [:pr:`340`, :user:`mperrin`]
+- *Add new ``aperturename`` attribute* for JWST instruments which returns the SIAF aperture name used for transforming between the detector position and instrument field of view on the sky. [:pr:`360`, :user:`mperrin`]. Releatedly, improves setting of detector geometry for NIRCam to automatically set the SIAF aperture name based on detector, filter, and coronagraph image mask and pupil mask settings. This can be turned off by setting ``auto_apname=False``. [:pr:`351`, :user:`JarronL`]
+- Add model for image jitter with JWST in coarse point mode under two different assumptions about LOS stability: ``'PCS=Coarse'`` and ``'PCS=Coarse_Like_ITM'``. This is relevant only for commissioning simulations. [:pr:`345`, :pr:`346`, :user:`mperrin`]
 
 **General bug fixes and small changes:**
 
 - Allow FGS detector to be set to ``GUIDER1`` and ``GUIDER2``, while still supporting old method of setting the detector (using ``FGS1`` and ``FGS2``) [:pr:`361`, :user:`mperrin`]
 - Add ``allow_huge=True`` option to ``astropy.convolution.convolve_fft`` call when applying MIRI distortion so it can handle large arrays when calculating PSFs in very large FOV by using a higher resolution pupil and OPD. [:pr:`354`, :user:`obi-wan76`]
 - Fixed bug that caused an error when plotting OPDs using the ``display_opd`` function [:pr:`362`, :user:`shanosborne`]
-- Update default NIRSpec detector coordinates to be the S1600A1 square aperture coordinates in imaging mode. [:pr:`348`, :user:`mperrin`]
+- Update default NIRSpec detector coordinates to be the S1600A1 square aperture coordinates in imaging mode, rather than an implausible location outside of the MSA field of view. [:pr:`348`, :user:`mperrin`]
 - Updated Simulated OTE Mirror Move Demo notebook. [:pr:`343`, :user:`kjbrooks`]
 - Improved the reproducibility of the thermal slew model with small updates to the ``update_opd`` and ``move_jsc_acf`` functions. [:pr:`339`, :user:`mperrin`]
 
