@@ -47,6 +47,10 @@ Invoke ``dev_utils/make-data-sdist.sh`` one of the following ways to make a gzip
 Releasing new versions
 ======================
 
+If you are making a release for `poppy` at the same time as a release in WebbPSF, do that first.
+Update the dependency requirement to the new version of poppy, in ``webbpsf/setup.cfg``.
+
+When you are ready, proceed with the WebbPSF release as follows:
 
 #. Get the `develop` branch into the state that you want, including all PRs merged, updated release notes. This includes all tests passing both locally and on Travis.
 #. Tag the commit with `v<version>`, being sure to sign the tag with the `-s` option.
@@ -62,7 +66,7 @@ Releasing new versions
    #. Specify the version number, title, and brief description of the release.
    #. Press "Publish Release".
 
-#. Release to PyPI. This should now happen automatically on Travis. This will be triggered by a Travis build of a tagged commit on the `stable` branch.
+#. Release to PyPI. This should now happen automatically on Travis. This will be triggered by a Travis build of a tagged commit on the `stable` branch, so it will happen automatically on the prior step for the PR into stable.
 
 #. Release to AstroConda, via steps below.
 
