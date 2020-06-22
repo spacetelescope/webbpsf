@@ -234,30 +234,66 @@ channels. When enabled, these are added to the final pupil of the optical
 train, i.e. after the coronagraphic image planes. For field-points outside of
 the measurement bounds, WebbPSF performs an extrapolation routine.
 
-The coronagraph field points are far off axis, and this comes with significant WFE 
+.. image:: ./jwst_figures/opds_combined_for_NIRCam_A_SW.png
+   :scale: 45 %
+   :align: center
+   :alt: NIRCam A SW WFE
+
+.. image:: ./jwst_figures/opds_combined_for_NIRCam_A_SW.png
+   :scale: 45 %
+   :align: center
+   :alt: NIRCam B SW WFE
+
+.. image:: ./jwst_figures/opds_combined_for_NIRCam_A_LW.png
+   :scale: 45 %
+   :align: center
+   :alt: NIRCam A LW WFE
+
+.. figure:: ./jwst_figures/opds_combined_for_NIRCam_B_LW.png
+   :scale: 45 %
+   :align: center
+   :alt: NIRCam B LW WFE
+
+   Instrument WFE models for NIRCam. Click for full size.
+
+
+The coronagraph field points are far off axis, and this comes with significant WFE
 added compared to the inner portion of the NIRCam field of view. While SI WFE for
-imaging mode were measured directly from the instrument during ISIM CV3, the 
+imaging mode were measured directly from the instrument during ISIM CV3, the
 coronagraphic WFE maps were built based on the NIRCam Zemax optical model.
 This model was first validated in imaging mode, and then the appropriate optical
 elements were inserted to produce the coronagraphic configuration.
-In this case, both modules were assumed have the exact same (albeit, mirrored) 
-field-dependent WFE maps.
+In this case, both modules were assumed have the exact same (albeit, mirrored)
+field-dependent WFE maps. Note, this substantially WFE occurs physically *after*
+the coronagraphic focal plane spots in NIRCam, and is modeled as such in WebbPSF.
+
 
 Wavelength-Dependent Focus Variations
 ---------------------------------------
 
 NIRCam's wavelength-dependent defocus was measured during ISIM CV2 at a given field point
 (See JWST-RPT-029985 by Randal Telfer). Overall, the measurements are consistent with
-predictions from the nominal optical model. The departure of the data from the 
+predictions from the nominal optical model. The departure of the data from the
 model curve has been determined to be from residual power in individual filters.
-In particular, the F323N filter has a significant extra defocus; WebbPSF includes 
+In particular, the F323N filter has a significant extra defocus; WebbPSF includes
 this measured defocus if the selected filter is F323N.
 
-All SI WFE maps were derived from measurements with the F212N and F323N filters. 
+
+.. figure:: ./jwst_figures/nircam_focus_model.png
+   :scale: 45 %
+   :align: center
+   :alt: NIRCam Defocus Model
+
+   Instrument focus models for NIRCam. Click for full size.
+
+
+
+All SI WFE maps were derived from measurements with the F212N and F323N filters.
 WebbPSF utilizes polynomial fits to the nominal focus model to derive focus offset values
 relative to these narrowband filters for a given wavelength. The derived delta focus
-is then translated to a Zernike focus image, which is subsequently applied to the 
+is then translated to a Zernike focus image, which is subsequently applied to the
 instrument OPD map.
+
 
 
 NIRSpec
@@ -293,6 +329,16 @@ SI WFE
 SI internal WFE measurements are from ISIM CV3 testing (See JWST-RPT-032131 by David Aronstein et al.).
 
 The ISIM CV3 data on their own do not indicate how the sources of WFE are distributed within the NIRSpec optical train. For simulation purposes here, the SI WFE measurements are allocated as 1/3 in the foreoptics, prior to the MSA image plane, and 2/3 in the spectrograph optics, after the MSA image plane. This follows a recommendation from Maurice Te Plate of the NIRSpec team, based on metrology and testing of the NIRSpec flight model optics.
+
+
+.. figure:: ./jwst_figures/opds_combined_for_NIRSpec.png
+   :scale: 45 %
+   :align: center
+   :alt: NIRSpec WFE
+
+
+   Instrument WFE models for NIRSpec. Click for full size.
+
 
 NIRISS
 ======
@@ -353,6 +399,13 @@ SI WFE
 
 SI internal WFE measurements are from ISIM CV3 testing (See JWST-RPT-032131 by David Aronstein et al.).
 
+.. figure:: ./jwst_figures/opds_combined_for_NIRISS.png
+   :scale: 45 %
+   :align: center
+   :alt: NIRISS WFE
+
+   Instrument WFE models for NIRISS. Click for full size.
+
 
 MIRI
 ====
@@ -397,6 +450,14 @@ SI internal WFE measurements are from ISIM CV3 testing (See JWST-RPT-032131 by D
 The SI internal WFE measurements, when enabled, are added to the final pupil of the optical
 train, i.e. after the coronagraphic image planes.
 
+.. figure:: ./jwst_figures/opds_combined_for_MIRI.png
+   :scale: 45 %
+   :align: center
+   :alt: MIRI WFE
+
+   Instrument WFE models for MIRI. Click for full size.
+
+
 
 Minor Field-Dependent Pupil Vignetting
 ----------------------------------------
@@ -420,3 +481,17 @@ SI WFE
 ------
 
 SI internal WFE measurements are from ISIM CV3 testing (See JWST-RPT-032131 by David Aronstein et al.).
+
+
+.. figure:: ./jwst_figures/opds_combined_for_FGS_1.png
+   :scale: 45 %
+   :align: center
+   :alt: FGS 1 WFE
+
+.. figure:: ./jwst_figures/opds_combined_for_FGS_2.png
+   :scale: 45 %
+   :align: center
+   :alt: FGS 2 WFE
+
+
+   Instrument WFE models for FGS. Click for full size.
