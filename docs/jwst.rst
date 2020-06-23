@@ -264,7 +264,7 @@ coronagraphic WFE maps were built based on the NIRCam Zemax optical model.
 This model was first validated in imaging mode, and then the appropriate optical
 elements were inserted to produce the coronagraphic configuration.
 In this case, both modules were assumed have the exact same (albeit, mirrored)
-field-dependent WFE maps. Note, this substantially WFE occurs physically *after*
+field-dependent WFE maps. Note, this substantial WFE occurs physically *after*
 the coronagraphic focal plane spots in NIRCam, and is modeled as such in WebbPSF.
 
 
