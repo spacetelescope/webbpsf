@@ -23,8 +23,6 @@ try:
 except ImportError:
     __version__ = ''
 
-__all__ = ['__version__']
-
 __minimum_python_version__ = "3.6"
 
 
