@@ -7,12 +7,16 @@ WebbPSF: Simulated Point Spread Functions for the James Webb and Nancy Grace Rom
    :target: https://pypi.python.org/pypi/webbpsf
    :alt: Badge showing current released PyPI version
 
-.. image:: https://travis-ci.org/spacetelescope/webbpsf.svg?branch=master
+.. image:: https://travis-ci.org/spacetelescope/webbpsf.svg?branch=develop
    :target: https://travis-ci.org/spacetelescope/webbpsf
    :alt: Badge showing continuous integration test status
 
 .. image:: https://codecov.io/gh/spacetelescope/webbpsf/branch/master/graph/badge.svg
   :target: https://codecov.io/gh/spacetelescope/webbpsf
+
+.. |Documentation Status| image:: https://img.shields.io/readthedocs/webbpsf/latest.svg?logo=read%20the%20docs&logoColor=white&label=Docs&version=latest
+   :target: https://webbpsf.readthedocs.io/en/latest/
+   :alt: Documentation Status
 
 .. image:: https://img.shields.io/badge/ascl-1504.007-blue.svg?colorB=262255
    :target: http://ascl.net/1504.007
