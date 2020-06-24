@@ -290,11 +290,11 @@ def _apply_miri_scattering_kernel(in_psf, kernel_x, oversample):
     # Apply the kernel via convolution in both the X and Y direction
     # Convolve the input PSF with the kernel for scattering in the X direction
     im_conv_x = astropy.convolution.convolve_fft(in_psf, kernel_x, boundary='fill', fill_value=0.0,
-                                                 normalize_kernel=False, nan_treatment='fill')
+                                                 normalize_kernel=False, nan_treatment='fill', allow_huge = True)
 
     # Transpose to make a kernel for Y and convolve with that too
     im_conv_y = astropy.convolution.convolve_fft(in_psf, kernel_x.T, boundary='fill', fill_value=0.0,
-                                                 normalize_kernel=False, nan_treatment='fill')
+                                                 normalize_kernel=False, nan_treatment='fill', allow_huge = True)
 
     # Sum together both the X and Y scattering.
     # Note, it appears we do need to correct the amplitude for the sampling factor. Might as well do that here.

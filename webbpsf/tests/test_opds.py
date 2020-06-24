@@ -83,7 +83,7 @@ def test_get_thermal_slew_coeffs(time, seg, scaling, start_angle, end_angle,
     delta_time = time
     # Create the thermal model
     otelm = webbpsf.opds.OTE_Linear_Model_WSS()
-    otelm.thermal_slew(delta_time, start_angle, end_angle, scaling)
+    otelm.thermal_slew(delta_time, start_angle, end_angle, scaling, case='EOL')
     coeffs = otelm._get_thermal_slew_coeffs(segid=seg)
     # Pull out coefficients
     if isinstance(coeffs, float):
@@ -100,12 +100,104 @@ def test_thermal_slew_update_opd():
     ''' Test that running webbpsf.opds.OTE_Linear_Model_WSS.thermal_slew() will
         give the expected output'''
     otelm = webbpsf.opds.OTE_Linear_Model_WSS()
-    otelm.thermal_slew(delta_time=1.0*u.day)
+    otelm.thermal_slew(delta_time=1.0*u.day, case='EOL')
     max_truth = 4.13338e-08 / 1e-9 # Convert the max truth to units of nm
     assert np.isclose(np.max(otelm.opd)/1e-9, max_truth), "OPD max does not match expected value after 1 day slew."
 
+
+def test_thermal_slew_reproducibility():
+    """ If you call the thermal slew model multiple times, the OPD values should depend
+    only on the LAST set of function call parameters. Not on the full time history.
+
+    See issue #338
+    """
+    ote = webbpsf.opds.OTE_Linear_Model_WSS()
+
+    ote.thermal_slew(12*u.hour, start_angle=-5, end_angle=45, case='EOL')
+    opd1 = ote.opd.copy()
+
+    ote.thermal_slew(24*u.hour, start_angle=-5, end_angle=45, case='EOL')
+    opd2 = ote.opd.copy()
+
+    ote.thermal_slew(12*u.hour, start_angle=-5, end_angle=45, case='EOL')
+    opd3 = ote.opd.copy()
+
+    assert np.allclose(opd1, opd2)==False, "OPDs expected to differ didn't"
+    assert np.allclose(opd1, opd3), "OPDs expected to match didn't"
+
+
 def test_update_opd():
     ''' The start of what should be many tests of this function'''
-    otelm = webbpsf.opds.OTE_Linear_Model_WSS()
-    otelm.update_opd()
-    assert np.max(otelm.opd) == 0.0
+
+    # Test the very basics
+    ote = webbpsf.opds.OTE_Linear_Model_WSS()
+    ote.update_opd()
+    assert np.max(ote.opd) == 0.0
+
+    # can we add a deterministic frill drift?
+    requested_wfe = 5
+    ote.apply_frill_drift(requested_wfe)
+    assert np.allclose(ote.rms(), requested_wfe, rtol=0.1), "Frill WFE amplitude not as expected"
+    ote.apply_frill_drift(0.0)
+
+    # can we add a deterministic IEC drift?
+    requested_wfe = 15
+    ote.apply_iec_drift(requested_wfe)
+    assert np.allclose(ote.rms(), requested_wfe, rtol=0.1), "IEC WFE amplitude not as expected"
+
+    # Todo test random drifts
+
+
+def test_move_sur(plot=False):
+    """ Test we can move mirrors using Segment Update Requests
+    """
+    import webbpsf
+    import os
+    import glob
+    surdir = os.path.join(webbpsf.__path__[0], 'tests', 'surs')
+    surs = glob.glob(surdir+'/*sur.xml')
+
+    nrc = webbpsf.NIRCam()
+    nrc.filter='F212N'
+    nrc, ote = webbpsf.enable_adjustable_ote(nrc)
+    ote.zero(zero_original=True)
+
+    for s in surs:
+        print("Testing "+s)
+        ote.reset()
+        ote.move_sur(s)
+        # the coarse phasing SUR is a no-op after 3 groups; all others have some effect
+        if 'coarse_phasing' not in s:
+            assert not np.allclose(ote.segment_state, 0), "Expected some segments to be moved"
+
+        ote.move_sur(s, reverse=True)
+        assert np.allclose(ote.segment_state, 0), "Reversing moves didn't bring us back to zero"
+
+    # Test moving one at a time. This test relies on specifics of what's in the image stacking SUR.
+    s = glob.glob(surdir+'/example_image_stacking*sur.xml')[0]
+    print("Testing moving one group at a time with "+s)
+    ote.reset()
+    import jwxml
+    sur = jwxml.SUR(s)
+
+    ngroups = len(sur.groups)
+    oldstate = ote.segment_state.copy()
+
+    for igrp in range(1,ngroups+1):
+        print("Group {} should move segment {}".format(igrp, 2*igrp+6))
+        ote.move_sur(s, group=igrp)
+
+        movedsegs = np.abs((ote.segment_state - oldstate).sum(axis=1))
+        assert (movedsegs!=0).sum()==1, "Only expected one segment to move"
+        whichmoved = np.argmax(movedsegs)+1
+        print ("Moved segment", whichmoved)
+        assert whichmoved == 2*igrp+6, "An unexpected segment moved"
+        oldstate = ote.segment_state.copy()
+        if plot:
+            psf = nrc.calc_psf(fov_pixels=256, add_distortion=False)
+            plt.figure()
+            ote.display_opd(title="After Group {}".format(igrp))
+            plt.figure()
+            webbpsf.display_psf(psf, ext=1, title="After Group {}".format(igrp))
+
+

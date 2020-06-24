@@ -34,6 +34,13 @@ All classes share some common attributes:
    on that detector for the center location in any calculated output PSF.
    Note that the ``detector_position`` value should be
    specified using the order (X,Y).
+ * The ``aperturename`` attribute provides the `SIAF <https://pysiaf.readthedocs.io>`_ aperture name
+   used for transforming between detector position and instrument field of view on the sky. By default
+   this will be a full-frame aperture for the currently-selected detector, but you may select any
+   subarray aperture or other aperture named in the SIAF for that instrument. The aperturename will always
+   update automatically when you select a new detector name. For NIRCam and MIRI,
+   the aperturename can also (optionally) automatically update for coronagraphic subarrays if/when a coronagraphic
+   optic is selected for the image or pupil mask. .
 
 .. warning::
 
@@ -114,7 +121,6 @@ just set the desired detector and the channel and module are inferred
 automatically.
 
 
-
 The choice of ``filter`` also impacts the channel selection: If you choose a
 long-wavelength filter such as F460M, then the detector will automatically
 switch to the long-wave detector for the current channel. For example, if the
@@ -144,6 +150,7 @@ behavior on filter selection can be disabled by setting ``nircam.auto_channel = 
     filter or detector attribute whenever you want to toggle between SW or LW channels.
 
 
+
 Coronagraph Masks
 ------------------
 
@@ -161,6 +168,13 @@ Note, the Lyot masks have multiple names for historical reasons: The names
 can still be used, but the same masks can also be referred to as "MASKRND" and
 "MASKSWB" or "MASKLWB", the nomenclature that was eventually adopted for use in
 APT and other JWST documentation. Both ways work and will continue to do so.
+
+The NIRCam class can automatically switch its ``aperturename`` attribute when a
+coronagraphic mask is selected, to select the aperturename for the appropriate
+coronagraphic subarray.  The detector reference pixel location will also update
+to the center of the coronagraphic subarray. This behavior on image mask or
+pupil mask selection can be disabled by setting ``nircam.auto_aperturename =
+False``.
 
 **Offsets along the MASKLWB and MASKSWB masks**:
 
@@ -220,30 +234,66 @@ channels. When enabled, these are added to the final pupil of the optical
 train, i.e. after the coronagraphic image planes. For field-points outside of
 the measurement bounds, WebbPSF performs an extrapolation routine.
 
-The coronagraph field points are far off axis, and this comes with significant WFE 
+.. image:: ./jwst_figures/opds_combined_for_NIRCam_A_SW.png
+   :scale: 45 %
+   :align: center
+   :alt: NIRCam A SW WFE
+
+.. image:: ./jwst_figures/opds_combined_for_NIRCam_A_SW.png
+   :scale: 45 %
+   :align: center
+   :alt: NIRCam B SW WFE
+
+.. image:: ./jwst_figures/opds_combined_for_NIRCam_A_LW.png
+   :scale: 45 %
+   :align: center
+   :alt: NIRCam A LW WFE
+
+.. figure:: ./jwst_figures/opds_combined_for_NIRCam_B_LW.png
+   :scale: 45 %
+   :align: center
+   :alt: NIRCam B LW WFE
+
+   Instrument WFE models for NIRCam. Click for full size.
+
+
+The coronagraph field points are far off axis, and this comes with significant WFE
 added compared to the inner portion of the NIRCam field of view. While SI WFE for
-imaging mode were measured directly from the instrument during ISIM CV3, the 
+imaging mode were measured directly from the instrument during ISIM CV3, the
 coronagraphic WFE maps were built based on the NIRCam Zemax optical model.
 This model was first validated in imaging mode, and then the appropriate optical
 elements were inserted to produce the coronagraphic configuration.
-In this case, both modules were assumed have the exact same (albeit, mirrored) 
-field-dependent WFE maps.
+In this case, both modules were assumed have the exact same (albeit, mirrored)
+field-dependent WFE maps. Note, this substantial WFE occurs physically *after*
+the coronagraphic focal plane spots in NIRCam, and is modeled as such in WebbPSF.
+
 
 Wavelength-Dependent Focus Variations
 ---------------------------------------
 
 NIRCam's wavelength-dependent defocus was measured during ISIM CV2 at a given field point
 (See JWST-RPT-029985 by Randal Telfer). Overall, the measurements are consistent with
-predictions from the nominal optical model. The departure of the data from the 
+predictions from the nominal optical model. The departure of the data from the
 model curve has been determined to be from residual power in individual filters.
-In particular, the F323N filter has a significant extra defocus; WebbPSF includes 
+In particular, the F323N filter has a significant extra defocus; WebbPSF includes
 this measured defocus if the selected filter is F323N.
 
-All SI WFE maps were derived from measurements with the F212N and F323N filters. 
+
+.. figure:: ./jwst_figures/nircam_focus_model.png
+   :scale: 45 %
+   :align: center
+   :alt: NIRCam Defocus Model
+
+   Instrument focus models for NIRCam. Click for full size.
+
+
+
+All SI WFE maps were derived from measurements with the F212N and F323N filters.
 WebbPSF utilizes polynomial fits to the nominal focus model to derive focus offset values
 relative to these narrowband filters for a given wavelength. The derived delta focus
-is then translated to a Zernike focus image, which is subsequently applied to the 
+is then translated to a Zernike focus image, which is subsequently applied to the
 instrument OPD map.
+
 
 
 NIRSpec
@@ -279,6 +329,16 @@ SI WFE
 SI internal WFE measurements are from ISIM CV3 testing (See JWST-RPT-032131 by David Aronstein et al.).
 
 The ISIM CV3 data on their own do not indicate how the sources of WFE are distributed within the NIRSpec optical train. For simulation purposes here, the SI WFE measurements are allocated as 1/3 in the foreoptics, prior to the MSA image plane, and 2/3 in the spectrograph optics, after the MSA image plane. This follows a recommendation from Maurice Te Plate of the NIRSpec team, based on metrology and testing of the NIRSpec flight model optics.
+
+
+.. figure:: ./jwst_figures/opds_combined_for_NIRSpec.png
+   :scale: 45 %
+   :align: center
+   :alt: NIRSpec WFE
+
+
+   Instrument WFE models for NIRSpec. Click for full size.
+
 
 NIRISS
 ======
@@ -339,6 +399,13 @@ SI WFE
 
 SI internal WFE measurements are from ISIM CV3 testing (See JWST-RPT-032131 by David Aronstein et al.).
 
+.. figure:: ./jwst_figures/opds_combined_for_NIRISS.png
+   :scale: 45 %
+   :align: center
+   :alt: NIRISS WFE
+
+   Instrument WFE models for NIRISS. Click for full size.
+
 
 MIRI
 ====
@@ -360,6 +427,11 @@ co-mounted. WebbPSF models this by automatically setting the ``pupil_mask``
 element to one of the coronagraph masks or the regular pupil when the ``filter``
 is changed. If you want to disable this behavior, set ``miri.auto_pupil = False``.
 
+The MIRI class can automatically switch its ``aperturename`` attribute when a
+coronagraphic mask is selected, to select the aperturename for the appropriate
+coronagraphic subarray.  The detector reference pixel location will also update
+to the center of the coronagraphic subarray. This behavior on image mask
+selection can be disabled by setting ``miri.auto_aperturename = False``.
 
 LRS Spectroscopy
 ----------------
@@ -377,6 +449,14 @@ SI internal WFE measurements are from ISIM CV3 testing (See JWST-RPT-032131 by D
 
 The SI internal WFE measurements, when enabled, are added to the final pupil of the optical
 train, i.e. after the coronagraphic image planes.
+
+.. figure:: ./jwst_figures/opds_combined_for_MIRI.png
+   :scale: 45 %
+   :align: center
+   :alt: MIRI WFE
+
+   Instrument WFE models for MIRI. Click for full size.
+
 
 
 Minor Field-Dependent Pupil Vignetting
@@ -401,3 +481,17 @@ SI WFE
 ------
 
 SI internal WFE measurements are from ISIM CV3 testing (See JWST-RPT-032131 by David Aronstein et al.).
+
+
+.. figure:: ./jwst_figures/opds_combined_for_FGS_1.png
+   :scale: 45 %
+   :align: center
+   :alt: FGS 1 WFE
+
+.. figure:: ./jwst_figures/opds_combined_for_FGS_2.png
+   :scale: 45 %
+   :align: center
+   :alt: FGS 2 WFE
+
+
+   Instrument WFE models for FGS. Click for full size.

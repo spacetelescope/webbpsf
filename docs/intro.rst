@@ -3,7 +3,7 @@ Introduction
 
 **What this software does:**
 
-* Uses OPD maps precomputed by detailed optical simulations of JWST and WFIRST, and in the case of JWST
+* Uses OPD maps precomputed by detailed optical simulations of JWST and the Nancy Grace Roman Space Telescope (formerly WFIRST), and in the case of JWST
   based on instrument and telescope flight hardware cryo-vacuum test results.
 * For JWST, computes PSF images with requested properties for any of JWST's instruments. Supports imaging, coronagraphy, and most spectrographic modes with all of JWST's instruments. IFUs are yet to come.
 * For WFIRST, computes PSFs with the Wide Field Imager, based on recent GSFC optical models, including field- and wavelength-dependent aberrations. 
@@ -104,17 +104,7 @@ See :ref:`Optimizing Performance and Parallelization <performance_and_paralleliz
 Getting WebbPSF
 ---------------
 
-The WebbPSF software is installable through pip, but it depends on data files distributed through STScI. Since there is more than one way to install scientific Python software, the possibilities are covered in :ref:`installation`.
-
-The `AstroConda <http://astroconda.readthedocs.io/en/latest/>`_ distribution includes WebbPSF and its associated data files. If you installed the packages into an environment named ``astroconda``, the command to upgrade all STScI software (including WebbPSF) to the latest version would be ``conda update --name astroconda stsci``.
-
-For those who prefer to use pip (and have NumPy, SciPy, and matplotlib already installed) the command is::
-
-   $ pip install -U webbpsf
-
-This command installs (or upgrades) WebbPSF to the latest version on `PyPI <https://pypi.python.org/>`_. Before WebbPSF will run, you must :ref:`download the WebbPSF data files <data_install>` and set the ``WEBBPSF_DATA`` environment variable to point to the place you extracted them. You may also want to :ref:`install Pysynphot <pysynphot_install>`, an optional dependency, to improve PSF fidelity.
-
-For detailed installation instructions, refer to :ref:`installation`. (This document also explains how to install optional dependencies, install supporting data files, :ref:`install from GitHub source <install_dev_version>`, etc.)
+See :ref:`installation`.
 
 .. _quickstart:
 

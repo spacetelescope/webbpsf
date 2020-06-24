@@ -5,11 +5,7 @@ Developer Notes: Releasing a new version of WebbPSF
 Prerequisites
 =============
 
- * Is the build `passing on Travis? <https://travis-ci.org/spacetelescope/webbpsf>`_
- * Are you up to date with ``master`` on the upstream branch (spacetelescope/webbpsf)?
- * Do you have `twine <https://pypi.python.org/pypi/twine>`_ installed?
- * Do you have access to WebbPSF on PyPI with the owner or maintainer role?
- * Do you have your ``~/.pypirc`` filled out? (`more info <https://python-packaging-user-guide.readthedocs.org/en/latest/distributing.html#register-your-project>`_)
+ * Is the `develop` build `passing on Travis? <https://travis-ci.org/spacetelescope/webbpsf>`_ with all desired release items included?
 
 Releasing new data packages
 ===========================
@@ -17,12 +13,22 @@ Releasing new data packages
  #. Run ``dev_utils/make-data-sdist.sh`` (details below) to make a gzipped tarred archive of the WebbPSF data
  #. If the new data package is **required** (meaning you can't run WebbPSF without it, or you can run but may get incorrect results), you must bump ``DATA_VERSION_MIN`` in ``__init__.py`` to ``(0, X, Y)``
  #. Extract the resulting data archive and check that you can run the WebbPSF tests with ``WEBBPSF_PATH`` pointing to it
- #. Copy the data archive into public web space
- #. ``cd`` to ``/grp/jwst/ote`` and remove the ``webbpsf-data`` symlink
- #. Copy the archive into ``/grp/jwst/ote/`` and extract it to ``/grp/jwst/ote/webbpsf-data``
- #. Rename the folder to ``webbpsf-data-0.x.y``
- #. Create a symbolic link at ``/grp/jwst/ote/webbpsf-data`` to point to the new folder
+ #. Copy the data archive into public web space.
+
+     #. This now means on Box. Upload to Box in the webbpsf shared data folder. Get the Box shared file URL.
+     #. Update ``docs/installation.rst`` to have that new URL and updated filename in the appropriate location.
+
+ #. Update the shared copy on STScI Central Store:
+
+    #. ``cd`` to ``/grp/jwst/ote`` and remove the ``webbpsf-data`` symlink
+    #. Copy the archive into ``/grp/jwst/ote/`` and extract it to ``/grp/jwst/ote/webbpsf-data``
+    #. Rename the folder to ``webbpsf-data-0.x.y``
+    #. Create a symbolic link at ``/grp/jwst/ote/webbpsf-data`` to point to the new folder
+
  #. Update the URL in ``installation.rst`` under :ref:`data_install`
+
+Details for using `make-data-sdist.sh`:
+-------------------------------------
 
 Invoke ``dev_utils/make-data-sdist.sh`` one of the following ways to make a gzipped tarred archive of the WebbPSF data suitable for distribution.
 
@@ -38,28 +44,31 @@ Invoke ``dev_utils/make-data-sdist.sh`` one of the following ways to make a gzip
    $ DATAROOT="/Users/you/webbpsf-data-sources/" ./make-data-sdist.sh 0.X.Y
    $ cp ./webbpsf-data-0.X.Y.tar.gz /where/ever/you/want/
 
-Releasing new versions on PyPI
-==============================
+Releasing new versions
+======================
 
- #. Edit ``relnotes.rst`` to add a release date and reference anchor (e.g. ``.. _rel0.X.Y:``) to the section for this release
- #. Update the link to "What's new" in ``index.rst``
- #. Add any important notes to the appropriate section in the release notes
- #. Edit ``setup.py`` in this repository to remove ``.dev`` from the version number in the ``VERSION`` variable
- #. Build a source distribution with ``python setup.py build sdist``
- #. Copy the resulting file (``webbpsf-0.X.Y.tar.gz``) to a new folder, extract it, and ``cd`` there
- #. Run ``python setup.py test`` (preferably in a new ``virtualenv`` containing only the WebbPSF dependencies) and verify that the test suite passes with the code you're about to release
- #. If that runs as expected, ``cd`` back to your ``webbpsf`` repository and run ``twine upload dist/webbpsf-0.X.Y.tar.gz`` for your new version
- #. Verify that the latest version is visible and others are hidden on the `PyPI package editing page <https://pypi.python.org/pypi?%3Aaction=pkg_edit&name=webbpsf>`_
+If you are making a release for `poppy` at the same time as a release in WebbPSF, do that first.
+Update the dependency requirement to the new version of poppy, in ``webbpsf/setup.cfg``.
 
-Finishing the release
-^^^^^^^^^^^^^^^^^^^^^
+When you are ready, proceed with the WebbPSF release as follows:
 
- #. Commit your edits to ``relnotes.rst`` and ``setup.py``
- #. Tag that commit as the release with ``git tag v0.X.Y`` and push the tags to origin and upstream with ``git push --tags origin`` and ``git push --tags upstream``
- #. Edit ``setup.py`` to increment the version number in the ``VERSION`` variable and re-add the ``.dev`` suffix
- #. Edit ``relnotes.rst`` to add a new heading for the upcoming version
- #. Commit your edits with a message like "Back to development: version 0.X.Y+1"
- #. Email an announcement to ``webbpsf-users@stsci.edu``
+#. Get the `develop` branch into the state that you want, including all PRs merged, updated release notes. This includes all tests passing both locally and on Travis.
+#. Tag the commit with `v<version>`, being sure to sign the tag with the `-s` option.
+   * ``git tag -s v<version> -m "Release v<version>"``
+
+#. Push tag to github, on `develop`
+#. On github, make a PR from `develop` to `stable` (this can be done ahead of time and left open, until all individual PRs are merged into `develop`.).
+#. After verifying that PR is complete and tests pass, merge it. (Once merged, both the `stable` and `develop` branches should match).
+#. Release on Github:
+
+   #. On Github, click on "[N] Releases".
+   #. Select "Draft a new release".
+   #. Specify the version number, title, and brief description of the release.
+   #. Press "Publish Release".
+
+#. Release to PyPI. This should now happen automatically on Travis. This will be triggered by a Travis build of a tagged commit on the `stable` branch, so it will happen automatically on the prior step for the PR into stable.
+
+#. Release to AstroConda, via steps below.
 
 Releasing a new version through AstroConda
 ==========================================
@@ -78,3 +87,11 @@ To test that an Astroconda package builds, you will need ``conda-build``::
 #. Create a pull request against ``astroconda/astroconda-contrib``.
 #. Wait for SSB to build the conda packages.
 #. (optional) Create a new conda environment to test the package installation following :ref:`these instructions <install-with-conda>`.
+
+
+Finishing the release
+=====================
+
+ #. Email an announcement to ``webbpsf-users@maillist.stsci.edu``
+
+

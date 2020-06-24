@@ -465,13 +465,20 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
     def get_opd(self, wave):
         """ Make an OPD array corresponding to the cylindrical weak lens
         used for defocusing the spectrum in the perpendicular-to-dispersion direction.
+
+        Parameters
+        ----------
+        wave : float or obj
+            either a scalar wavelength (meters) or a Wavefront object
         """
 
+        # wave should be a Wavefront object
+        # wavelength is an astropy.units type
         if isinstance(wave, poppy.Wavefront):
             wavelength = wave.wavelength
         else:
-            wavelength = float(wave)
-            wave = poppy.Wavefront(wavelength=wave)
+            wave = poppy.Wavefront(wavelength=float(wave))
+            wavelength = wave.wavelength
 
         # compute indices in pixels, relative to center of plane, with rotation
         # units of these are meters
@@ -538,10 +545,11 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
         # scale for index of refraction
         index = self.ZnS_index(wavelength)
         opd = sag * (index - 1)
-        _log.debug(" Scaling for ZnS index of refraction {0} at {1:.3g} microns".format(index, wavelength * 1e6))
+        lambda_micron = wavelength.to(units.micron).value
+        _log.debug(" Scaling for ZnS index of refraction {0} at {1:.3g} microns".format(index, lambda_micron))
         _log.debug(
             " Cylinder P-V: {0:.4g} meters optical sag at {1:.3g} microns across clear aperture".format(opd[wnz].max() - opd[wnz].min(),
-                                                                                                        wavelength * 1e6))
+                                                                                                        lambda_micron))
         return opd
 
     def get_transmission(self, wave):
@@ -551,8 +559,9 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
         if isinstance(wave, poppy.Wavefront):
             wavelength = wave.wavelength
         else:
-            wavelength = float(wave)
-            wave = poppy.Wavefront(wavelength=wave)
+            wave = poppy.Wavefront(wavelength=float(wave))
+            wavelength = wave.wavelength
+
         y, x = wave.coordinates()
         ang = np.deg2rad(self.pupil_rotation_angle)
         x = np.cos(ang) * x - np.sin(ang) * y
@@ -1184,12 +1193,16 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
         self.instr_name = instrument.name
 
         # work out which name to index into the CV results with, if for NIRCam
+        is_nrc_coron = False  # Define NRC coronagraph variable for conciseness 
         if instrument.name == 'NIRCam':
             channel = instrument.channel[0].upper()
             lookup_name = "NIRCam{channel}W{module}".format(
                 channel=channel,
                 module=instrument.module
             )
+            # Check for coronagraphy; Set is_ncr_coron to True for Lyot pupil mask
+            pupil_mask = self.instrument._pupil_mask
+            is_nrc_coron = (pupil_mask is not None) and ( ('LYOT' in pupil_mask.upper()) or ('MASK' in pupil_mask.upper()) )
         elif instrument.name == 'FGS':
             # 'GUIDER1' or 'GUIDER2'
             assert instrument.detector in ('FGS1', 'FGS2')
@@ -1203,10 +1216,8 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
         # load the Zernikes table here         
         zfile = "si_zernikes_isim_cv3.fits"
         # Check special case NIRCam coronagraphy
-        if instrument.name == 'NIRCam':
-            pupil_mask = self.instrument._pupil_mask
-            if (pupil_mask is not None) and ('LYOT' in pupil_mask.upper()):
-                zfile = "si_zernikes_coron_wfe.fits"
+        if is_nrc_coron:
+            zfile = "si_zernikes_coron_wfe.fits"
         zernike_file = os.path.join(utils.get_webbpsf_data_path(), zfile)
 
         if not os.path.exists(zernike_file):
@@ -1303,11 +1314,9 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
                     v2_min, v2_max, v3_min, v3_max = (v2.min(), v2.max(), v3.min(), v3.max())
 
                 # For NIRCam coronagraphy, add 50" to V3 limits
-                if instrument.name == 'NIRCam':
-                    pupil_mask = self.instrument._pupil_mask
-                    if (pupil_mask is not None) and ('LYOT' in pupil_mask.upper()):
-                        v3_min += 50. / 60.
-                        v3_max += 50. / 60.
+                if is_nrc_coron:
+                    v3_min += 50. / 60.
+                    v3_max += 50. / 60.
 
                 # Create fine mesh grid
                 dstep = 1. / 60. # 1" steps
@@ -1406,7 +1415,7 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
         keywords['SIWFETYP'] = self.si_wfe_type
         keywords['SIWFEFPT'] = (self.row['field_point_name'], "Closest ISIM CV3 WFE meas. field point")
         for i in range(1, 36):
-            keywords['SIZERN{}'.format(i)] = (self.zernike_coeffs[i - 1], "[nm] SI WFE coeff for Zernike term {}".format(i))
+            keywords['SIZERN{}'.format(i)] = (self.zernike_coeffs[i - 1], "[m] SI WFE coeff for Zernike term {}".format(i))
         return keywords
 
     # wrapper just to change default vmax
@@ -1469,20 +1478,32 @@ class NIRCamFieldAndWavelengthDependentAberration(WebbFieldDependentAberration):
             instrument,
             **kwargs)
 
-        # Polynomial equations fit to defocus model (RMS WFE).
+        # Polynomial equations fit to defocus model. Wavelength-dependent focus 
+        # results should correspond to Zernike coefficients in meters.
         # Fits were performed to the SW and LW optical design focus model 
         # as provided by Randal Telfer. 
         # See plot at https://github.com/spacetelescope/webbpsf/issues/179
         # The relative wavelength dependence of these focus models are very
         # similar for coronagraphic mode in the Zemax optical prescription,
         # so we opt to use the same focus model in both imaging and coronagraphy.
-        cf_scale = -1.09746e7 # convert from mm defocus to meters RMS wfe
-        sw_cf = np.array([-5.169185169, 50.62919436, -201.5444129, 415.9031962,  
-                          -465.9818413, 265.843112, -59.64330811]) / cf_scale
-        lw_cf = np.array([0.175718713, -1.100964635, 0.986462016, 1.641692934]) / cf_scale
-        self.fm_short = np.poly1d(sw_cf)
-        self.fm_long  = np.poly1d(lw_cf)
-        
+        defocus_to_rmswfe = -1.09746e7 # convert from mm defocus to meters (WFE)
+        sw_focus_cf = np.array([-5.169185169, 50.62919436, -201.5444129, 415.9031962,  
+                                -465.9818413, 265.843112, -59.64330811]) / defocus_to_rmswfe
+        lw_focus_cf = np.array([0.175718713, -1.100964635, 0.986462016, 1.641692934]) / defocus_to_rmswfe
+        self.fm_short = np.poly1d(sw_focus_cf)
+        self.fm_long  = np.poly1d(lw_focus_cf)
+
+        # Coronagraphic tilt (`ctilt`) offset model
+        # Primarily effects the LW channel (approximately a 0.031mm diff from 3.5um to 5.0um).
+        # SW module is small compared to LW, but we include it for completeness.
+        # Values have been determined using the Zernike offsets as reported in the 
+        # NIRCam Zemax models. The center reference positions will correspond to the 
+        # NIRCam target acquisition filters (3.35um for LW and 2.1um for SW)
+        sw_ctilt_cf = np.array([125.849834, -289.018704]) / 1e9
+        lw_ctilt_cf = np.array([146.827501, -2000.965222, 8385.546158, -11101.658322]) / 1e9
+        self.ctilt_short = np.poly1d(sw_ctilt_cf)
+        self.ctilt_long  = np.poly1d(lw_ctilt_cf)
+
         # Get the representation of focus in the same Zernike basis as used for
         # making the OPD. While it looks like this does more work here than needed
         # by making a whole basis set, in fact because of caching behind the scenes
@@ -1493,9 +1514,27 @@ class NIRCamFieldAndWavelengthDependentAberration(WebbFieldDependentAberration):
             outside=0
         )
         self.defocus_zern = basis[3]
+        self.tilt_zern = basis[2]
 
         
     def get_opd(self, wave):
+        """
+        Parameters
+        ----------
+        wave : float or obj
+            either a scalar wavelength (meters) or a Wavefront object
+        """
+
+        if isinstance(wave, poppy.Wavefront):
+            wavelength = wave.wavelength
+        else:
+            wave = poppy.Wavefront(wavelength=float(wave))
+            wavelength = wave.wavelength
+
+        # Check for coronagraphy
+        pupil_mask = self.instrument._pupil_mask
+        is_nrc_coron = (pupil_mask is not None) and ( ('LYOT' in pupil_mask.upper()) or ('MASK' in pupil_mask.upper()) )
+
         # Which wavelength was used to generate the OPD map we have already
         # created from zernikes?
         if self.instrument.channel.upper() == 'SHORT':
@@ -1509,27 +1548,46 @@ class NIRCamFieldAndWavelengthDependentAberration(WebbFieldDependentAberration):
             # which has it's own focus that deviates from focusmodel().
             # But only do this for direct imaging SI WFE values,
             # because coronagraph WFE was measured in Zemax (no additional focus power).
-            pupil_mask = self.instrument._pupil_mask
-            if (pupil_mask is not None) and ('LYOT' in pupil_mask.upper()):
+            if is_nrc_coron:
                 opd_ref_focus = focusmodel(opd_ref_wave)
             else:
                 opd_ref_focus = 1.206e-7 # Not coronagraphy (e.g., imaging)
 
         # If F323N or F212N, then no focus offset necessary
+        wave_um = wavelength.to(units.micron).value
         if ('F323N' in self.instrument.filter) or ('F212N' in self.instrument.filter):
             deltafocus = 0
         else:
-            wave_um = wave.wavelength.to(units.micron).value
             deltafocus = focusmodel(wave_um) - opd_ref_focus
 
         _log.info("  Applying OPD focus adjustment based on NIRCam focus vs wavelength model")
-        _log.info("  Delta focus from {} to {}: {:.3f} nm rms".format(
-            opd_ref_wave,
-            wave.wavelength.to(units.micron),
-            deltafocus * 1e9)
+        _log.info("  Modified focus from {} to {} um: {:.3f} nm wfe".format(
+            opd_ref_wave, wave_um, -deltafocus * 1e9)
         )
 
+        # Apply defocus
         mod_opd = self.opd - deltafocus * self.defocus_zern
+
+        # Apply wavelength-dependent tilt offset for coronagraphy
+        # We want the reference wavelength to be that of the target acq filter
+        # Final offset will position TA ref wave at the OPD ref wave location
+        #   (wave_um - opd_ref_wave) - (ta_ref_wave - opd_ref_wave) = wave_um - ta_ref_wave
+        if is_nrc_coron:
+            if self.instrument.channel.upper() == 'SHORT':
+                ctilt_model = self.ctilt_short
+                ta_ref_wave = 2.10
+            else: 
+                ctilt_model = self.ctilt_long
+                ta_ref_wave = 3.35
+
+            tilt_offset = ctilt_model(wave_um) - ctilt_model(ta_ref_wave)
+            _log.info("  Applying OPD tilt adjustment based on NIRCam tilt vs wavelength model")
+            _log.info("  Modified tilt from {} to {} um: {:.3f} nm wfe".format(
+                ta_ref_wave, wave_um, tilt_offset * 1e9)
+            )
+
+            # Apply tilt offset
+            mod_opd = mod_opd + tilt_offset * self.tilt_zern
 
         rms = np.sqrt((mod_opd[mod_opd != 0] ** 2).mean())
         _log.info("  Resulting OPD has {:.3f} nm rms".format(rms * 1e9))

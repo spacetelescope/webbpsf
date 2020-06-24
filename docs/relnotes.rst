@@ -24,7 +24,6 @@ Road Map for Future Releases
 --------------------------------
 * Continued validation and updates as needed based on further analyses of instrument and telescope hardware test data.
 * Support for the NIRSpec and MIRI IFUs may be added in a future release; level of detail is still TBD.
-* Possibly: separate handling of pre- and post- coronagraphic WFE in instruments, or pre- and post- NIRSpec MSA plane WFE; pending receipt of test data and models from the instrument teams.
 
 .. _whatsnew:
 
@@ -33,9 +32,46 @@ Version History and Change Log
 
 Version 0.9.1
 =============
-*2020 Date TBD*
+*2020 June 22*
 
- - Future changes here
+This minor release resolves several bugs and occasional installation issues and updates behind-the-scenes package infrastructure for consistency with current astropy and numpy releases. There are small improvements to a few aspects of JWST models as detailed below (in particular for wavelength dispersion in NIRCam LW coronagraphy and in tools for modeling time-dependent WFE) but the vast majority of JWST PSF calculations are not changed in any way.
+
+There are no changes in reference data, so the WebbPSF reference data files for 0.9.0 should continue to be used with this release.
+
+.. admonition:: Python version support: Python 3.6+ required
+
+        This version drops support for Python 3.5. The minimum supported version of Python is now 3.6.
+
+
+**JWST Improvements**
+
+- *Apply wavelength dependent offsets for NIRCam coronagraphic PSFs* due to the dispersion from the optical wedge in the coronagraphic pupil masks. This primarily affects the LW channel with approximately 0.015 mm/um dispersion. The SW channel is almost a factor of 10 smaller and mostly negligible, but has been included for completeness. [:pr:`347`, :user:`JarronL`]
+- *Improved models for OTE wavefront variations over time* by adding utility functions for decomposing WFE models into piston, tip, tilt motions in the JWST control coordinate system, adding a model for frill-induced WFE drift, adding a model for IEC-heater-induced WFE drift, and adding an option to adjust amplitude of OTE backplane thermal drift model for B.O.L. vs E.O.L. expected amplitudes. [:pr:`340`, :user:`mperrin`]
+- *Add new* ``aperturename`` *attribute* for JWST instruments which returns the SIAF aperture name used for transforming between the detector position and instrument field of view on the sky. [:pr:`360`, :user:`mperrin`]. Releatedly, improves setting of detector geometry for NIRCam to automatically set the SIAF aperture name based on detector, filter, and coronagraph image mask and pupil mask settings. This can be turned off by setting ``auto_apname=False``. [:pr:`351`, :user:`JarronL`]
+- Add model for image jitter with JWST in coarse point mode under two different assumptions about LOS stability. This is relevant only for commissioning simulations. [:pr:`345`, :pr:`346`, :user:`mperrin`]
+- Documentation updates, in particular adding :ref:`figures of JWST instrument internal wavefront error models <jwst_instruments>`. [:pr:`369`, :user:`mperrin`]
+
+**General bug fixes and small changes:**
+
+- Allow FGS detector to be set to ``GUIDER1`` and ``GUIDER2``, while still supporting old method of setting the detector (using ``FGS1`` and ``FGS2``) [:pr:`361`, :user:`mperrin`]
+- Add ``allow_huge=True`` option to ``astropy.convolution.convolve_fft`` call when applying MIRI distortion so it can handle large arrays when calculating PSFs in very large FOV by using a higher resolution pupil and OPD. [:pr:`354`, :user:`obi-wan76`]
+- Fixed bug that caused an error when plotting OPDs using the ``display_opd`` function [:pr:`362`, :user:`shanosborne`]
+- Update default NIRSpec detector coordinates to be the S1600A1 square aperture coordinates in imaging mode, rather than an implausible location outside of the MSA field of view. [:pr:`348`, :user:`mperrin`]
+- Updated Simulated OTE Mirror Move Demo notebook. [:pr:`343`, :user:`kjbrooks`]
+- Improved the reproducibility of the thermal slew model with small updates to the ``update_opd`` and ``move_jsc_acf`` functions. [:pr:`339`, :user:`mperrin`]
+
+**Software and Package Infrastructure Updates:**
+ 
+- *The minimum Python version is now 3.6.* [:pr:`353`, :user:`mperrin`]
+- Removed dependency on ``astropy-helpers`` sub-package [:pr:`337`, :user:`shanosborne`]
+- Fixed problem that resulted in the ``otelm/`` and ``tests/surs/`` sub-directories not installing correctly. [:pr:`356`, :user:`shanosborne`]
+- Removed python 3.5 testing and added python 3.8 testing in Travis continuous integration. [:pr:`352`, :user:`mperrin`]
+- Documentation added and/or updated for a variety of features, including referencing the newly renamed Nancy Grace Roman Space Telescope (formerly WFIRST). [:pr:`364`, :pr:`360`, :pr:`330`,  :user:`shanosborne, mperrin`]
+
+--------
+
+
+
 
 Version 0.9.0
 =============

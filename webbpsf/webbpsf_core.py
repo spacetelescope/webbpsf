@@ -29,6 +29,7 @@ import matplotlib.pyplot as plt
 import scipy.interpolate, scipy.ndimage
 import matplotlib
 
+import astropy
 import astropy.io.fits as fits
 import astropy.io.ascii as ioascii
 import astropy.units as units
@@ -39,11 +40,16 @@ import pysiaf
 
 from . import conf
 from . import utils
-from . import version
 from . import optics
 from . import DATA_VERSION_MIN
 from . import distortion
 from . import gridded_library
+from . import opds
+
+try:
+    from .version import version
+except ImportError:
+    version = ''
 
 try:
     import pysynphot
@@ -273,6 +279,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         if value.upper() not in self.detector_list:
             raise ValueError("Invalid detector. Valid detector names are: {}".format(', '.join(self.detector_list)))
         self._detector = value.upper()
+        self._update_aperturename()
 
     @property
     def detector_list(self):
@@ -281,7 +288,13 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
     @property
     def detector_position(self):
-        """The pixel position in (X, Y) on the detector"""
+        """The pixel position in (X, Y) on the detector, relative to the currently-selected SIAF aperture subarray.
+        By default the SIAF aperture will correspond to the full-frame detector, so (X,Y) will in that case be
+        absolute (X,Y) pixels on the detector. But if you select a subarray aperture name from the SIAF, then
+        the (X,Y) are interpreted as (X,Y) within that subarray.
+
+        Please note, this is X,Y order - **not** a Pythonic y,x axes ordering.
+        """
         return self._detector_position
 
     @detector_position.setter
@@ -298,6 +311,21 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
         self._detector_position = (int(position[0]), int(position[1]))
 
+    @property
+    def aperturename(self):
+        """ SIAF aperture name for detector pixel to sky coords transformations"""
+        return self._aperturename
+
+    @aperturename.setter
+    def aperturename(self, value):
+        # Override in subclass to provide more specific functionality
+        self._aperturename = value
+
+    def _update_aperturename(self):
+        """ Update SIAF aperture name after change in detector or other relevant properties
+        """
+        self.aperturename = self._detectors[self._detector]
+
     def _get_fits_header(self, result, options):
         """ populate FITS Header keywords """
         super(SpaceTelescopeInstrument, self)._get_fits_header(result, options)
@@ -307,7 +335,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         if self.pupil_mask is not None:
             result[0].header['PUPIL'] = (self.pupil_mask, "Pupil plane mask")
 
-        result[0].header['VERSION'] = (version.version, "WebbPSF software version")
+        result[0].header['VERSION'] = (version, "WebbPSF software version")
         result[0].header['DATAVERS'] = (self._data_version, "WebbPSF reference data files version")
 
         result[0].header['DET_NAME'] = (self.detector, "Name of detector on this instrument")
@@ -495,8 +523,9 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         if self.image_mask == "": self.image_mask = None
         if self.pupil_mask == "": self.pupil_mask = None
 
-        if self.image_mask is not None or self.pupil_mask is not None or \
-                ('force_coron' in options and options['force_coron']):
+        if (self.image_mask is not None or self.pupil_mask is not None or
+                'WL' in self.filter or  # special case handling for NIRCam WLP4 filter that is also a lens
+                ('force_coron' in options and options['force_coron'])):
             _log.debug("Adding coronagraph/spectrograph optics...")
             optsys, trySAM, SAM_box_size = self._addAdditionalOptics(optsys, oversample=fft_oversample)
         else:
@@ -752,6 +781,7 @@ class JWInstrument(SpaceTelescopeInstrument):
         ))
         "Filename *or* fits.HDUList for JWST pupil mask. Usually there is no need to change this."
 
+        self._aperturename = None
         self._detector = None
 
         # where is the source on the detector, in 'Science frame' pixels?
@@ -794,12 +824,32 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         return optic
 
-    @SpaceTelescopeInstrument.detector.setter  # override setter in this subclass
-    def detector(self, value):
-        if value.upper() not in self.detector_list:
-            raise ValueError("Invalid detector. Valid detector names are: {}".format(', '.join(self.detector_list)))
-        self._detector = value.upper()
-        self._detector_geom_info = DetectorGeometry(self.name, self._detectors[self._detector])
+    @SpaceTelescopeInstrument.aperturename.setter
+    def aperturename(self, value):
+        """Set SIAF aperture name to new value, with validation
+        """
+        # Explicitly update detector reference coordinates to the default for the new selected aperture,
+        # otherwise old coordinates can persist under certain circumstances
+
+        siaf = pysiaf.Siaf(self.name)
+        try:
+            ap = siaf[value]
+        except KeyError:
+            raise ValueError(f'Aperture name {value} not a valid SIAF aperture name for {self.name}')
+
+        if self.detector not in value:
+            raise ValueError(f'Aperture name {value} does not match currently selected detector {self.detector}. '
+                             f'Change detector attribute first, then set desired aperture.')
+
+        # Only update if new value is different
+        if self._aperturename != value:
+            self._aperturename = value
+            # Update detector reference coordinates
+            self.detector_position = (ap.XSciRef, ap.YSciRef)
+
+            # Update DetectorGeometry class
+            self._detector_geom_info = DetectorGeometry(self.name, self._aperturename)
+            _log.info(f"{self.name} SIAF aperture name updated to {self._aperturename}")
 
     def _tel_coords(self):
         """ Convert from science frame coordinates to telescope frame coordinates using
@@ -812,7 +862,7 @@ class JWInstrument(SpaceTelescopeInstrument):
         return self._detector_geom_info.pix2angle(self.detector_position[0], self.detector_position[1])
 
     def _xan_yan_coords(self):
-        """ Convert from detector pixel coordinates to the XAN, YAN coordinate syste
+        """ Convert from detector pixel coordinates to the XAN, YAN coordinate system
         which was used for much of ISIM optical testing. The origin of XAN, YAN is
         centered at the master chief ray, which passes through the ISIM focal plane
         between the NIRCam A3 and B4 detectors. The sign of YAN is flipped relative to V3.
@@ -849,7 +899,7 @@ class JWInstrument(SpaceTelescopeInstrument):
                                           "[arcmin] Det. pos. in telescope V2,V3 coord sys"), after=True)
         result[0].header.insert("DET_V2", ('DET_V3', v2v3pos[1].value,
                                            "[arcmin] Det. pos. in telescope V2,V3 coord sys"), after=True)
-        result[0].header["APERNAME"] = (self._detectors[self._detector], "SIAF aperture name")
+        result[0].header["APERNAME"] = (self._aperturename, "SIAF aperture name")
 
     def calc_psf(self, outfile=None, source=None, nlambda=None, monochromatic=None,
                  fov_arcsec=None, fov_pixels=None, oversample=None, detector_oversample=None, fft_oversample=None,
@@ -925,19 +975,19 @@ class JWInstrument(SpaceTelescopeInstrument):
 
             # Apply distortions based on the instrument
             if self.name in ["NIRCam", "NIRISS", "FGS"]:
-                # Apply distortion effects: Rotation and Detector Distortion
+                # Apply distortion effects: Rotation and optical distortion
                 _log.debug("NIRCam/NIRISS/FGS: Adding rotation and optical distortion")
                 psf_rotated = distortion.apply_rotation(result, crop=crop_psf)  # apply rotation
-                psf_distorted = distortion.apply_distortion(psf_rotated)  # apply siaf distortion
+                psf_distorted = distortion.apply_distortion(psf_rotated)  # apply siaf distortion model
             elif self.name == "MIRI":
-                # Apply distortion effects to MIRI psf: SIAF and MIRI Scattering
+                # Apply distortion effects to MIRI psf: Distortion and MIRI Scattering
                 _log.debug("MIRI: Adding optical distortion and Si:As detector internal scattering")
                 psf_siaf = distortion.apply_distortion(result)  # apply siaf distortion
                 psf_distorted = distortion.apply_miri_scattering(psf_siaf)  # apply scattering effect
             elif self.name == "NIRSpec":
-                # Apply distortion effects to NIRSpec psf: SIAF only
+                # Apply distortion effects to NIRSpec psf: Distortion only
                 _log.debug("NIRSpec: Adding optical distortion")
-                psf_distorted = distortion.apply_distortion(result)  # apply siaf distortion
+                psf_distorted = distortion.apply_distortion(result)  # apply siaf distortion model
 
             # Edit the variable to match if input didn't request distortion
             # (cannot set result = psf_distorted due to return method)
@@ -1058,6 +1108,129 @@ class JWInstrument(SpaceTelescopeInstrument):
         return shift_x, shift_y
 
 
+    def _apply_jitter(self,  result, local_options=None):
+        """ Modify a PSF to account for the blurring effects of image jitter.
+        Parameter arguments are taken from the options dictionary.
+
+        This adds options to model JWST coarse point ("PCS=Coarse") under
+        two sets of assumptions:
+            "PCS=Coarse": 67 mas Gaussian jitter, as advised by Nelan & Maghamni based on
+                          detailed sims of observatory performance in coarse point mode.
+            "PCS=Coarse_Like_ITM": Attempt to replicate same assumptions as in Ball's ITM tool.
+                          This includes 200 mas sigma Gaussian jitter, plus a linear drift of
+                          400 mas per exposure.
+
+        Other types of jitter, in particular plain Gaussian jitter, are implemented by the
+        superclass version of this function, in poppy.Instrument.
+
+        Parameters
+        -----------
+        result : fits.HDUList
+            HDU list containing a point spread function
+        local_options : dict, optional
+            Options dictionary. If not present, options will be taken from self.options.
+
+
+        The image in the 'result' HDUlist will be modified by this function.
+        """
+        if local_options is None:
+            local_options = self.options
+        if 'jitter' not in local_options:
+            result[0].header['JITRTYPE'] = ('None', 'Type of jitter applied')
+            return
+
+        _log.info("Calculating jitter using " + str(local_options['jitter']))
+
+        def _linear_smear(smear_length, image):
+            # Helper function, used below
+            smear_length_pix = int(np.round(smear_length /  result[0].header['PIXELSCL']))
+            if smear_length_pix % 2 ==0:
+                smear_length_pix += 1   # Astropy convolution requires odd sized kernels only
+
+            smear_model  = np.identity(smear_length_pix)
+            _log.info("Jitter: Convolving with linear smear of {0:.3f} arcsec; {1:d} pixels".format(smear_length, smear_length_pix))
+            kern = astropy.convolution.kernels.CustomKernel(smear_model)
+            return astropy.convolution.convolve_fft(image, kern, allow_huge=True)
+
+        if local_options['jitter'] is None:
+            return
+        elif local_options['jitter'].lower() == 'gaussian':
+            # Regular version in poppy
+            return super()._apply_jitter(result, local_options=local_options)
+        elif local_options['jitter'].lower() == 'linear':
+            # Drift by 0.12 arcsec (1 mas/second for 2 minutes)
+
+            smear_length = 0.12 # arcsec
+
+            out = _linear_smear(smear_length, result[0].data)
+            result[0].header['JITRTYPE'] = ('Linear smear / drift', 'Type of jitter applied')
+            result[0].header['JITSMEAR'] = (smear_length, 'Linear smear [arcsec]')
+
+        elif local_options['jitter'].lower() == 'pcs=coarse':
+            # JWST coarse point, current best estimate based on high fidelity monte carlo sims by Peiman Maghami
+
+            cp_case = local_options.get('jitter_coarse_model_case', 2)      # Coarse pointing model case, 1 or 2
+            exp_duration = local_options.get('exp_duration', 75)     # Duration in seconds
+            exp_start_time = local_options.get('exp_start_time', 0)  # Start time in seconds
+
+            offset, kernel = opds.get_coarse_blur_parameters(exp_start_time, exp_duration, result[0].header['PIXELSCL'], case=cp_case)
+
+            kern = astropy.convolution.kernels.CustomKernel(kernel)
+            out = astropy.convolution.convolve_fft(result[0].data, kern, allow_huge=True)
+
+            result[0].header['JITRTYPE'] = ('PCS Coarse, high fidelity MC model results', 'Type of jitter applied')
+            result[0].header['JITRCASE'] = (cp_case, 'PCS Coarse mode: Monte Carlo model case used')
+            result[0].header['JITR_T0'] =  (exp_start_time, 'PCS Coarse mode: sim exposure start time [s]')
+            result[0].header['JITRTEXP'] = (exp_duration, 'PCS Coarse mode: sim exposure duration [s]')
+            result[0].header['JITRCPV2'] = (offset[0], "Coarse pointing offset in V2 [arcsec]")
+            result[0].header['JITRCPV3'] = (offset[1], "Coarse pointing offset in V3 [arcsec]")
+
+        elif local_options['jitter'].lower() == 'pcs=coarse_like_itm':
+            # JWST coarse point, assumptions in ITM
+            # Acton says:
+            #  it is actually 0.4 for a boresight error, 0.4 smear, and 0.2 jitter. Boresight error is a random term for image placement, smear is mostly a linear uniform blur, and jitter is gaussian.
+
+            # First we do the fast jitter part
+            local_options['jitter_sigma'] = 0.2
+            import scipy.ndimage
+
+            sigma = local_options.get('jitter_sigma')
+
+            # that will be in arcseconds, we need to convert to pixels:
+            _log.info("Jitter: Convolving with Gaussian with sigma={0:.3f} arcsec".format(sigma))
+            out = scipy.ndimage.gaussian_filter(result[0].data, sigma / result[0].header['PIXELSCL'])
+
+            # Now we'll do the linear jitter part
+            smear_length = 0.4 # arcsec
+            out = _linear_smear(smear_length, out)
+
+            result[0].header['JITRTYPE'] = ('PCS Coarse, like ITM', 'Type of jitter applied')
+            result[0].header['JITRSIGM'] = (sigma, 'Gaussian sigma for jitter, per axis [arcsec]')
+            result[0].header['JITSMEAR'] = (smear_length, 'Linear smear [arcsec]')
+
+        elif local_options['jitter'].lower() == 'custom':
+            # User-supplied arbitrary PSF convolution kernel
+
+            if ('jitter_kernel' not in local_options) or (not local_options['jitter_kernel'].ndim==2):
+                raise ValueError("You must supply an .options['jitter_kernel'] 2D array to use the custom jitter option")
+            _log.info("Jitter: Convolving with user-supplied custom convolution kernel")
+            kern = astropy.convolution.kernels.CustomKernel(local_options['jitter_kernel'])
+            out = astropy.convolution.convolve_fft(result[0].data, kern, allow_huge=True)
+
+            result[0].header['JITRTYPE'] = ('Custom jitter kernel', 'Type of jitter applied')
+
+        else:
+            raise ValueError('Unknown jitter option value: ' + local_options['jitter'])
+
+        peak = result[0].data.max()
+        newpeak = out.max()
+        strehl = newpeak / peak  # not really the whole Strehl ratio, just the part due to jitter
+        _log.info("        resulting image peak drops to {0:.3f} of its previous value".format(strehl))
+        result[0].header['JITRSTRL'] = (strehl, 'Strehl reduction from jitter ')
+
+        result[0].data = out
+
+
 class MIRI(JWInstrument):
     """ A class modeling the optics of MIRI, the Mid-InfraRed Instrument.
 
@@ -1084,6 +1257,8 @@ class MIRI(JWInstrument):
                                       'FQPM1140': 'MIRIM_CORON1140',
                                       'FQPM1550': 'MIRIM_CORON1550',
                                       'LYOT2300': 'MIRIM_CORONLYOT'}
+        self.auto_aperturename = True
+
         self.monochromatic = 8.0
         self._IFU_pixelscale = {
             'Ch1': (0.18, 0.19),
@@ -1256,6 +1431,33 @@ class MIRI(JWInstrument):
 
         return (optsys, trySAM, SAM_box_size if trySAM else None)
 
+
+    def _update_aperturename(self):
+        """Determine sensible SIAF aperture names for MIRI. Implements the auto_aperturename functionality"""
+
+        str_debug = 'BEFORE - Det: {}, Ap: {}, ImMask: {}, PupMask: {}, DetPos: {}'.format(
+            self._detector, self._aperturename, self.image_mask, self.pupil_mask, self.detector_position
+        )
+        _log.debug(str_debug)
+
+        # Need to send correct aperture name for coronagraphic masks
+        if (self._image_mask is not None):
+            if 'LRS' in self._image_mask:
+                apname = 'MIRIM_FULL'  # LRS slit uses full array readout
+            else:
+                apname = self._image_mask_apertures[self._image_mask]
+        else:
+            apname = 'MIRIM_FULL'
+
+        # Call aperturename.setter to update ap ref coords and DetectorGeometry class
+        self.aperturename = apname
+
+        str_debug = 'AFTER  - Det: {}, Ap: {}, ImMask: {}, PupMask: {}, DetPos: {}'.format(
+            self._detector, self._aperturename, self.image_mask, self.pupil_mask, self.detector_position
+        )
+        _log.debug(str_debug)
+
+
     def _get_fits_header(self, hdulist, options):
         """ Format MIRI-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
         super(MIRI, self)._get_fits_header(hdulist, options)
@@ -1284,6 +1486,11 @@ class NIRCam(JWInstrument):
     invoke the automatic channel selection. Make sure to set the correct channel *prior*
     to calculating any monochromatic PSFs.
 
+    Similarly, SIAF aperture names are automatically chosen based on detector, filter,
+    image mask, and pupil mask settings. The auto-selection can be disabled by
+    setting `.auto_aperturname = False`. SIAF aperture information is mainly used for
+    coordinate transformations between detector science pixels and telescope V2/V3.
+
     Special Options:
     The 'bar_offset' option allows specification of an offset position
     along one of the coronagraph bar occulters, in arcseconds.
@@ -1303,7 +1510,6 @@ class NIRCam(JWInstrument):
     LONG_WAVELENGTH_MAX = 5.3 * 1e-6
 
     def __init__(self):
-        self._module = 'A'  # NIRCam A or B?
         self._pixelscale_short = 0.0311  # for short-wavelen channels, SIAF PRDDEVSOC-D-012, 2016 April
         self._pixelscale_long = 0.0630  # for long-wavelen channels,  SIAF PRDDEVSOC-D-012, 2016 April
         self.pixelscale = self._pixelscale_short
@@ -1314,6 +1520,7 @@ class NIRCam(JWInstrument):
         # need to set up a bunch of stuff here before calling superclass __init__
         # so the overridden filter setter will work successfully inside that.
         self.auto_channel = True
+        self.auto_aperturename = True
         self._filter = 'F200W'
         self._detector = 'NRCA1'
 
@@ -1340,12 +1547,112 @@ class NIRCam(JWInstrument):
         det_list = ['A1', 'A2', 'A3', 'A4', 'A5', 'B1', 'B2', 'B3', 'B4', 'B5']
         for name in det_list: self._detectors["NRC{0}".format(name)] = 'NRC{0}_FULL'.format(name)
         self.detector = self.detector_list[0]
+        self._aperturename = '{}_FULL'.format(self._detector)  # SIAF aperture name
 
         self._si_wfe_class = optics.NIRCamFieldAndWavelengthDependentAberration
+
+    def _update_aperturename(self):
+        """Determine sensible SIAF aperture names for NIRCam. Implements the auto_aperturename functionality"""
+
+        str_debug = 'BEFORE - Det: {}, Ap: {}, ImMask: {}, PupMask: {}, DetPos: {}'.format(
+            self._detector, self._aperturename, self.image_mask, self.pupil_mask, self.detector_position
+        )
+        _log.debug(str_debug)
+
+        # Need to send correct aperture name for coronagraphic masks due to detector shift
+        if (self._image_mask is not None):
+            aps_modA = {'MASKLWB': 'NRCA5_FULL_MASKLWB',
+                        'MASKSWB': 'NRCA4_FULL_MASKSWB',
+                        'MASK210R': 'NRCA2_FULL_MASK210R',
+                        'MASK335R': 'NRCA5_FULL_MASK335R',
+                        'MASK430R': 'NRCA5_FULL_MASK430R'}
+            # Choose coronagraphic subarray apertures for Module B
+            aps_modB = {'MASKLWB': 'NRCB5_MASKLWB',
+                        'MASKSWB': 'NRCB3_MASKSWB',
+                        'MASK210R': 'NRCB1_MASK210R',
+                        'MASK335R': 'NRCB5_MASK335R',
+                        'MASK430R': 'NRCB5_MASK430R'}
+            apname = aps_modA[self._image_mask] if self.module=='A' else aps_modB[self._image_mask]
+        elif (self._pupil_mask is not None) and (('LYOT' in self._pupil_mask) or ('MASK' in self._pupil_mask)):
+            # Want to use full frame apertures if only Lyot stops defined (no image mask)
+            # Unfortunately, no full frame SIAF apertures are defined for Module B w/ Lyot
+            # so we must select the subarray apertures as a special case. 
+            if 'long' in self.channel:
+                if ('WEDGE' in self._pupil_mask) or ('LWB' in self._pupil_mask):
+                    apname = 'NRCA5_FULL_WEDGE_BAR' if self.module=='A' else 'NRCB5_MASKLWB'
+                else:
+                    apname = 'NRCA5_FULL_WEDGE_RND' if self.module=='A' else 'NRCB5_MASK335R'
+            else:
+                if ('WEDGE' in self._pupil_mask) or ('SWB' in self._pupil_mask):
+                    apname = 'NRCA4_FULL_WEDGE_BAR' if self.module=='A' else 'NRCB3_MASKSWB'
+                else:
+                    apname = 'NRCA2_FULL_WEDGE_RND' if self.module=='A' else 'NRCB1_MASK210R'
+        else:
+            apname = self._detectors[self._detector]
+
+        # Call aperturename.setter to update ap ref coords and DetectorGeometry class
+        self.aperturename = apname
+
+        str_debug = 'AFTER  - Det: {}, Ap: {}, ImMask: {}, PupMask: {}, DetPos: {}'.format(
+            self._detector, self._aperturename, self.image_mask, self.pupil_mask, self.detector_position
+        )
+        _log.debug(str_debug)
+
+    @JWInstrument.aperturename.setter
+    def aperturename(self, value):
+        # Explicitly update detector reference coordinates, 
+        # otherwise old coordinates can persist under certain circumstances
+
+        # Get NIRCam SIAF apertures
+        siaf = pysiaf.Siaf(self.name)
+        try:
+            ap = siaf[value]
+        except KeyError:
+            _log.warning(f'Aperture name {value} not a valid NIRCam pysiaf name')
+            # Alternatives in case we are running an old pysiaf PRD
+            if value=='NRCA5_FULL_WEDGE_BAR':
+                newval = 'NRCA5_FULL_MASKLWB'
+            elif value=='NRCA5_FULL_WEDGE_RND':
+                newval = 'NRCA5_FULL_MASK335R'
+            elif value=='NRCA4_FULL_WEDGE_BAR':
+                newval = 'NRCA4_FULL_MASKSWB'
+            elif value=='NRCA2_FULL_WEDGE_RND':
+                newval = 'NRCA2_FULL_MASK210R'
+            else:
+                newval = None
+                
+            if newval is not None:
+                # Set altnerative aperture name as bandaid to continue
+                value = newval
+                _log.warning('Possibly running an old version of pysiaf missing some NIRCam apertures. Continuing with old aperture names.')
+            else:
+                return
+
+        # Only update if new value is different
+        if self._aperturename != value:
+            self._aperturename = value
+            # Update detector reference coordinates
+            self.detector_position = (ap.XSciRef, ap.YSciRef)
+
+            # Check if detector is correct
+            new_det =  self._aperturename[0:5]
+            if new_det != self._detector:
+                new_channel = 'long' if new_det[-1] == '5' else 'short'
+                self._switch_channel(new_channel)
+                self._detector = new_det
+
+            # Update DetectorGeometry class
+            self._detector_geom_info = DetectorGeometry(self.name, self._aperturename)
+            _log.info("NIRCam aperture name updated to {}".format(self._aperturename))
 
     @property
     def module(self):
         return self._detector[3]
+        # note, you can't set module directly; it's inferred based on detector.
+
+    @module.setter
+    def module(self, value):
+        raise RuntimeError("NIRCam module is not directly settable; set detector instead.")
 
     @property
     def channel(self):
@@ -1356,7 +1663,7 @@ class NIRCam(JWInstrument):
     def channel(self, value):
         raise RuntimeError("NIRCam channel is not directly settable; set filter or detector instead.")
 
-    @JWInstrument.detector.setter # override setter in this subclass
+    @JWInstrument.detector.setter # override setter in this subclass, to implement auto channel switch
     def detector(self, value):
         """ Set detector, including reloading the relevant info from SIAF """
         if value.upper() not in self.detector_list:
@@ -1365,8 +1672,7 @@ class NIRCam(JWInstrument):
         new_channel = 'long' if value[-1] == '5' else 'short'
         self._switch_channel(new_channel)
         self._detector = value.upper()
-
-        self._detector_geom_info = DetectorGeometry(self.name, self._detectors[self._detector])
+        self._update_aperturename()
 
     def _switch_channel(self,channel):
         """ Toggle to either SW or LW channel.
@@ -1399,11 +1705,45 @@ class NIRCam(JWInstrument):
     def filter(self, value):
         super(NIRCam, self.__class__).filter.__set__(self, value)
 
-        if self.auto_channel:
+        if self.auto_channel or self.auto_aperturename:
             # set the channel (via setting the detector) based on filter
-            wlnum = int(self.filter[1:4])
+            if self.filter=='WLP4':
+                # special case, weak lens 4 is actually a filter too but isn't named like one
+                wlnum = 212
+            else:
+                wlnum = int(self.filter[1:4])
             new_channel = 'long' if wlnum >= 250 else 'short'
-            self._switch_channel(new_channel)
+            cur_channel = self.channel
+
+            if self.auto_channel:
+                self._switch_channel(new_channel)
+
+            # Only change ap name if filter choice forces us to a different channel
+            if self.auto_aperturename and (cur_channel != new_channel):
+                self._update_aperturename()
+
+    # Need to redefine image_mask.setter because _image_mask_apertures has limited aperture definitions
+    @JWInstrument.image_mask.setter
+    def image_mask(self, name):
+        if name is "": name = None
+        if name is not None:
+            if name in self.image_mask_list:
+                pass  # there's a perfect match, this is fine.
+            else:
+                name = name.upper()  # force to uppercase
+                if name not in self.image_mask_list:  # if still not found, that's an error.
+                    raise ValueError("Instrument %s doesn't have an image mask called '%s'." % (self.name, name))
+        self._image_mask = name
+
+        # Update aperture position, which updates detector and detector position
+        self.set_position_from_aperture_name(self._aperturename)
+
+    @JWInstrument.pupil_mask.setter
+    def pupil_mask(self, name):
+        super(NIRCam, self.__class__).pupil_mask.__set__(self, name)
+
+        # Update aperture position, which updates detector and detector position
+        self.set_position_from_aperture_name(self._aperturename)
 
     def _validate_config(self, **kwargs):
         """Validate instrument config for NIRCam
@@ -1532,7 +1872,11 @@ class NIRCam(JWInstrument):
             optsys.add_pupil(transmission=self._datapath + "/optics/NIRCam_Lyot_Sinc.fits.gz", name=self.pupil_mask,
                              flip_y=True, shift_x=shift_x, shift_y=shift_y, rotation=rotation, index=3)
             optsys.planes[-1].wavefront_display_hint = 'intensity'
-        elif self.pupil_mask == 'WEAK LENS +4' or self.pupil_mask == 'WLP4':
+        # Note, for historical reasons there are multiple synonymous ways to specify the weak lenses
+        # This includes versions that elide over the fact that WLP4 is in the filter wheel, plus
+        # versions that take that into account explicitly.
+        elif self.pupil_mask == 'WEAK LENS +4' or self.pupil_mask == 'WLP4' or (
+                self.filter == 'WLP4' and self.pupil_mask is None) :
             optsys.add_pupil(poppy.ThinLens(
                 name='Weak Lens +4',
                 nwaves=WLP4_diversity / WL_wavelength,
@@ -1540,7 +1884,7 @@ class NIRCam(JWInstrument):
                 radius=self.pupil_radius,
                 shift_x=shift_x, shift_y=shift_y, rotation=rotation,
             ), index=3)
-        elif self.pupil_mask == 'WEAK LENS +8' or self.pupil_mask == 'WLP8':
+        elif self.pupil_mask == 'WEAK LENS +8' or (self.pupil_mask == 'WLP8' and self.filter != 'WLP4'):
             optsys.add_pupil(poppy.ThinLens(
                 name='Weak Lens +8',
                 nwaves=WLP8_diversity / WL_wavelength,
@@ -1548,7 +1892,7 @@ class NIRCam(JWInstrument):
                 radius=self.pupil_radius,
                 shift_x=shift_x, shift_y=shift_y, rotation=rotation,
             ), index=3)
-        elif self.pupil_mask == 'WEAK LENS -8' or self.pupil_mask == 'WLM8':
+        elif self.pupil_mask == 'WEAK LENS -8' or (self.pupil_mask == 'WLM8' and self.filter != 'WLP4'):
             optsys.add_pupil(poppy.ThinLens(
                 name='Weak Lens -8',
                 nwaves=WLM8_diversity / WL_wavelength,
@@ -1556,7 +1900,8 @@ class NIRCam(JWInstrument):
                 radius=self.pupil_radius,
                 shift_x=shift_x, shift_y=shift_y, rotation=rotation,
             ), index=3)
-        elif self.pupil_mask == 'WEAK LENS +12 (=4+8)' or self.pupil_mask == 'WLP12':
+        elif self.pupil_mask == 'WEAK LENS +12 (=4+8)' or self.pupil_mask == 'WLP12' or (
+                self.pupil_mask == 'WLP8' and self.filter == 'WLP4'):
             stack = poppy.CompoundAnalyticOptic(name='Weak Lens Pair +12', opticslist=[
                 poppy.ThinLens(
                     name='Weak Lens +4',
@@ -1574,7 +1919,8 @@ class NIRCam(JWInstrument):
                 )]
                                                 )
             optsys.add_pupil(stack, index=3)
-        elif self.pupil_mask == 'WEAK LENS -4 (=4-8)' or self.pupil_mask == 'WLM4':
+        elif self.pupil_mask == 'WEAK LENS -4 (=4-8)' or self.pupil_mask == 'WLM4' or (
+                self.pupil_mask == 'WLM8' and self.filter == 'WLP4'):
             stack = poppy.CompoundAnalyticOptic(name='Weak Lens Pair -4', opticslist=[
                 poppy.ThinLens(
                     name='Weak Lens +4',
@@ -1610,7 +1956,6 @@ class NIRCam(JWInstrument):
         hdulist[0].header['CHANNEL'] = ('Short' if self.channel == 'short' else 'Long', 'NIRCam channel: long or short')
         # filter, pupil added by calc_psf header code
         hdulist[0].header['PILIN'] = ('False', 'Pupil imaging lens in optical path: T/F')
-
 
 class NIRSpec(JWInstrument):
     """ A class modeling the optics of NIRSpec, in **imaging** mode.
@@ -1654,6 +1999,7 @@ class NIRSpec(JWInstrument):
         self._detectors = dict()
         for name in det_list: self._detectors[name] = '{0}_FULL'.format(name)
         self.detector = self.detector_list[0]
+        self.detector_position = (1380, 1024)   # near S1600A1 square aperture / ISIM1 field point. see #348.
         self._si_wfe_class = optics.NIRSpecFieldDependentAberration  # note we end up adding 2 instances of this.
 
     def _validate_config(self, **kwargs):
@@ -1885,6 +2231,9 @@ class FGS(JWInstrument):
 
     Not a lot to see here, folks: There are no selectable options, just a great big detector-wide bandpass
     and two detectors.
+
+    The detectors are named as FGS1, FGS2 but may synonymously also be referred to as
+    GUIDER1, GUIDER2 for compatibility with DMS convention
     """
 
     def __init__(self):
@@ -1904,6 +2253,16 @@ class FGS(JWInstrument):
         """ Format FGS-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
         super(FGS, self)._get_fits_header(hdulist, options)
         hdulist[0].header['FOCUSPOS'] = (0, 'FGS focus mechanism not yet modeled.')
+
+    @JWInstrument.detector.setter # override setter in this subclass
+    def detector(self, value):
+        # allow either FGS1 or GUIDER1 as synonyms
+        if value.upper().startswith('GUIDER'):
+            value = 'FGS'+value[-1]
+        if value.upper() not in self.detector_list:
+            raise ValueError("Invalid detector. Valid detector names are: {}".format(', '.join(self.detector_list)))
+        self._detector = value.upper()
+        self._update_aperturename()
 
 
 ###########################################################################
