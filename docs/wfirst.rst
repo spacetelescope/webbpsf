@@ -33,7 +33,7 @@ The WFI model includes a model for field dependent PSF aberrations. With as larg
 
    *Tutorial notebook for WFIRST*
 
-   This documentation is complemented by an `IPython Notebook tutorial for WFIRST PSFs <http://nbviewer.ipython.org/github/spacetelescope/webbpsf/blob/master/notebooks/WebbPSF-WFIRST_Tutorial.ipynb>`_. Downloading and run that notebook to use a beta notebook GUI for the WFI model, and to explore code samples for common tasks interactively.
+   This documentation is complemented by an `IPython Notebook tutorial for WFIRST PSFs <http://nbviewer.ipython.org/github/spacetelescope/webbpsf/blob/stable/notebooks/WebbPSF-WFIRST_Tutorial.ipynb>`_. Downloading and run that notebook to use a beta notebook GUI for the WFI model, and to explore code samples for common tasks interactively.
 
 
 .. caution::
@@ -173,7 +173,7 @@ add the hybrid Lyot modes.
 
 
 A hands-on tutorial in using the CGI class is available in this
-`Jupyter Notebook <http://nbviewer.ipython.org/github/spacetelescope/webbpsf/blob/master/notebooks/wfirst_cgi_demo.ipynb>`_. 
+`Jupyter Notebook <http://nbviewer.ipython.org/github/spacetelescope/webbpsf/blob/stable/notebooks/wfirst_cgi_demo.ipynb>`_.
 Here we briefly summarize the key points, but see that for more detail. 
 
 

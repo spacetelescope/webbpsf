@@ -112,6 +112,6 @@ Quick Start
 ------------
 
 Once you have installed the software and data files, we recommend you begin with the 
-`Jupyter Notebook quickstart tutorial <http://nbviewer.jupyter.org/github/spacetelescope/webbpsf/blob/master/notebooks/WebbPSF_tutorial.ipynb>`_. Downloading and running that notebook is a great way to get started using WebbPSF.
+`Jupyter Notebook quickstart tutorial <http://nbviewer.jupyter.org/github/spacetelescope/webbpsf/blob/develop/notebooks/WebbPSF_tutorial.ipynb>`_. Downloading and running that notebook is a great way to get started using WebbPSF.
 
 
