@@ -463,7 +463,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         if 'defocus_waves' in options:
             defocus_waves = options['defocus_waves']
             defocus_wavelength = float(options['defocus_wavelength']) if 'defocus_wavelength' in options else 2.0e-6
-            _log.info("Adding defocus of %d waves at %.2f microns" % (defocus_waves, defocus_wavelength * 1e6))
+            _log.info(f"Adding defocus of {defocus_waves:.3f} waves at {defocus_wavelength*1e6:.3f} microns" )
             lens = poppy.ThinLens(
                 name='Defocus',
                 nwaves=defocus_waves,
