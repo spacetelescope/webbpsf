@@ -764,6 +764,8 @@ class JWInstrument(SpaceTelescopeInstrument):
     def __init__(self, *args, **kwargs):
         super(JWInstrument, self).__init__(*args, **kwargs)
 
+        self.siaf = pysiaf.Siaf(self.name)
+
         opd_path = os.path.join(self._datapath, 'OPD')
         self.opd_list = []
         for filename in glob.glob(os.path.join(opd_path, 'OPD*.fits*')):
@@ -831,9 +833,8 @@ class JWInstrument(SpaceTelescopeInstrument):
         # Explicitly update detector reference coordinates to the default for the new selected aperture,
         # otherwise old coordinates can persist under certain circumstances
 
-        siaf = pysiaf.Siaf(self.name)
         try:
-            ap = siaf[value]
+            ap = self.siaf[value]
         except KeyError:
             raise ValueError(f'Aperture name {value} not a valid SIAF aperture name for {self.name}')
 
@@ -848,7 +849,7 @@ class JWInstrument(SpaceTelescopeInstrument):
             self.detector_position = (ap.XSciRef, ap.YSciRef)
 
             # Update DetectorGeometry class
-            self._detector_geom_info = DetectorGeometry(self.name, self._aperturename)
+            self._detector_geom_info = DetectorGeometry(self.siaf, self._aperturename)
             _log.info(f"{self.name} SIAF aperture name updated to {self._aperturename}")
 
     def _tel_coords(self):
@@ -877,9 +878,8 @@ class JWInstrument(SpaceTelescopeInstrument):
         """ Set the simulated center point of the array based on a named SIAF aperture.
         This will adjust the detector and detector position attributes.
         """
-        siaf = pysiaf.Siaf(self.name)
         try:
-            ap = siaf[aperture_name]
+            ap = self.siaf[aperture_name]
 
             self.detector_position = (ap.XSciRef, ap.YSciRef)
             detname = aperture_name.split('_')[0]
@@ -1604,9 +1604,8 @@ class NIRCam(JWInstrument):
         # otherwise old coordinates can persist under certain circumstances
 
         # Get NIRCam SIAF apertures
-        siaf = pysiaf.Siaf(self.name)
         try:
-            ap = siaf[value]
+            ap = self.siaf[value]
         except KeyError:
             _log.warning(f'Aperture name {value} not a valid NIRCam pysiaf name')
             # Alternatives in case we are running an old pysiaf PRD
@@ -1642,7 +1641,7 @@ class NIRCam(JWInstrument):
                 self._detector = new_det
 
             # Update DetectorGeometry class
-            self._detector_geom_info = DetectorGeometry(self.name, self._aperturename)
+            self._detector_geom_info = DetectorGeometry(self.siaf, self._aperturename)
             _log.info("NIRCam aperture name updated to {}".format(self._aperturename))
 
     @property
@@ -2340,15 +2339,24 @@ class DetectorGeometry(object):
 
     This is an internal class used within webbpsf; most users will never need to
     interact directly with this class.
+
+    Parameters
+    ----------
+    siaf : pysiaf.SIAF instance
+        Instance of SIAF object for this instrument
+    aperturename : string
+        Name of SIAF aperture
+    shortname : basestring
+        Alternate short descriptiv name for this aperture
+
     """
 
-    def __init__(self, instrname, aperturename, shortname=None):
-        self.instrname = instrname
+    def __init__(self, siaf, aperturename, shortname=None):
         self.name = aperturename
         if shortname is not None:
             self.name = shortname
 
-        self.mysiaf = pysiaf.Siaf(self.instrname)
+        self.mysiaf = siaf
         self.aperture = self.mysiaf[aperturename]
 
     @property
