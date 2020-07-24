@@ -844,6 +844,11 @@ class JWInstrument(SpaceTelescopeInstrument):
     def _get_telescope_pupil_and_aberrations(self):
         """return OpticalElement modeling wavefront aberrations for the telescope.
 
+        This is nearly identical to the version of this function in SpaceTelescopeInstrument, differing only at the
+        very end. Here, we load the selected OPD file from disk into an instance of opds.OTE_Linear_Model_WSS if possible.
+        It falls back to a plain FITSOpticalElement for nonstandard sizes of input pupil, since the linear model is not
+        yet generalized to work on arbitrary sizes of pupil other than 1024 pixels.
+
         See also get_aberrations for the SI aberrations.
         """
 

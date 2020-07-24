@@ -1099,6 +1099,8 @@ class OTE_Linear_Model_WSS(OPD):
 
         self._opd_original = self.opd.copy()  # make a separate copy
         self.remove_piston_tip_tilt = rm_ptt
+        # Arbitrary additional perturbations can be added, ad hoc, as either Zernike or Hexike coefficients over the
+        # whole primary. Use move_global_zernikes for a convenient interface to this.
         self._global_zernike_coeffs = np.zeros(15)
         self._global_hexike_coeffs = np.zeros(15)
 
@@ -1114,6 +1116,10 @@ class OTE_Linear_Model_WSS(OPD):
 
         if zero:
             self.zero()
+        else:
+            if self.v2v3 is not None:
+                # Run an update immediately after initialization, to apply the field dependence model automatically
+                self.update_opd()
 
     # ---- overall state manipulation
 
@@ -1281,13 +1287,15 @@ class OTE_Linear_Model_WSS(OPD):
         perturbation = poppy.zernike.opd_from_zernikes(self._global_zernike_coeffs,
                                                        npix=1024,
                                                        basis=poppy.zernike.zernike_basis_faster)
+        # Add perturbation to the opd
+        self.opd += perturbation
 
     def _apply_global_hexikes(self):
         """ Apply Hexike perturbations to the whole primary
 
         """
         def _get_basis(*args, **kwargs):
-            """ Conveince function to make basis callable """
+            """ Convenience function to make basis callable """
             return basis
         # Define aperture as the full OTE
         aperture = self._segment_masks != 0
@@ -1301,6 +1309,15 @@ class OTE_Linear_Model_WSS(OPD):
         perturbation[~np.isfinite(perturbation)] = 0.0
         # Add perturbation to the opd
         self.opd += perturbation
+
+    def _apply_field_dependence_model(self):
+        """Apply field dependence model for OTE wavefront error spatial variation.
+
+        Update self.opd based on V2V3 coordinates using model(s) for spatial variations.
+        """
+        # To be written! Probably will look a lot like _apply_global_zernikes, after
+        # computing the Zernike coefficients based on the multifield model
+        pass
 
     def move_seg_local(self, segment, xtilt=0.0, ytilt=0.0, clocking=0.0, rot_unit='urad',
                        radial=None, xtrans=None, ytrans=None, piston=0.0, roc=0.0, trans_unit='micron', display=False,
@@ -1932,6 +1949,7 @@ class OTE_Linear_Model_WSS(OPD):
             self._apply_global_hexikes()
         if not np.all(self._global_zernike_coeffs == 0):
             self._apply_global_zernikes()
+        self._apply_field_dependence_model()
 
         # Undo any changes made just above to the SM coefficients (avoid persistent side effects)
         if self.delta_time != 0.0:
