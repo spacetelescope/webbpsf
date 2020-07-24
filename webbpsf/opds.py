@@ -1988,6 +1988,10 @@ class OTE_Linear_Model_WSS(OPD):
             self._apply_global_zernikes()
         self._apply_field_dependence_model()
 
+        # Undo any changes made just above to the SM coefficients (avoid persistent side effects)
+        if self.delta_time != 0.0:
+            self._global_hexike_coeffs[4] -= self._get_thermal_slew_coeffs('SM')
+
         if display:
             self.display()
 
