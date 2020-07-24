@@ -109,7 +109,7 @@ class OPD(poppy.FITSOpticalElement):
             _log.debug('Neither a pupil mask nor OPD were specified. Using the default JWST pupil.')
             transmission = os.path.join(utils.get_webbpsf_data_path(), "jwst_pupil_RevW_npix1024.fits.gz")
 
-        super(OPD, self).__init__(name='Modified OPD',
+        super(OPD, self).__init__(name=name,
                                   opd=opd, transmission=transmission,
                                   opd_index=opd_index, transmission_index=0,
                                   planetype=poppy.poppy_core.PlaneType.pupil, **kwargs)
@@ -1052,7 +1052,7 @@ class OTE_Linear_Model_WSS(OPD):
     """
 
     def __init__(self, name='Unnamed OPD', opd=None, opd_index=0, transmission=None, segment_mask_file='JWpupil_segments.fits',
-                 zero=False, rm_ptt=False):
+                 zero=False, rm_ptt=False, v2v3=None):
         """
         Parameters
         ----------
@@ -1060,22 +1060,26 @@ class OTE_Linear_Model_WSS(OPD):
             FITS file to load an OPD from. The OPD must be specified in microns.
         opd_index : int, optional
             FITS extension to load OPD from
-        transmission: ??
-            ??
+        transmission: str or fits.HDUList
+            FITS file to load aperture transmission from.
         slice : int, optional
             slice of a datacube to load OPD from, if the selected extension contains a datacube.
         segment_mask_file : str
             FITS file for pupil mask, with throughput from 0-1. If not explicitly provided, will
             use JWpupil_segments.fits
-        zero: ??
-            ??
+        zero: bool
+            Load a perfectly zero OPD, overriding anything present in the opdfile parameter.
         rm_ptt : bool
-            Remove piston, tip, and tilt? This is mostly for visualizing the higher order parts of
+            Remove piston, tip, and tilt terms, per segment? This is mostly for visualizing the higher order parts of
             the LOM.
+        v2v3 : tuple of 2 astropy.Quantities
+            Tuple giving V2,v3 coordinates as quantities, typically in arcminutes, or None to default to
+            the master chief ray location between the two NIRCam modules.
 
         """
 
         OPD.__init__(self, name=name, opd=opd, opd_index=opd_index, transmission=transmission, segment_mask_file=segment_mask_file)
+        self.v2v3 = v2v3
 
         # load influence function table:
         self._influence_fns = astropy.table.Table.read(os.path.join(__location__, 'otelm', 'JWST_influence_functions_control_with_sm.fits'))
@@ -2103,6 +2107,11 @@ def enable_adjustable_ote(instr):
     the associated instance of the LOM.
 
     """
+
+    # if the instrument already is set up for an adjustable OTE model, then no op and return that
+    if isinstance(instr.pupilopd, OTE_Linear_Model_WSS):
+        return instr, instr.pupilopd
+
     import copy
     instcopy = copy.copy(instr)
     if instr.pupilopd is None:
