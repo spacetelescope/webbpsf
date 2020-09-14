@@ -557,12 +557,12 @@ class WFI(WFIRSTInstrument):
     def _masked_pupil_path(self):
         return self._pupil_controller._masked_pupil_path
 
-    def override_detector(self, path):
+    def override_aberrations(self, path):
         """Override detector aberrations"""
         self._detectors = _load_wfi_detector_aberrations(path)
         self._is_custom_detectors = True
 
-    def reset_override_detector(self):
+    def override_aberrations(self):
         """Release detector aberrations override and load default for active filter"""
         self._detectors = _load_wfi_detector_aberrations(os.path.join(self._datapath, 'wim_zernikes_cycle8.csv'))
         self._is_custom_detectors = False
