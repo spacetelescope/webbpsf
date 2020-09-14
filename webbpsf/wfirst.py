@@ -563,7 +563,7 @@ class WFI(WFIRSTInstrument):
         self._is_custom_aberrations = True
 
     def reset_override_aberrations(self):
-        """Release detector aberrations override and load default for active filter"""
+        """Release detector aberrations override and loads default"""
         self._detectors = _load_wfi_detector_aberrations(os.path.join(self._datapath, 'wim_zernikes_cycle8.csv'))
         self._is_custom_aberrations = False
 
