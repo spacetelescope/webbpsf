@@ -46,11 +46,12 @@ GLOBAL_FOCUS2 = [GLOBAL_FOCUS[0] * SCALING_FACTOR]
 COEFFS_A1 = np.array([-3.52633363e-09, -2.90050902e-09, 1.25432196e-09, -7.43319098e-12,
                       -5.82462948e-11, -1.27115922e-10, -1.91541104e-12, 3.64760396e-11,
                       4.97176630e-13])
-# Coeffcients for A4 based on 5 days after maximum slew with no scaling,
+# Coeffcients for A4 based on 5 hours after maximum slew with no scaling,
 #   start_angle=5. and end_angle=15., predicted using above file
-COEFFS_A4 = np.array([4.08243373e-10, 1.89137803e-10, 1.24425015e-10, 4.63693785e-13,
-                      -3.38635705e-11, 7.27484711e-12, -1.13484927e-13, 1.20634228e-12,
-                      5.51330010e-14])
+# Updated on 9/18/2020
+COEFFS_A4 = np.array([ 3.89238932e-10,  1.80333109e-10,  1.18632814e-10,  4.42108030e-13,
+                      -3.22871622e-11,  6.93619028e-12, -1.08202005e-13,  1.15018494e-12,
+                      5.25664635e-14])
 # Default slew angles
 START_ANGLE = -5.
 END_ANGLE = 45.
@@ -94,6 +95,35 @@ def test_get_thermal_slew_coeffs(time, seg, scaling, start_angle, end_angle,
         coeff /= 1e-9 # Convert to nm so we are not dealing with such small numbers
         truth /= 1e-9 # Convert to nm so we are not dealing with such small numbers
         assert np.isclose(coeff, truth), "Coeffs do not match expected value after day slew."
+
+
+def test_thermal_slew_partial_angle():
+    """ total slew shoudl give same total amplitude if broken into smaller jumps"""
+
+    otelm = webbpsf.opds.OTE_Linear_Model_WSS()
+
+    start_angle = -5
+    mid_angle = 20
+    end_angle = 45
+
+    delta_time = 1 * u.hr
+
+    # One large slew
+    otelm.thermal_slew(delta_time, start_angle, end_angle, case='EOL')
+    cf_full = np.array([otelm._get_thermal_slew_coeffs(segid=seg) for seg in otelm.segnames[0:18]])
+
+    # Small slew 1
+    otelm.thermal_slew(delta_time, start_angle, mid_angle, case='EOL')
+    cf_all1 = np.array([otelm._get_thermal_slew_coeffs(segid=seg) for seg in otelm.segnames[0:18]])
+
+    # Small slew 2
+    otelm.thermal_slew(delta_time, mid_angle, end_angle, case='EOL')
+    cf_all2 = np.array([otelm._get_thermal_slew_coeffs(segid=seg) for seg in otelm.segnames[0:18]])
+    cf_tot = cf_all1 + cf_all2
+
+    # Multiply by 1E9 so we're not dealing with small numbers
+    assert np.allclose(1e9*cf_full, 1e9*cf_tot), "should get same total coefficients for one big slew or if broken into two parts"
+
 
 
 def test_thermal_slew_update_opd():
