@@ -1752,6 +1752,7 @@ class OTE_Linear_Model_WSS(OPD):
                                             xtrans=update.moves['X_TRANS']*sign,
                                             ytrans=update.moves['Y_TRANS']*sign,
                                             piston=update.moves['PISTON']*sign,
+                                            clocking=update.moves['CLOCK']*sign,
                                             absolute=update.absolute,
                                             rot_unit=rot_unit,
                                             trans_unit=trans_unit,
