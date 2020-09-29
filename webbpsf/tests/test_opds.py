@@ -173,6 +173,16 @@ def test_move_sur(plot=False):
         ote.move_sur(s, reverse=True)
         assert np.allclose(ote.segment_state, 0), "Reversing moves didn't bring us back to zero"
 
+        
+    # Test every DOF on A1-1 and SM and check the OTE state updated accordingly
+    s = glob.glob(surdir+'/example_alldof_A1-SM_sur.xml')[0]
+    print("Testing "+s)
+    ote.reset()
+    ote.move_sur(s)
+    assert np.allclose(ote.segment_state[0],  [1, 2, 3, 4, 5, 6])
+    assert np.allclose(ote.segment_state[-1], [1, 2, 3, 4, 5, 0])
+    
+    
     # Test moving one at a time. This test relies on specifics of what's in the image stacking SUR.
     s = glob.glob(surdir+'/example_image_stacking*sur.xml')[0]
     print("Testing moving one group at a time with "+s)

@@ -1400,6 +1400,10 @@ class OTE_Linear_Model_WSS(OPD):
 
         # Handle ROC. ROC doesn't support any units conversions
         if np.abs(roc) != 0:
+            if trans_unit == 'micron' or trans_unit == 'um':
+                pass
+            elif trans_unit == 'sag':
+                roc *= 1e6
             self.opd_header.add_history('ROC: %s %s' % (roc, 'micron'))
 
         iseg = np.where(self.segnames == segment)[0][0]
@@ -1762,6 +1766,7 @@ class OTE_Linear_Model_WSS(OPD):
                     self.move_seg_local(update.segment[0:2],
                                         roc=update.moves['ROC']*sign,
                                         absolute=update.absolute,
+                                        trans_unit=update.units['ROC'],
                                         delay_update=True)
 
                 else:
