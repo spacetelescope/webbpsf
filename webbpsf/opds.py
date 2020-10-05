@@ -556,7 +556,7 @@ class OTE_Linear_Model_Elliott(OPD):
 
     """
 
-    def __init__(self, opd=None, opd_index=0, transmission=None, rm_ptt=False, zero=False):
+    def __init__(self, opd=None, opd_index=0, transmission=None, rm_ptt=False, rm_piston=False, zero=False):
         """
         Parameters
         ----------
@@ -571,6 +571,8 @@ class OTE_Linear_Model_Elliott(OPD):
             wherever is nonzero in the OPD file.
         rm_ptt : bool
             Remove piston, tip and tilt from all segments if set. Default is False.
+        rm_piston : bool
+            Remove piston only from all segments if set. Default is False
         zero : bool
             If set, reate an OPD which is precisely zero in all locations. Default is False.
 
@@ -582,6 +584,7 @@ class OTE_Linear_Model_Elliott(OPD):
         self._sensitivities = astropy.table.Table.read(os.path.join(__location__, 'otelm', 'seg_sens.txt'), format='ascii', delimiter='\t')
         self.state = {}
         self.remove_piston_tip_tilt = rm_ptt
+        self.remove_piston_only = rm_piston
 
         self._opd_original = self.opd.copy()
         if zero:
@@ -788,6 +791,9 @@ class OTE_Linear_Model_Elliott(OPD):
 
         if self.remove_piston_tip_tilt:
             zernike_coeffs[0:3] = 0
+        elif self.remove_piston_only:
+            zernike_coeffs[0] = 0
+
         for i in range(len(zernike_coeffs)):
             zern = zernike.zernike1(i + 1, rho=Rw, theta=theta) * zernike_coeffs[i]
             self.opd[wseg] += zern
@@ -1052,7 +1058,7 @@ class OTE_Linear_Model_WSS(OPD):
     """
 
     def __init__(self, name='Unnamed OPD', opd=None, opd_index=0, transmission=None, segment_mask_file='JWpupil_segments.fits',
-                 zero=False, rm_ptt=False, v2v3=None):
+                 zero=False, rm_ptt=False, rm_piston=False, v2v3=None):
         """
         Parameters
         ----------
@@ -1099,6 +1105,7 @@ class OTE_Linear_Model_WSS(OPD):
 
         self._opd_original = self.opd.copy()  # make a separate copy
         self.remove_piston_tip_tilt = rm_ptt
+        self.remove_piston_only = rm_piston
         # Arbitrary additional perturbations can be added, ad hoc, as either Zernike or Hexike coefficients over the
         # whole primary. Use move_global_zernikes for a convenient interface to this.
         self._global_zernike_coeffs = np.zeros(15)
