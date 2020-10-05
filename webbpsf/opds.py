@@ -1855,7 +1855,9 @@ class OTE_Linear_Model_WSS(OPD):
             segment name will fits 9 Hexikes to that segment
         """
         if not self.scaling:
-            scaling = np.sin(np.radians(self.end_angle) - np.radians(self.start_angle)) / np.sin(np.radians(45.) - np.radians(-5.))
+            num = np.sin(np.radians(self.end_angle)) - np.sin(np.radians(self.start_angle))
+            den = np.sin(np.radians(45.)) - np.sin(np.radians(-5.))
+            scaling = num / den
 
         else:
             scaling = self.scaling
