@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<SEGMENT_UPDATE_REQUEST creator="WAS" date="2020-09-22" operational="true" time="15:49:07.715" version="1.14" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="/internal/1/Software/WSS_Current/Software/schema/segment_update_request.xsd">
+
+  <CONFIGURATION_NAME>FLIGHT_2466452_K_ITM</CONFIGURATION_NAME>
+
+  <CORRECTION_ID>O2020092201</CORRECTION_ID>
+
+  <GROUP id="1">
+    <UPDATE absolute="false" coord="local" id="1" seg_id="A1-1" stage_type="none" type="pose">
+      <X_TRANS units="meters">5.00E-06</X_TRANS>
+      <Y_TRANS units="meters">-5.000E-06</Y_TRANS>
+      <PISTON units="meters">3.00E-06</PISTON>
+      <X_TILT units="radians">1.00E-06</X_TILT>
+      <Y_TILT units="radians">2.00E-06</Y_TILT>
+      <CLOCK units="radians">4.00E-06</CLOCK>
+    </UPDATE>
+     <UPDATE id="2" seg_id="A1-1" type="roc" absolute="false" coord="local" stage_type="none">
+       <ROC units="sag">6.00E-06</ROC>
+      </UPDATE>
+    <UPDATE absolute="false" coord="local" id="3" seg_id="SM-19" stage_type="none" type="pose">
+      <X_TRANS units="meters">3.00E-06</X_TRANS>
+      <Y_TRANS units="meters">4.00E-06</Y_TRANS>
+      <PISTON units="meters">5.00E-06</PISTON>
+      <X_TILT units="radians">1.00E-06</X_TILT>
+      <Y_TILT units="radians">2.00E-06</Y_TILT>
+      <CLOCK units="radians">6.00E-06</CLOCK>
+    </UPDATE>
+   </GROUP>
+</SEGMENT_UPDATE_REQUEST>
