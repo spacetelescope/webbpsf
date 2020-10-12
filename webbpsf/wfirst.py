@@ -548,31 +548,7 @@ class WFI(WFIRSTInstrument):
     @property
     def _masked_pupil_path(self):
         return self._pupil_controller._masked_pupil_path
-
-
-"""
- ███████████    █████████  ███████████              █████████    █████████  █████                                       
-░░███░░░░░███  ███░░░░░███░█░░░███░░░█             ███░░░░░███  ███░░░░░███░░███                                        
- ░███    ░███ ░███    ░░░ ░   ░███  ░             ███     ░░░  ███     ░░░  ░███                                        
- ░██████████  ░░█████████     ░███     ██████████░███         ░███          ░███                                        
- ░███░░░░░███  ░░░░░░░░███    ░███    ░░░░░░░░░░ ░███         ░███    █████ ░███                                        
- ░███    ░███  ███    ░███    ░███               ░░███     ███░░███  ░░███  ░███                                        
- █████   █████░░█████████     █████               ░░█████████  ░░█████████  █████                                       
-░░░░░   ░░░░░  ░░░░░░░░░     ░░░░░                 ░░░░░░░░░    ░░░░░░░░░  ░░░░░                                        
-                                                                                                                        
-                                                                                                                        
-                                                                                                                        
- ███████████ ██████████  █████████  ███████████     █████████    █████████  ███████████   █████ ███████████  ███████████
-░█░░░███░░░█░░███░░░░░█ ███░░░░░███░█░░░███░░░█    ███░░░░░███  ███░░░░░███░░███░░░░░███ ░░███ ░░███░░░░░███░█░░░███░░░█
-░   ░███  ░  ░███  █ ░ ░███    ░░░ ░   ░███  ░    ░███    ░░░  ███     ░░░  ░███    ░███  ░███  ░███    ░███░   ░███  ░ 
-    ░███     ░██████   ░░█████████     ░███       ░░█████████ ░███          ░██████████   ░███  ░██████████     ░███    
-    ░███     ░███░░█    ░░░░░░░░███    ░███        ░░░░░░░░███░███          ░███░░░░░███  ░███  ░███░░░░░░      ░███    
-    ░███     ░███ ░   █ ███    ░███    ░███        ███    ░███░░███     ███ ░███    ░███  ░███  ░███            ░███    
-    █████    ██████████░░█████████     █████      ░░█████████  ░░█████████  █████   █████ █████ █████           █████   
-   ░░░░░    ░░░░░░░░░░  ░░░░░░░░░     ░░░░░        ░░░░░░░░░    ░░░░░░░░░  ░░░░░   ░░░░░ ░░░░░ ░░░░░           ░░░░░    - Jaren Ashcraft
-                                                                                                                        
-"""                                                                                                           
-                                                                                                                        
+                                                                                                    
 
 class CGI(WFIRSTInstrument):
     """
@@ -607,10 +583,10 @@ class CGI(WFIRSTInstrument):
     	'HLC_F575':     ('IMAGER','F575','NONE','HLC_F575_FPM','LS_F575'), # Flight Mode
         'CHARSPC_F730': ('IFS', 'F730', 'CHARSPC730', 'CHARSPC_F730_BOWTIE', 'LS_F730'), # Flight Mode
         'DISKSPC_F825': ('IMAGER','F825','DISKSPC825','DISKSPC_F825_ANNULUS','LS_F825'), # Flight Mode
-        'CHARSPC_F660': ('IFS', 'F660', 'CHARSPC', 'CHARSPC_F660_BOWTIE', 'LS30D88'), # Depreciated Mode
-        'CHARSPC_F770': ('IFS', 'F770', 'CHARSPC', 'CHARSPC_F770_BOWTIE', 'LS30D88'), # Depreciated Mode
-        'CHARSPC_F890': ('IFS', 'F890', 'CHARSPC', 'CHARSPC_F890_BOWTIE', 'LS30D88'), # Depreciated Mode
-        'DISKSPC_F721': ('IMAGER','F721','DISKSPC', 'DISKSPC_F721_ANNULUS', 'LS30D88')} # Depreciated Mode
+        'CHARSPC_F660': ('IFS', 'F660', 'CHARSPC', 'CHARSPC_F660_BOWTIE', 'LS30D88'), # Deprecated Mode
+        'CHARSPC_F770': ('IFS', 'F770', 'CHARSPC', 'CHARSPC_F770_BOWTIE', 'LS30D88'), # Deprecated Mode
+        'CHARSPC_F890': ('IFS', 'F890', 'CHARSPC', 'CHARSPC_F890_BOWTIE', 'LS30D88'), # Deprecated Mode
+        'DISKSPC_F721': ('IMAGER','F721','DISKSPC', 'DISKSPC_F721_ANNULUS', 'LS30D88')} # Deprecated Mode
 
     def __init__(self, mode=None, pixelscale=None, fov_arcsec=None, apply_static_opd=False):
         super(CGI, self).__init__("CGI", pixelscale=pixelscale)
@@ -667,7 +643,7 @@ class CGI(WFIRSTInstrument):
                 self.fov_arcsec = 2 * 0.45
             if not hasattr(self, 'pixelscale') or not self._override_pixelscale:
                 self.pixelscale = 0.020 # Nyquist at 825 nm
-        else:  # default to 'IFS'
+        else:  # default to 'IFS' ########### possibly delete this portion since IFS has apparently been descoped
             if not hasattr(self, 'fov_arcsec') or not self._override_fov:
                 self.fov_arcsec = 2 * 0.55  # 2015 SDT report, Section 3.4.1.1.1:
                                             # IFS has 76 lenslets across the (2 x 0.82) arcsec FoV.
@@ -902,3 +878,5 @@ class CGI(WFIRSTInstrument):
                              comment='Lyot stop pixel scale in m/pixel')
         result[0].header.set('PUPLDIAM', lyotstop_hdr['PUPLDIAM'],
                              comment='Lyot stop array size, incl padding.')
+        
+        
