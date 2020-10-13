@@ -434,6 +434,9 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
         pupil_rms_wfe_nm = np.sqrt(np.mean(pupil_optic.opd[pupil_optic.amplitude == 1] ** 2)) * 1e9
         self._extra_keywords['TEL_WFE'] = (pupil_rms_wfe_nm, '[nm] Telescope pupil RMS wavefront error')
+        if hasattr(pupil_optic, 'header_keywords'):
+            self._extra_keywords.update(pupil_optic.header_keywords())
+
         self.pupil_radius = pupil_optic.pupil_diam / 2.0
 
         # add coord transform from entrance pupil to exit pupil

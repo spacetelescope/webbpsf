@@ -36,6 +36,7 @@ import astropy.table
 import astropy.io.fits as fits
 import astropy.units as u
 import logging
+from collections import OrderedDict
 
 import poppy
 import poppy.zernike as zernike
@@ -1118,8 +1119,11 @@ class OTE_Linear_Model_WSS(OPD):
         self.scaling = None
         self._thermal_model = OteThermalModel() # Initialize thermal model object
 
+        self._thermal_wfe_amplitude = 0.0
         self._frill_wfe_amplitude = 0.0
         self._iec_wfe_amplitude = 0.0
+
+        self.meta = OrderedDict()  # container for arbitrary extra metadata
 
         if zero:
             self.zero()
@@ -1152,6 +1156,7 @@ class OTE_Linear_Model_WSS(OPD):
         """
         self.opd *= 0
         self.segment_state *= 0
+        self._thermal_wfe_amplitude = 0
         self._frill_wfe_amplitude = 0
         self._iec_wfe_amplitude = 0
         if zero_original:
@@ -1271,10 +1276,27 @@ class OTE_Linear_Model_WSS(OPD):
 
         hexikes = zernike.hexike_basis_wss(x=Xc, y=Yc, nterms=len(hexike_coeffs),
                                            aperture=apmask)
+        # returns a list of hexike array values each with the same shape as Xc
 
-        # returns a list of hexikes each with the same shape as Xc
         if self.remove_piston_tip_tilt:
+            # Save the values of the PTT we are removing, for optional reference elsewhere
+            self.meta[f'S{iseg:02d}PISTN'] = (hexike_coeffs[0], f"[m] Hexike piston coeff for segment {segment}")
+            self.meta[f'S{iseg:02d}XTILT'] = (hexike_coeffs[1], f"[m] Hexike X tilt coeff for segment {segment}")
+            self.meta[f'S{iseg:02d}YTILT'] = (hexike_coeffs[2], f"[m] Hexike Y tilt coeff for segment {segment}")
+
             hexike_coeffs[0:3] = 0
+        elif self.remove_piston_only:
+            self.meta[f'S{iseg:02d}PISTN'] = (hexike_coeffs[0], f"[m] Hexike piston coeff for segment {segment}")
+            hexike_coeffs[0] = 0
+        else:
+            # If remove_piston_tip_tilt is off, we shouldn't output those extra keywords, so
+            # delete any prior saved values for those.
+            try:
+                del self.meta[f'S{iseg:02d}PISTN']
+                del self.meta[f'S{iseg:02d}XTILT']
+                del self.meta[f'S{iseg:02d}YTILT']
+            except:
+                pass
 
         for i in range(len(hexike_coeffs)):
             if hexike_coeffs[i] == 0:
@@ -2112,6 +2134,20 @@ class OTE_Linear_Model_WSS(OPD):
                [ 0.    ,  0.    ,  0.    ,  0.    ,  0.    ,  0.    ]])/1000
         return ote_seg_motions_iec * self._iec_wfe_amplitude
 
+    def header_keywords(self):
+        """ Return info we would like to save in FITS header of output PSFs
+        """
+        keywords = OrderedDict()
+        keywords['OTETHMDL'] = (self._thermal_model.case, "OTE Thermal slew model case")
+        keywords['OTETHSTA'] = (self.start_angle, "OTE Starting pitch angle for thermal slew model")
+        keywords['OTETHEND'] = (self.start_angle, "OTE Ending pitch angle for thermal slew model")
+        keywords['OTETHRDT'] = (self.delta_time, "OTE Thermal slew model delta time after slew")
+        keywords['OTETHRWF'] = (self._thermal_wfe_amplitude, "OTE WFE amplitude from 'thermal slew' term")
+        keywords['OTEFRLWF'] = (self._frill_wfe_amplitude, "OTE WFE amplitude from 'frill tension' term")
+        keywords['OTEIECWF'] = (self._iec_wfe_amplitude, "OTE WFE amplitude from 'IEC thermal cycling' term")
+        keywords.update(self.meta)
+        return keywords
+
 
 ################################################################################
 
@@ -2440,6 +2476,7 @@ class OteThermalModel(object):
         # This table is in units of microns
         self._fit_file = os.path.join(mypath, 'otelm', 'thermal_OPD_fitting_parameters_9H_um.fits')
         self._fit_data = fits.getdata(self._fit_file)
+        self.case = case
 
 
     @staticmethod
