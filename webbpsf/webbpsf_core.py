@@ -551,7 +551,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
                                "instrument class or by setting self.pupil")
         if isinstance(self.pupil, poppy.OpticalElement):
             # supply to POPPY as-is
-            pupil_optic = optsys.add_pupil(self.pupil)
+            pupil_optic = self.pupil
         else:
             # wrap in an optic and supply to POPPY
             if isinstance(self.pupil, str):  # simple filename
@@ -874,7 +874,7 @@ class JWInstrument(SpaceTelescopeInstrument):
                                "instrument class or by setting self.pupil")
         if isinstance(self.pupil, poppy.OpticalElement):
             # supply to POPPY as-is
-            pupil_optic = optsys.add_pupil(self.pupil)
+            pupil_optic = self.pupil
         else:
             # wrap in an optic and supply to POPPY
             if isinstance(self.pupil, str):  # simple filename
