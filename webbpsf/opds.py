@@ -1319,10 +1319,18 @@ class OTE_Linear_Model_WSS(OPD):
         # Add perturbation to the opd
         self.opd += perturbation
 
-    def _apply_global_hexikes(self):
+    def _apply_global_hexikes(self, coefficients=None):
         """ Apply Hexike perturbations to the whole primary
 
+        Parameters
+        ----------
+        coefficients : ndarray. By default this applies the self._global_hexike_coeffs values, but
+            you can overtide that by optionally providing different coefficients to this function
         """
+
+        if coefficients is None:
+            coefficients = self._global_hexike_coeffs
+
         def _get_basis(*args, **kwargs):
             """ Convenience function to make basis callable """
             return basis
@@ -1332,7 +1340,7 @@ class OTE_Linear_Model_WSS(OPD):
         npix = np.shape(aperture)[0]
         basis = poppy.zernike.hexike_basis_wss(nterms=9, npix=npix, aperture=aperture > 0.)
         # Use the Hexike basis to reconstruct the global terms
-        perturbation = poppy.zernike.opd_from_zernikes(self._global_hexike_coeffs,
+        perturbation = poppy.zernike.opd_from_zernikes(coefficients,
                                                        basis=_get_basis,
                                                        aperture=aperture > 0.)
         perturbation[~np.isfinite(perturbation)] = 0.0
@@ -1963,26 +1971,22 @@ class OTE_Linear_Model_WSS(OPD):
                     print("Need to move segment {} by {} ".format(segname, pose_coeffs.flatten()))
                     print("plus SM moved by {} ".format(sm_pose_coeffs.flatten()))
                     print("plus segment moved by {} due to thermal contribution".format(hexike_coeffs_from_thermal))
-                    print("   Hexike coeffs: {}".format(hexike_coeffs))
+                    print("   Hexike coeffs for {}: {}".format(segname, hexike_coeffs))
 
                 self._apply_hexikes_to_seg(segname, hexike_coeffs_combined)
 
         # The thermal slew model for the SM global defocus is implemented as a global hexike.
-        # So we have to modify the _global_hexikes array here, and then undo that
-        # modification so the effect isn't cumulative over multiple function calls.
+        # So we have to combine that with the _global_hexikes array here
+        global_hexike_coeffs_combined = self._global_hexike_coeffs.copy()
         if self.delta_time != 0.0:
-            self._global_hexike_coeffs[4] += self._get_thermal_slew_coeffs('SM')
+            global_hexike_coeffs_combined[4] += self._get_thermal_slew_coeffs('SM')
 
         # Apply Global Zernikes, and/or hexikes
-        if not np.all(self._global_hexike_coeffs == 0):
-            self._apply_global_hexikes()
+        if not np.all(global_hexike_coeffs_combined == 0):
+            self._apply_global_hexikes(global_hexike_coeffs_combined)
         if not np.all(self._global_zernike_coeffs == 0):
             self._apply_global_zernikes()
         self._apply_field_dependence_model()
-
-        # Undo any changes made just above to the SM coefficients (avoid persistent side effects)
-        if self.delta_time != 0.0:
-            self._global_hexike_coeffs[4] -= self._get_thermal_slew_coeffs('SM')
 
         if display:
             self.display()
