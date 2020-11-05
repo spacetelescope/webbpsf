@@ -313,7 +313,12 @@ def system_diagnostic():
 
     try:
         import pyfftw
-        pyfftw_version = pyfftw.version
+        try:
+            pyfftw_version = pyfftw.__version__
+        except AttributeError:
+            # Back compatibility: Handle older versions with nonstandard version attribute name
+            pyfftw_version = pyfftw.version
+
     except ImportError:
         pyfftw_version = 'not found'
 

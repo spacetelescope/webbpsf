@@ -428,54 +428,15 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         if 'source_offset_theta' in options:
             optsys.source_offset_theta = options['source_offset_theta']
 
-        # ---- set pupil OPD
-        if isinstance(self.pupilopd, str):  # simple filename
-            opd_map = self.pupilopd if os.path.exists(self.pupilopd) else \
-                      os.path.join(self._datapath, "OPD", self.pupilopd)
-        elif hasattr(self.pupilopd, '__getitem__') and isinstance(self.pupilopd[0], str):
-            # tuple with filename and slice
-            opd_map = (self.pupilopd[0] if os.path.exists(self.pupilopd[0])
-                       else os.path.join(self._datapath, "OPD", self.pupilopd[0]),
-                       self.pupilopd[1])
-        elif isinstance(self.pupilopd, (fits.HDUList, poppy.OpticalElement)):
-            opd_map = self.pupilopd  # not a path per se but this works correctly to pass it to poppy
-        elif self.pupilopd is None:
-            opd_map = None
-        else:
-            raise TypeError("Not sure what to do with a pupilopd of that type:" + str(type(self.pupilopd)))
+        # Telescope entrance pupil
+        pupil_optic = self._get_telescope_pupil_and_aberrations()
+        optsys.add_pupil(pupil_optic)
 
-        # ---- set pupil intensity
-        if self.pupil is None:
-            raise RuntimeError("The pupil shape must be specified in the "
-                               "instrument class or by setting self.pupil")
-        if isinstance(self.pupil, poppy.OpticalElement):
-            # supply to POPPY as-is
-            pupil_optic = optsys.add_pupil(self.pupil)
-        else:
-            # wrap in an optic and supply to POPPY
-            if isinstance(self.pupil, str):  # simple filename
-                if os.path.exists(self.pupil):
-                    pupil_transmission = self.pupil
-                else:
-                    pupil_transmission = os.path.join(
-                        self._WebbPSF_basepath,
-                        self.pupil
-                    )
-            elif isinstance(self.pupil, fits.HDUList):
-                # POPPY can use self.pupil as-is
-                pupil_transmission = self.pupil
-            else:
-                raise TypeError("Not sure what to do with a pupil of "
-                                "that type: {}".format(type(self.pupil)))
-            # ---- apply pupil intensity and OPD to the optical model
-            pupil_optic = optsys.add_pupil(
-                name='{} Entrance Pupil'.format(self.telescope),
-                transmission=pupil_transmission,
-                opd=opd_map,
-                # rotation=self._rotation
-            )
         pupil_rms_wfe_nm = np.sqrt(np.mean(pupil_optic.opd[pupil_optic.amplitude == 1] ** 2)) * 1e9
         self._extra_keywords['TEL_WFE'] = (pupil_rms_wfe_nm, '[nm] Telescope pupil RMS wavefront error')
+        if hasattr(pupil_optic, 'header_keywords'):
+            self._extra_keywords.update(pupil_optic.header_keywords())
+
         self.pupil_radius = pupil_optic.pupil_diam / 2.0
 
         # add coord transform from entrance pupil to exit pupil
@@ -505,7 +466,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         if 'defocus_waves' in options:
             defocus_waves = options['defocus_waves']
             defocus_wavelength = float(options['defocus_wavelength']) if 'defocus_wavelength' in options else 2.0e-6
-            _log.info("Adding defocus of %d waves at %.2f microns" % (defocus_waves, defocus_wavelength * 1e6))
+            _log.info(f"Adding defocus of {defocus_waves:.3f} waves at {defocus_wavelength*1e6:.3f} microns" )
             lens = poppy.ThinLens(
                 name='Defocus',
                 nwaves=defocus_waves,
@@ -564,6 +525,61 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
                 pass
 
         return optsys
+
+    def _get_telescope_pupil_and_aberrations(self):
+        """return OpticalElement modeling wavefront aberrations for the telescope.
+
+        See also get_aberrations for the SI aberrations.
+        """
+
+        # ---- set pupil OPD
+        if isinstance(self.pupilopd, str):  # simple filename
+            opd_map = self.pupilopd if os.path.exists(self.pupilopd) else \
+                      os.path.join(self._datapath, "OPD", self.pupilopd)
+        elif hasattr(self.pupilopd, '__getitem__') and isinstance(self.pupilopd[0], str):
+            # tuple with filename and slice
+            opd_map = (self.pupilopd[0] if os.path.exists(self.pupilopd[0])
+                       else os.path.join(self._datapath, "OPD", self.pupilopd[0]),
+                       self.pupilopd[1])
+        elif isinstance(self.pupilopd, (fits.HDUList, poppy.OpticalElement)):
+            opd_map = self.pupilopd  # not a path per se but this works correctly to pass it to poppy
+        elif self.pupilopd is None:
+            opd_map = None
+        else:
+            raise TypeError("Not sure what to do with a pupilopd of that type:" + str(type(self.pupilopd)))
+
+        # ---- set pupil intensity
+        if self.pupil is None:
+            raise RuntimeError("The pupil shape must be specified in the "
+                               "instrument class or by setting self.pupil")
+        if isinstance(self.pupil, poppy.OpticalElement):
+            # supply to POPPY as-is
+            pupil_optic = self.pupil
+        else:
+            # wrap in an optic and supply to POPPY
+            if isinstance(self.pupil, str):  # simple filename
+                if os.path.exists(self.pupil):
+                    pupil_transmission = self.pupil
+                else:
+                    pupil_transmission = os.path.join(
+                        self._WebbPSF_basepath,
+                        self.pupil
+                    )
+            elif isinstance(self.pupil, fits.HDUList):
+                # POPPY can use self.pupil as-is
+                pupil_transmission = self.pupil
+            else:
+                raise TypeError("Not sure what to do with a pupil of "
+                                "that type: {}".format(type(self.pupil)))
+            # ---- apply pupil intensity and OPD to the optical model
+            pupil_optic = poppy.FITSOpticalElement(
+                name='{} Entrance Pupil'.format(self.telescope),
+                transmission=pupil_transmission,
+                opd=opd_map,
+                planetype=poppy.poppy_core.PlaneType.pupil
+                # rotation=self._rotation
+            )
+        return pupil_optic
 
     def _addAdditionalOptics(self, optsys, oversample=2):
         """Add instrument-internal optics to an optical system, typically coronagraphic or
@@ -809,22 +825,98 @@ class JWInstrument(SpaceTelescopeInstrument):
                                                               detector_oversample=detector_oversample,
                                                               fov_arcsec=fov_arcsec, fov_pixels=fov_pixels,
                                                               options=options)
+        # If the OTE model in the entrance pupil is a plain FITSOpticalElement, cast it to the linear model class
+        if not isinstance(optsys.planes[0], opds.OTE_Linear_Model_WSS):
+            lom_ote = opds.OTE_Linear_Model_WSS()
+            lom_ote
+
         optsys.planes[0].display_annotate = utils.annotate_ote_entrance_coords
         return optsys
 
     def _get_aberrations(self):
-        """ Compute field-dependent aberration for a given instrument
-        based on a lookup table of Zernike coefficients derived from
+        """ return OpticalElement modeling wavefront aberrations for a given instrument,
+        including field dependence based on a lookup table of Zernike coefficients derived from
         ISIM cryovac test data.
-
-        This is a very preliminary version!
         """
         if not self.include_si_wfe:
             return None
 
         optic = self._si_wfe_class(self)
-
         return optic
+
+    def _get_telescope_pupil_and_aberrations(self):
+        """return OpticalElement modeling wavefront aberrations for the telescope.
+
+        This is nearly identical to the version of this function in SpaceTelescopeInstrument, differing only at the
+        very end. Here, we load the selected OPD file from disk into an instance of opds.OTE_Linear_Model_WSS if possible.
+        It falls back to a plain FITSOpticalElement for nonstandard sizes of input pupil, since the linear model is not
+        yet generalized to work on arbitrary sizes of pupil other than 1024 pixels.
+
+        See also get_aberrations for the SI aberrations.
+        """
+
+        # ---- set pupil OPD
+        if isinstance(self.pupilopd, str):  # simple filename
+            opd_map = self.pupilopd if os.path.exists(self.pupilopd) else \
+                os.path.join(self._datapath, "OPD", self.pupilopd)
+        elif hasattr(self.pupilopd, '__getitem__') and isinstance(self.pupilopd[0], str):
+            # tuple with filename and slice
+            opd_map = (self.pupilopd[0] if os.path.exists(self.pupilopd[0])
+                       else os.path.join(self._datapath, "OPD", self.pupilopd[0]),
+                       self.pupilopd[1])
+        elif isinstance(self.pupilopd, (fits.HDUList, poppy.OpticalElement)):
+            opd_map = self.pupilopd  # not a path per se but this works correctly to pass it to poppy
+        elif self.pupilopd is None:
+            opd_map = None
+        else:
+            raise TypeError("Not sure what to do with a pupilopd of that type:" + str(type(self.pupilopd)))
+
+        # ---- set pupil intensity
+        if self.pupil is None:
+            raise RuntimeError("The pupil shape must be specified in the "
+                               "instrument class or by setting self.pupil")
+        if isinstance(self.pupil, poppy.OpticalElement):
+            # supply to POPPY as-is
+            pupil_optic = self.pupil
+        else:
+            # wrap in an optic and supply to POPPY
+            if isinstance(self.pupil, str):  # simple filename
+                if os.path.exists(self.pupil):
+                    pupil_transmission = self.pupil
+                else:
+                    pupil_transmission = os.path.join(
+                        self._WebbPSF_basepath,
+                        self.pupil
+                    )
+            elif isinstance(self.pupil, fits.HDUList):
+                # POPPY can use self.pupil as-is
+                pupil_transmission = self.pupil
+            else:
+                raise TypeError("Not sure what to do with a pupil of "
+                                "that type: {}".format(type(self.pupil)))
+            # ---- apply pupil intensity and OPD to the optical model
+
+            # TODO - more flexibly be smart about if the pupil size works for the LOM or not...
+
+            if 'npix1024' in pupil_transmission:
+                # The linear model is limited to require 1024 pixels right now, so in this case (the default)
+                # we can use that:
+                pupil_optic = opds.OTE_Linear_Model_WSS(
+                    name='{} Entrance Pupil'.format(self.telescope),
+                    transmission=pupil_transmission,
+                    opd=opd_map,
+                    v2v3=self._tel_coords()
+                )
+            else:
+                _log.warning("Nonstandard resolution pupil, so linear model for OTE mirror moves is not supported")
+                pupil_optic = poppy.FITSOpticalElement(
+                    name='{} Entrance Pupil'.format(self.telescope),
+                    transmission=pupil_transmission,
+                    opd=opd_map,
+                    planetype=poppy.poppy_core.PlaneType.pupil
+                )
+        return pupil_optic
+
 
     @SpaceTelescopeInstrument.aperturename.setter
     def aperturename(self, value):

@@ -241,3 +241,35 @@ def test_move_sur(plot=False):
             webbpsf.display_psf(psf, ext=1, title="After Group {}".format(igrp))
 
 
+def test_single_seg_psf(segmentid=1):
+    """Test calculation of a single segment PSF, including options to remove piston/tip/tilt as used by MIRAGE
+
+    """
+
+    nrc = webbpsf.NIRCam()
+    nrc.filter = 'F212N'
+    nrc, ote = webbpsf.enable_adjustable_ote(nrc)
+    ote.zero(zero_original=True)
+
+    segname = webbpsf.constants.SEGNAMES_WSS_ORDER[segmentid-1][0:2]
+
+    ote.move_seg_local(segname, xtilt=1, piston=-1)
+
+    pupil = webbpsf.webbpsf_core.one_segment_pupil(segmentid)
+    ote.amplitude = pupil[0].data
+
+
+    psf = nrc.calc_psf(nlambda=1)
+
+    ote.remove_piston = True
+    ote.update_opd()
+    psf_rm_piston = nrc.calc_psf(nlambda=1)
+    assert np.allclose(psf[0].data, psf_rm_piston[0].data), "Piston removal should not affect the overall PSF"
+
+    assert np.allclose( webbpsf.measure_centroid(psf), webbpsf.measure_centroid(psf_rm_piston)), "centroid should not shift"
+
+    ote.remove_piston_tip_tilt = True
+    ote.update_opd()
+    psf_rm_ptt = nrc.calc_psf(nlambda=1)
+    assert not np.allclose(psf[0].data, psf_rm_ptt[0].data), "Piston/Tip/Tip removal should shift the overall PSF"
+    assert np.abs(webbpsf.measure_centroid(psf)[0] - webbpsf.measure_centroid(psf_rm_ptt)[0]) > 40, "centroid should shift susbtantially with/without tip/tilt removal"
