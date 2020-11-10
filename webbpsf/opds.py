@@ -31,6 +31,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
+import scipy.special as sp
 import scipy
 import astropy.table
 import astropy.io.fits as fits
@@ -1315,7 +1316,8 @@ class OTE_Linear_Model_WSS(OPD):
             raise NotImplementedError("Code need to be generalized for OPD sizes other than 1024**2")
         perturbation = poppy.zernike.opd_from_zernikes(self._global_zernike_coeffs,
                                                        npix=1024,
-                                                       basis=poppy.zernike.zernike_basis_faster)
+                                                       basis=poppy.zernike.zernike_basis_faster,
+                                                       outside=0)
         # Add perturbation to the opd
         self.opd += perturbation
 
@@ -1342,19 +1344,136 @@ class OTE_Linear_Model_WSS(OPD):
         # Use the Hexike basis to reconstruct the global terms
         perturbation = poppy.zernike.opd_from_zernikes(coefficients,
                                                        basis=_get_basis,
-                                                       aperture=aperture > 0.)
+                                                       aperture=aperture > 0.,
+                                                       outside=0)
         perturbation[~np.isfinite(perturbation)] = 0.0
         # Add perturbation to the opd
         self.opd += perturbation
 
-    def _apply_field_dependence_model(self):
+    def _apply_field_dependence_model(self, display=False):
         """Apply field dependence model for OTE wavefront error spatial variation.
 
         Update self.opd based on V2V3 coordinates using model(s) for spatial variations.
         """
-        # To be written! Probably will look a lot like _apply_global_zernikes, after
-        # computing the Zernike coefficients based on the multifield model
-        pass
+        # Read in data file.  Only handling NIRCAM for now and hardcoded.
+        hdu = fits.open('/Users/gbrady/Documents/Projects/WebbPSF/JWST/2020527_revH_OTE_revJ_IAB/wavefront_field/field_dep_table_nircam.fits')
+        # Pull useful parameters from header
+        hdr = hdu[0].header
+
+        # Extend of box in field over which the data is defined
+        min_x_field = hdr['MINXFIE'] * u.arcmin
+        max_x_field = hdr['MAXXFIE'] * u.arcmin
+        min_y_field = hdr['MINYFIE'] * u.arcmin
+        max_y_field = hdr['MAXYFIE'] * u.arcmin
+
+        # Check to make sure that the file has the right type of data in it and throw exception if not
+        if hdr['wfbasis'] != 'Noll Zernikes':
+            raise ValueError('Data file contains data with unsupported wavefront polynomial expansion')
+
+        if hdr['fiebasis'] != 'Legendre Polynomials':
+            raise ValueError('Data file contains data with unsupported field polynomial expansion')
+
+        num_wavefront_coeffs = hdr['ncoefwf']
+        num_field_coeffs = hdr['ncoeffie']
+        field_coeff_order = hdr['fieorder']
+
+        # Check the field angle units in the input file
+        if hdr['fangunit'] == 'degrees':
+            f_ang_unit = u.deg
+        elif hdr['fangunit'] == 'arcmin':
+            f_ang_unit = u.arcmin
+        elif hdr['fangunit'] == 'arscec':
+            f_ang_unit = u.arcsec
+        else:
+            ValueError('Field angle unit specified in file is not supported')
+
+
+        # Calculate field angle for our model from the V2/V3 coordinates
+        x_field_pt = hdr['v2sign'] * (self.v2v3[0] - hdr['v2origin'] * f_ang_unit)
+        y_field_pt = hdr['v2sign'] * (self.v2v3[1] - hdr['v3origin'] * f_ang_unit)
+
+        # x_field_pt = 0.04 * u.deg
+        # y_field_pt = 0.027 * u.deg
+        _log.info(f'Calculating field-dependent OPD at v2 = {self.v2v3[0]:.3f}, v3 = {self.v2v3[1]:.3f}')
+        _log.info(f'Calculating field-dependent OPD at CodeV X field = {x_field_pt:.3f}, Y field= {y_field_pt:.3f}')
+
+
+        # Confirm that the calculated field point is within our model's range
+        if ((x_field_pt < min_x_field) or (x_field_pt > max_x_field) or
+                (y_field_pt < min_y_field) or (y_field_pt > max_y_field)):
+            raise ValueError('Field point not within valid region for field dependence model')
+
+        # Check the OPD units in the input file
+        if hdr['opdunit'] == 'nm':
+            opd_to_meters = 1e-9
+        elif hdr['opdunit'] == 'um':
+            opd_to_meters = 1e-6
+        elif hdr['opdunit'] == 'm':
+            opd_to_meters = 1
+        elif hdr['opdunit'] == 'pm':
+            opd_to_meters = 1e-12
+        else:
+            ValueError('OPD unit specified in file is not supported')
+
+        # Read in the data table with the coefficients for our model
+        data = hdu[1].data
+        # Get value of Legendre Polynomials at desired field point.  Need to implement model in G. Brady's prototype
+        # polynomial basis code, independent of that code for now.  Perhaps at some point in the future this model
+        # can become more tightly coupled with WebbPSF/Poppy and we just call it here instead.
+        # Calculate value of Legendre at all orders at our field point of interest.
+        poly_x1d = np.zeros(field_coeff_order + 1)
+        poly_y1d = np.zeros(field_coeff_order + 1)
+        for index in range(0, field_coeff_order + 1):
+            leg_poly1d = sp.legendre(index)
+            poly_x1d[index] = leg_poly1d(float(x_field_pt / ((max_x_field - min_x_field) / 2)))
+            poly_y1d[index] = leg_poly1d(float(y_field_pt / ((max_y_field - min_y_field) / 2)))
+
+        #Calculate product of x and y Legendre value for all combinations of orders
+        poly_val_2d = np.zeros((field_coeff_order + 1, field_coeff_order + 1))
+        for index_i in range(0, field_coeff_order + 1):
+            for index_j in range(0, field_coeff_order + 1):
+                poly_val_2d[index_i, index_j] = poly_x1d[index_i] * poly_y1d[index_j]
+
+        #Reorder and rearrange values to correspond to the single index ordering the input coefficients assume
+        count = 0
+        poly_vals = np.zeros(num_field_coeffs)
+        for index_i in range(0, field_coeff_order + 1):
+            for index_j in range(index_i, -1, -1):
+                poly_vals[count] = poly_val_2d[index_j, index_i - index_j]
+                count += 1
+
+        # poly_vals now has the value of all of the Legendre polynomials at our field point of interest.  So now we
+        # need to multiply each value there with the value of the Legendre coefficients in each column and sum.  That
+        # sum will be the value of a Zernike, so we loop to repeat that for each Zernike coefficient
+
+        zernike_coeffs = np.zeros(num_wavefront_coeffs)
+
+        for z_index in range(0, num_wavefront_coeffs):
+            zernike_coeffs[z_index] = np.einsum('i, i->', data.field(z_index), poly_vals)
+        zernike_coeffs[0:3] = 0  # ignore piston/tip/tilt
+        # print(not_areal_val)
+
+        # Apply perturbation to OPD according to Zernike coefficients calculated above.
+        if not self.opd.shape == (1024, 1024):
+            raise NotImplementedError("Code need to be generalized for OPD sizes other than 1024**2")
+        perturbation = poppy.zernike.opd_from_zernikes(zernike_coeffs * opd_to_meters,
+                                                       npix=1024,
+                                                       basis=poppy.zernike.zernike_basis_faster,
+                                                       outside=0)
+        self.opd += perturbation
+
+        if display:
+            # Plot the perturbation and perturbed OPD distributions
+            fig = plt.figure()
+            myplt = plt.imshow(perturbation * 1e9 * self.get_transmission(0))
+            fig.colorbar(myplt)
+            plt.title('Field-dependent OPD Perturbation (nm)')
+            plt.show()
+            fig = plt.figure()
+            myplt = plt.imshow(self.opd * 1e9 * self.get_transmission(0))
+            fig.colorbar(myplt)
+            plt.title('OPD with field dependence applied (nm)')
+            plt.show()
 
     def move_seg_local(self, segment, xtilt=0.0, ytilt=0.0, clocking=0.0, rot_unit='urad',
                        radial=None, xtrans=None, ytrans=None, piston=0.0, roc=0.0, trans_unit='micron', display=False,
@@ -1986,7 +2105,7 @@ class OTE_Linear_Model_WSS(OPD):
             self._apply_global_hexikes(global_hexike_coeffs_combined)
         if not np.all(self._global_zernike_coeffs == 0):
             self._apply_global_zernikes()
-        self._apply_field_dependence_model()
+        self._apply_field_dependence_model(display=display)
 
         # Undo any changes made just above to the SM coefficients (avoid persistent side effects)
         if self.delta_time != 0.0:
