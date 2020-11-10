@@ -177,7 +177,6 @@ def test_update_opd():
 
     # Todo test random drifts
 
-
 def test_move_sur(plot=False):
     """ Test we can move mirrors using Segment Update Requests
     """
@@ -273,3 +272,24 @@ def test_single_seg_psf(segmentid=1):
     psf_rm_ptt = nrc.calc_psf(nlambda=1)
     assert not np.allclose(psf[0].data, psf_rm_ptt[0].data), "Piston/Tip/Tip removal should shift the overall PSF"
     assert np.abs(webbpsf.measure_centroid(psf)[0] - webbpsf.measure_centroid(psf_rm_ptt)[0]) > 40, "centroid should shift susbtantially with/without tip/tilt removal"
+
+
+def test_apply_field_dependence_model
+    ''' Test to make sure the field dependence model is giving sensible output'''
+
+    # Get the OPD without any sort of field dependence
+    ote = webbpsf.opds.OTE_Linear_Model_WSS(v2v3=None)
+    opd_no_field_model = ote.opd.copy()
+
+    # Get the OPD at the zero field point of v2 = 0, v3 = -468 arcsec
+    ote.v2v3 = (0, -468) * u.arcsec
+    ote.update_opd()
+    opd_zero_field = ote.opd.copy()
+
+    # Get the OPD at some arbitrary nonzero field point
+    ote.v2v3 = (-6, 1.8) * u.arcmin
+    ote.update_opd()
+    opd_arb_field = ote.opd.copy()
+
+    assert np.allclose(opd_no_field_model, opd_zero_field, rtol=1e-9), "OPDs expected to match didn't, zero field"
+    assert np.allclose(opd_zero_field, opd_arb_field, rtol=1e-9) == False "OPDs expected to differ didn't"
