@@ -1355,6 +1355,10 @@ class OTE_Linear_Model_WSS(OPD):
 
         Update self.opd based on V2V3 coordinates using model(s) for spatial variations.
         """
+
+        if self.v2v3 is None:
+            return
+
         # Read in data file.  Only handling NIRCAM for now and hardcoded.
         hdu = fits.open('/Users/gbrady/Documents/Projects/WebbPSF/JWST/2020527_revH_OTE_revJ_IAB/wavefront_field/field_dep_table_nircam.fits')
         # Pull useful parameters from header
@@ -1461,19 +1465,19 @@ class OTE_Linear_Model_WSS(OPD):
                                                        basis=poppy.zernike.zernike_basis_faster,
                                                        outside=0)
         self.opd += perturbation
-
-        if display:
-            # Plot the perturbation and perturbed OPD distributions
-            fig = plt.figure()
-            myplt = plt.imshow(perturbation * 1e9 * self.get_transmission(0))
-            fig.colorbar(myplt)
-            plt.title('Field-dependent OPD Perturbation (nm)')
-            plt.show()
-            fig = plt.figure()
-            myplt = plt.imshow(self.opd * 1e9 * self.get_transmission(0))
-            fig.colorbar(myplt)
-            plt.title('OPD with field dependence applied (nm)')
-            plt.show()
+        #
+        # if display == True:
+        # # Plot the perturbation and perturbed OPD distributions
+        # fig = plt.figure()
+        # myplt = plt.imshow(perturbation * 1e9 * self.get_transmission(0))
+        # fig.colorbar(myplt)
+        # plt.title('Field-dependent OPD Perturbation (nm)')
+        # plt.show()
+        # fig = plt.figure()
+        # myplt = plt.imshow(self.opd * 1e9 * self.get_transmission(0))
+        # fig.colorbar(myplt)
+        # plt.title('OPD with field dependence applied (nm)')
+        # plt.show()
 
     def move_seg_local(self, segment, xtilt=0.0, ytilt=0.0, clocking=0.0, rot_unit='urad',
                        radial=None, xtrans=None, ytrans=None, piston=0.0, roc=0.0, trans_unit='micron', display=False,

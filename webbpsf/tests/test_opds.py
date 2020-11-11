@@ -274,7 +274,7 @@ def test_single_seg_psf(segmentid=1):
     assert np.abs(webbpsf.measure_centroid(psf)[0] - webbpsf.measure_centroid(psf_rm_ptt)[0]) > 40, "centroid should shift susbtantially with/without tip/tilt removal"
 
 
-def test_apply_field_dependence_model
+def test_apply_field_dependence_model():
     ''' Test to make sure the field dependence model is giving sensible output'''
 
     # Get the OPD without any sort of field dependence
@@ -287,9 +287,9 @@ def test_apply_field_dependence_model
     opd_zero_field = ote.opd.copy()
 
     # Get the OPD at some arbitrary nonzero field point
-    ote.v2v3 = (-6, 1.8) * u.arcmin
+    ote.v2v3 = (1.8, 6) * u.arcmin
     ote.update_opd()
     opd_arb_field = ote.opd.copy()
 
     assert np.allclose(opd_no_field_model, opd_zero_field, rtol=1e-9), "OPDs expected to match didn't, zero field"
-    assert np.allclose(opd_zero_field, opd_arb_field, rtol=1e-9) == False "OPDs expected to differ didn't"
+    assert np.allclose(opd_zero_field, opd_arb_field, rtol=1e-9) == False, "OPDs expected to differ didn't"
