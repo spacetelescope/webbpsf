@@ -1391,16 +1391,14 @@ class OTE_Linear_Model_WSS(OPD):
         else:
             ValueError('Field angle unit specified in file is not supported')
 
-
         # Calculate field angle for our model from the V2/V3 coordinates
         x_field_pt = hdr['v2sign'] * (self.v2v3[0] - hdr['v2origin'] * f_ang_unit)
-        y_field_pt = hdr['v2sign'] * (self.v2v3[1] - hdr['v3origin'] * f_ang_unit)
+        y_field_pt = hdr['v3sign'] * (self.v2v3[1] - hdr['v3origin'] * f_ang_unit)
 
         # x_field_pt = 0.04 * u.deg
         # y_field_pt = 0.027 * u.deg
         _log.info(f'Calculating field-dependent OPD at v2 = {self.v2v3[0]:.3f}, v3 = {self.v2v3[1]:.3f}')
         _log.info(f'Calculating field-dependent OPD at CodeV X field = {x_field_pt:.3f}, Y field= {y_field_pt:.3f}')
-
 
         # Confirm that the calculated field point is within our model's range
         if ((x_field_pt < min_x_field) or (x_field_pt > max_x_field) or

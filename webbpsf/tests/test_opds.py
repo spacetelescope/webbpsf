@@ -6,6 +6,7 @@ import astropy.units as u
 import numpy as np
 import pytest
 import webbpsf
+import matplotlib.pyplot as plt
 
 def test_enable_adjustable_ote():
     """ Some basic tests of the OTE LOM"""
@@ -279,17 +280,20 @@ def test_apply_field_dependence_model():
 
     # Get the OPD without any sort of field dependence
     ote = webbpsf.opds.OTE_Linear_Model_WSS(v2v3=None)
-    opd_no_field_model = ote.opd.copy()
+    opd_no_field_model = ote.opd.copy() * ote.get_transmission(0)
 
     # Get the OPD at the zero field point of v2 = 0, v3 = -468 arcsec
+    # Center of NIRCAM fields, but not physically on a detector.
     ote.v2v3 = (0, -468) * u.arcsec
-    ote.update_opd()
-    opd_zero_field = ote.opd.copy()
+    ote._apply_field_dependence_model()
+    opd_zero_field = ote.opd.copy() * ote.get_transmission(0)
+    rms1 = np.sqrt(np.mean((opd_no_field_model - opd_zero_field) ** 2))
 
     # Get the OPD at some arbitrary nonzero field point
-    ote.v2v3 = (1.8, 6) * u.arcmin
-    ote.update_opd()
-    opd_arb_field = ote.opd.copy()
+    ote.v2v3 = (1.8, -6) * u.arcmin
+    ote._apply_field_dependence_model()
+    opd_arb_field = ote.opd.copy() * ote.get_transmission(0)
+    rms2 = np.sqrt(np.mean((opd_no_field_model - opd_arb_field) ** 2))
 
-    assert np.allclose(opd_no_field_model, opd_zero_field, rtol=1e-9), "OPDs expected to match didn't, zero field"
-    assert np.allclose(opd_zero_field, opd_arb_field, rtol=1e-9) == False, "OPDs expected to differ didn't"
+    assert(rms1 < 7e-9), "OPDs expected to match didn't, zero field"
+    assert(rms2 > 7e-9), "OPDs expected to differ didn't"
