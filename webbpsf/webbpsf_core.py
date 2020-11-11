@@ -554,7 +554,11 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
                                "instrument class or by setting self.pupil")
         if isinstance(self.pupil, poppy.OpticalElement):
             # supply to POPPY as-is
+<<<<<<< HEAD
             pupil_optic = self.pupil
+=======
+            pupil_optic = optsys.add_pupil(self.pupil)
+>>>>>>> Refactor to by default always cast JWST OTE optic as a linear model instance.
         else:
             # wrap in an optic and supply to POPPY
             if isinstance(self.pupil, str):  # simple filename
@@ -877,7 +881,11 @@ class JWInstrument(SpaceTelescopeInstrument):
                                "instrument class or by setting self.pupil")
         if isinstance(self.pupil, poppy.OpticalElement):
             # supply to POPPY as-is
+<<<<<<< HEAD
             pupil_optic = self.pupil
+=======
+            pupil_optic = optsys.add_pupil(self.pupil)
+>>>>>>> Refactor to by default always cast JWST OTE optic as a linear model instance.
         else:
             # wrap in an optic and supply to POPPY
             if isinstance(self.pupil, str):  # simple filename
