@@ -217,13 +217,12 @@ def test_move_sur(plot=False):
     s = glob.glob(surdir+'/example_image_stacking*sur.xml')[0]
     print("Testing moving one group at a time with "+s)
     ote.reset()
-    import jwxml
-    sur = jwxml.SUR(s)
+    sur = webbpsf.surs.SUR(s)
 
     ngroups = len(sur.groups)
     oldstate = ote.segment_state.copy()
 
-    for igrp in range(1,ngroups+1):
+    for igrp in range(1, ngroups+1):
         print("Group {} should move segment {}".format(igrp, 2*igrp+6))
         ote.move_sur(s, group=igrp)
 
