@@ -3,7 +3,6 @@ import itertools
 import os
 
 import astropy.convolution
-import astropy.units as units
 from astropy.io import fits
 from astropy.nddata import NDData
 import numpy as np
