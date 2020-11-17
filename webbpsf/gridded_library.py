@@ -265,11 +265,6 @@ class CreatePSFLibrary:
             for i, loc in enumerate(self.location_list):
                 self.webb.detector_position = loc  # (X,Y) - line 286 in webbpsf_core.py
 
-                # UPDATE THE OPD V2V3 BASED ON DETECTOR POSITION, IN ORDER TO CALCULATE SM FIELD-DEPENDENT WFE.
-                # SEE opds._apply_sm_field_dependence_model()
-                self.webb.pupil.v2v3 = self.webb._tel_coords().to(units.arcsec)
-                self.webb.pupil.update_opd()
-
                 if self.verbose is True:
                     print("    Position {}/{}: {} pixels".format(i+1, len(self.location_list), loc))
 
