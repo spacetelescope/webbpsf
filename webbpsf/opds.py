@@ -40,6 +40,9 @@ from collections import OrderedDict
 
 import poppy
 import poppy.zernike as zernike
+
+import pysiaf
+
 from . import constants
 from . import utils
 
@@ -1059,7 +1062,7 @@ class OTE_Linear_Model_WSS(OPD):
     """
 
     def __init__(self, name='Unnamed OPD', opd=None, opd_index=0, transmission=None, segment_mask_file='JWpupil_segments.fits',
-                 zero=False, rm_ptt=False, rm_piston=False, v2v3=None):
+                 zero=False, rm_ptt=False, rm_piston=False, v2v3=None, ctrl_pt_instr='nircam', ctrl_pt_fp='nrca3_full'):
         """
         Parameters
         ----------
@@ -1124,6 +1127,8 @@ class OTE_Linear_Model_WSS(OPD):
         self._iec_wfe_amplitude = 0.0
 
         self.meta = OrderedDict()  # container for arbitrary extra metadata
+
+        self.ote_ctrl_pt = pysiaf.Siaf(ctrl_pt_instr.upper())[ctrl_pt_fp.upper()].reference_point('tel') *u.arcsec
 
         if zero:
             self.zero()
@@ -1347,15 +1352,98 @@ class OTE_Linear_Model_WSS(OPD):
         # Add perturbation to the opd
         self.opd += perturbation
 
-    def _apply_field_dependence_model(self):
-        """Apply field dependence model for OTE wavefront error spatial variation.
+    def _get_zernike_coeffs_from_smif(self, dx=0., dy=0., **kwargs):
+        '''     
+        Apply Secondary Mirror field dependence based on SM pose and field angle.
 
-        Update self.opd based on V2V3 coordinates using model(s) for spatial variations.
+        NOTES:
+        Wavefront Phi(x,y) = Sum[ m_j * Sum[ (alpha_jk*dx + beta_jk*dy)*Z_k ] ]
+        where m_j is the SM mode error (0: X-trans, 1: Y-trans, 2: X-tilt, 3: Y-tilt);
+        dx/dy are the field separation from the control point, in radians;
+        Z_k are the Zernike (3: defocus, 4: 0-Degree Astig, 5: 45-Degree Astig);
+        alpha and beta are taken from the SMIF_Matrix/hexike.csv calculated 
+        by Randal Telfer.
+        
+        See Also Ball SER 2288152 "JWST WFSC MIMF Control Algorithm Design".
+
+        Parameters
+        ----------
+        dx, dy = field angles, in radians, from the OTE control point (nominally, NRCA3_FULL).
+
+        Returns:
+        ----------
+        Zernike or Hexike coefficients, in microns, for the first nine (9) coefficients, with PTT explicitly set to zero.
+
+        '''
+        
+        # GET SM POSE:
+        # RE-ORDER SUCH THAT (1) X-TRANS, (2) Y-TRANS, (3) X-TILT, (4) Y-TILT.
+        sm_errors = [self.segment_state[-1, 2],     # X-TRANS
+                         self.segment_state[-1, 3], # Y-TRANS
+                         self.segment_state[-1, 0], # X-TILT
+                         self.segment_state[-1, 1], # Y-TILT
+                         0.0 ] #ote.segment_state[-1, 4]] # PISTON; Ignore for consistency with BALL SER
+
+        # GET SM INFLUENCE MATRIX AND CLEAN UP THE ARRAY A BIT:
+        zernike = False    
+        if zernike:
+            #ZERNIKE PROJECTED ONTO EXIT PUPIL:
+            smif = np.genfromtxt(os.path.join(__location__, 'otelm', "SMIF_zernike.csv"), delimiter=",", skip_header=1, usecols=[0, 1, 2, 3, 4, 5, 6])
+        else:
+            # HEXIKE PROJECTED ONTO ENTRANCE PUPIL (WHAT WEBBPSF NEEDS):
+            smif = np.genfromtxt(os.path.join(__location__, 'otelm', "SMIF_hexike.csv"), delimiter=",", skip_header=1, usecols=[0, 1, 2, 3, 4, 5, 6])
+
+        # DELETE THE FIRST ROW OF EACH SM MODE SINCE WE'RE NOT USING IT (RIGHT?)
+        smif = np.delete(smif, [0, 3, 6, 9, 12], axis=0)
+
+        # REMOVE FIRST ELEMENT FROM EACH ROW (i.e. THE "MODE" COLUMN):
+        smif = smif[:,1:]
+    
+        alphas = smif[0::2] # EVEN ROWS ONLY
+        betas  = smif[1::2] # ODD ROWS ONLY
+
+        # MULTIPLY EACH ROW BY THE RESPECTIVE SM MODE ERROR:
+        m_alphas = np.multiply(alphas.T, sm_errors).T
+        m_betas  = np.multiply(betas.T, sm_errors).T
+
+        # SUM UP EACH COLUMN TO GET CUMULATIVE COEFFICIENT FOR EACH ZERNIKE/HEXIKE:
+        coeffs = np.zeros(len(alphas[0]))
+        coeffs = dx * np.sum(m_alphas, axis=0) + dy * np.sum(m_betas, axis=0)
+    
+        if zernike:
+            # SWAP COLUMNS FOR 45-ASTIG AND 0-ASTIG SINCE POPPY ZERNIKE RETURNS 45-ASTIG FIRST
+            coeffs[ [1, 2] ] = coeffs[ [2, 1] ]
+
+        # PAD IN ZEROS FOR PISTON, TIP, TILT:
+        coeffs = np.insert(coeffs, 0, [0., 0., 0.])
+    
+        return coeffs
+        
+        
+    def _apply_sm_field_dependence_model(self):
         """
-        # To be written! Probably will look a lot like _apply_global_zernikes, after
-        # computing the Zernike coefficients based on the multifield model
-        pass
+        Apply SM field-dependent model for OTE wavefront error as a function of field angle and SM pose amplitude.
 
+        Updates self.opd based on V2V3 coordinates and amplitude of SM pose.
+        """
+
+        # FIX ME HERE ON WHAT TO DO IF None:
+        if self.v2v3 is None: 
+            return
+        else:
+            dx =-(self.v2v3[0] - self.ote_ctrl_pt[0]).to(u.rad).value # NEGATIVE SIGN B/C TELFER'S FIELD ANGLE COORD. SYSTEM IS X/Y = -V2/V3
+            dy = (self.v2v3[1] - self.ote_ctrl_pt[1]).to(u.rad).value
+
+            z_coeffs = self._get_zernike_coeffs_from_smif(dx, dy)
+
+            perturbation =  poppy.zernike.opd_from_zernikes(z_coeffs, npix=1024, 
+                                                    basis=poppy.zernike.hexike_basis_wss, aperture=self.amplitude)
+
+            perturbation[~np.isfinite(perturbation)] = 0.0
+            
+            self.opd += perturbation*1e-6
+
+        
     def move_seg_local(self, segment, xtilt=0.0, ytilt=0.0, clocking=0.0, rot_unit='urad',
                        radial=None, xtrans=None, ytrans=None, piston=0.0, roc=0.0, trans_unit='micron', display=False,
                        delay_update=False, absolute=False):
@@ -1975,8 +2063,8 @@ class OTE_Linear_Model_WSS(OPD):
 
                 self._apply_hexikes_to_seg(segname, hexike_coeffs_combined)
 
-        # The thermal slew model for the SM global defocus is implemented as a global hexike.
-        # So we have to combine that with the _global_hexikes array here
+       # The thermal slew model for the SM global defocus is implemented as a global hexike.
+       # So we have to combine that with the _global_hexikes array here
         global_hexike_coeffs_combined = self._global_hexike_coeffs.copy()
         if self.delta_time != 0.0:
             global_hexike_coeffs_combined[4] += self._get_thermal_slew_coeffs('SM')
@@ -1986,7 +2074,8 @@ class OTE_Linear_Model_WSS(OPD):
             self._apply_global_hexikes(global_hexike_coeffs_combined)
         if not np.all(self._global_zernike_coeffs == 0):
             self._apply_global_zernikes()
-        self._apply_field_dependence_model()
+            
+        self._apply_sm_field_dependence_model()
 
         if display:
             self.display()
