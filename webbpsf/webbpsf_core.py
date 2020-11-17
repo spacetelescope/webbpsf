@@ -1019,8 +1019,11 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         # UPDATE THE OPD V2V3 BASED ON DETECTOR POSITION, IN ORDER TO CALCULATE SM FIELD-DEPENDENT WFE.
         # SEE opds._apply_sm_field_dependence_model()
-        self.pupil.v2v3 = self._tel_coords().to(units.arcsec)
-        self.pupil.update_opd()
+
+        # v2v3 attribute exists only if using the linear model, so check first:
+        if hasattr(self.pupil, 'v2v3'):
+            self.pupil.v2v3 = self._tel_coords().to(units.arcsec)
+            self.pupil.update_opd()
         
         # Run poppy calc_psf        
         psf = SpaceTelescopeInstrument.calc_psf(self, outfile=outfile, source=source, nlambda=nlambda,
