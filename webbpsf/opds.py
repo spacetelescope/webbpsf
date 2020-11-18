@@ -1359,16 +1359,50 @@ class OTE_Linear_Model_WSS(OPD):
         if self.v2v3 is None:
             return
 
+        # Figure out what instrument the field coordinate correspond to
+        if (self.v2v3[0] <= 4.665484587 * u.arcmin) and (self.v2v3[0] >= -0.806163939 * u.arcmin) and \
+            (self.v2v3[1] <= -10.45247446 * u.arcmin) and (self.v2v3[1] >= -12.89545009 * u.arcmin):
+            instrument = 'FGS'
+            _log.info('Field coordinates determined to be in FGS field')
+        elif (self.v2v3[0] <= 2.550134288 * u.arcmin) and (self.v2v3[0] >= -2.56307794 * u.arcmin) and \
+            (self.v2v3[1] <= -7.099887358 * u.arcmin) and (self.v2v3[1] >= -9.323231772 * u.arcmin):
+            instrument = 'NIRCam'
+            _log.info('Field coordinates determined to be in NIRCam field')
+        elif (self.v2v3[0] <= 7.418693624 * u.arcmin) and (self.v2v3[0] >= 2.42539852 * u.arcmin) and \
+            (self.v2v3[1] <= -5.884893932 * u.arcmin) and (self.v2v3[1] >= -10.96101285 * u.arcmin):
+            instrument = 'NIRSpec'
+            _log.info('Field coordinates determined to be in NIRSpec field')
+        elif (self.v2v3[0] <= -6.216787597 * u.arcmin) and (self.v2v3[0] >= -8.263385176 * u.arcmin) and \
+            (self.v2v3[1] <= -5.242103033 * u.arcmin) and (self.v2v3[1] >= -7.26879177 * u.arcmin):
+            instrument = 'MIRI'
+            _log.info('Field coordinates determined to be in MIRI field')
+        elif (self.v2v3[0] <= -3.726720707 * u.arcmin) and (self.v2v3[0] >= -5.981007903 * u.arcmin) and \
+            (self.v2v3[1] <= -10.50669236 * u.arcmin) and (self.v2v3[1] >= -12.76596246 * u.arcmin):
+            instrument = 'NIRISS'
+            _log.info('Field coordinates determined to be in NIRISS field')
+        else:
+            _log.info(f'Not in a valid instrument field')
+            raise ValueError('Given V2V3 coordinates do not fall within an instrument region with a field dependence model')
+
+        base_path = utils.get_webbpsf_data_path()
+        field_dep_file = os.path.join(base_path, f'{instrument}/OPD/field_dep_table_{instrument.lower()}.fits')
+        _log.info(f'Loading field dependent model parameters from {field_dep_file}')
+
         # Read in data file.  Only handling NIRCAM for now and hardcoded.
-        hdu = fits.open('/Users/gbrady/Documents/Projects/WebbPSF/JWST/2020527_revH_OTE_revJ_IAB/wavefront_field/field_dep_table_nircam.fits')
+        hdu = fits.open(field_dep_file)
         # Pull useful parameters from header
         hdr = hdu[0].header
 
-        # Extend of box in field over which the data is defined
+        # Extent of box in field over which the data is defined
         min_x_field = hdr['MINXFIE'] * u.arcmin
         max_x_field = hdr['MAXXFIE'] * u.arcmin
         min_y_field = hdr['MINYFIE'] * u.arcmin
         max_y_field = hdr['MAXYFIE'] * u.arcmin
+
+        # Check to make sure that we've got the right instrument
+        # if hdr['instr'].lower != instrument.lower:
+        if hdr['instr'].lower != 'NIRCam'.lower:        # Bug in table calculation put NIRCam for all.  Will fix later
+            ValueError('Instrument inconsistent with field dependence file')
 
         # Check to make sure that the file has the right type of data in it and throw exception if not
         if hdr['wfbasis'] != 'Noll Zernikes':
@@ -1389,7 +1423,7 @@ class OTE_Linear_Model_WSS(OPD):
         elif hdr['fangunit'] == 'arscec':
             f_ang_unit = u.arcsec
         else:
-            ValueError('Field angle unit specified in file is not supported')
+            raise ValueError('Field angle unit specified in file is not supported')
 
         # Calculate field angle for our model from the V2/V3 coordinates
         x_field_pt = hdr['v2sign'] * (self.v2v3[0] - hdr['v2origin'] * f_ang_unit)
@@ -1463,19 +1497,19 @@ class OTE_Linear_Model_WSS(OPD):
                                                        basis=poppy.zernike.zernike_basis_faster,
                                                        outside=0)
         self.opd += perturbation
-        #
+
         # if display == True:
-        # # Plot the perturbation and perturbed OPD distributions
-        # fig = plt.figure()
-        # myplt = plt.imshow(perturbation * 1e9 * self.get_transmission(0))
-        # fig.colorbar(myplt)
-        # plt.title('Field-dependent OPD Perturbation (nm)')
-        # plt.show()
-        # fig = plt.figure()
-        # myplt = plt.imshow(self.opd * 1e9 * self.get_transmission(0))
-        # fig.colorbar(myplt)
-        # plt.title('OPD with field dependence applied (nm)')
-        # plt.show()
+            # Plot the perturbation and perturbed OPD distributions
+        fig = plt.figure()
+        myplt = plt.imshow(perturbation * 1e9 * self.get_transmission(0))
+        fig.colorbar(myplt)
+        plt.title('Field-dependent OPD Perturbation (nm)')
+        plt.show()
+        fig = plt.figure()
+        myplt = plt.imshow(self.opd * 1e9 * self.get_transmission(0))
+        fig.colorbar(myplt)
+        plt.title(f'OPD with field dependence applied (nm) v2={self.v2v3[0]}')
+        plt.show()
 
     def move_seg_local(self, segment, xtilt=0.0, ytilt=0.0, clocking=0.0, rot_unit='urad',
                        radial=None, xtrans=None, ytrans=None, piston=0.0, roc=0.0, trans_unit='micron', display=False,
