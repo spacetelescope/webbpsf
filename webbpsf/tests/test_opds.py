@@ -273,3 +273,24 @@ def test_single_seg_psf(segmentid=1):
     psf_rm_ptt = nrc.calc_psf(nlambda=1)
     assert not np.allclose(psf[0].data, psf_rm_ptt[0].data), "Piston/Tip/Tip removal should shift the overall PSF"
     assert np.abs(webbpsf.measure_centroid(psf)[0] - webbpsf.measure_centroid(psf_rm_ptt)[0]) > 40, "centroid should shift susbtantially with/without tip/tilt removal"
+
+
+def test_get_zernike_coeffs_from_smif():
+    """ 
+    Test that the OTE SM Influence function returns expected Hexike coefficients.
+    """
+    
+    # Create an instance of the OTE linear model
+    otelm = webbpsf.opds.OTE_Linear_Model_WSS()
+
+    # Case 1: otelm.v2v3 is None, should return None
+    otelm._apply_sm_field_dependence_model()
+    assert ( otelm._apply_sm_field_dependence_model() is None)
+
+    # Case 2: check coefficient at control point; should return zeros.
+    assert( np.allclose(otelm._get_zernike_coeffs_from_smif(0., 0.), np.asarray([0.]*9) ))
+
+    # Case 3:
+    
+ 
+    

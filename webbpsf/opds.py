@@ -1427,21 +1427,19 @@ class OTE_Linear_Model_WSS(OPD):
         Updates self.opd based on V2V3 coordinates and amplitude of SM pose.
         """
 
-        # FIX ME HERE ON WHAT TO DO IF None:
-        if self.v2v3 is None: 
-            return
-        else:
-            dx =-(self.v2v3[0] - self.ote_ctrl_pt[0]).to(u.rad).value # NEGATIVE SIGN B/C TELFER'S FIELD ANGLE COORD. SYSTEM IS X/Y = -V2/V3
-            dy = (self.v2v3[1] - self.ote_ctrl_pt[1]).to(u.rad).value
 
-            z_coeffs = self._get_zernike_coeffs_from_smif(dx, dy)
+        dx =-(self.v2v3[0] - self.ote_ctrl_pt[0]).to(u.rad).value # NEGATIVE SIGN B/C TELFER'S FIELD ANGLE COORD. SYSTEM IS X/Y = -V2/V3
+        dy = (self.v2v3[1] - self.ote_ctrl_pt[1]).to(u.rad).value
 
-            perturbation =  poppy.zernike.opd_from_zernikes(z_coeffs, npix=1024, 
+        z_coeffs = self._get_zernike_coeffs_from_smif(dx, dy)
+
+        perturbation =  poppy.zernike.opd_from_zernikes(z_coeffs, npix=1024, 
                                                     basis=poppy.zernike.hexike_basis_wss, aperture=self.amplitude)
 
-            perturbation[~np.isfinite(perturbation)] = 0.0
+        perturbation[~np.isfinite(perturbation)] = 0.0
             
-            self.opd += perturbation*1e-6
+        self.opd += perturbation*1e-6
+        self.opd_header['SM_IFM'] = 'Applied'
 
         
     def move_seg_local(self, segment, xtilt=0.0, ytilt=0.0, clocking=0.0, rot_unit='urad',
@@ -2075,7 +2073,7 @@ class OTE_Linear_Model_WSS(OPD):
         if not np.all(self._global_zernike_coeffs == 0):
             self._apply_global_zernikes()
             
-        self._apply_sm_field_dependence_model()
+        if self.v2v3 is not None: self._apply_sm_field_dependence_model()
 
         if display:
             self.display()
