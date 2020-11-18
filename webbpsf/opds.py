@@ -1352,7 +1352,7 @@ class OTE_Linear_Model_WSS(OPD):
         # Add perturbation to the opd
         self.opd += perturbation
 
-    def _get_zernike_coeffs_from_smif(self, dx=0., dy=0., **kwargs):
+    def _get_zernike_coeffs_from_smif(self, dx=0., dy=0., zernike=False):
         '''     
         Apply Secondary Mirror field dependence based on SM pose and field angle.
 
@@ -1382,10 +1382,10 @@ class OTE_Linear_Model_WSS(OPD):
                          self.segment_state[-1, 3], # Y-TRANS
                          self.segment_state[-1, 0], # X-TILT
                          self.segment_state[-1, 1], # Y-TILT
-                         0.0 ] #ote.segment_state[-1, 4]] # PISTON; Ignore for consistency with BALL SER
-
+                         self.segment_state[-1, 4]] # PISTON; Ignore for consistency with BALL SER
+        
         # GET SM INFLUENCE MATRIX AND CLEAN UP THE ARRAY A BIT:
-        zernike = False    
+        zernike = zernike    
         if zernike:
             #ZERNIKE PROJECTED ONTO EXIT PUPIL:
             smif = np.genfromtxt(os.path.join(__location__, 'otelm', "SMIF_zernike.csv"), delimiter=",", skip_header=1, usecols=[0, 1, 2, 3, 4, 5, 6])
@@ -1420,7 +1420,7 @@ class OTE_Linear_Model_WSS(OPD):
         return coeffs
         
         
-    def _apply_sm_field_dependence_model(self):
+    def _apply_sm_field_dependence_model(self, **kwargs):
         """
         Apply SM field-dependent model for OTE wavefront error as a function of field angle and SM pose amplitude.
 
@@ -1433,7 +1433,7 @@ class OTE_Linear_Model_WSS(OPD):
             dx =-(self.v2v3[0] - self.ote_ctrl_pt[0]).to(u.rad).value # NEGATIVE SIGN B/C TELFER'S FIELD ANGLE COORD. SYSTEM IS X/Y = -V2/V3
             dy = (self.v2v3[1] - self.ote_ctrl_pt[1]).to(u.rad).value
 
-            z_coeffs = self._get_zernike_coeffs_from_smif(dx, dy)
+            z_coeffs = self._get_zernike_coeffs_from_smif(dx, dy, **kwargs)
 
             perturbation =  poppy.zernike.opd_from_zernikes(z_coeffs, npix=1024, 
                                                     basis=poppy.zernike.hexike_basis_wss, aperture=self.amplitude)
