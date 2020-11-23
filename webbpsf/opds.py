@@ -1350,7 +1350,7 @@ class OTE_Linear_Model_WSS(OPD):
         # Add perturbation to the opd
         self.opd += perturbation
 
-    def _apply_field_dependence_model(self, display=False):
+    def _apply_field_dependence_model(self, reference='global'):
         """Apply field dependence model for OTE wavefront error spatial variation.
 
         Update self.opd based on V2V3 coordinates using model(s) for spatial variations.
@@ -1364,20 +1364,20 @@ class OTE_Linear_Model_WSS(OPD):
             (self.v2v3[1] <= -10.45247446 * u.arcmin) and (self.v2v3[1] >= -12.89545009 * u.arcmin):
             instrument = 'FGS'
             _log.info('Field coordinates determined to be in FGS field')
-        elif (self.v2v3[0] <= 2.550134288 * u.arcmin) and (self.v2v3[0] >= -2.56307794 * u.arcmin) and \
-            (self.v2v3[1] <= -7.099887358 * u.arcmin) and (self.v2v3[1] >= -9.323231772 * u.arcmin):
+        elif (self.v2v3[0] <= 2.550134689 * u.arcmin) and (self.v2v3[0] >= -2.582628522 * u.arcmin) and \
+            (self.v2v3[1] <= -6.53061223 * u.arcmin) and (self.v2v3[1] >= -9.339010878 * u.arcmin):
             instrument = 'NIRCam'
             _log.info('Field coordinates determined to be in NIRCam field')
-        elif (self.v2v3[0] <= 7.418693624 * u.arcmin) and (self.v2v3[0] >= 2.42539852 * u.arcmin) and \
-            (self.v2v3[1] <= -5.884893932 * u.arcmin) and (self.v2v3[1] >= -10.96101285 * u.arcmin):
+        elif (self.v2v3[0] <= 8.902121276 * u.arcmin) and (self.v2v3[0] >= 3.76747823 * u.arcmin) and \
+            (self.v2v3[1] <= -4.591796373 * u.arcmin) and (self.v2v3[1] >= -9.728478191 * u.arcmin):
             instrument = 'NIRSpec'
             _log.info('Field coordinates determined to be in NIRSpec field')
-        elif (self.v2v3[0] <= -6.216787597 * u.arcmin) and (self.v2v3[0] >= -8.263385176 * u.arcmin) and \
-            (self.v2v3[1] <= -5.242103033 * u.arcmin) and (self.v2v3[1] >= -7.26879177 * u.arcmin):
+        elif (self.v2v3[0] <= -6.217360565 * u.arcmin) and (self.v2v3[0] >= -8.254200362 * u.arcmin) and \
+            (self.v2v3[1] <= -5.242777276 * u.arcmin) and (self.v2v3[1] >= -7.23679396 * u.arcmin):
             instrument = 'MIRI'
             _log.info('Field coordinates determined to be in MIRI field')
-        elif (self.v2v3[0] <= -3.726720707 * u.arcmin) and (self.v2v3[0] >= -5.981007903 * u.arcmin) and \
-            (self.v2v3[1] <= -10.50669236 * u.arcmin) and (self.v2v3[1] >= -12.76596246 * u.arcmin):
+        elif (self.v2v3[0] <= --3.72672121 * u.arcmin) and (self.v2v3[0] >= -5.981008406 * u.arcmin) and \
+            (self.v2v3[1] <= -10.50669267 * u.arcmin) and (self.v2v3[1] >= -12.76596235 * u.arcmin):
             instrument = 'NIRISS'
             _log.info('Field coordinates determined to be in NIRISS field')
         else:
@@ -1425,6 +1425,10 @@ class OTE_Linear_Model_WSS(OPD):
         else:
             raise ValueError('Field angle unit specified in file is not supported')
 
+        # Reference point (center of instument's field) for our model
+        ref_pt_x = hdr['refptx'] * u.arcmin
+        ref_pt_y = hdr['refpty'] * u.arcmin
+
         # Calculate field angle for our model from the V2/V3 coordinates
         x_field_pt = hdr['v2sign'] * (self.v2v3[0] - hdr['v2origin'] * f_ang_unit)
         y_field_pt = hdr['v3sign'] * (self.v2v3[1] - hdr['v3origin'] * f_ang_unit)
@@ -1451,18 +1455,30 @@ class OTE_Linear_Model_WSS(OPD):
         else:
             ValueError('OPD unit specified in file is not supported')
 
-        # Read in the data table with the coefficients for our model
-        data = hdu[1].data
+        # Read in the data table with the coefficients for our model  hdu[1] ==> local reference point hdu[2] ==>
+        # global reference point
+        if reference == 'global':
+            data = hdu[2].data
+        elif reference == 'local':
+            data = hdu[1].data
+        else:
+            raise ValueError('Invalid wavefront reference')
+
         # Get value of Legendre Polynomials at desired field point.  Need to implement model in G. Brady's prototype
         # polynomial basis code, independent of that code for now.  Perhaps at some point in the future this model
         # can become more tightly coupled with WebbPSF/Poppy and we just call it here instead.
         # Calculate value of Legendre at all orders at our field point of interest.
+
+        x_field_pt_norm = float((x_field_pt - ref_pt_x) / ((max_x_field - min_x_field) / 2))
+        y_field_pt_norm = float((y_field_pt - ref_pt_y) / ((max_y_field - min_y_field) / 2))
+        print(f'{instrument} max_x={max_x_field} min_x={min_x_field} max_y={max_y_field} min_y={min_y_field}')
+        print(f'Normalized field point {x_field_pt_norm}, {y_field_pt_norm}')
         poly_x1d = np.zeros(field_coeff_order + 1)
         poly_y1d = np.zeros(field_coeff_order + 1)
         for index in range(0, field_coeff_order + 1):
             leg_poly1d = sp.legendre(index)
-            poly_x1d[index] = leg_poly1d(float(x_field_pt / ((max_x_field - min_x_field) / 2)))
-            poly_y1d[index] = leg_poly1d(float(y_field_pt / ((max_y_field - min_y_field) / 2)))
+            poly_x1d[index] = leg_poly1d(x_field_pt_norm)
+            poly_y1d[index] = leg_poly1d(y_field_pt_norm)
 
         #Calculate product of x and y Legendre value for all combinations of orders
         poly_val_2d = np.zeros((field_coeff_order + 1, field_coeff_order + 1))
@@ -1498,18 +1514,6 @@ class OTE_Linear_Model_WSS(OPD):
                                                        outside=0)
         self.opd += perturbation
 
-        # if display == True:
-            # Plot the perturbation and perturbed OPD distributions
-        fig = plt.figure()
-        myplt = plt.imshow(perturbation * 1e9 * self.get_transmission(0))
-        fig.colorbar(myplt)
-        plt.title('Field-dependent OPD Perturbation (nm)')
-        plt.show()
-        fig = plt.figure()
-        myplt = plt.imshow(self.opd * 1e9 * self.get_transmission(0))
-        fig.colorbar(myplt)
-        plt.title(f'OPD with field dependence applied (nm) v2={self.v2v3[0]}')
-        plt.show()
 
     def move_seg_local(self, segment, xtilt=0.0, ytilt=0.0, clocking=0.0, rot_unit='urad',
                        radial=None, xtrans=None, ytrans=None, piston=0.0, roc=0.0, trans_unit='micron', display=False,
@@ -2141,14 +2145,7 @@ class OTE_Linear_Model_WSS(OPD):
             self._apply_global_hexikes(global_hexike_coeffs_combined)
         if not np.all(self._global_zernike_coeffs == 0):
             self._apply_global_zernikes()
-        self._apply_field_dependence_model(display=display)
-
-        # Undo any changes made just above to the SM coefficients (avoid persistent side effects)
-        if self.delta_time != 0.0:
-            self._global_hexike_coeffs[4] -= self._get_thermal_slew_coeffs('SM')
-
-        if display:
-            self.display()
+        self._apply_field_dependence_model()
 
 
     def apply_frill_drift(self, amplitude=None, random=False, case='BOL', delay_update=False):
