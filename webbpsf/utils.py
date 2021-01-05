@@ -201,14 +201,13 @@ def get_webbpsf_data_path(data_version_min=None, return_version=False):
     if path_from_config == 'from_environment_variable':
         path = os.getenv('WEBBPSF_PATH')
         if path is None:
-            raise EnvironmentError("{}\nEnvironment variable $WEBBPSF_PATH is not set!".format(
-                MISSING_WEBBPSF_DATA_MESSAGE))
+            raise EnvironmentError(f"Environment variable $WEBBPSF_PATH is not set!\n{MISSING_WEBBPSF_DATA_MESSAGE}")
     else:
         path = path_from_config
 
     # at minimum, the path must be a valid directory
     if not os.path.isdir(path):
-        raise IOError("{}\nWEBBPSF_PATH ({}) is not a valid directory path!".format(MISSING_WEBBPSF_DATA_MESSAGE, path))
+        raise IOError(f"WEBBPSF_PATH ({path}) is not a valid directory path!\n{MISSING_WEBBPSF_DATA_MESSAGE}")
 
     if data_version_min is not None:
         # Check if the data in WEBBPSF_PATH meet the minimum data version
@@ -221,22 +220,20 @@ def get_webbpsf_data_path(data_version_min=None, return_version=False):
             version_tuple = tuple(map(int, parts))
         except (IOError, ValueError):
             raise EnvironmentError(
-                "{}\n"
-                "Couldn't read the version number from {}. (Do you need to update the WebbPSF "
+                f"Couldn't read the version number from {version_file_path}. (Do you need to update the WebbPSF "
                 "data? See https://webbpsf.readthedocs.io/en/stable/installation.html#data-install "
-                "for a link to the latest version.)".format(MISSING_WEBBPSF_DATA_MESSAGE, version_file_path)
+                "for a link to the latest version.)"
+                f"\n{MISSING_WEBBPSF_DATA_MESSAGE}"
             )
 
         if not version_tuple >= data_version_min:
+            min_ver = '{}.{}.{}'.format(*data_version_min)
             raise EnvironmentError(
-                "{}\n"
-                "WebbPSF data package has version {cur}, but {min} is needed. "
+                f"WebbPSF data package has version {version_contents}, but {min_ver} is needed. "
                 "See https://webbpsf.readthedocs.io/en/stable/installation.html#data-install "
-                "for a link to the latest version.".format(MISSING_WEBBPSF_DATA_MESSAGE,
-                                                           cur=version_contents,
-                                                           min='{}.{}.{}'.format(*data_version_min)
+                "for a link to the latest version."
+                f"\n{MISSING_WEBBPSF_DATA_MESSAGE}"
                 )
-            )
 
         if return_version:
             return path, version_contents
