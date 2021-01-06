@@ -41,6 +41,7 @@ from collections import OrderedDict
 import poppy
 import poppy.zernike as zernike
 from . import constants
+from . import surs
 from . import utils
 
 _log = logging.getLogger('webbpsf')
@@ -1765,11 +1766,9 @@ class OTE_Linear_Model_WSS(OPD):
         -------
 
         """
-        import jwxml
-
-        sur = jwxml.SUR(sur_file)
+        sur = surs.SUR(sur_file)
         if group is not None:
-            if group==0:
+            if group == 0:
                 raise ValueError("Group indices start at 1, not 0.")
             groups = [sur.groups[group-1]]
         else:
