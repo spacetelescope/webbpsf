@@ -2785,6 +2785,104 @@ class JWST_WAS_PTT_Basis(object):
 
         return basis[0:nterms]
 
+class JWST_WAS_Full_Basis(object):
+    def __init__(self):
+        """ Segment pose full basis using the same conventions as JWST WAS
+        i.e. local mechanical control coordinates per each segment and its local
+        orientation.
+
+        Similar to JWST_WAS_PTT_Basis, but:
+            - includes clocking, radial translation, and radius of curvature degrees of freedom too
+
+            (Note, azimuthal translation is intentionally not controlled in the JWST
+            alignment schema, but is left as a redundant degree of freedom given the azimuthal
+            rotational symmetry of the observatory.)
+
+        Useful for decomposing WFE maps into segment piston, tip, tilts, translations, RoC.
+        See poppy.zernike.opd_expand_segments()
+        and coeffs_to_seg_state() in this file.
+
+        """
+
+        # Internally this is implemented as a wrapper on OTE Linear WEE model
+
+        self.ote = OTE_Linear_Model_WSS()
+        self.nsegments=18
+
+    def aperture(self):
+        """ Return the overall aperture across all segments """
+        return self.ote.amplitude
+
+    def __call__(self, nterms=None, npix=1024, outside=np.nan):
+        """ Generate basis ndarray for the specified aperture
+
+        Parameters
+        ----------
+        nterms : int
+            Number of terms. Set to 6x the number of segments.
+        npix : int
+            Size, in pixels, of the aperture array.
+        outside : float
+            Value for pixels outside the specified aperture.
+            Default is `np.nan`, but you may also find it useful for this to
+            be 0.0 sometimes.
+
+        """
+        if npix != 1024:
+            raise ValueError("Only npix=1024 supported for now")
+
+        ndof = 6
+
+        if nterms is None:
+            nterms = ndof*self.nsegments
+        elif nterms > ndof*self.nsegments:
+            raise ValueError("nterms must be <= {} for the specified segment aperture.".format(3*self.nsegments))
+
+        # Re-use the machinery inside the OTE Linear model class class to set up the
+        # arrays defining the segment and zernike geometry.
+
+        # For simplicity we always generate the basis for all the segments
+        # even if for some reason the user has set a smaller nterms.
+        basis = np.zeros((self.nsegments*6, npix, npix))
+        basis[:] = outside
+        for i, segname in enumerate(self.ote.segnames[0:18]):
+            # We do these intentionally with the base units, though those result in unphysically large moves
+
+            iseg = i+1
+            wseg = np.where(self.ote._segment_masks==iseg)
+
+            # Piston
+            self.ote.zero()
+            self.ote.move_seg_local(segname, piston=1, trans_unit='meter')
+            basis[i*ndof][wseg] = self.ote.opd[wseg]
+
+            # Tip
+            self.ote.zero()
+            self.ote.move_seg_local(segname, xtilt=1, rot_unit='radian')
+            basis[i*ndof+1][wseg] = self.ote.opd[wseg]
+
+            # Tilt
+            self.ote.zero()
+            self.ote.move_seg_local(segname, ytilt=1, rot_unit='radian')
+            basis[i*ndof+2][wseg] = self.ote.opd[wseg]
+
+            # Clocking
+            self.ote.zero()
+            self.ote.move_seg_local(segname, clocking=1, rot_unit='radian')
+
+            # Radial Translation
+            self.ote.zero()
+            self.ote.move_seg_local(segname, radial=1, trans_unit='meter')
+            basis[i * ndof + 4][wseg] = self.ote.opd[wseg]
+
+            # Radius of Curvature
+            self.ote.zero()
+            self.ote.move_seg_local(segname, roc=1, trans_unit='meter')
+            basis[i * ndof + 5][wseg] = self.ote.opd[wseg]
+        return basis[0:nterms]
+
+
+
 
 def coeffs_to_seg_state(coeffs):
     """ Convert coefficients from Zernike fit to OTE linear model segment state
