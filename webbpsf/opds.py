@@ -91,7 +91,7 @@ class OPD(poppy.FITSOpticalElement):
     """
 
     def __init__(self, name='unnamed OPD', opd=None, opd_index=0, transmission=None,
-                 segment_mask_file='JWpupil_segments.fits',
+                 segment_mask_file='JWpupil_segments_revW.fits',
                  **kwargs):
         """
         Parameters
@@ -303,8 +303,9 @@ class OPD(poppy.FITSOpticalElement):
         return np.asarray(components)
 
     def display_opd(self, ax=None, labelsegs=True, vmax=150., colorbar=True, clear=False, title=None, unit='nm',
+                    pupil_orientation='entrance_pupil',
                     cbpad=None, colorbar_orientation='vertical',
-                    show_axes=False, show_rms=True,
+                    show_axes=False, show_rms=True, show_v2v3=False,
                     cmap=None):
         """ Draw on screen the perturbed OPD
 
@@ -331,6 +332,23 @@ class OPD(poppy.FITSOpticalElement):
         else:
             raise ValueError("unknown unit keyword")
 
+        # The actual OPD data is stored in "entrance pupil" orientation, looking in to JWST,
+        # by convention and for consistency with the JWST WSS.
+        # In the case of JWST it turns out the "exit pupil" orientation is in effect a vertical
+        # flip. This is because of (1) inversion in both X and Y axes from the physical entrance pupil
+        # at the primary to the real image of that pupil on the FSM which is the OTE exit pupil, plus
+        # (2) the change in viewing convention from "in front of OTE looking in" to "at the instruments
+        # looking outward". That results in a flip in the X axis. Thus overall we can just flip the
+        # Y axis to get to the exit pupil orientation. In this display function we can do that using the
+        # origin parameter to matplotlib.imshow. In the actual optical propagation we do that with a
+        # poppy coordinate transform instance.
+        if pupil_orientation=='entrance_pupil':
+            origin='lower'
+        elif pupil_orientation == 'exit_pupil':
+            origin = 'upper'
+        else:
+            raise ValueError("pupil_orientation must be 'entrance_pupil' or 'exit_pupil'.")
+
         if clear:
             if ax is not None:
                 raise RuntimeError("'clear=True' is incompatible with passing in an Axes instance.")
@@ -352,7 +370,7 @@ class OPD(poppy.FITSOpticalElement):
         if ax is None:
             ax = plt.gca()
 
-        plot = ax.imshow(self.opd * mask * scalefact, vmin=-vmax, vmax=vmax, cmap=cmap, extent=extent, origin='lower')
+        plot = ax.imshow(self.opd * mask * scalefact, vmin=-vmax, vmax=vmax, cmap=cmap, extent=extent, origin=origin)
 
         _log.debug("Displaying OPD. Vmax is %f, data max is %f " % (vmax, self.opd.max()))
 
@@ -361,10 +379,12 @@ class OPD(poppy.FITSOpticalElement):
         ax.set_title(title)
         if show_rms:
             ax.set_xlabel("RMS WFE = %.1f nm" % self.rms())
+        if show_v2v3:
+            utils.annotate_ote_pupil_coords(None, ax, orientation=pupil_orientation)
 
         if labelsegs:
             for seg in self.segnames[0:18]:
-                self.label_seg(seg, ax=ax, show_axes=show_axes)
+                self.label_seg(seg, ax=ax, show_axes=show_axes, pupil_orientation=pupil_orientation)
         if colorbar:
             if cbpad is None:
                 cbpad = 0.05 if colorbar_orientation == 'vertical' else 0.15
@@ -376,23 +396,24 @@ class OPD(poppy.FITSOpticalElement):
 
         return ax, cb
 
-    def label_seg(self, segment, ax=None, show_axes=False, color='black'):
-        # Y, X = np.indices(self.opd.shape)
-
-        # base = {'A':0, 'B':6,'C':12}
-        # iseg = np.where(self.segnames == segment)[0][0] + 1  # segment index from 1 - 18
-        # iseg = base[segment.upper()[0]]+int(segment[1])
-        # wseg = np.where(self._segment_masks == iseg)
-        # pupilscale = self.opd_header['PUPLSCAL']
+    def label_seg(self, segment, ax=None, show_axes=False, color='black', pupil_orientation='entrance_pupil'):
+        """ Annotate a plot with a text label for a particular segment """
         cx, cy = self._seg_centers_m[segment]
-        # cx = (np.mean([X[wseg].min(), X[wseg].max()])  -512) * pupilscale
-        # cy = (np.mean([Y[wseg].min(), Y[wseg].max()])  -512) * pupilscale
+
+        # See note about pupil orientations in OPD.display_opd() for explanation
+        # of the Y axis signs here
+        if pupil_orientation == 'entrance_pupil':
+            ysign = 1
+        elif pupil_orientation == 'exit_pupil':
+            ysign = -1
+        else:
+            raise ValueError("pupil_orientation must be 'entrance_pupil' or 'exit_pupil'.")
 
         offset = 0.2 if show_axes else 0
 
         if ax is None:
             ax = plt.gca()
-        label = ax.text(cx + offset, cy + offset, segment, color=color, horizontalalignment='center', verticalalignment='center')
+        label = ax.text(cx + offset, (cy + offset)*ysign, segment, color=color, horizontalalignment='center', verticalalignment='center')
 
         if show_axes:
             ax_arrow_len = .3
@@ -405,12 +426,12 @@ class OPD(poppy.FITSOpticalElement):
                     b = self._rot_matrix_local_to_global(segment) * vec
                     b = np.asarray(b).flatten()  # Inelegant but it works
 
-                    ax.arrow(cx, cy, ax_arrow_len * b[0], ax_arrow_len * b[1], color=color,
+                    ax.arrow(cx, cy*ysign, ax_arrow_len * b[0], (ax_arrow_len * b[1])*ysign, color=color,
                              # width=ax,
                              head_width=.050, head_length=.080)  # in units of mm
 
                     xoffset = 0.1 if i == 2 else 0
-                    ax.text(cx + ax_arrow_len * b[0] * 1.5 + xoffset, cy + ax_arrow_len * b[1] * 1.5, label,
+                    ax.text(cx + ax_arrow_len * b[0] * 1.5 + xoffset, (cy + ax_arrow_len * b[1] * 1.5)*ysign, label,
                             color=color, fontsize=8,
                             horizontalalignment='center', verticalalignment='center'
                             )
@@ -1283,13 +1304,10 @@ class OTE_Linear_Model_WSS(OPD):
         # so here we can just work in unrotated coordinates.
 
         # determine the X and Y hexike coordinates for each segment
-        # determine the center of each segment, as the mean of the min and max X and Y values
-        # FIXME this should just use the BATC-provided center coordinates; see jwst_ote3d.py
+        # determine the center of each segment using the BATC-provided center coordinates; see constants.py
 
         Y, X = np.indices(self.opd.shape, dtype=float)
         cx, cy = self._seg_centers_pixels[segment]
-        # cx = np.mean([X[wseg].min(), X[wseg].max()])
-        # cy = np.mean([Y[wseg].min(), Y[wseg].max()])
 
         seg_radius = (X[wseg].max() - X[wseg].min()) / 2.0
 
@@ -1333,8 +1351,6 @@ class OTE_Linear_Model_WSS(OPD):
                 continue
             self.opd[wseg] += hexikes[i] * hexike_coeffs[i]
 
-        # outtxt="Hs=["+", ".join(['%.1e'%z for z in hexike_coeffs])+"]"
-        # _log.debug("     "+outtxt)
 
     def _apply_global_zernikes(self):
         """ Apply Zernike perturbations to the whole primary
