@@ -1122,11 +1122,9 @@ class OTE_Linear_Model_WSS(OPD):
         # load influence function table:
         self._influence_fns = astropy.table.Table.read(os.path.join(__location__, 'otelm', 'JWST_influence_functions_control_with_sm.fits'))
 
-        #fix IFM sign convention for consistency to WSS
-        cnames = self._influence_fns.colnames
-        for icol in cnames[3:]:
-            self._influence_fns[icol] *= -1
-            
+        # With updated sign convention in poppy 1.0.0, the WSS influence function values can be used in WebbPSF directly,
+        # with no change in sign
+
         # WFTP10 hotfix for RoC sign inconsitency relative to everything else, due to outdated version of WAS IFM used in table construction.
         # FIXME update the IFM file on disk and then delete the next three lines
         roc_rows = self._influence_fns['control_mode']=='ROC'
