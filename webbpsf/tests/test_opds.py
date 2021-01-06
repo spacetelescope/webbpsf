@@ -128,11 +128,27 @@ def test_thermal_slew_partial_angle():
 
 def test_thermal_slew_update_opd():
     ''' Test that running webbpsf.opds.OTE_Linear_Model_WSS.thermal_slew() will
-        give the expected output'''
+        give the expected output
+
+        '''
     otelm = webbpsf.opds.OTE_Linear_Model_WSS()
     otelm.thermal_slew(delta_time=1.0*u.day, case='EOL')
-    max_truth = 4.13338e-08 / 1e-9 # Convert the max truth to units of nm
-    assert np.isclose(np.max(otelm.opd)/1e-9, max_truth), "OPD max does not match expected value after 1 day slew."
+
+    # the exact value expected is affected by which version of the linear model is used.
+    if otelm._segment_masks_version < 3:
+        # rev V pupil segment mask file, labeled as VERSION=2 in jwpupil_segments.fits
+        expected_max = 41.3338  # nanometers, expected value for peak.
+                                # value derived by kjbrooks based on thermal model coefficients
+        expected_rms = 11.13    # nm
+                                # value derived by mperrin based on evaluation of opd map in this case
+    else:
+        # rev W pupil segment mask file, labeled as VERSION=3 in jwpupil_segments.fits
+        # Values here are by mperrin based on evaluation of the same exact linear model code as above
+        # changing only the data file $WEBBPSF_DATA/jwpupil_segments.fits to the newer version
+        expected_max = 40.7763  # nanometers, expected value for peak
+        expected_rms = 11.24    # nm
+    assert np.isclose(np.max(otelm.opd)/1e-9, expected_max, rtol=1e-3), "OPD max does not match expected value after 1 day slew."
+    assert np.isclose(otelm.rms(), expected_rms, rtol=1e-3), "OPD rms does not match expected value after 1 day slew."
 
 
 def test_thermal_slew_reproducibility():
