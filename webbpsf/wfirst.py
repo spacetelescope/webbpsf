@@ -267,7 +267,7 @@ class WFIRSTInstrument(webbpsf_core.SpaceTelescopeInstrument):
 
     def _get_aberrations(self):
         """Get the OpticalElement that applies the field-dependent
-        optical aberrations. (Called in _get_optical_system.)"""
+        optical aberrations. (Called in get_optical_system.)"""
         return self._detectors[self._detector]
 
     def _get_fits_header(self, result, options):
@@ -813,7 +813,7 @@ class CGI(WFIRSTInstrument):
 
     def _get_aberrations(self):
         """Get the OpticalElement that applies the field-dependent
-        optical aberrations. (Called in _get_optical_system.)"""
+        optical aberrations. (Called in get_optical_system.)"""
         return None
 
     def _get_fits_header(self, result, options):
