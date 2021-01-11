@@ -103,8 +103,29 @@ MIRI        204 nm rms    258 nm rms
 ==========  ============  ============
 
 
-While different OPD maps are used for each SI, these OPD maps do not include wavefront error contributions from optics internal to the science instrument. Additional details on the SI-specific wavefront error models are given under each instrument model section below.
+While different OPD maps are used for each SI, these OPD maps do not include wavefront
+error contributions from optics internal to the science instrument. Additional details
+on the SI-specific wavefront error models are given under each instrument model section below.
 
+Field Dependent Aberrations
+---------------------------
+While the OTE is designed to have low aberrations across all of the science instruments, it is impossible for these
+aberrations to be zero.  Further, the aberrations of the system vary across the field.  This is true of the design
+of any optical system that has a finite field size.  These aberrations would be present even in a perfectly
+manufactured and aligned telescope.  In a real telescope there is further coupling between these intrinsic
+field-dependent aberrations, the surface errors of the optical elements of the system and the alignment state
+of the optical system.
+
+In an effort to capture the contribution of these field-dependent aberrations a polynomial model of the field
+dependent aberrations.  These are based on the as-built OTE optical model Revision H, which includes measured
+surface errors of the optical elements.  This optical model was used in the CodeV lens design and anaylsis software
+package to generate a large number of OPD distributions capturing the variation of the OTE's aberrations across
+the fields of each of the science instruments.  Each of these OPD maps were fit to a set of Zernike polynomials so
+that the wavefront was represented by a small number of coefficients.  Naturally, these coefficients each
+exhibit a variation in their value at different locations in the field.  This variations are captured by fitting
+these varying Zernike coefficients to a second set of polynomials.  Since the fields are generally rectangular, a
+set of two-dimensional Legendre polynomials were used for this field-fit.  Legendres are well-suited for this task
+because they are orthonormal over a rectangle and JWST's science instrument fields are also rectangular.
 
 NIRCam
 ======

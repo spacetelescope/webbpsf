@@ -1364,8 +1364,8 @@ class OTE_Linear_Model_WSS(OPD):
             (self.v2v3[1] <= -10.45247446 * u.arcmin) and (self.v2v3[1] >= -12.89545009 * u.arcmin):
             instrument = 'FGS'
             _log.info('Field coordinates determined to be in FGS field')
-        elif (self.v2v3[0] <= 2.550134689 * u.arcmin) and (self.v2v3[0] >= -2.582628522 * u.arcmin) and \
-            (self.v2v3[1] <= -6.53061223 * u.arcmin) and (self.v2v3[1] >= -9.339010878 * u.arcmin):
+        elif (self.v2v3[0] <= 2.582628522 * u.arcmin) and (self.v2v3[0] >= -2.582628522 * u.arcmin) and \
+            (self.v2v3[1] <= -6.26098914 * u.arcmin) and (self.v2v3[1] >= -9.339010878 * u.arcmin):
             instrument = 'NIRCam'
             _log.info('Field coordinates determined to be in NIRCam field')
         elif (self.v2v3[0] <= 8.902121276 * u.arcmin) and (self.v2v3[0] >= 3.76747823 * u.arcmin) and \
@@ -1471,6 +1471,7 @@ class OTE_Linear_Model_WSS(OPD):
 
         x_field_pt_norm = float((x_field_pt - ref_pt_x) / ((max_x_field - min_x_field) / 2))
         y_field_pt_norm = float((y_field_pt - ref_pt_y) / ((max_y_field - min_y_field) / 2))
+
         print(f'{instrument} max_x={max_x_field} min_x={min_x_field} max_y={max_y_field} min_y={min_y_field}')
         print(f'Normalized field point {x_field_pt_norm}, {y_field_pt_norm}')
         poly_x1d = np.zeros(field_coeff_order + 1)
@@ -1501,9 +1502,11 @@ class OTE_Linear_Model_WSS(OPD):
         zernike_coeffs = np.zeros(num_wavefront_coeffs)
 
         for z_index in range(0, num_wavefront_coeffs):
-            zernike_coeffs[z_index] = np.einsum('i, i->', data.field(z_index), poly_vals)
+            for l_index in range(0, num_field_coeffs):
+                # zernike_coeffs[z_index] = np.einsum('i, i->', data.field(z_index), poly_vals)
+                zernike_coeffs[z_index] = zernike_coeffs[z_index] + data.field(z_index)[l_index] * poly_vals[l_index]
+
         zernike_coeffs[0:3] = 0  # ignore piston/tip/tilt
-        # print(not_areal_val)
 
         # Apply perturbation to OPD according to Zernike coefficients calculated above.
         if not self.opd.shape == (1024, 1024):
@@ -1513,7 +1516,6 @@ class OTE_Linear_Model_WSS(OPD):
                                                        basis=poppy.zernike.zernike_basis_faster,
                                                        outside=0)
         self.opd += perturbation
-
 
     def move_seg_local(self, segment, xtilt=0.0, ytilt=0.0, clocking=0.0, rot_unit='urad',
                        radial=None, xtrans=None, ytrans=None, piston=0.0, roc=0.0, trans_unit='micron', display=False,
