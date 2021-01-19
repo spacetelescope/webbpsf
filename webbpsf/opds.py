@@ -1472,8 +1472,8 @@ class OTE_Linear_Model_WSS(OPD):
         x_field_pt_norm = float((x_field_pt - ref_pt_x) / ((max_x_field - min_x_field) / 2))
         y_field_pt_norm = float((y_field_pt - ref_pt_y) / ((max_y_field - min_y_field) / 2))
 
-        print(f'{instrument} max_x={max_x_field} min_x={min_x_field} max_y={max_y_field} min_y={min_y_field}')
-        print(f'Normalized field point {x_field_pt_norm}, {y_field_pt_norm}')
+        _log.info(f'{instrument} max_x={max_x_field} min_x={min_x_field} max_y={max_y_field} min_y={min_y_field}')
+        _log.info(f'Normalized field point {x_field_pt_norm}, {y_field_pt_norm}')
         poly_x1d = np.zeros(field_coeff_order + 1)
         poly_y1d = np.zeros(field_coeff_order + 1)
         for index in range(0, field_coeff_order + 1):
