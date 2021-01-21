@@ -354,7 +354,7 @@ def test_ways_to_specify_weak_lenses():
         nrc.pupil_mask = pup
         if filt is not None: nrc.filter = filt
 
-        assert expected in [p.name for p in nrc._get_optical_system().planes], "Optical system did not contain expected plane {} for {}, {}".format(expected, filt, pup)
+        assert expected in [p.name for p in nrc.get_optical_system().planes], "Optical system did not contain expected plane {} for {}, {}".format(expected, filt, pup)
 
 
 def test_nircam_coron_wfe_offset(fov_pix=15, oversample=2, fit_gaussian=True):
