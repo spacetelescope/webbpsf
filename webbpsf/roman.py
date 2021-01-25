@@ -1,7 +1,7 @@
 """
-==============================
-Roman Instruments (pre-alpha)
-==============================
+=================
+Roman Instruments
+=================
 
 WARNING: This model has not yet been validated against other PSF
          simulations, and uses several approximations (e.g. for
