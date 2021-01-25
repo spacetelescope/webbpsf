@@ -121,7 +121,7 @@ from .webbpsf_core import (Instrument, JWInstrument, NIRCam, NIRISS, NIRSpec,
 
 from .opds import enable_adjustable_ote
 
-from .wfirst import WFI, CGI
+from .roman import WFI, CGI
 
 from .jupyter_gui import show_notebook_interface
 

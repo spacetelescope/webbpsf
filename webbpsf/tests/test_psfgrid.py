@@ -7,7 +7,7 @@ import pytest
 
 from .. import gridded_library
 from .. import webbpsf_core
-from .. import wfirst
+from .. import roman
 from .. import utils
 
 
@@ -236,7 +236,7 @@ def test_wfi():
     fov_pixels = 10
 
     # Create PSF grid
-    wfi = wfirst.WFI()
+    wfi = roman.WFI()
     grid = wfi.psf_grid(all_detectors=False, num_psfs=4, fov_pixels=fov_pixels, oversample=oversample)
 
     # Pull one of the PSFs out of the grid
@@ -262,6 +262,6 @@ def test_wfi_error():
     """Check add_distortion=True raises an error"""
 
     with pytest.raises(NotImplementedError) as excinfo:
-        wfi = wfirst.WFI()
+        wfi = roman.WFI()
         wfi.psf_grid(add_distortion=True, num_psfs=1, fov_pixels=1, detector_oversample=2)
     assert "NotImplementedError" in str(excinfo)

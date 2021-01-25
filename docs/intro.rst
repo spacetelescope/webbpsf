@@ -6,13 +6,13 @@ Introduction
 * Uses OPD maps precomputed by detailed optical simulations of JWST and the Nancy Grace Roman Space Telescope (formerly WFIRST), and in the case of JWST
   based on instrument and telescope flight hardware cryo-vacuum test results.
 * For JWST, computes PSF images with requested properties for any of JWST's instruments. Supports imaging, coronagraphy, and most spectrographic modes with all of JWST's instruments. IFUs are yet to come.
-* For WFIRST, computes PSFs with the Wide Field Imager, based on recent GSFC optical models, including field- and wavelength-dependent aberrations. 
+* For Roman, computes PSFs with the Wide Field Imager, based on recent GSFC optical models, including field- and wavelength-dependent aberrations.
   A preliminary version of the Coronagraph Instrument is also available.
 * Provides a suite of tools for quantifying PSF properties such as FWHM, Strehl ratio, etc.
 
 **What this software does NOT do:**
 
-* Contain in itself any detailed thermal or optical model of JWST or WFIRST. For the results of end-to-end integrated simulations of JWST, see for instance `Predicted JWST imaging performance (Knight, Lightsey, & Barto; Proc. SPIE 2012) <http://proceedings.spiedigitallibrary.org/proceeding.aspx?articleid=1362264>`_. For WFIRST modeling, see `the WFIRST Reference Info page <http://wfirst.gsfc.nasa.gov/science/Instrument_Reference_Information.html>`_
+* Contain in itself any detailed thermal or optical model of JWST or Roman. For the results of end-to-end integrated simulations of JWST, see for instance `Predicted JWST imaging performance (Knight, Lightsey, & Barto; Proc. SPIE 2012) <http://proceedings.spiedigitallibrary.org/proceeding.aspx?articleid=1362264>`_. For Roman modeling, see `the Roman Reference Info page <http://wfirst.gsfc.nasa.gov/science/Instrument_Reference_Information.html>`_
 * Model spectrally dispersed PSFs produced by any of the spectrograph gratings. It does, however, let you produce monochromatic PSFs in these modes, suitable for stitching together into spectra using some other software.
 * Model most detector effects such as pixel MTF, intrapixel sensitivity variations, interpixel capacitance, or any noise sources. Add those separately with your favorite detector model code. (\*Note, one particularly significant
   detector scattering for MIRI imaging has now been added.)
@@ -20,7 +20,7 @@ Introduction
 
 Conceptually, this simulation code has two layers of abstraction:
  * A base package for wavefront propagation through generic optical systems (provided by :py:mod:`POPPY <poppy>`)
- * Models of the JWST and WFIRST instruments implemented on top of that base system (provided by :py:mod:`WebbPSF <webbpsf>`)
+ * Models of the JWST and Roman instruments implemented on top of that base system (provided by :py:mod:`WebbPSF <webbpsf>`)
 
 (There has formerly been a basic GUI front end, but that GUI is now deprecated and no longer recommended for use.)
 
@@ -35,7 +35,7 @@ range of preparatory science studies and tool development.
 Tools for producing high
 quality model PSFs must be easily accessible to the entire astronomical
 community.
-WebbPSF provides an easy-to-use tool for PSF simulations of JWST and WFIRST, in
+WebbPSF provides an easy-to-use tool for PSF simulations of JWST and Roman, in
 the style of the highly successful "Tiny Tim" PSF simulator for Hubble.
 
 WebbPSF
