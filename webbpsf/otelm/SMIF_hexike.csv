@@ -1,3 +1,8 @@
+#
+# Hexikes coefficients as a function of SM mode for both offsets in "x" (alpha) and in "y" (beta).
+# Orientation is entrance pupil.
+# Provided by Randal Telfer.
+#
 Type,SM Mode,H3 (45-astig),H4 (Focus),H5 (0-astig),H6 (X coma),H7 (Y coma),H8 (3rd Sphr)
 Common Mode,X-TRANS,9.36E-05,-1.01E-06,-8.00E-08,-0.007500335,-3.35E-06,1.58E-08
 alpha,X-TRANS,-1.05E-05,-0.093556458,0.040638799,-0.000200913,-0.005733075,0.001116152

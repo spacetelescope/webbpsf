@@ -1062,7 +1062,7 @@ class OTE_Linear_Model_WSS(OPD):
     """
 
     def __init__(self, name='Unnamed OPD', opd=None, opd_index=0, transmission=None, segment_mask_file='JWpupil_segments.fits',
-                 zero=False, rm_ptt=False, rm_piston=False, v2v3=None, control_point_instr='nircam', control_point_fieldpoint='nrca3_full'):
+                 zero=False, rm_ptt=False, rm_piston=False, v2v3=None, control_point_fieldpoint='nrca3_full'):
         """
         Parameters
         ----------
@@ -1085,10 +1085,6 @@ class OTE_Linear_Model_WSS(OPD):
         v2v3 : tuple of 2 astropy.Quantities
             Tuple giving V2,v3 coordinates as quantities, typically in arcminutes, or None to default to
             the master chief ray location between the two NIRCam modules.
-        control_point_instr: str
-            Name of the instrument where the OTE control point is located. Default: 'nircam'.
-            The OTE control point is the field point to which the OTE has been aligned and defines the field angles
-            for the field-dependent SM pose aberrations.
         control_point_fieldpoint: str
             Name of the field point where the OTE control point is located, on instrument defined by "control_point_instr". 
             Default: 'nrca3_full'.
@@ -1143,8 +1139,20 @@ class OTE_Linear_Model_WSS(OPD):
 
         self.meta = OrderedDict()  # container for arbitrary extra metadata
 
-        self.ote_control_point = pysiaf.Siaf(control_point_instr.upper())[control_point_fieldpoint.upper()].reference_point('tel') *u.arcsec
+        # DETERMINE INSTRUMENT BASED ON CONTROL FIELD POINT NAME:
+        self.control_point_fieldpoint = control_point_fieldpoint
+        control_point_detector = self.control_point_fieldpoint.split("_")[0]
+        if 'nrc' in control_point_detector:
+            control_point_instr = 'nircam'
+        elif 'miri' in control_point_detector:
+                control_point_instr = 'miri'
+        elif 'nis' in control_point_detector:
+                control_point_instr = 'niriss'
+        elif 'nrs' in control_point_detector:
+                control_point_instr = 'nirspec'
 
+        self.ote_control_point = pysiaf.Siaf(control_point_instr)[self.control_point_fieldpoint.upper()].reference_point('tel')*u.arcsec
+        
         if zero:
             self.zero()
         else:
@@ -1367,7 +1375,7 @@ class OTE_Linear_Model_WSS(OPD):
         # Add perturbation to the opd
         self.opd += perturbation
 
-    def _get_zernike_coeffs_from_smif(self, dx=0., dy=0., zernike=False):
+    def _get_zernike_coeffs_from_smif(self, dx=0., dy=0.):
         '''     
         Apply Secondary Mirror field dependence based on SM pose and field angle.
 
@@ -1385,12 +1393,9 @@ class OTE_Linear_Model_WSS(OPD):
         ----------
         dx, dy = field angles, in radians, from the OTE control point (nominally, NRCA3_FULL).
 
-        zernike: bool
-            Use the exit pupil orientation Zernike table instead. Default: False.
-
         Returns:
         ----------
-        Zernike or Hexike coefficients, in microns, for the first nine (9) coefficients, with PTT explicitly set to zero.
+        Hexike coefficients, in microns, for the first nine (9) coefficients, with PTT explicitly set to zero.
 
         '''
         
@@ -1403,26 +1408,17 @@ class OTE_Linear_Model_WSS(OPD):
                      self.segment_state[-1, 4]]    # PISTON
         
         # GET SM INFLUENCE MATRIX:   
-        if zernike:
-            #ZERNIKE PROJECTED ONTO EXIT PUPIL:
-            print("Beware: using exit pupil Zernike's")
-            smif = astropy.table.Table.read(os.path.join(__location__, 'otelm', "SMIF_zernike.csv"))
-        else:
-            # HEXIKE PROJECTED ONTO ENTRANCE PUPIL (WHAT WEBBPSF NEEDS):
-            smif = astropy.table.Table.read(os.path.join(__location__, 'otelm', "SMIF_hexike.csv"))
+        # HEXIKE PROJECTED ONTO ENTRANCE PUPIL (WHAT WEBBPSF NEEDS):
+        smif = astropy.table.Table.read(os.path.join(__location__, 'otelm', "SMIF_hexike.csv"), header_start=5)
      
         alphas = smif[smif['Type'] == 'alpha']
         betas  = smif[smif['Type'] == 'beta']  
 
-        # NOW, WE SUM UP THE ALPHAS AND BETAS FOR EACH HEXIKE/ZERNIKE,
+        # NOW, WE SUM UP THE ALPHAS AND BETAS FOR EACH HEXIKE,
         # AS DESCRIBED IN THE DOC STRING ABOVE.
         coeffs = np.zeros((6))
         for i, icol in enumerate(smif.colnames[2:]):
             coeffs[i] = np.sum( (alphas[icol]*dx + betas[icol]*dy )*sm_errors)
-
-        if zernike:
-            # SWAP COLUMNS FOR 45-ASTIG AND 0-ASTIG SINCE POPPY ZERNIKE RETURNS 45-ASTIG FIRST
-            coeffs[ [1, 2] ] = coeffs[ [2, 1] ]
 
         # PAD IN ZEROS FOR PISTON, TIP, TILT:
         coeffs = np.insert(coeffs, 0, [0., 0., 0.])
@@ -1452,13 +1448,17 @@ class OTE_Linear_Model_WSS(OPD):
 
             self.opd += -perturbation*1e-6
             
-            self.opd_header['SM_IFM'] = 'Applied SMIF field-dependent aberrations'
-            self.opd_header['SMIF_H3'] = z_coeffs[3]
-            self.opd_header['SMIF_H4'] = z_coeffs[4]
-            self.opd_header['SMIF_H5'] = z_coeffs[5]
-            self.opd_header['SMIF_H6'] = z_coeffs[6]
-            self.opd_header['SMIF_H7'] = z_coeffs[7]
-            self.opd_header['SMIF_H8'] = z_coeffs[8]
+            self.opd_header['HISTORY'] = 'Applied SMIF field-dependent aberrations:'
+            self.opd_header['HISTORY'] = ('SMIF_H3: {}'.format(z_coeffs[3]))
+            self.opd_header['HISTORY'] = ('SMIF_H4: {}'.format(z_coeffs[4]))
+            self.opd_header['HISTORY'] = ('SMIF_H5: {}'.format(z_coeffs[5]))
+            self.opd_header['HISTORY'] = ('SMIF_H6: {}'.format(z_coeffs[6]))
+            self.opd_header['HISTORY'] = ('SMIF_H7: {}'.format(z_coeffs[7]))
+            self.opd_header['HISTORY'] = ('SMIF_H8: {}'.format(z_coeffs[8]))
+            self.opd_header['HISTORY'] = ('Field point (x,y): ({})'.format(self.v2v3))
+            self.opd_header['HISTORY'] = ('Control point: {} ({})'.format(self.control_point_fieldpoint.upper(), self.ote_control_point))
+            self.opd_header['HISTORY'] = ('Delta x/y: {} {} (radians))'.format(dx, dy))
+
 
         
     def move_seg_local(self, segment, xtilt=0.0, ytilt=0.0, clocking=0.0, rot_unit='urad',

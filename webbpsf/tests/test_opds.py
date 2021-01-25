@@ -292,19 +292,36 @@ def test_get_zernike_coeffs_from_smif():
     assert( np.allclose(otelm._get_zernike_coeffs_from_smif(0., 0.), np.asarray([0.]*9) ))
 
     # Case 3: dx=1, dy=1, SM Poses all equal to 1 um
-    telfer_zern = [-0.055279643, -0.037571947, -0.80840763, -0.035680581, -0.0036747300, 0.0033910640] # Taken from Telfer's tool, after some tweaks
+    telfer_zern = [-0.055279643, -0.037571947, -0.80840763, -0.035680581, -0.0036747300, 0.0033910640] # Taken from Telfer's tool
+    # Convert Telfer's Zernikes to Hexikes:
+    hexikes = [-telfer_zern[1], 
+               2.*telfer_zern[0] - (60984./69531.)*telfer_zern[5], 
+               telfer_zern[2], 
+               (33./25)*telfer_zern[3], 
+               (-33./25)*telfer_zern[4], 
+               (1386./860.)*telfer_zern[5]]
+
     otelm.segment_state[-1, :] = 1.0
-    assert (otelm._get_zernike_coeffs_from_smif(1.0, 1.0, zernike=True), telfer_zern) # Telfer's tool uses exit pupil Zernike a priori
+    
+    assert (np.allclose(otelm._get_zernike_coeffs_from_smif(1.0, 1.0)[3:], hexikes, rtol=1e-3))
 
     # Case 4: test at MIRIM_FP1MIMF field point
     otelm.ote_ctrl_pt = pysiaf.Siaf('NIRCAM')['NRCA3_FP1'].reference_point('tel') *u.arcsec
     otelm.v2v3 = pysiaf.Siaf('MIRI')['MIRIM_FP1MIMF'].reference_point('tel') *u.arcsec
-    telfer_zern_mirim_fp1mimf = np.asarray( [-0.25066019, 0.22840080, -0.53545999, -0.024227464, -0.0025191352, 0.00050082553])
+    telfer_zern_mirim_fp1mimf = np.asarray( [-0.25066019, 0.22840080, -0.53545999, -0.024227464, -0.0025191352, 0.00050082553]) # Taken from Telfer's tool
+    # Convert Telfer's Zernikes to Hexikes:
+    hexikes = hexikes = [-telfer_zern_mirim_fp1mimf[1], 
+                         2.*telfer_zern_mirim_fp1mimf[0] - (60984./69531.)*telfer_zern_mirim_fp1mimf[5], 
+                         telfer_zern_mirim_fp1mimf[2], 
+                         (33./25)*telfer_zern_mirim_fp1mimf[3], 
+                         (-33./25)*telfer_zern_mirim_fp1mimf[4], 
+                         (1386./860.)*telfer_zern_mirim_fp1mimf[5]]
+    
     otelm.segment_state[-1, :] = [300., 400., 100., 200., 5., 0.]
     dx =-(otelm.v2v3[0] - otelm.ote_ctrl_pt[0]).to(u.rad).value 
     dy = (otelm.v2v3[1] - otelm.ote_ctrl_pt[1]).to(u.rad).value
 
-    assert (np.allclose(otelm._get_zernike_coeffs_from_smif(dx, dy, zernike=True)[3:], telfer_zern_mirim_fp1mimf, rtol=1e-3)) # Telfer's tool uses exit pupil Zernike a priori
+    assert (np.allclose(otelm._get_zernike_coeffs_from_smif(dx, dy)[3:], hexikes, rtol=1e-3))
     
  
     
