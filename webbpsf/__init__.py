@@ -123,6 +123,9 @@ from .opds import enable_adjustable_ote
 
 from .roman import WFI, CGI
 
+# Temporally make "wfirst" available
+from . import roman as wfirst
+
 from .jupyter_gui import show_notebook_interface
 
 try:
