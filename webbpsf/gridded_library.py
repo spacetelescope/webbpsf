@@ -352,7 +352,7 @@ class CreatePSFLibrary:
                     for ztype in ('PISTN', 'XTILT', 'YTILT'):
                         mykey = f"S{i:02d}{ztype}"
                         meta[mykey] = (psf[ext].header[mykey], psf[ext].header.comments[mykey])
-            
+
             # copy all the jitter-related keys (the exact set of keywords varies based on jitter type)
             for k in psf[ext].header.keys():   # do the rest
                 if k.startswith('JITR'):

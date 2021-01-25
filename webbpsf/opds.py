@@ -44,6 +44,7 @@ import poppy.zernike as zernike
 import pysiaf
 
 from . import constants
+from . import surs
 from . import utils
 
 _log = logging.getLogger('webbpsf')
@@ -125,6 +126,7 @@ class OPD(poppy.FITSOpticalElement):
 
         full_seg_mask_file = os.path.join(utils.get_webbpsf_data_path(), segment_mask_file)
         self._segment_masks = fits.getdata(full_seg_mask_file)
+        self._segment_masks_version = fits.getheader(full_seg_mask_file)['VERSION']
 
         # Where are the centers of each segment?  From OTE design geometry
         self._seg_centers_m = {seg[0:2]: np.asarray(cen)
@@ -1870,11 +1872,9 @@ class OTE_Linear_Model_WSS(OPD):
         -------
 
         """
-        import jwxml
-
-        sur = jwxml.SUR(sur_file)
+        sur = surs.SUR(sur_file)
         if group is not None:
-            if group==0:
+            if group == 0:
                 raise ValueError("Group indices start at 1, not 0.")
             groups = [sur.groups[group-1]]
         else:

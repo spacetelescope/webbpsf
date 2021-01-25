@@ -193,7 +193,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         fits.HDUList object corresponding to such a file. If the file contains a
         datacube, you may set this to a tuple (filename, slice) to select a
         given slice, or else the first slice will be used."""
-        self.pupil_radius = None  # Set when loading FITS file in _get_optical_system
+        self.pupil_radius = None  # Set when loading FITS file in get_optical_system
 
         self.options = {}  # dict for storing other arbitrary options.
 
@@ -370,7 +370,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         else:
             poppy.Instrument._calc_psf_format_output(self, result, options)
 
-    def _get_optical_system(self, fft_oversample=2, detector_oversample=None,
+    def get_optical_system(self, fft_oversample=2, detector_oversample=None,
                             fov_arcsec=2, fov_pixels=None, options=None):
         """ Return an OpticalSystem instance corresponding to the instrument as currently configured.
 
@@ -817,10 +817,10 @@ class JWInstrument(SpaceTelescopeInstrument):
         """ Return default FOV in arcseconds """
         return 5  # default for all NIR instruments
 
-    def _get_optical_system(self, fft_oversample=2, detector_oversample=None, fov_arcsec=2, fov_pixels=None, options=None):
+    def get_optical_system(self, fft_oversample=2, detector_oversample=None, fov_arcsec=2, fov_pixels=None, options=None):
         # invoke superclass version of this
         # then add a few display tweaks
-        optsys = SpaceTelescopeInstrument._get_optical_system(self,
+        optsys = SpaceTelescopeInstrument.get_optical_system(self,
                                                               fft_oversample=fft_oversample,
                                                               detector_oversample=detector_oversample,
                                                               fov_arcsec=fov_arcsec, fov_pixels=fov_pixels,
@@ -1415,7 +1415,7 @@ class MIRI(JWInstrument):
         # telescope pupil. Likewise the LRS grism is rotated but its pupil stop is not.
         #
         # We model this by just not rotating till after the coronagraph. Thus we need to
-        # un-rotate the primary that was already created in _get_optical_system.
+        # un-rotate the primary that was already created in get_optical_system.
         # This approach is required computationally so we can work in an unrotated frame
         # aligned with the FQPM axes.
 

@@ -68,7 +68,7 @@ def test_get_webbpsf_data_path_invalid(monkeypatch):
     )
     with pytest.raises(EnvironmentError) as excinfo:
         _ = utils.get_webbpsf_data_path()
-    assert _exception_message_starts_with(excinfo, 'Environment variable $WEBBPSF_PATH is not set!')
+    assert 'Environment variable $WEBBPSF_PATH is not set!' in str(excinfo)
 
     # Test that we can override the WEBBPSF_PATH setting here through
     # the config object even though the environment var is deleted
@@ -91,4 +91,4 @@ def test_get_webbpsf_data_path_invalid(monkeypatch):
     )
     with pytest.raises(IOError) as excinfo:
         _ = utils.get_webbpsf_data_path()
-    assert _exception_message_starts_with(excinfo, 'WEBBPSF_PATH ({}) is not a valid directory path!'.format('some junk'))
+    assert 'WEBBPSF_PATH ({}) is not a valid directory path!'.format('some junk') in str(excinfo)
