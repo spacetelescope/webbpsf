@@ -466,7 +466,9 @@ class WFI(RomanInstrument):
             Set to True or False to force using or not using the cold pupil mask,
             or to None for the automatic behavior.
         """
-        pixelscale = 110e-3  # arcsec/px, Roman-AFTA SDT report final version (p. 91)
+        # pixel scale is from Roman-AFTA SDT report final version (p. 91)
+        # https://roman.ipac.caltech.edu/sims/Param_db.html
+        pixelscale = 110e-3 # arcsec/px
 
         # Initialize the pupil controller
         self._pupil_controller = WFIPupilController()
