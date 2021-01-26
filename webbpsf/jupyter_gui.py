@@ -4,7 +4,7 @@ import astropy.io.fits as fits
 
 import poppy
 from . import webbpsf_core
-from . import wfirst
+from . import roman
 
 _log = logging.getLogger('webbpsf')
 
@@ -22,7 +22,7 @@ def show_notebook_interface(instrumentname):
     """
 
     if instrumentname.upper()=='WFI':
-        instrument = wfirst.WFI()
+        instrument = roman.WFI()
         show_notebook_interface_wfi(instrument)
     else:
         instrument = webbpsf_core.Instrument(instrumentname)
