@@ -123,6 +123,7 @@ class OPD(poppy.FITSOpticalElement):
 
         full_seg_mask_file = os.path.join(utils.get_webbpsf_data_path(), segment_mask_file)
         self._segment_masks = fits.getdata(full_seg_mask_file)
+        self._segment_masks_version = fits.getheader(full_seg_mask_file)['VERSION']
 
         # Where are the centers of each segment?  From OTE design geometry
         self._seg_centers_m = {seg[0:2]: np.asarray(cen)

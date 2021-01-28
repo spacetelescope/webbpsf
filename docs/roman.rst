@@ -1,24 +1,24 @@
 *******************************
-WFIRST Instrument Model Details
+Roman Instrument Model Details
 *******************************
 
 
-WebbPSF provides a framework for instrument PSF calculations that is easily extensible to other instruments and observatories. The :py:mod:`webbpsf.wfirst` module was developed to enable simulation of WFIRST's instruments, the :ref:`Wide Field Instrument (WFI) <wfirst_wfi>` and :ref:`Coronagraph Instrument (CGI) <wfirst_cgi>`.
+WebbPSF provides a framework for instrument PSF calculations that is easily extensible to other instruments and observatories. The :py:mod:`webbpsf.roman` module was developed to enable simulation of Roman's instruments, the :ref:`Wide Field Instrument (WFI) <roman_wfi>` and :ref:`Coronagraph Instrument (CGI) <roman_cgi>`.
 
 
-.. _wfirst_wfi:
+.. _roman_wfi:
 
 Wide Field Instrument (WFI)
 ===========================
 
 
-.. figure:: ./wfirst_figures/webbpsf-wfirst_page_header.png
+.. figure:: ./roman_figures/webbpsf-roman_page_header.png
    :align: center
-   :alt: Sample PSFs for the filters in the WFIRST WFI.
+   :alt: Sample PSFs for the filters in the Roman WFI.
 
-   Sample PSFs for the filters in the WFIRST WFI. Angular scale in arcseconds, log-scaled intensity.
+   Sample PSFs for the filters in the Roman WFI. Angular scale in arcseconds, log-scaled intensity.
 
-The WFI model is based on the `Cycle 8 instrument reference information <https://wfirst.gsfc.nasa.gov/science/WFIRST_Reference_Information.html>`_ from the WFIRST team at Goddard Space Flight Center.
+The WFI model is based on the `Cycle 8 instrument reference information <https://roman.gsfc.nasa.gov/science/Roman_Reference_Information.html>`_ from the Roman team at Goddard Space Flight Center.
 
 To work with the WFI model, import and instantiate it just like any of the JWST instruments::
 
@@ -27,18 +27,18 @@ To work with the WFI model, import and instantiate it just like any of the JWST 
 
 Usage of the WFI model class is, for the most part, just like any other WebbPSF instrument model. For help setting things like filters, position offsets, and sampling refer back to :ref:`using_api`.
 
-The WFI model includes a model for field dependent PSF aberrations. With as large a field of view as the WFI is designed to cover, there will be variation in the PSF from one end of the field of view to the other. WebbPSF's WFI model faithfully reproduces the field dependent aberrations calculated from the Goddard WFIRST team's Cycle 8 WFI design. This provides a toolkit for users to assess the impact of inter-SCA and intra-SCA PSF variations on science cases of interest.
+The WFI model includes a model for field dependent PSF aberrations. With as large a field of view as the WFI is designed to cover, there will be variation in the PSF from one end of the field of view to the other. WebbPSF's WFI model faithfully reproduces the field dependent aberrations calculated from the Goddard Roman team's Cycle 8 WFI design. This provides a toolkit for users to assess the impact of inter-SCA and intra-SCA PSF variations on science cases of interest.
 
 .. note:: 
 
-   *Tutorial notebook for WFIRST*
+   *Tutorial notebook for Roman*
 
-   This documentation is complemented by an `IPython Notebook tutorial for WFIRST PSFs <http://nbviewer.ipython.org/github/spacetelescope/webbpsf/blob/stable/notebooks/WebbPSF-WFIRST_Tutorial.ipynb>`_. Downloading and run that notebook to use a beta notebook GUI for the WFI model, and to explore code samples for common tasks interactively.
+   This documentation is complemented by an `IPython Notebook tutorial for Roman PSFs <http://nbviewer.ipython.org/github/spacetelescope/webbpsf/blob/stable/notebooks/WebbPSF-Roman_Tutorial.ipynb>`_. Downloading and run that notebook to use a beta notebook GUI for the WFI model, and to explore code samples for common tasks interactively.
 
 
 .. caution::
 
-   Note that unlike most JWST modes, WFIRST WFI is *significantly* undersampled relative to Nyquist.
+   Note that unlike most JWST modes, Roman WFI is *significantly* undersampled relative to Nyquist.
    Undersampled data is inherently lossy with information, and subject to aliasing. Measurements of
    properties such as encircled energy, FWHM, Strehl ratio, etc cannot be done precisely on
    undersampled data. 
@@ -61,7 +61,7 @@ Field points are specified in a WebbPSF calculation by selecting a detector and 
    >>> wfi.detector_position
    (2048, 2048)
 
-.. figure:: ./wfirst_figures/field_layout.png
+.. figure:: ./roman_figures/field_layout.png
    :alt: The Wide Field Instrument's field of view, as projected on the sky.
 
    The Wide Field Instrument's field of view, as projected on the sky.
@@ -94,7 +94,7 @@ This example shows the power of WebbPSF to simulate and analyze field dependent 
 
 ::
 
-   >>> wfi = wfirst.WFI()
+   >>> wfi = roman.WFI()
    >>> wfi.filter = 'F129'
    >>> wfi.detector = 'SCA09'
    >>> wfi.detector_position = (4, 4)
@@ -107,7 +107,7 @@ This example shows the power of WebbPSF to simulate and analyze field dependent 
    >>> webbpsf.display_psf(psf_sca17, ax=ax_sca17, imagecrop=2.0, title='WFI SCA17, top right - F129')
    >>> webbpsf.display_psf_difference(psf_sca09, psf_sca17, vmax=5e-3, title='(SCA09) - (SCA17)', imagecrop=2.0, ax=ax_diff)
 
-.. figure:: ./wfirst_figures/compare_wfi_sca09_sca17.png
+.. figure:: ./roman_figures/compare_wfi_sca09_sca17.png
    :alt: This figure shows oversampled PSFs in the J129 filter at two different field points, and the intensity difference image between the two.
 
    This figure shows oversampled PSFs in the J129 filter at two different field points, and the intensity difference image between the two.
@@ -126,7 +126,7 @@ We have updated the pupil_mask attribute names to match the project’s current 
 For back compatibility, the setting names used in prior versions of webbpsf will continue to work.
 The old “COLD_PUPIL” is synonymous with the new “RIM_MASK”, and so on.
 
-.. figure:: ./wfirst_figures/pupil_mask_by_sca.gif
+.. figure:: ./roman_figures/pupil_mask_by_sca.gif
    :alt: Pupil masks at different field points.
 
    Pupil masks at different field points.
@@ -143,7 +143,7 @@ Rim Mask       'RIM_MASK'  (outdated 'UNMASKED')
 Full Mask      'FULL_MASK' (outdated 'COLD_PUPIL')
 ============   ====================================
 
-.. _wfirst_cgi:
+.. _roman_cgi:
 
 Coronagraph Instrument (CGI)
 ============================
@@ -173,13 +173,13 @@ add the hybrid Lyot modes.
 
 
 A hands-on tutorial in using the CGI class is available in this
-`Jupyter Notebook <http://nbviewer.ipython.org/github/spacetelescope/webbpsf/blob/stable/notebooks/wfirst_cgi_demo.ipynb>`_.
+`Jupyter Notebook <http://nbviewer.ipython.org/github/spacetelescope/webbpsf/blob/stable/notebooks/roman_cgi_demo.ipynb>`_.
 Here we briefly summarize the key points, but see that for more detail. 
 
 
 The CGI class has attributes for  ``filter``, etc., like other instrument classes, but since these masks are designed to be
 used in specific combinations, a ``mode`` attribute exists that allows easy specification of all those attributes at once. For example, setting ::
-    >>> cgi = wfirst.CGI()
+    >>> cgi = roman.CGI()
     >>> cgi.mode = "CHARSPC_F770"
 
 is equivalent to::
@@ -197,7 +197,7 @@ Calculations are invoked similarly to any other instrument class::
 
     >> mono_char_spc_psf = cgi.calc_psf(nlambda=1, fov_arcsec=1.6, display=True)
 
-.. figure:: ./wfirst_figures/fig_cgi_spc_f770.png
+.. figure:: ./roman_figures/fig_cgi_spc_f770.png
    :alt: Example CGI PSF calculation.
 
 
