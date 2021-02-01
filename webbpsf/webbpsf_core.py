@@ -1017,7 +1017,16 @@ class JWInstrument(SpaceTelescopeInstrument):
         self.options['add_distortion'] = add_distortion
         self.options['crop_psf'] = crop_psf
 
-        # Run poppy calc_psf
+        # UPDATE THE OPD V2V3 BASED ON DETECTOR POSITION, IN ORDER TO CALCULATE SM FIELD-DEPENDENT WFE.
+        # SEE opds._apply_sm_field_dependence_model()
+        #
+        # v2v3 attribute exists only if using the linear model, so check first:
+        if hasattr(self.pupil, 'v2v3'):
+            if (self.pupil.v2v3 is None) or (not (self.pupil.v2v3 == self._tel_coords().to(units.arcsec)).all()):
+                self.pupil.v2v3 = self._tel_coords().to(units.arcsec)
+                self.pupil.update_opd()
+        
+        # Run poppy calc_psf        
         psf = SpaceTelescopeInstrument.calc_psf(self, outfile=outfile, source=source, nlambda=nlambda,
                                                 monochromatic=monochromatic, fov_arcsec=fov_arcsec,
                                                 fov_pixels=fov_pixels, oversample=oversample,
@@ -2497,6 +2506,7 @@ class DetectorGeometry(object):
 
         tel_coords = np.asarray(self.aperture.sci_to_tel(xpix, ypix))
         tel_coords_arcmin = tel_coords / 60. * units.arcmin  # arcsec to arcmin
+
         return tel_coords_arcmin
 
 
