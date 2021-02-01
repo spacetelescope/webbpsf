@@ -4,6 +4,7 @@ Tests for opds.py
 from astropy.io import fits
 import astropy.units as u
 import numpy as np
+import pysiaf
 import pytest
 import webbpsf
 import matplotlib.pyplot as plt
@@ -129,11 +130,27 @@ def test_thermal_slew_partial_angle():
 
 def test_thermal_slew_update_opd():
     ''' Test that running webbpsf.opds.OTE_Linear_Model_WSS.thermal_slew() will
-        give the expected output'''
+        give the expected output
+
+        '''
     otelm = webbpsf.opds.OTE_Linear_Model_WSS()
     otelm.thermal_slew(delta_time=1.0*u.day, case='EOL')
-    max_truth = 4.13338e-08 / 1e-9 # Convert the max truth to units of nm
-    assert np.isclose(np.max(otelm.opd)/1e-9, max_truth), "OPD max does not match expected value after 1 day slew."
+
+    # the exact value expected is affected by which version of the linear model is used.
+    if otelm._segment_masks_version < 3:
+        # rev V pupil segment mask file, labeled as VERSION=2 in jwpupil_segments.fits
+        expected_max = 41.3338  # nanometers, expected value for peak.
+                                # value derived by kjbrooks based on thermal model coefficients
+        expected_rms = 11.13    # nm
+                                # value derived by mperrin based on evaluation of opd map in this case
+    else:
+        # rev W pupil segment mask file, labeled as VERSION=3 in jwpupil_segments.fits
+        # Values here are by mperrin based on evaluation of the same exact linear model code as above
+        # changing only the data file $WEBBPSF_DATA/jwpupil_segments.fits to the newer version
+        expected_max = 40.7763  # nanometers, expected value for peak
+        expected_rms = 11.24    # nm
+    assert np.isclose(np.max(otelm.opd)/1e-9, expected_max, rtol=1e-3), "OPD max does not match expected value after 1 day slew."
+    assert np.isclose(otelm.rms(), expected_rms, rtol=1e-3), "OPD rms does not match expected value after 1 day slew."
 
 
 def test_thermal_slew_reproducibility():
@@ -217,13 +234,12 @@ def test_move_sur(plot=False):
     s = glob.glob(surdir+'/example_image_stacking*sur.xml')[0]
     print("Testing moving one group at a time with "+s)
     ote.reset()
-    import jwxml
-    sur = jwxml.SUR(s)
+    sur = webbpsf.surs.SUR(s)
 
     ngroups = len(sur.groups)
     oldstate = ote.segment_state.copy()
 
-    for igrp in range(1,ngroups+1):
+    for igrp in range(1, ngroups+1):
         print("Group {} should move segment {}".format(igrp, 2*igrp+6))
         ote.move_sur(s, group=igrp)
 
@@ -297,3 +313,52 @@ def test_apply_field_dependence_model():
 
     assert(rms1 < 7e-9), "OPDs expected to match didn't, zero field"
     assert(rms2 > 7e-9), "OPDs expected to differ didn't"
+
+
+def test_get_zernike_coeffs_from_smif():
+    """ 
+    Test that the OTE SM Influence function returns expected Hexike coefficients.
+    """
+    
+    # Create an instance of the OTE linear model
+    otelm = webbpsf.opds.OTE_Linear_Model_WSS()
+
+    # Case 1: otelm.v2v3 is None, should return None
+    otelm._apply_sm_field_dependence_model()
+    assert ( otelm._apply_sm_field_dependence_model() is None)
+
+    # Case 2: check coefficient at control point; should return zeros.
+    assert( np.allclose(otelm._get_zernike_coeffs_from_smif(0., 0.), np.asarray([0.]*9) ))
+
+    # Case 3: dx=1, dy=1, SM Poses all equal to 1 um
+    telfer_zern = [-0.055279643, -0.037571947, -0.80840763, -0.035680581, -0.0036747300, 0.0033910640] # Taken from Telfer's tool
+    # Convert Telfer's Zernikes to Hexikes:
+    hexikes = [-telfer_zern[1], 
+               2.*telfer_zern[0] - (60984./69531.)*telfer_zern[5], 
+               telfer_zern[2], 
+               (33./25)*telfer_zern[3], 
+               (-33./25)*telfer_zern[4], 
+               (1386./860.)*telfer_zern[5]]
+
+    otelm.segment_state[-1, :] = 1.0
+    
+    assert (np.allclose(otelm._get_zernike_coeffs_from_smif(1.0, 1.0)[3:], hexikes, rtol=1e-3))
+
+    # Case 4: test at MIRIM_FP1MIMF field point
+    otelm.ote_ctrl_pt = pysiaf.Siaf('NIRCAM')['NRCA3_FP1'].reference_point('tel') *u.arcsec
+    otelm.v2v3 = pysiaf.Siaf('MIRI')['MIRIM_FP1MIMF'].reference_point('tel') *u.arcsec
+    telfer_zern_mirim_fp1mimf = np.asarray( [-0.25066019, 0.22840080, -0.53545999, -0.024227464, -0.0025191352, 0.00050082553]) # Taken from Telfer's tool
+    # Convert Telfer's Zernikes to Hexikes:
+    hexikes = hexikes = [-telfer_zern_mirim_fp1mimf[1], 
+                         2.*telfer_zern_mirim_fp1mimf[0] - (60984./69531.)*telfer_zern_mirim_fp1mimf[5], 
+                         telfer_zern_mirim_fp1mimf[2], 
+                         (33./25)*telfer_zern_mirim_fp1mimf[3], 
+                         (-33./25)*telfer_zern_mirim_fp1mimf[4], 
+                         (1386./860.)*telfer_zern_mirim_fp1mimf[5]]
+    
+    otelm.segment_state[-1, :] = [300., 400., 100., 200., 5., 0.]
+    dx =-(otelm.v2v3[0] - otelm.ote_ctrl_pt[0]).to(u.rad).value 
+    dy = (otelm.v2v3[1] - otelm.ote_ctrl_pt[1]).to(u.rad).value
+
+    assert (np.allclose(otelm._get_zernike_coeffs_from_smif(dx, dy)[3:], hexikes, rtol=1e-3))
+    

@@ -1,6 +1,6 @@
 import os
 import pytest
-from webbpsf import wfirst, measure_fwhm
+from webbpsf import roman, measure_fwhm
 from numpy import allclose
 
 MASKED_FLAG = "FULL_MASK"
@@ -12,20 +12,20 @@ def test_WFI_psf():
     Just test that instantiating WFI works and can compute a PSF without raising
     any exceptions
     """
-    wi = wfirst.WFI()
+    wi = roman.WFI()
     wi.calc_psf(fov_pixels=4)
 
 
 def test_WFI_filters():
-    wi = wfirst.WFI()
+    wi = roman.WFI()
     filter_list = wi.filter_list
     for filter in filter_list:
-        wi = wfirst.WFI()
+        wi = roman.WFI()
         wi.filter = filter
         wi.calc_psf(fov_pixels=4, oversample=1, nlambda=3)
 
 def test_aberration_detector_position_setter():
-    detector = wfirst.FieldDependentAberration(4096, 4096)
+    detector = roman.FieldDependentAberration(4096, 4096)
 
     with pytest.raises(ValueError) as excinfo:
         detector.field_position = (-1, 1)
@@ -55,7 +55,7 @@ def test_WFI_fwhm():
     Test that computed PSFs are physically realistic, at least relatively.
     Loose test...
     """
-    wfi = wfirst.WFI()
+    wfi = roman.WFI()
 
     wfi.pupilopd = None
     wfi.options['jitter'] = None
@@ -70,7 +70,7 @@ def test_WFI_fwhm():
 
 
 def test_WFI_pupil_controller():
-    wfi = wfirst.WFI()
+    wfi = roman.WFI()
 
     for detector in wfi.detector_list:
         wfi.detector = detector
@@ -129,7 +129,7 @@ def test_WFI_pupil_controller():
                     "Pupil did not set to correct value according to filter {}".format(filter)
 
     # Test calculating a single PSF
-    wfi = wfirst.WFI()
+    wfi = roman.WFI()
     wfi.detector = detector
     valid_pos = (4000, 1000)
     wfi.detector_position = valid_pos
@@ -140,7 +140,7 @@ def test_WFI_pupil_controller():
 
 
 def test_WFI_detector_position_setter():
-    wfi = wfirst.WFI()
+    wfi = roman.WFI()
     wfi.detector = 'SCA01'
     valid_pos = (4000, 1000)
     wfi.detector_position = valid_pos
@@ -152,16 +152,16 @@ def test_WFI_detector_position_setter():
                                                "assignment to setter"
 
 def test_WFI_includes_aberrations():
-    wfi = wfirst.WFI()
+    wfi = roman.WFI()
     wfi.detector = 'SCA01'
-    osys = wfi._get_optical_system()
-    assert isinstance(osys[2], wfirst.FieldDependentAberration), (
-        "Third plane of WFIRST WFI optical system should be the "
+    osys = wfi.get_optical_system()
+    assert isinstance(osys[2], roman.FieldDependentAberration), (
+        "Third plane of Roman WFI optical system should be the "
         "field dependent aberration virtual optic"
     )
 
 def test_WFI_chooses_pupil_masks():
-    wfi = wfirst.WFI()
+    wfi = roman.WFI()
 
     def autopupil():
         """Helper to trigger pupil selection in testing"""
@@ -194,7 +194,7 @@ def test_WFI_chooses_pupil_masks():
     _test_filter_pupil('F184', wfi._masked_pupil_path)
 
 def test_WFI_limits_interpolation_range():
-    wfi = wfirst.WFI()
+    wfi = roman.WFI()
     det = wfi._detectors['SCA01']
     det.get_aberration_terms(1.29e-6)
     det.field_position = (0, 0)
@@ -238,7 +238,7 @@ def test_WFI_limits_interpolation_range():
 
 def test_CGI_detector_position():
     """ Test existence of the CGI detector position etc, and that you can't set it."""
-    cgi = wfirst.CGI()
+    cgi = roman.CGI()
 
     valid_pos = (512,512)
     assert cgi.detector_position == valid_pos, "CGI detector position isn't as expected"
@@ -253,7 +253,7 @@ def test_CGI_psf(display=False):
     Just test that instantiating CGI works and can compute a PSF without raising
     any exceptions
     """
-    char_spc = wfirst.CGI()
+    char_spc = roman.CGI()
     char_spc.mode = 'CHARSPC_F660'
 
     #print('Reading instrument data from {:s}'.format(charspc._WebbPSF_basepath)
@@ -261,4 +261,4 @@ def test_CGI_psf(display=False):
 
     monopsf = char_spc.calc_psf(nlambda=1, display=False)
     if display:
-        wfirst.poppy.display_psf(monopsf)
+        roman.poppy.display_psf(monopsf)

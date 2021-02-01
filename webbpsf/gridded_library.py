@@ -343,6 +343,16 @@ class CreatePSFLibrary:
             meta["NORMALIZ"] = (psf[ext].header["NORMALIZ"], "PSF normalization method")
             meta["TEL_WFE"] = (psf[ext].header["TEL_WFE"], "[nm] Telescope pupil RMS wavefront error")
 
+            # Copy values for per-segment Zernike {piston, tip, tilt}, if present
+            # (these are only present or used in incoherent segment PSF generation with the
+            # remove_piston_tip_tilt value set to True):
+            if 'S01PISTN' in psf[ext].header:
+                # if we have one such keyword, assume we have them for all segments and all types
+                for i in range(1,19):
+                    for ztype in ('PISTN', 'XTILT', 'YTILT'):
+                        mykey = f"S{i:02d}{ztype}"
+                        meta[mykey] = (psf[ext].header[mykey], psf[ext].header.comments[mykey])
+
             # copy all the jitter-related keys (the exact set of keywords varies based on jitter type)
             for k in psf[ext].header.keys():   # do the rest
                 if k.startswith('JITR'):

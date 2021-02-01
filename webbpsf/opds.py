@@ -42,7 +42,11 @@ import warnings
 
 import poppy
 import poppy.zernike as zernike
+
+import pysiaf
+
 from . import constants
+from . import surs
 from . import utils
 
 _log = logging.getLogger('webbpsf')
@@ -124,6 +128,7 @@ class OPD(poppy.FITSOpticalElement):
 
         full_seg_mask_file = os.path.join(utils.get_webbpsf_data_path(), segment_mask_file)
         self._segment_masks = fits.getdata(full_seg_mask_file)
+        self._segment_masks_version = fits.getheader(full_seg_mask_file)['VERSION']
 
         # Where are the centers of each segment?  From OTE design geometry
         self._seg_centers_m = {seg[0:2]: np.asarray(cen)
@@ -1061,7 +1066,7 @@ class OTE_Linear_Model_WSS(OPD):
     """
 
     def __init__(self, name='Unnamed OPD', opd=None, opd_index=0, transmission=None, segment_mask_file='JWpupil_segments.fits',
-                 zero=False, rm_ptt=False, rm_piston=False, v2v3=None):
+                 zero=False, rm_ptt=False, rm_piston=False, v2v3=None, control_point_fieldpoint='nrca3_full'):
         """
         Parameters
         ----------
@@ -1084,6 +1089,11 @@ class OTE_Linear_Model_WSS(OPD):
         v2v3 : tuple of 2 astropy.Quantities
             Tuple giving V2,v3 coordinates as quantities, typically in arcminutes, or None to default to
             the master chief ray location between the two NIRCam modules.
+        control_point_fieldpoint: str
+            Name of the field point where the OTE control point is located, on instrument defined by "control_point_instr". 
+            Default: 'nrca3_full'.
+            The OTE control point is the field point to which the OTE has been aligned and defines the field angles
+            for the field-dependent SM pose aberrations.
 
         """
 
@@ -1097,6 +1107,12 @@ class OTE_Linear_Model_WSS(OPD):
         cnames = self._influence_fns.colnames
         for icol in cnames[3:]:
             self._influence_fns[icol] *= -1
+            
+        # WFTP10 hotfix for RoC sign inconsitency relative to everything else, due to outdated version of WAS IFM used in table construction.
+        # FIXME update the IFM file on disk and then delete the next three lines
+        roc_rows = self._influence_fns['control_mode']=='ROC'
+        for icol in cnames[3:]:
+            self._influence_fns[icol][roc_rows] *= -1
 
         self._control_modes = ['Xtilt', 'Ytilt', 'Piston', 'Clocking', 'Radial', 'ROC']
         self._sm_control_modes = ['Xtilt', 'Ytilt', 'Xtrans', 'Ytrans', 'Piston']
@@ -1131,6 +1147,20 @@ class OTE_Linear_Model_WSS(OPD):
 
         self.meta = OrderedDict()  # container for arbitrary extra metadata
 
+        # DETERMINE INSTRUMENT BASED ON CONTROL FIELD POINT NAME:
+        self.control_point_fieldpoint = control_point_fieldpoint
+        control_point_detector = self.control_point_fieldpoint.split("_")[0]
+        if 'nrc' in control_point_detector:
+            control_point_instr = 'nircam'
+        elif 'miri' in control_point_detector:
+                control_point_instr = 'miri'
+        elif 'nis' in control_point_detector:
+                control_point_instr = 'niriss'
+        elif 'nrs' in control_point_detector:
+                control_point_instr = 'nirspec'
+
+        self.ote_control_point = pysiaf.Siaf(control_point_instr)[self.control_point_fieldpoint.upper()].reference_point('tel')*u.arcsec
+        
         if zero:
             self.zero()
         else:
@@ -1358,11 +1388,95 @@ class OTE_Linear_Model_WSS(OPD):
     def _apply_field_dependence_model(self, reference='global'):
         """Apply field dependence model for OTE wavefront error spatial variation.
 
-        Update self.opd based on V2V3 coordinates using model(s) for spatial variations.
+        Includes SM field-dependent model for OTE wavefront error as a function of field angle and SM pose amplitude,
+        and model for field-dependence of a nominal (perfectly aligned) OTE.
+
+        Updates self.opd based on V2V3 coordinates and amplitude of SM pose.
         """
 
+        # Model field dependence for the nominal OTE, based on Code V model coefficients
         perturbation = self._get_field_dependence_nominal_ote(reference=reference)
         self.opd += perturbation
+
+        # Model field dependence from any misalignment of the secondary mirror
+        if self.v2v3 is None:
+            return
+        else:
+            dx = -(self.v2v3[0] - self.ote_control_point[0]).to(
+                u.rad).value  # NEGATIVE SIGN B/C TELFER'S FIELD ANGLE COORD. SYSTEM IS (X,Y) = (-V2,V3)
+            dy = (self.v2v3[1] - self.ote_control_point[1]).to(u.rad).value
+
+            z_coeffs = self._get_zernike_coeffs_from_smif(dx, dy, **kwargs)
+
+            perturbation = poppy.zernike.opd_from_zernikes(z_coeffs, npix=1024,
+                                                           basis=poppy.zernike.hexike_basis_wss, aperture=self.amplitude)
+
+            perturbation[~np.isfinite(perturbation)] = 0.0
+
+            self.opd += -perturbation * 1e-6
+
+            self.opd_header['HISTORY'] = 'Applied SMIF field-dependent aberrations:'
+            self.opd_header['HISTORY'] = ('SMIF_H3: {}'.format(z_coeffs[3]))
+            self.opd_header['HISTORY'] = ('SMIF_H4: {}'.format(z_coeffs[4]))
+            self.opd_header['HISTORY'] = ('SMIF_H5: {}'.format(z_coeffs[5]))
+            self.opd_header['HISTORY'] = ('SMIF_H6: {}'.format(z_coeffs[6]))
+            self.opd_header['HISTORY'] = ('SMIF_H7: {}'.format(z_coeffs[7]))
+            self.opd_header['HISTORY'] = ('SMIF_H8: {}'.format(z_coeffs[8]))
+            self.opd_header['HISTORY'] = ('Field point (x,y): ({})'.format(self.v2v3))
+            self.opd_header['HISTORY'] = (
+                'Control point: {} ({})'.format(self.control_point_fieldpoint.upper(), self.ote_control_point))
+            self.opd_header['HISTORY'] = ('Delta x/y: {} {} (radians))'.format(dx, dy))
+
+    def _get_zernike_coeffs_from_smif(self, dx=0., dy=0.):
+        '''     
+        Apply Secondary Mirror field dependence based on SM pose and field angle.
+
+        NOTES:
+        Wavefront Phi(x,y) = Sum[ m_j * Sum[ (alpha_jk*dx + beta_jk*dy)*Z_k ] ]
+        where m_j is the SM mode error (0: X-trans, 1: Y-trans, 2: X-tilt, 3: Y-tilt);
+        dx/dy are the field separation from the control point, in radians;
+        Z_k are the Zernike (3: defocus, 4: 0-Degree Astig, 5: 45-Degree Astig);
+        alpha and beta are taken from the SMIF_Matrix/hexike.csv calculated 
+        by Randal Telfer.
+        
+        See Also Ball SER 2288152 "JWST WFSC MIMF Control Algorithm Design".
+
+        Parameters
+        ----------
+        dx, dy = field angles, in radians, from the OTE control point (nominally, NRCA3_FULL).
+
+        Returns:
+        ----------
+        Hexike coefficients, in microns, for the first nine (9) coefficients, with PTT explicitly set to zero.
+
+        '''
+        
+        # GET SM POSE:
+        # RE-ORDER SUCH THAT (1) X-TRANS, (2) Y-TRANS, (3) X-TILT, (4) Y-TILT.
+        sm_errors = [self.segment_state[-1, 2],    # X-TRANS
+                     self.segment_state[-1, 3],    # Y-TRANS
+                     self.segment_state[-1, 0],    # X-TILT
+                     self.segment_state[-1, 1],    # Y-TILT
+                     self.segment_state[-1, 4]]    # PISTON
+        
+        # GET SM INFLUENCE MATRIX:   
+        # HEXIKE PROJECTED ONTO ENTRANCE PUPIL (WHAT WEBBPSF NEEDS):
+        smif = astropy.table.Table.read(os.path.join(__location__, 'otelm', "SMIF_hexike.csv"), header_start=5)
+     
+        alphas = smif[smif['Type'] == 'alpha']
+        betas  = smif[smif['Type'] == 'beta']  
+
+        # NOW, WE SUM UP THE ALPHAS AND BETAS FOR EACH HEXIKE,
+        # AS DESCRIBED IN THE DOC STRING ABOVE.
+        coeffs = np.zeros((6))
+        for i, icol in enumerate(smif.colnames[2:]):
+            coeffs[i] = np.sum( (alphas[icol]*dx + betas[icol]*dy )*sm_errors)
+
+        # PAD IN ZEROS FOR PISTON, TIP, TILT:
+        coeffs = np.insert(coeffs, 0, [0., 0., 0.])
+    
+        return coeffs
+        
 
     def _get_field_dependence_nominal_ote(self, reference='global'):
         """Calculate field dependence model for OTE wavefront error spatial variation.
@@ -1539,7 +1653,10 @@ class OTE_Linear_Model_WSS(OPD):
                                                        basis=poppy.zernike.zernike_basis_faster,
                                                        outside=0)
         return perturbation
+        
 
+
+        
     def move_seg_local(self, segment, xtilt=0.0, ytilt=0.0, clocking=0.0, rot_unit='urad',
                        radial=None, xtrans=None, ytrans=None, piston=0.0, roc=0.0, trans_unit='micron', display=False,
                        delay_update=False, absolute=False):
@@ -1949,11 +2066,9 @@ class OTE_Linear_Model_WSS(OPD):
         -------
 
         """
-        import jwxml
-
-        sur = jwxml.SUR(sur_file)
+        sur = surs.SUR(sur_file)
         if group is not None:
-            if group==0:
+            if group == 0:
                 raise ValueError("Group indices start at 1, not 0.")
             groups = [sur.groups[group-1]]
         else:
@@ -2159,8 +2274,8 @@ class OTE_Linear_Model_WSS(OPD):
 
                 self._apply_hexikes_to_seg(segname, hexike_coeffs_combined)
 
-        # The thermal slew model for the SM global defocus is implemented as a global hexike.
-        # So we have to combine that with the _global_hexikes array here
+       # The thermal slew model for the SM global defocus is implemented as a global hexike.
+       # So we have to combine that with the _global_hexikes array here
         global_hexike_coeffs_combined = self._global_hexike_coeffs.copy()
         if self.delta_time != 0.0:
             global_hexike_coeffs_combined[4] += self._get_thermal_slew_coeffs('SM')
@@ -2170,6 +2285,7 @@ class OTE_Linear_Model_WSS(OPD):
             self._apply_global_hexikes(global_hexike_coeffs_combined)
         if not np.all(self._global_zernike_coeffs == 0):
             self._apply_global_zernikes()
+            
         self._apply_field_dependence_model()
 
 
