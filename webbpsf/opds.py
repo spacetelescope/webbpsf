@@ -38,6 +38,7 @@ import astropy.io.fits as fits
 import astropy.units as u
 import logging
 from collections import OrderedDict
+import warnings
 
 import poppy
 import poppy.zernike as zernike
@@ -1113,6 +1114,10 @@ class OTE_Linear_Model_WSS(OPD):
         self._global_zernike_coeffs = np.zeros(15)
         self._global_hexike_coeffs = np.zeros(15)
 
+        # Field dependence model data
+        self._field_dep_file = None
+        self._field_dep_hdu = None
+
         # Thermal OPD parameters
         self.delta_time = 0.0
         self.start_angle = 0.0
@@ -1356,8 +1361,17 @@ class OTE_Linear_Model_WSS(OPD):
         Update self.opd based on V2V3 coordinates using model(s) for spatial variations.
         """
 
+        perturbation = self._get_field_dependence_nominal_ote(reference=reference)
+        self.opd += perturbation
+
+    def _get_field_dependence_nominal_ote(self, reference='global'):
+        """Calculate field dependence model for OTE wavefront error spatial variation.
+
+        Returns OPD based on V2V3 coordinates using model(s) for spatial variations.
+        """
+
         if self.v2v3 is None:
-            return
+            return 0
 
         # Figure out what instrument the field coordinate correspond to
         if (self.v2v3[0] <= 4.665484587 * u.arcmin) and (self.v2v3[0] >= -0.806163939 * u.arcmin) and \
@@ -1372,24 +1386,31 @@ class OTE_Linear_Model_WSS(OPD):
             (self.v2v3[1] <= -4.591796373 * u.arcmin) and (self.v2v3[1] >= -9.728478191 * u.arcmin):
             instrument = 'NIRSpec'
             _log.info('Field coordinates determined to be in NIRSpec field')
-        elif (self.v2v3[0] <= -6.217360565 * u.arcmin) and (self.v2v3[0] >= -8.254200362 * u.arcmin) and \
-            (self.v2v3[1] <= -5.242777276 * u.arcmin) and (self.v2v3[1] >= -7.23679396 * u.arcmin):
+        elif (self.v2v3[0] <= -6.2 * u.arcmin) and (self.v2v3[0] >= -8.3 * u.arcmin) and \
+            (self.v2v3[1] <= -5.2 * u.arcmin) and (self.v2v3[1] >= -7.3 * u.arcmin):
             instrument = 'MIRI'
             _log.info('Field coordinates determined to be in MIRI field')
-        elif (self.v2v3[0] <= --3.72672121 * u.arcmin) and (self.v2v3[0] >= -5.981008406 * u.arcmin) and \
-            (self.v2v3[1] <= -10.50669267 * u.arcmin) and (self.v2v3[1] >= -12.76596235 * u.arcmin):
+        elif (self.v2v3[0] <= -3.70 * u.arcmin) and (self.v2v3[0] >= -5.981008406 * u.arcmin) and \
+            (self.v2v3[1] <= -10.50669267 * u.arcmin) and (self.v2v3[1] >= -12.8 * u.arcmin):
             instrument = 'NIRISS'
             _log.info('Field coordinates determined to be in NIRISS field')
         else:
             _log.info(f'Not in a valid instrument field')
-            raise ValueError('Given V2V3 coordinates do not fall within an instrument region with a field dependence model')
+            raise ValueError(f'Given V2V3 coordinates {self.v2v3} do not fall within an instrument region with a field dependence model')
 
         base_path = utils.get_webbpsf_data_path()
         field_dep_file = os.path.join(base_path, f'{instrument}/OPD/field_dep_table_{instrument.lower()}.fits')
-        _log.info(f'Loading field dependent model parameters from {field_dep_file}')
+        # For efficiency,
+        if self._field_dep_file != field_dep_file:
+            self._field_dep_file = field_dep_file
+            _log.info(f'Loading field dependent model parameters from {self._field_dep_file}')
 
-        # Read in data file.  Only handling NIRCAM for now and hardcoded.
-        hdu = fits.open(field_dep_file)
+            # Read in data file.
+            hdu = fits.open(self._field_dep_file)
+            self._field_dep_hdu = hdu
+        else:
+            hdu = self._field_dep_hdu
+
         # Pull useful parameters from header
         hdr = hdu[0].header
 
@@ -1436,12 +1457,14 @@ class OTE_Linear_Model_WSS(OPD):
         # x_field_pt = 0.04 * u.deg
         # y_field_pt = 0.027 * u.deg
         _log.info(f'Calculating field-dependent OPD at v2 = {self.v2v3[0]:.3f}, v3 = {self.v2v3[1]:.3f}')
-        _log.info(f'Calculating field-dependent OPD at CodeV X field = {x_field_pt:.3f}, Y field= {y_field_pt:.3f}')
+        _log.debug(f'Calculating field-dependent OPD at CodeV X field = {x_field_pt:.3f}, Y field= {y_field_pt:.3f}')
 
         # Confirm that the calculated field point is within our model's range
         if ((x_field_pt < min_x_field) or (x_field_pt > max_x_field) or
                 (y_field_pt < min_y_field) or (y_field_pt > max_y_field)):
-            raise ValueError('Field point not within valid region for field dependence model')
+            warnings.warn(f'Field point {x_field_pt}, {y_field_pt} not within valid region for field dependence model: {min_x_field}-{max_x_field}, {min_y_field}-{max_y_field}. Clipping to closest available valid location.')
+            x_field_pt = np.clip(x_field_pt, min_x_field, max_x_field)
+            y_field_pt = np.clip(y_field_pt, min_y_field, max_y_field)
 
         # Check the OPD units in the input file
         if hdr['opdunit'] == 'nm':
@@ -1472,8 +1495,8 @@ class OTE_Linear_Model_WSS(OPD):
         x_field_pt_norm = float((x_field_pt - ref_pt_x) / ((max_x_field - min_x_field) / 2))
         y_field_pt_norm = float((y_field_pt - ref_pt_y) / ((max_y_field - min_y_field) / 2))
 
-        _log.info(f'{instrument} max_x={max_x_field} min_x={min_x_field} max_y={max_y_field} min_y={min_y_field}')
-        _log.info(f'Normalized field point {x_field_pt_norm}, {y_field_pt_norm}')
+        _log.debug(f'{instrument} max_x={max_x_field} min_x={min_x_field} max_y={max_y_field} min_y={min_y_field}')
+        _log.debug(f'Normalized field point {x_field_pt_norm}, {y_field_pt_norm}')
         poly_x1d = np.zeros(field_coeff_order + 1)
         poly_y1d = np.zeros(field_coeff_order + 1)
         for index in range(0, field_coeff_order + 1):
@@ -1515,7 +1538,7 @@ class OTE_Linear_Model_WSS(OPD):
                                                        npix=1024,
                                                        basis=poppy.zernike.zernike_basis_faster,
                                                        outside=0)
-        self.opd += perturbation
+        return perturbation
 
     def move_seg_local(self, segment, xtilt=0.0, ytilt=0.0, clocking=0.0, rot_unit='urad',
                        radial=None, xtrans=None, ytrans=None, piston=0.0, roc=0.0, trans_unit='micron', display=False,
@@ -2356,6 +2379,7 @@ def enable_adjustable_ote(instr):
     opd = OTE_Linear_Model_WSS(name=name,
                                opd=opdpath, transmission=pupilpath)
 
+    opd.v2v3 = instr._tel_coords()  # copy field location, for use in field dependence models.
     instcopy.pupilopd = opd
     instcopy.pupil = opd
 

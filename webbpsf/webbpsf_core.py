@@ -972,10 +972,19 @@ class JWInstrument(SpaceTelescopeInstrument):
         """
         try:
             ap = self.siaf[aperture_name]
-
-            self.detector_position = (ap.XSciRef, ap.YSciRef)
             detname = aperture_name.split('_')[0]
             self.detector = detname # As a side effect this auto reloads SIAF info, see detector.setter
+
+            if self.name != 'NIRSpec' and ap.AperType != 'SLIT':
+                # Regular imaging apertures, so we can just look up the reference coords directly
+                self.detector_position = (ap.XSciRef, ap.YSciRef)  # set this AFTER the SIAF reload
+            else:
+                # NIRSpec slit apertures need some separate handling, since they don't map directly to detector pixels
+                ref_in_tel = ap.V2Ref, ap.V3Ref
+                nrs_full_aperture = self.siaf[aperture_name.split('_')[0]+"_FULL"]
+                ref_in_sci = nrs_full_aperture.tel_to_sci(*ref_in_tel)
+                self.detector_position = ref_in_sci
+
             _log.debug("From {} set det. pos. to {} {}".format(aperture_name, detname, self.detector_position))
 
         except KeyError:
