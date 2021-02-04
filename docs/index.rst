@@ -29,7 +29,7 @@ Getting Started with WebbPSF
    This documentation is complemented by an `Jupyter Notebook format quickstart tutorial <http://nbviewer.jupyter.org/github/spacetelescope/webbpsf/blob/stable/notebooks/WebbPSF_tutorial.ipynb>`_. Downloading and running that notebook is a great way to get started using WebbPSF.
 
 .. note:: 
-   *Getting help:* For help using or installing webbpsf, you can contact the STScI Help Desk, help@stsci.edu. Note that WebbPSF is included in the Astroconda  python distribution, as well as being installable via :ref:`standard Python packaging tools <installation>`.
+   *Getting help:* For help using or installing webbpsf, you can contact the STScI JWST Help Desk at jwsthelp.stsci.edu. Note that WebbPSF is included in the Astroconda python distribution, as well as being installable via :ref:`standard Python packaging tools <installation>`.
 
 
 :ref:`What's new in the latest release? <whatsnew>`
