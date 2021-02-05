@@ -1514,14 +1514,18 @@ class OTE_Linear_Model_WSS(OPD):
 
         base_path = utils.get_webbpsf_data_path()
         field_dep_file = os.path.join(base_path, f'{instrument}/OPD/field_dep_table_{instrument.lower()}.fits')
-        # For efficiency,
+        # For efficiency, reload from disk. And, for back-compatibility, fail gracefully if file not found
         if self._field_dep_file != field_dep_file:
             self._field_dep_file = field_dep_file
             _log.info(f'Loading field dependent model parameters from {self._field_dep_file}')
 
-            # Read in data file.
-            hdu = fits.open(self._field_dep_file)
-            self._field_dep_hdu = hdu
+            try:
+                # Read in data file.
+                hdu = fits.open(self._field_dep_file)
+                self._field_dep_hdu = hdu
+            except FileNotFoundError:
+                warnings.warn(f"Could not load {self._field_dep_file}; OTE field dependence model disabled")
+                return 0
         else:
             hdu = self._field_dep_hdu
 
