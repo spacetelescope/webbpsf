@@ -306,7 +306,7 @@ def test_apply_field_dependence_model():
     rms1 = np.sqrt(np.mean((opd_no_field_model - opd_zero_field) ** 2))
 
     # Get the OPD at some arbitrary nonzero field point
-    ote.v2v3 = (1.8, -6) * u.arcmin
+    ote.v2v3 = (1.8, -7) * u.arcmin
     ote._apply_field_dependence_model()
     opd_arb_field = ote.opd.copy() * ote.get_transmission(0)
     rms2 = np.sqrt(np.mean((opd_no_field_model - opd_arb_field) ** 2))
@@ -324,8 +324,8 @@ def test_get_zernike_coeffs_from_smif():
     otelm = webbpsf.opds.OTE_Linear_Model_WSS()
 
     # Case 1: otelm.v2v3 is None, should return None
-    otelm._apply_sm_field_dependence_model()
-    assert ( otelm._apply_sm_field_dependence_model() is None)
+    otelm._apply_field_dependence_model()
+    assert ( otelm._apply_field_dependence_model() is None)
 
     # Case 2: check coefficient at control point; should return zeros.
     assert( np.allclose(otelm._get_zernike_coeffs_from_smif(0., 0.), np.asarray([0.]*9) ))

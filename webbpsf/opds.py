@@ -1406,7 +1406,7 @@ class OTE_Linear_Model_WSS(OPD):
                 u.rad).value  # NEGATIVE SIGN B/C TELFER'S FIELD ANGLE COORD. SYSTEM IS (X,Y) = (-V2,V3)
             dy = (self.v2v3[1] - self.ote_control_point[1]).to(u.rad).value
 
-            z_coeffs = self._get_zernike_coeffs_from_smif(dx, dy, **kwargs)
+            z_coeffs = self._get_zernike_coeffs_from_smif(dx, dy)
 
             perturbation = poppy.zernike.opd_from_zernikes(z_coeffs, npix=1024,
                                                            basis=poppy.zernike.hexike_basis_wss, aperture=self.amplitude)
@@ -1488,24 +1488,24 @@ class OTE_Linear_Model_WSS(OPD):
             return 0
 
         # Figure out what instrument the field coordinate correspond to
-        if (self.v2v3[0] <= 4.665484587 * u.arcmin) and (self.v2v3[0] >= -0.806163939 * u.arcmin) and \
-            (self.v2v3[1] <= -10.45247446 * u.arcmin) and (self.v2v3[1] >= -12.89545009 * u.arcmin):
+        if (self.v2v3[0] <= 4.7 * u.arcmin) and (self.v2v3[0] >= -0.9 * u.arcmin) and \
+            (self.v2v3[1] <= -10.4 * u.arcmin) and (self.v2v3[1] >= -12.9 * u.arcmin):
             instrument = 'FGS'
             _log.info('Field coordinates determined to be in FGS field')
-        elif (self.v2v3[0] <= 2.582628522 * u.arcmin) and (self.v2v3[0] >= -2.582628522 * u.arcmin) and \
-            (self.v2v3[1] <= -6.26098914 * u.arcmin) and (self.v2v3[1] >= -9.339010878 * u.arcmin):
+        elif (self.v2v3[0] <= 2.6 * u.arcmin) and (self.v2v3[0] >= -2.6 * u.arcmin) and \
+            (self.v2v3[1] <= -6.2 * u.arcmin) and (self.v2v3[1] >= -9.4 * u.arcmin):
             instrument = 'NIRCam'
             _log.info('Field coordinates determined to be in NIRCam field')
-        elif (self.v2v3[0] <= 8.902121276 * u.arcmin) and (self.v2v3[0] >= 3.76747823 * u.arcmin) and \
-            (self.v2v3[1] <= -4.591796373 * u.arcmin) and (self.v2v3[1] >= -9.728478191 * u.arcmin):
+        elif (self.v2v3[0] <= 8.95 * u.arcmin) and (self.v2v3[0] >= 3.7 * u.arcmin) and \
+            (self.v2v3[1] <= -4.55 * u.arcmin) and (self.v2v3[1] >= -9.75 * u.arcmin):
             instrument = 'NIRSpec'
             _log.info('Field coordinates determined to be in NIRSpec field')
         elif (self.v2v3[0] <= -6.2 * u.arcmin) and (self.v2v3[0] >= -8.3 * u.arcmin) and \
             (self.v2v3[1] <= -5.2 * u.arcmin) and (self.v2v3[1] >= -7.3 * u.arcmin):
             instrument = 'MIRI'
             _log.info('Field coordinates determined to be in MIRI field')
-        elif (self.v2v3[0] <= -3.70 * u.arcmin) and (self.v2v3[0] >= -5.981008406 * u.arcmin) and \
-            (self.v2v3[1] <= -10.50669267 * u.arcmin) and (self.v2v3[1] >= -12.8 * u.arcmin):
+        elif (self.v2v3[0] <= -3.70 * u.arcmin) and (self.v2v3[0] >= -6.0 * u.arcmin) and \
+            (self.v2v3[1] <= -10.5 * u.arcmin) and (self.v2v3[1] >= -12.8 * u.arcmin):
             instrument = 'NIRISS'
             _log.info('Field coordinates determined to be in NIRISS field')
         else:
@@ -1576,9 +1576,17 @@ class OTE_Linear_Model_WSS(OPD):
         # Confirm that the calculated field point is within our model's range
         if ((x_field_pt < min_x_field) or (x_field_pt > max_x_field) or
                 (y_field_pt < min_y_field) or (y_field_pt > max_y_field)):
-            warnings.warn(f'Field point {x_field_pt}, {y_field_pt} not within valid region for field dependence model: {min_x_field}-{max_x_field}, {min_y_field}-{max_y_field}. Clipping to closest available valid location.')
-            x_field_pt = np.clip(x_field_pt, min_x_field, max_x_field)
-            y_field_pt = np.clip(y_field_pt, min_y_field, max_y_field)
+            # If not within the valid region, find closest point that is
+            x_field_pt0 = x_field_pt*1
+            y_field_pt0 = y_field_pt*1
+            x_field_pt = np.clip(x_field_pt0, min_x_field, max_x_field)
+            y_field_pt = np.clip(y_field_pt0, min_y_field, max_y_field)
+
+            clip_dist = np.sqrt((x_field_pt-x_field_pt0)**2 + (y_field_pt-y_field_pt0)**2)
+            if clip_dist > 0.1*u.arcsec:
+                # warn the user we're making an adjustment here (but no need to do so if the distance is trivially small)
+                warnings.warn(f'For (V2,V3) = {self.v2v3}, Field point {x_field_pt}, {y_field_pt} not within valid region for field dependence model: {min_x_field}-{max_x_field}, {min_y_field}-{max_y_field}. Clipping to closest available valid location, {clip_dist} away from the requested coordinates.')
+
 
         # Check the OPD units in the input file
         if hdr['opdunit'] == 'nm':
