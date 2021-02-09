@@ -37,6 +37,7 @@ import astropy.io.fits as fits
 import astropy.units as u
 import logging
 from collections import OrderedDict
+from packaging.version import Version
 
 import poppy
 import poppy.zernike as zernike
@@ -315,7 +316,14 @@ class OPD(poppy.FITSOpticalElement):
             axes instance to display into.
         labelsegs : bool
             draw segment name labels on each segment? default True.
-
+        show_axes: bool
+            Draw local control axes per each segment
+        show_rms : bool
+            Annotate the RMS wavefront value
+        show_v2v3:
+            Draw the observatory V2V3 coordinate axes
+        pupil_orientation : string
+            either 'entrance_pupil' or 'exit_pupil', for which orientation we should display the OPD in.
         clear : bool
             Clear plot window before display? default true
         unit : str
@@ -1123,7 +1131,12 @@ class OTE_Linear_Model_WSS(OPD):
         self._influence_fns = astropy.table.Table.read(os.path.join(__location__, 'otelm', 'JWST_influence_functions_control_with_sm.fits'))
 
         # With updated sign convention in poppy 1.0.0, the WSS influence function values can be used in WebbPSF directly,
-        # with no change in sign
+        # with no change in sign.
+        if Version(poppy.__version__) < Version('1.0'):
+            # For earlier poppy versions, fix IFM sign convention for consistency to WSS
+            cnames = self._influence_fns.colnames
+            for icol in cnames[3:]:
+                self._influence_fns[icol] *= -1
 
         # WFTP10 hotfix for RoC sign inconsitency relative to everything else, due to outdated version of WAS IFM used in table construction.
         # FIXME update the IFM file on disk and then delete the next three lines
@@ -1462,7 +1475,11 @@ class OTE_Linear_Model_WSS(OPD):
 
             perturbation[~np.isfinite(perturbation)] = 0.0
 
-            self.opd += -perturbation*1e-6
+            if Version(poppy.__version__) < Version('1.0'):
+                wfe_sign = -1  # In earlier poppy versions, fix sign convention for consistency with WSS
+            else:
+                wfe_sign = 1
+            self.opd += perturbation*(1e-6*wfe_sign)
             
             self.opd_header['HISTORY'] = 'Applied SMIF field-dependent aberrations:'
             self.opd_header['HISTORY'] = ('SMIF_H3: {}'.format(z_coeffs[3]))
@@ -2719,9 +2736,12 @@ class JWST_WAS_PTT_Basis(object):
         See poppy.zernike.opd_expand_segments()
         and coeffs_to_seg_state() in this file.
 
+        See also JWST_WAS_Full_Basis, which includes the other three degrees of freedom
+
         """
 
-        # Internally this is implemented as a wrapper on OTE Linear WEE model
+        # Internally this is implemented as a wrapper on an OTE Linear WFE model;
+        # we use the degrees of freedom of that model directly as the basis functions here
 
         self.ote = OTE_Linear_Model_WSS()
         self.nsegments=18
@@ -2800,9 +2820,11 @@ class JWST_WAS_Full_Basis(object):
         See poppy.zernike.opd_expand_segments()
         and coeffs_to_seg_state() in this file.
 
+        See also JWST_WAS_PTT_Basis, which includes just the piston, tip, tilt degrees of freedom
         """
 
-        # Internally this is implemented as a wrapper on OTE Linear WEE model
+        # Internally this is implemented as a wrapper on an OTE Linear WFE model;
+        # we use the degrees of freedom of that model directly as the basis functions here
 
         self.ote = OTE_Linear_Model_WSS()
         self.nsegments=18
