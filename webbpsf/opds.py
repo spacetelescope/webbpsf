@@ -1630,6 +1630,7 @@ class OTE_Linear_Model_WSS(OPD):
             poly_x1d[index] = leg_poly1d(x_field_pt_norm)
             poly_y1d[index] = leg_poly1d(y_field_pt_norm)
 
+        # TODO much of this can be vectorized for better performance.
         #Calculate product of x and y Legendre value for all combinations of orders
         poly_val_2d = np.zeros((field_coeff_order + 1, field_coeff_order + 1))
         for index_i in range(0, field_coeff_order + 1):
@@ -1649,11 +1650,9 @@ class OTE_Linear_Model_WSS(OPD):
         # sum will be the value of a Zernike, so we loop to repeat that for each Zernike coefficient
 
         zernike_coeffs = np.zeros(num_wavefront_coeffs)
-
         for z_index in range(0, num_wavefront_coeffs):
-            for l_index in range(0, num_field_coeffs):
-                # zernike_coeffs[z_index] = np.einsum('i, i->', data.field(z_index), poly_vals)
-                zernike_coeffs[z_index] = zernike_coeffs[z_index] + data.field(z_index)[l_index] * poly_vals[l_index]
+            # zernike_coeffs[z_index] = np.einsum('i, i->', data.field(z_index), poly_vals)
+            zernike_coeffs[z_index] += (data.field(z_index) * poly_vals).sum()
 
         zernike_coeffs[0:3] = 0  # ignore piston/tip/tilt
 
