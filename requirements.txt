@@ -3,6 +3,6 @@ ipython==7.20.0
 matplotlib==3.3.4
 numpy==1.19.4
 photutils==1.0.2
-poppy==0.9.1
+poppy>=0.9.1
 pysiaf==0.10.0
 scipy==1.6.0

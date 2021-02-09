@@ -27,6 +27,9 @@ matrix:
         # Try Astropy development version
         - env: TOXENV='py38-astropydev-test'
 
+        # Try latest versions of all dependencies
+        - env: TOXENV='py38-latest-test'
+
         # Try minimum supported versions
         - env: TOXENV='py36-legacy36-test'
 
@@ -34,9 +37,6 @@ matrix:
         - env: TOXENV='py37-stable-test'
 
     allow_failures:
-        # Try latest versions of all dependencies
-        - env: TOXENV='py38-latest-test'
-
         # Released POPPY and/or pySIAF may be missing new functionality used by dev WebbPSF
         - env: TOXENV='py37-stable-test'
 
