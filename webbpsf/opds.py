@@ -1645,23 +1645,16 @@ class OTE_Linear_Model_WSS(OPD):
             poly_y1d[index] = leg_poly1d(y_field_pt_norm)
             poly_x1d[index] = leg_poly1d(x_field_pt_norm)
 
-        # TODO much of this can be vectorized for better performance.
         #Calculate product of x and y Legendre value for all combinations of orders
-        poly_val_2d = np.zeros((field_coeff_order + 1, field_coeff_order + 1))
-        for index_i in range(0, field_coeff_order + 1):
-            for index_j in range(0, field_coeff_order + 1):
-                poly_val_2d[index_i, index_j] = poly_y1d[index_i] * poly_x1d[index_j]
+        poly_val_2d = np.einsum('i,j', poly_y1d, poly_x1d)
 
         #Reorder and rearrange values to correspond to the single index ordering the input coefficients assume
-        count = 0
-        poly_vals = np.zeros(legendre_num)
+        map1 = []
+        map2 = []
         for index_i in range(0, field_coeff_order + 1):
-            for index_j in range(index_i, -1, -1):
-                poly_vals[count] = poly_val_2d[index_j, index_i - index_j]
-                count += 1
-                if count == legendre_num: break
-            if count == legendre_num: break
-
+            map1 += list(range(index_i, -1, -1))
+            map2 += list(range(0, index_i + 1))
+        poly_vals = poly_val_2d[map1, map2]
         poly_vals = poly_vals[0:legendre_num]
 
         # poly_vals now has the value of all of the Legendre polynomials at our field point of interest.  So now we
