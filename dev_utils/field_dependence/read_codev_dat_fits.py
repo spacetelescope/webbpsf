@@ -3,6 +3,8 @@ import pint
 units = pint.UnitRegistry()
 import astropy.io.fits as fits
 import basis
+import matplotlib.pyplot as plt
+from datetime import datetime
 
 # Script that reads in a set of CodeV Pupil map OPD files across fields and instruments and fits Zernikes to the OPD
 # distribution at each field point and then Lengdres to the variation of each Zernike coefficient across field.  The
@@ -25,8 +27,8 @@ def read_codeV_data_file(filename):
 
 
 def main():
-    num_fields_x = 15
-    num_fields_y = 15
+    num_fields_x = 21
+    num_fields_y = 21
 
     num_wf_pts_x = 256
     num_wf_pts_y = 256
@@ -39,38 +41,30 @@ def main():
         'niriss'
     ]
 
-    # instruments = {'nircam'}
-
     # Zernike fitting order for each instrument
-    order= {'fgs' : 6,
-            'nircam' : 6,
-            'miri' : 6,
-            'nirspec' : 6,
-            'niriss' : 6
+    order= {'fgs': 15,
+            'nircam': 15,
+            'miri': 15,
+            'nirspec': 15,
+            'niriss': 15
             }
 
     # Define the origin of the CodeV coordinate system in V2/V3 space
     v2_origin_degrees = 0
     v3_origin_degrees = -468/3600
     # How are the signs of the coordinates related between V2/V3 and CodeV
-    v2_sign = -1
+    v2_sign = 1
     v3_sign = -1
 
     wavelength_nm = 2120
 
     # Fitting order of Legendres for fitting field variation
-    legendre_order = 11
+    legendre_order = 15
     legendres = basis.Legendre2DBasis(legendre_order, num_fields_y, num_fields_x)
 
     # Read in the wavefront at at the on-axis field point
-    oa_data, oa_data_defined, oa_field = read_codeV_data_file('raw_field_dep_data/wavefront_on_axis.dat')
+    oa_data, oa_data_defined, oa_field = read_codeV_data_file('wavefront_on_axis.dat')
     oa_data = oa_data * wavelength_nm
-    zernikes_oa = basis.NollZernikeBasis(order['nircam'], num_wf_pts_x, num_wf_pts_y)
-    oa_wavefront = basis.PointByPointWavefront(oa_data,
-                                               oa_data_defined, 2, 2120,
-                                               basis.units.nm, wf_basis=zernikes_oa)
-    oa_coeffs = oa_wavefront.coeffs
-
 
     # Loops over the various instruments
     for instrument in instruments:
@@ -83,14 +77,9 @@ def main():
             num_coeffs = zernikes.numpolys
 
         # Read in wavefront at reference point
-        filename = f'raw_field_dep_data/{instrument}/wavefront_ref.dat'
+        filename = f'{instrument}/wavefront_ref.dat'
         ref_data, ref_data_defined, ref_field = read_codeV_data_file(filename)
         ref_data = ref_data * wavelength_nm  # CodeV gives wavefront in waves
-
-        ref_wf = basis.PointByPointWavefront(ref_data,
-                                             ref_data_defined, 2, 2120,
-                                             basis.units.nm, wf_basis=zernikes)
-        ref_coeffs = ref_wf.coeffs
 
         # Initialize some arrays
         fields = np.zeros((num_fields_x, num_fields_y, 2))
@@ -100,52 +89,90 @@ def main():
         coeffs_global = np.zeros((num_fields_y, num_fields_x, num_coeffs))
 
         print(instrument)
-        for fx_index in range(0,num_fields_x):
-            print(fx_index)
+
+        # Loop over the files for all fields doing Zernike fits and storing the Zernike data
+        for fx_index in range(0, num_fields_x):
+
             for fy_index in range(0, num_fields_y):
-                print(fy_index)
-                filename = f'raw_field_dep_data/{instrument}/wavefront_fx{fx_index + 1}_fy{fy_index + 1}.dat'
+                filename = f'{instrument}/wavefront_fx{fx_index + 1}_fy{fy_index + 1}.dat'
+                print(filename)
+                # Read in the CodeV wavefront data, OPD in waves in CodeV
                 cur_data, cur_data_defined, cur_field_pt = read_codeV_data_file(filename)
                 cur_data = cur_data * wavelength_nm
 
+                # Keep track of where data is good for each wavefront.  And together the current field, reference field
+                # and on-axis field so we only consider data that is valid in all of them.
                 data_defined_arr[fx_index, fy_index, :, :] = np.logical_and(cur_data_defined, ref_data_defined)
+                data_defined_arr[fx_index, fy_index, :, :] = np.logical_and(data_defined_arr[fx_index, fy_index, :, :], oa_data_defined)
 
+                # Store the location of the current field point
                 fields[fx_index, fy_index, 0] = cur_field_pt[0]
                 fields[fx_index, fy_index, 1] = cur_field_pt[1]
 
-                cv_wavefront = basis.PointByPointWavefront(cur_data,
+                # Subtract off local reference (~center of current instrument) and global (0,0 CodeV field point)
+                # reference wavefronts from current wavefront
+                cur_data_local = cur_data - ref_data
+                cur_data_global = cur_data - oa_data
+
+                # Define wavefront objects using the CodeV wavefront data
+                cv_wavefront_global = basis.PointByPointWavefront(cur_data_global,
                                                            data_defined_arr[fx_index, fy_index, :, :], 2, 2120,
                                                            basis.units.nm, wf_basis=zernikes)
-                coeffs_local[fy_index, fx_index, :] = cv_wavefront.coeffs - ref_coeffs
-                coeffs_local[fy_index, fx_index, 0:3] = 0
-                coeffs_global[fy_index, fx_index, :] = cv_wavefront.coeffs - oa_coeffs
-                coeffs_global[fy_index, fx_index, 0:3] = 0
+                cv_wavefront_local = basis.PointByPointWavefront(cur_data_local,
+                                                           data_defined_arr[fx_index, fy_index, :, :], 2, 2120,
+                                                           basis.units.nm, wf_basis=zernikes)
 
-        # Fit the field dependent coefficients to Legendres
+                # Get the coefficients for the wavefront from their wavefront objects and set piston, tip and tilt
+                # contributions to zero.
+                coeffs_global[fy_index, fx_index, :] = cv_wavefront_global.coeffs
+
+                # ttp_global = np.zeros(zernikes.numpolys)
+                # ttp_global[0:3] = coeffs_global[fy_index, fx_index, 0:3]
+                coeffs_global[fy_index, fx_index, 0:3] = 0
+                coeffs_local[fy_index, fx_index, :] = cv_wavefront_local.coeffs
+                coeffs_local[fy_index, fx_index, 0:3] = 0
+
+
+        # Fit the field dependent coefficients to Legendres.  Each Zernike varying across field gets its own Legendre fit
+
+        #Initialize column lists used to store data in fits file
         fits_column_list_local = []
         fits_column_list_global = []
+        #Initialize arrays for the current set of coefficients
         legendre_coeffs_local = np.zeros((legendres.numpolys, num_coeffs))
         legendre_coeffs_global = np.zeros((legendres.numpolys, num_coeffs))
+
+        #Loop over each Zernike, doing the fits, etc
         for index in range(0, num_coeffs):
+            # Get array of current Zernike coefficient across field
             cur_coeffs_local = coeffs_local[:,:, index]
             cur_coeffs_global = coeffs_global[:, :, index]
+            # Set the Zernike coefficient variation up as if it was a wavefront.  Of course the array here is varying
+            # across the field plane and not the pupil plane, so we're using this in a non-standard way.  Also,
+            # using the legendre polynomials at the basis set.
             legendre_var_local = basis.PointByPointWavefront(cur_coeffs_local, np.ones_like(cur_coeffs_local).astype(bool), 4,
                                                              wavelength_nm, basis.units.nm, wf_basis=legendres)
             legendre_var_global = basis.PointByPointWavefront(cur_coeffs_global, np.ones_like(cur_coeffs_global).astype(bool), 4,
                                                              wavelength_nm, basis.units.nm, wf_basis=legendres)
+            # Pull out the Legendre coeffcients from the wavefront object
             legendre_coeffs_local[:, index] = legendre_var_local.coeffs
             legendre_coeffs_global[:, index] = legendre_var_global.coeffs
 
+            # Store the Legendre coeffcients for the current Zernike term as a fits column and store in column list.
             cur_fits_col_local = fits.Column(name=f'Zernike {index} Legendres', format='D', array=legendre_coeffs_local[:,index])
             fits_column_list_local.append(cur_fits_col_local)
             cur_fits_col_global = fits.Column(name=f'Zernike {index} Legendres', format='D', array=legendre_coeffs_global[:,index])
             fits_column_list_global.append(cur_fits_col_global)
 
+        # Set things up to write coefficient data to .fits file
+
+        # Determine the limits of the field region over which we the current model is valid
         min_xfield = np.min(fields[:, :, 0])
         max_xfield = np.max(fields[:, :, 0])
         min_yfield = np.min(fields[:, :, 1])
         max_yfield = np.max(fields[:, :, 1])
 
+        # Instantiate a fits object and populate header fields
         hdu_primary = fits.PrimaryHDU([])
         header = hdu_primary.header
         header['instr'] = instrument
@@ -184,14 +211,19 @@ def main():
         header.comments['fangunit'] = '(Angular) units of field coordinates'
         header['opdunit'] = 'nm'
         header.comments['opdunit'] = 'Units used for the OPDs'
+        now = datetime.now()
+        header['created'] = now.strftime('%m/%d/%Y, %H:%M:%S')
+        header.comments['created'] = 'File creation date and time'
 
+        # Put local and global fitting data in to fits hdu as tables
         col_defs_local = fits.ColDefs(fits_column_list_local)
         col_defs_global = fits.ColDefs(fits_column_list_global)
         hdu_table_local = fits.BinTableHDU.from_columns(col_defs_local)
         hdu_table_global = fits.BinTableHDU.from_columns(col_defs_global)
 
+        # Populate the hdu list of our fits object and write the data out.
         hdu_list = fits.HDUList([hdu_primary, hdu_table_local, hdu_table_global])
-        hdu_list.writeto(f'raw_field_dep_data/{instrument}/field_dep_table_{instrument}.fits', overwrite='True')
+        hdu_list.writeto(f'{instrument}/field_dep_table_{instrument}.fits', overwrite='True')
 
 if __name__ == '__main__':
     main()

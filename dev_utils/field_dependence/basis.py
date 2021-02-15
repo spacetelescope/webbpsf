@@ -1062,11 +1062,11 @@ class PointByPointWavefront(Wavefront):
 
 def main():
     # a = ZernikeBasis(4, 16, 16)
-    a = NollZernikeBasis(7, 256, 256)
+    a = NollZernikeBasis(7, 1024, 1024)
     a.show_polynomials()
 
-    print(f'x= {a.xnorm}')
-    # a = Legendre2DBasis(6, 128, 128)
+    a = Legendre2DBasis(6, 128, 128)
+    a.show_polynomials()
 
     # new_data_defined = (abs(a.xnorm) <= 0.7) & (abs(a.ynorm) <= 0.7)
     # new_data_defined = np.sqrt(a.xnorm ** 2 + a.ynorm ** 2) <= 0.7

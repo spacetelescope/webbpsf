@@ -1,20 +1,14 @@
-! CodeV macro that computes the JWST OTE wavefront error over a grid of field points for 
-! a set of field regions that encompass each of the principal instruments.  Developed 
-! to be used with the revision H segmented JWST CodeV model, file name
-! "OTE_Segmented_RevH_2020527.seq".  Each wavefront computed is output to a text file
-! in a directory with the name of the corresponding instrument  
-
-num ^xfield_angs(15, 15)   ! Declare array for x field angles
-num ^yfield_angs(15, 15)   ! Declare array for y field angles
-str ^instr_names(5)    ! Declare array to store instrument names
+num ^xfield_angs(21, 21)
+num ^yfield_angs(21, 21)
+str ^instr_names(5)
 num ^instr_boxes(5,4)  ! Row for each instrument composed of (xmin, xmax, ymin, ymax)
 num ^instr_ref(5,2)    ! Row for each instrument with x and y of reference point
 
 ^eps == 1e-6
 
 ! How many field points are we calculating at.  Please make sure this is an odd number.
-^xfields == 15
-^yfields == 15
+^xfields == 21
+^yfields == 21
 
 ! Set up different instruments and their field parameters
 ^num_instr == 5  ! number of instruments to consider
@@ -27,38 +21,41 @@ num ^instr_ref(5,2)    ! Row for each instrument with x and y of reference point
 ^instr_names(5) == 'niriss'
 
 ! field extent of each instrument
-^instr_boxes(1, 1) == -0.077758076
-^instr_boxes(1, 2) == 0.013436066
+^instr_boxes(1, 1) == -0.013436066
+^instr_boxes(1, 2) == 0.077758076
 ^instr_boxes(1, 3) == 0.044207908
 ^instr_boxes(1, 4) == 0.084924168
 ^instr_boxes(2, 1) == -0.043043809
 ^instr_boxes(2, 2) == 0.043043809
 ^instr_boxes(2, 3) == -0.025650181
 ^instr_boxes(2, 4) == 0.025650181
-^instr_boxes(3, 1) == -0.148368688
-^instr_boxes(3, 2) == -0.062791304
+^instr_boxes(3, 1) == 0.062791304
+^instr_boxes(3, 2) == 0.148368688
 ^instr_boxes(3, 3) == -0.05347006
 ^instr_boxes(3, 4) == 0.032141303
-^instr_boxes(4, 1) == 0.103622676
-^instr_boxes(4, 2) == 0.137570006
+^instr_boxes(4, 1) == -0.137570006
+^instr_boxes(4, 2) == -0.103622676
 ^instr_boxes(4, 3) == -0.042620379
 ^instr_boxes(4, 4) == -0.009386767
-^instr_boxes(5, 1) == 0.062112012
-^instr_boxes(5, 2) == 0.099683465
+^instr_boxes(5, 1) == -0.099683465
+^instr_boxes(5, 2) == -0.062112012
 ^instr_boxes(5, 3) == 0.045111539
 ^instr_boxes(5, 4) == 0.082766041
 
 !  Reference field point for each instrument
-^instr_ref(1, 1) ==  -0.031848472
+^instr_ref(1, 1) ==  0.031848472
 ^instr_ref(1, 2) ==  0.064091528
 ^instr_ref(2, 1) == 0
 ^instr_ref(2, 2) == 0
-^instr_ref(3,1) == -0.10558
+^instr_ref(3,1) == 0.10558
 ^instr_ref(3,2) == -0.01066438
-^instr_ref(4,1) == 0.120596341
+^instr_ref(4,1) == -0.120596341
 ^instr_ref(4,2) == -0.02600357
-^instr_ref(5,1) == 0.080897747
+^instr_ref(5,1) == -0.080897747
 ^instr_ref(5,2) == 0.063938792
+
+! Load the model we want
+in OTE_Segmented_RevH_2020714.seq
 
 !Delete some apertures that vignette at some of the more extreme fields
 DEL APE S31 CLR L"si3"
@@ -204,4 +201,4 @@ end for
 
 
 ! Restore the original model since we changed the field points.
-in OTE_Segmented_RevH_2020527.seq
+in OTE_Segmented_RevH_2020714.seq

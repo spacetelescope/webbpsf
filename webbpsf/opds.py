@@ -1478,10 +1478,15 @@ class OTE_Linear_Model_WSS(OPD):
         return coeffs
         
 
-    def _get_field_dependence_nominal_ote(self, reference='global'):
+    def _get_field_dependence_nominal_ote(self, reference='global',
+                                          zern_num=None, legendre_num=None):
         """Calculate field dependence model for OTE wavefront error spatial variation.
 
         Returns OPD based on V2V3 coordinates using model(s) for spatial variations.
+
+        zern_num and legendre_num allow for fewer terms to be used in calculating the wavefront at a field angle
+        than are specified in the calibration files.  This is to reduce required computation if the increase in
+        accuracy isn't needed.
         """
 
         if self.v2v3 is None:
@@ -1539,8 +1544,7 @@ class OTE_Linear_Model_WSS(OPD):
         max_y_field = hdr['MAXYFIE'] * u.arcmin
 
         # Check to make sure that we've got the right instrument
-        # if hdr['instr'].lower != instrument.lower:
-        if hdr['instr'].lower != 'NIRCam'.lower:        # Bug in table calculation put NIRCam for all.  Will fix later
+        if hdr['instr'].lower != instrument.lower:
             ValueError('Instrument inconsistent with field dependence file')
 
         # Check to make sure that the file has the right type of data in it and throw exception if not
@@ -1551,8 +1555,22 @@ class OTE_Linear_Model_WSS(OPD):
             raise ValueError('Data file contains data with unsupported field polynomial expansion')
 
         num_wavefront_coeffs = hdr['ncoefwf']
+        if zern_num is None:
+            zern_num = num_wavefront_coeffs
+        if (zern_num > num_wavefront_coeffs):
+            raise ValueError('Data file contains fewer wavefront coefficients than specified')
+
         num_field_coeffs = hdr['ncoeffie']
+        if legendre_num is None:
+            legendre_num = num_field_coeffs
+        if (legendre_num > num_field_coeffs):
+            raise ValueError('Data file contains fewer field coefficients than specified')
+
         field_coeff_order = hdr['fieorder']
+        # If we aren't using all the Legendre terms in the table we can update the order of
+        # Legendre polynomial required so we don't have to calculate all of them.
+        if legendre_num is not None:
+            field_coeff_order = int(np.ceil((-3 + np.sqrt(1 + 8 * legendre_num)) / 2))
 
         # Check the field angle units in the input file
         if hdr['fangunit'] == 'degrees':
@@ -1564,16 +1582,10 @@ class OTE_Linear_Model_WSS(OPD):
         else:
             raise ValueError('Field angle unit specified in file is not supported')
 
-        # Reference point (center of instument's field) for our model
-        ref_pt_x = hdr['refptx'] * u.arcmin
-        ref_pt_y = hdr['refpty'] * u.arcmin
-
         # Calculate field angle for our model from the V2/V3 coordinates
         x_field_pt = hdr['v2sign'] * (self.v2v3[0] - hdr['v2origin'] * f_ang_unit)
         y_field_pt = hdr['v3sign'] * (self.v2v3[1] - hdr['v3origin'] * f_ang_unit)
 
-        # x_field_pt = 0.04 * u.deg
-        # y_field_pt = 0.027 * u.deg
         _log.info(f'Calculating field-dependent OPD at v2 = {self.v2v3[0]:.3f}, v3 = {self.v2v3[1]:.3f}')
         _log.debug(f'Calculating field-dependent OPD at CodeV X field = {x_field_pt:.3f}, Y field= {y_field_pt:.3f}')
 
@@ -1618,8 +1630,11 @@ class OTE_Linear_Model_WSS(OPD):
         # can become more tightly coupled with WebbPSF/Poppy and we just call it here instead.
         # Calculate value of Legendre at all orders at our field point of interest.
 
-        x_field_pt_norm = float((x_field_pt - ref_pt_x) / ((max_x_field - min_x_field) / 2))
-        y_field_pt_norm = float((y_field_pt - ref_pt_y) / ((max_y_field - min_y_field) / 2))
+        field_center_x = (max_x_field + min_x_field) / 2
+        field_center_y = (max_y_field + min_y_field) / 2
+
+        x_field_pt_norm = float((x_field_pt - field_center_x) / ((max_x_field - min_x_field) / 2))
+        y_field_pt_norm = float((y_field_pt - field_center_y) / ((max_y_field - min_y_field) / 2))
 
         _log.debug(f'{instrument} max_x={max_x_field} min_x={min_x_field} max_y={max_y_field} min_y={min_y_field}')
         _log.debug(f'Normalized field point {x_field_pt_norm}, {y_field_pt_norm}')
@@ -1627,32 +1642,36 @@ class OTE_Linear_Model_WSS(OPD):
         poly_y1d = np.zeros(field_coeff_order + 1)
         for index in range(0, field_coeff_order + 1):
             leg_poly1d = sp.legendre(index)
-            poly_x1d[index] = leg_poly1d(x_field_pt_norm)
             poly_y1d[index] = leg_poly1d(y_field_pt_norm)
+            poly_x1d[index] = leg_poly1d(x_field_pt_norm)
 
         # TODO much of this can be vectorized for better performance.
         #Calculate product of x and y Legendre value for all combinations of orders
         poly_val_2d = np.zeros((field_coeff_order + 1, field_coeff_order + 1))
         for index_i in range(0, field_coeff_order + 1):
             for index_j in range(0, field_coeff_order + 1):
-                poly_val_2d[index_i, index_j] = poly_x1d[index_i] * poly_y1d[index_j]
+                poly_val_2d[index_i, index_j] = poly_y1d[index_i] * poly_x1d[index_j]
 
         #Reorder and rearrange values to correspond to the single index ordering the input coefficients assume
         count = 0
-        poly_vals = np.zeros(num_field_coeffs)
+        poly_vals = np.zeros(legendre_num)
         for index_i in range(0, field_coeff_order + 1):
             for index_j in range(index_i, -1, -1):
                 poly_vals[count] = poly_val_2d[index_j, index_i - index_j]
                 count += 1
+                if count == legendre_num: break
+            if count == legendre_num: break
+
+        poly_vals = poly_vals[0:legendre_num]
 
         # poly_vals now has the value of all of the Legendre polynomials at our field point of interest.  So now we
         # need to multiply each value there with the value of the Legendre coefficients in each column and sum.  That
         # sum will be the value of a Zernike, so we loop to repeat that for each Zernike coefficient
 
-        zernike_coeffs = np.zeros(num_wavefront_coeffs)
-        for z_index in range(0, num_wavefront_coeffs):
-            # zernike_coeffs[z_index] = np.einsum('i, i->', data.field(z_index), poly_vals)
-            zernike_coeffs[z_index] += (data.field(z_index) * poly_vals).sum()
+        zernike_coeffs = np.zeros(zern_num)
+        for z_index in range(0, zern_num):
+            cur_legendre = data.field(z_index)
+            zernike_coeffs[z_index] = np.einsum('i, i->', cur_legendre[0:legendre_num], poly_vals)
 
         zernike_coeffs[0:3] = 0  # ignore piston/tip/tilt
 
