@@ -142,3 +142,30 @@ class SUR(object):
             text += '    </GROUP>\n'
         text += '</SEGMENT_UPDATE_REQUEST>'
         return text
+
+
+def simulate_sur_minimum_stepsize(sur, min_step_size=7e-9):
+    """Modify a SUR to reflect quantized minimum step size for actuators
+
+    min_step_size : float
+        minimum step size for an actuator leg length in meters.
+        Typical JWST actuator step size is 7 nm for fine range.
+        We over-approximate here and use that value in nano-units as the
+        minimum step size in any hexapod degree of freedom. This is an
+        oversimplification and could be improved using a hexapod
+        kinematics model. But to first order it's plausible, and better than nothing.
+
+    Modifies the SUR in place.
+    """
+
+    # method is simple. Iterate over everything in the SUR. Round all values to the
+    # nearest multiple of that minimum step size.
+    for grp in sur.groups:
+        for update in grp:
+            if update.type != 'pose':
+                continue  # Not sure how to quantize other types of SUR, so ignore for now
+
+            for key, val in update.moves.items():
+                update.moves[key] = np.round(val / min_step_size) * min_step_size
+
+    # the SUR is modified in place.

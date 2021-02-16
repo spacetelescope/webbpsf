@@ -1848,7 +1848,7 @@ class OTE_Linear_Model_WSS(OPD):
         if not delay_update:
             self.update_opd(display=display)
 
-    def move_sur(self, sur_file, group=None, verbose=False, reverse=False):
+    def move_sur(self, sur_file, group=None, verbose=False, reverse=False, quantize=False):
         """
         Move using a JWST Segment Update Request file
 
@@ -1860,19 +1860,25 @@ class OTE_Linear_Model_WSS(OPD):
             Index to a single group to run. Default is to run all groups. Note,
             this index counts up from 1 (not 0) for consistency with group indexing
             in the SUR files themselves.
-
         verbose : bool
             Flag controlling whether moves are printed.
         reverse : bool
             Run this SUR "backwards", i.e. in opposite order of all groups and
             flipping the sign of all moves. (This can be useful for certain
             testing and mock data generation scenarios.)
+        quantize : bool
+            Model the minimum step size quantization, in a simple way. See
+            surs.simulate_sur_minimum_stepsize().
 
         Returns
         -------
 
         """
         sur = surs.SUR(sur_file)
+
+        if quantize:
+            surs.simulate_sur_minimum_stepsize(sur)
+
         if group is not None:
             if group == 0:
                 raise ValueError("Group indices start at 1, not 0.")
