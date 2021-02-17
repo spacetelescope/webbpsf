@@ -37,6 +37,7 @@ import astropy.io.fits as fits
 import astropy.units as u
 import logging
 from collections import OrderedDict
+import copy
 
 import poppy
 import poppy.zernike as zernike
@@ -336,7 +337,7 @@ class OPD(poppy.FITSOpticalElement):
                 raise RuntimeError("'clear=True' is incompatible with passing in an Axes instance.")
             plt.clf()
         if cmap is None:
-            cmap = matplotlib.cm.get_cmap(poppy.conf.cmap_diverging)
+            cmap = copy.copy(matplotlib.cm.get_cmap(poppy.conf.cmap_diverging))
         cmap.set_bad('0.3')
 
         mask = np.ones_like(self.opd)
