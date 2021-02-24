@@ -594,8 +594,6 @@ class WFI(RomanInstrument):
          self._aberrations_files['custom'] = None
          self._is_custom_aberrations = False
 
-         # create properties with error checking
-
     @RomanInstrument.filter.setter
     def filter(self, value):
         value = value.upper()  # force to uppercase
