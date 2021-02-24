@@ -21,7 +21,7 @@ _log = logging.getLogger('webbpsf')
 import pprint
 
 GRISM_FILTER = 'G150'
-PRISM_FILTER = 'P127'
+PRISM_FILTER = 'P120'
 
 class WavelengthDependenceInterpolator(object):
     """WavelengthDependenceInterpolator can be configured with
@@ -570,7 +570,6 @@ class WFI(RomanInstrument):
     def _masked_pupil_path(self):
         return self._pupil_controller._masked_pupil_path
 
-
     def _get_filter_mode(self, wfi_filter):
         """
         Given a filter name, return the WFI mode
@@ -609,7 +608,7 @@ class WFI(RomanInstrument):
     @mode.setter
     def mode(self, value):
         """Mode is set by changing filters"""
-        raise AttributeError("WFI mode can not be directly specified; WFI mode is set by changing filters.")
+        raise AttributeError("WFI mode cannot be directly specified; WFI mode is set by changing filters.")
 
     def override_aberrations(self, aberrations_path):
         """Override and lock detector aberrations"""
@@ -646,7 +645,7 @@ class WFI(RomanInstrument):
             aberrations_file = self._aberrations_files[mode]
 
             # If aberrations are not already loaded for the new mode,
-            # load or replace detectors using the new mode's aberrations file.
+            # load and replace detectors using the new mode's aberrations file.
             if not os.path.samefile(self._current_aberrations_file, aberrations_file):
                 self._load_detector_aberrations(aberrations_file)
 
