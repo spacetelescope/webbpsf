@@ -20,6 +20,8 @@ import logging
 _log = logging.getLogger('webbpsf')
 import pprint
 
+GRISM_FILTER = 'G150'
+PRISM_FILTER = 'P127'
 
 class WavelengthDependenceInterpolator(object):
     """WavelengthDependenceInterpolator can be configured with
@@ -302,7 +304,7 @@ class WFIPupilController:
         self._masked_pupil_path = None
 
         # List of filters that need the masked pupil
-        self._masked_filters = ['F184', 'G150']
+        self._masked_filters = ['F184', GRISM_FILTER]
 
         # Flag to en-/disable automatic selection of the appropriate pupil_mask
         self.auto_pupil = True
@@ -544,7 +546,7 @@ class WFI(RomanInstrument):
         Set the pupil mask
 
         Parameters
-        ------------
+        ----------
         name : string
             Name of setting.
             Settings:
@@ -570,16 +572,44 @@ class WFI(RomanInstrument):
 
 
     def _get_filter_mode(self, wfi_filter):
-        if wfi_filter == 'G150':
+        """
+        Given a filter name, return the WFI mode
+
+        Parameters
+        ----------
+        wfi_filter : string
+            Name of WFI filter
+
+        Returns
+        -------
+        mode : string
+            Returns 'imaging', 'grism' or 'prisim' depending on filter.
+
+        Raises
+        ------
+        ValueError
+            If the input filter is not found in the WFI filter list
+        """
+
+        wfi_filter = wfi_filter.upper()
+        if wfi_filter == GRISM_FILTER:
             return 'grism'
-        elif wfi_filter == 'P127':
+        elif wfi_filter == PRISM_FILTER:
             return 'prisim'
         elif wfi_filter in self.filter_list:
             return 'imaging'
+        else:
+            raise ValueError("Instrument %s doesn't have a filter called %s." % (self.name, wfi_filter))
 
     @property
     def mode(self):
+        """Current WFI mode"""
         return self._get_filter_mode(self.filter)
+
+    @mode.setter
+    def mode(self, value):
+        """Mode is set by changing filters"""
+        raise AttributeError("WFI mode can not be directly specified; WFI mode is set by changing filters.")
 
     def override_aberrations(self, aberrations_path):
         """Override and lock detector aberrations"""
@@ -596,6 +626,9 @@ class WFI(RomanInstrument):
 
     @RomanInstrument.filter.setter
     def filter(self, value):
+
+        # Update Filter
+        # -------------
         value = value.upper()  # force to uppercase
 
         if value not in self.filter_list:
@@ -603,6 +636,8 @@ class WFI(RomanInstrument):
 
         self._filter = value
 
+        # Update Aberrations
+        # ------------------
         # Check if _aberrations_files has been initiated (not empty) and if aberrations are locked by user
         if self._aberrations_files and not self._is_custom_aberrations:
 
@@ -615,6 +650,8 @@ class WFI(RomanInstrument):
             if not os.path.samefile(self._current_aberrations_file, aberrations_file):
                 self._load_detector_aberrations(aberrations_file)
 
+        # Update Pupil
+        # ------------
         self._pupil_controller.validate_pupil(self._filter)
 
 
