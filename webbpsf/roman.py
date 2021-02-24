@@ -302,7 +302,7 @@ class WFIPupilController:
         self._masked_pupil_path = None
 
         # List of filters that need the masked pupil
-        self._masked_filters = ['F184']
+        self._masked_filters = ['F184', 'G150']
 
         # Flag to en-/disable automatic selection of the appropriate pupil_mask
         self.auto_pupil = True
@@ -473,21 +473,39 @@ class WFI(RomanInstrument):
         # Initialize the pupil controller
         self._pupil_controller = WFIPupilController()
 
+        # Initialize the aberrations for super().__init__
+        self._aberrations_files = {}
+        self._is_custom_aberrations = False
+        self._current_aberrations_file = ""
+
         super(WFI, self).__init__("WFI", pixelscale=pixelscale)
 
         self._pupil_controller.set_base_path(self._datapath)
 
         self.pupil_mask_list = self._pupil_controller.pupil_mask_list
 
+        # Define defualt aberration files for WFI modes
+        self._aberrations_files = {
+            'imaging': os.path.join(self._datapath, 'wim_zernikes_cycle8.csv'),
+            'prisim': os.path.join(self._datapath, 'wim_zernikes_cycle8_prism.csv'),
+            'grism': os.path.join(self._datapath, 'wim_zernikes_cycle8_grism.csv'),
+            'custom': None,
+        }
+
+        # Load default detector from aberration file
         self._detector_npixels = 4096
-        self._detectors = _load_wfi_detector_aberrations(os.path.join(self._datapath, 'wim_zernikes_cycle8.csv'))
-        assert len(self._detectors.keys()) > 0
+        self._load_detector_aberrations(self._aberrations_files[self.mode])
         self.detector = 'SCA01'
 
         self.opd_list = [
             os.path.join(self._WebbPSF_basepath, 'upscaled_HST_OPD.fits'),
         ]
         self.pupilopd = self.opd_list[-1]
+
+    def _load_detector_aberrations(self, path):
+        self._detectors = _load_wfi_detector_aberrations(path)
+        self._current_aberrations_file = path
+        assert len(self._detectors.keys()) > 0
 
     def _validate_config(self, **kwargs):
         """Validates that the WFI is configured sensibly
@@ -520,14 +538,6 @@ class WFI(RomanInstrument):
     def pupil_mask(self):
         return self._pupil_controller.pupil_mask
 
-    @RomanInstrument.filter.setter
-    def filter(self, value):
-        value = value.upper()  # force to uppercase
-        if value not in self.filter_list:
-            raise ValueError("Instrument %s doesn't have a filter called %s." % (self.name, value))
-        self._filter = value
-        self._pupil_controller.validate_pupil(self.filter)
-
     @pupil_mask.setter
     def pupil_mask(self, name):
         """
@@ -557,6 +567,57 @@ class WFI(RomanInstrument):
     @property
     def _masked_pupil_path(self):
         return self._pupil_controller._masked_pupil_path
+
+
+    def _get_filter_mode(self, wfi_filter):
+        if wfi_filter == 'G150':
+            return 'grism'
+        elif wfi_filter == 'P127':
+            return 'prisim'
+        elif wfi_filter in self.filter_list:
+            return 'imaging'
+
+    @property
+    def mode(self):
+        return self._get_filter_mode(self.filter)
+
+    def override_aberrations(self, aberrations_path):
+        """Override and lock detector aberrations"""
+        self._load_detector_aberrations(aberrations_path)
+        self._aberrations_files['custom'] = aberrations_path
+        self._is_custom_aberrations = True
+
+    def reset_override_aberrations(self):
+         """Release detector aberrations override and load defaults"""
+         aberrations_path = self._aberrations_files[self.mode]
+         self._load_detector_aberrations(aberrations_path)
+         self._aberrations_files['custom'] = None
+         self._is_custom_aberrations = False
+
+         # create properties with error checking
+
+    @RomanInstrument.filter.setter
+    def filter(self, value):
+        value = value.upper()  # force to uppercase
+
+        if value not in self.filter_list:
+            raise ValueError("Instrument %s doesn't have a filter called %s." % (self.name, value))
+
+        self._filter = value
+
+        # Check if _aberrations_files has been initiated (not empty) and if aberrations are locked by user
+        if self._aberrations_files and not self._is_custom_aberrations:
+
+            # Identify aberrations file for new mode
+            mode = self._get_filter_mode(self._filter)
+            aberrations_file = self._aberrations_files[mode]
+
+            # If aberrations are not already loaded for the new mode,
+            # load or replace detectors using the new mode's aberrations file.
+            if not os.path.samefile(self._current_aberrations_file, aberrations_file):
+                self._load_detector_aberrations(aberrations_file)
+
+        self._pupil_controller.validate_pupil(self._filter)
 
 
 class CGI(RomanInstrument):
