@@ -1694,7 +1694,8 @@ class LookupTableFieldDependentAberration(poppy.OpticalElement):
     """
 
     def __init__(self, instrument, field_points_file=None, phasemap_file=None,
-            add_niriss_defocus=True, rm_ptt=True, rm_center_ptt=True, add_mimf_defocus=False, **kwargs):
+                 which_exercise='MIMF_KDP',
+                 add_niriss_defocus=None, rm_ptt=None, rm_center_ptt=None, add_mimf_defocus=False, **kwargs):
         super().__init__(
             name="Aberrations",
             **kwargs
@@ -1704,7 +1705,22 @@ class LookupTableFieldDependentAberration(poppy.OpticalElement):
         self.instrument = instrument
         self.instr_name = instrument.name
 
+        self.instrument.pupilopd=None  # Do not add in the usual telescope WFE on top of this;
+                                       # This model provided by Ball includes both the telescope and the SI WFE combined.
+
         self.rm_ptt = rm_ptt
+
+        self.which_exercise = which_exercise
+
+        if self.which_exercise == 'WFR4':
+            add_niriss_defocus=True
+            rm_ptt = True
+            rm_center_ptt = True
+        elif self.which_exercise == 'MIMF_KDP':
+            add_niriss_defocus=False
+            rm_ptt = False
+            rm_center_ptt = False
+
 
         if self.instr_name =='NIRCam':
             self.instr_name += " "+self.instrument.module
@@ -1715,27 +1731,46 @@ class LookupTableFieldDependentAberration(poppy.OpticalElement):
 
         # load the OPD lookup map table (datacube) here
 
-        fp_path = '/ifs/jwst/tel/wfr4_mirage_sims/phase_maps_from_ball/'
-        if field_points_file is None:
-            field_points_file = fp_path + 'The_Field_Coordinates.txt'
-        if phasemap_file is None:
-            phasemap_file = fp_path + 'phase_maps.fits'
+        if self.which_exercise == 'WFR4':
+            fp_path = '/ifs/jwst/tel/wfr4_mirage_sims/phase_maps_from_ball/'
+            if field_points_file is None:
+                field_points_file = fp_path + 'The_Field_Coordinates.txt'
+            if phasemap_file is None:
+                phasemap_file = fp_path + 'phase_maps.fits'
 
-        self.table = Table.read(field_points_file, format='ascii', names=('V2', 'V3'))
+            self.phasemap_file = phasemap_file
 
-        self.yoffset = -7.8
+            self.table = Table.read(field_points_file, format='ascii', names=('V2', 'V3'))
 
-        self.table['V3'] += self.yoffset # Correct from -YAN to actual V3
+            self.yoffset = -7.8
 
-        self.phasemaps = fits.getdata(phasemap_file)
-        import webbpsf.constants
-        self.phasemap_pixelscale = webbpsf.constants.JWST_CIRCUMSCRIBED_DIAMETER/256 * units.meter / units.pixel
+            self.table['V3'] += self.yoffset # Correct from -YAN to actual V3
+
+            self.phasemaps = fits.getdata(phasemap_file)
+
+            import webbpsf.constants
+            self.phasemap_pixelscale = webbpsf.constants.JWST_CIRCUMSCRIBED_DIAMETER/256 * units.meter / units.pixel
+
+        elif self.which_exercise == 'MIMF_KDP':
+            fp_path = '/ifs/jwst/tel/MIMF_KDP_Practice/Ball_Phase_Maps/'
+            field_points_file = fp_path + 'coordinates.txt'
+            self.table = Table.read(field_points_file, format='ascii.basic', names=('XWAS', 'YWAS'))
+
+            # Convert coordinate table to V2V3 in arcminutes
+            self.table['V2'] = -self.table['XWAS']
+            self.table['V3'] = self.table['YWAS'] - 468/60
+
+            phasemap_file = fp_path + 'all.fits'
+            self.phasemap_file = phasemap_file
+            self.phasemaps = fits.getdata(phasemap_file)
+            self.phasemaps = self.phasemaps.reshape(7*11*11, 256, 256)
+            import webbpsf.constants
+            self.phasemap_pixelscale = webbpsf.constants.JWST_CIRCUMSCRIBED_DIAMETER / 256 * units.meter / units.pixel
 
         # Determine the pupil sampling of the first aperture in the
         # instrument's optical system
         if isinstance(instrument.pupil, poppy.OpticalElement):
             # This branch needed to handle the OTE Linear Model case
-            npix = instrument.pupil.shape[0]
             self.pixelscale = instrument.pupil.pixelscale
         else:
             # these branches to handle FITS files, by name or as an object
@@ -1745,22 +1780,19 @@ class LookupTableFieldDependentAberration(poppy.OpticalElement):
                 pupilfile = os.path.join(instrument._datapath, "OPD", instrument.pupil)
                 pupilheader = fits.getheader(pupilfile)
 
-            npix = pupilheader['NAXIS1']
             self.pixelscale = pupilheader['PUPLSCAL'] * units.meter / units.pixel
-
-        #self.ztable = self.ztable_full[self.ztable_full['instrument'] == lookup_name]
 
         # Figure out the closest field point
 
         telcoords_am = self.tel_coords.to(units.arcmin).value
         print(f"Requested field point has coord {telcoords_am}")
-        v2 = self.table['V2']
 
+        v2 = self.table['V2']
         v3 = self.table['V3']
         r = np.sqrt((telcoords_am[0] - v2) ** 2 + (telcoords_am[1] - v3) ** 2)
         closest = np.argmin(r)   # if there are two field points with identical coords or equal distance just one is returned
 
-        print(f"Closest field point is row {closest}: {self.table[closest]} ")
+        print(f"Closest field point is row {closest}:\n{self.table[closest]}")
 
         # Save closest ISIM CV3 WFE measured field point for reference
         self.row = self.table[closest]
@@ -1786,7 +1818,7 @@ class LookupTableFieldDependentAberration(poppy.OpticalElement):
         resample_factor = 4
         phasemap_big = np.kron(phasemap, np.ones((resample_factor,resample_factor)))
 
-        self.opd = phasemap_big * 1e-6   # Convert to microns
+        self.opd = phasemap_big * 1e-6   # Convert from microns to meters
         self.amplitude = np.ones_like(self.opd)
 
         if rm_ptt:
@@ -1829,6 +1861,7 @@ class LookupTableFieldDependentAberration(poppy.OpticalElement):
         keywords = OrderedDict()
         keywords['SIWFETYP'] = self.si_wfe_type
         keywords['SIWFEFPT'] = ( f"{self.row['V2']:.3f}, {self.row['V3']:.3f}", "Closest lookup table meas. field point")
+        keywords['SIWFEFIL'] = self.phasemap_file
         return keywords
 
     # wrapper just to change default vmax
