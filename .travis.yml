@@ -48,7 +48,7 @@ install:
 
 before_script:
     # Get WebbPSF data files (just a subset of the full 250 MB!) and set up environment variable
-    - wget https://stsci.box.com/shared/static/qcptcokkbx7fgi3c00w2732yezkxzb99.gz -O /tmp/minimal-webbpsf-data.tar.gz
+    - wget https://stsci.box.com/shared/static/ci3vkozwgyj82f1qle986k1hmeoggzzh.gz -O /tmp/minimal-webbpsf-data.tar.gz
     - tar -xzvf /tmp/minimal-webbpsf-data.tar.gz
     - export WEBBPSF_PATH="${TRAVIS_BUILD_DIR}/webbpsf-data"
 
