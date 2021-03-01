@@ -338,5 +338,103 @@ def test_get_zernike_coeffs_from_smif():
 
     assert (np.allclose(otelm._get_zernike_coeffs_from_smif(dx, dy)[3:], hexikes, rtol=1e-3))
     
- 
     
+def test_segment_tilt_signs(fov_pix = 50, plot=False):
+    """Test that segments move in the direction expected when tilted.
+
+    The local coordinate systems are non-obvious, to say the least. This verifies
+    sign conventions and coordinates are consistent in the linear optical model and
+    optical propagation code.
+
+    """
+
+    if plot:
+        fig, axs = plt.subplots(3, 5, figsize=(14,9))#, sharex = True, sharey = True)
+
+    nrc = webbpsf.NIRCam()
+
+    ote = webbpsf.opds.OTE_Linear_Model_WSS()
+    nrc.include_si_wfe = False # not relevant for this test
+
+    tilt = 1.0
+
+	# We im for relatively minimalist PSF calcs, to reduce test runtime
+    psf_kwargs = {'monochromatic': 2e-6,
+                  'fov_pixels': fov_pix,
+                  'oversample': 1,
+                  'add_distortion': False}
+
+    # Which way are things expected to move?
+    #
+    # A1:  +X rotation -> -Y pixels (DMS), +Y rotation -> -X pixels
+    # B1: +X rotation -> +Y pixels, +Y rotation -> +X pixels
+    # C1: +X rotation -> +X/+Y pixels, +Y rotation -> -Y/+X pixels
+    # (for C1, A/B means A is the sqrt(3)/2 component, B is the 1/2 component)
+    #
+    # The above derived from Code V models by R. Telfer, subsequently cross checked by Perrin
+
+    for i, iseg in enumerate(['A1', 'B1', 'C1']):
+        ote.zero()
+
+        pupil = webbpsf.webbpsf_core.one_segment_pupil(iseg)
+
+        ote.amplitude = pupil[0].data
+        nrc.pupil = ote
+
+        # CENTERED PSF:
+        psf = nrc.calc_psf(**psf_kwargs)
+        cen_ref = webbpsf.measure_centroid(psf, boxsize=10, threshold=1)
+
+        ote.move_seg_local(iseg, xtilt=tilt)
+        # XTILT PSF:
+        psfx = nrc.calc_psf(**psf_kwargs)
+        cen_xtilt = webbpsf.measure_centroid(psfx, boxsize=10, threshold=1)
+
+        if iseg.startswith("A"):
+            assert cen_xtilt[0] < cen_ref[0], "Expected A1:  +X rotation -> -Y pixels (DMS coords)"
+            assert np.isclose(cen_xtilt[1], cen_ref[1], atol=1), "Expected A1:  +X rotation -> no change in X"
+        elif iseg.startswith("A"):
+            assert cen_xtilt[0] > cen_ref[0], "Expected B1: +X rotation -> +Y pixels(DMS coords)"
+            assert np.isclose(cen_xtilt[1], cen_ref[1], atol=1), "Expected B1:  +X rotation -> no change in Y"
+        elif iseg.startswith("C"):
+            assert cen_xtilt[0] > cen_ref[0], "Expected C1: +X rotation -> +X/+Y pixels"
+            assert cen_xtilt[1] > cen_ref[1], "Expected C1: +X rotation -> +X/+Y pixels"
+
+        if plot:
+            axs[i, 0].imshow(psf[0].data, norm=matplotlib.colors.LogNorm(vmax=1e-2, vmin=1e-5), origin="lower")
+            axs[i, 0].set_title(iseg+": centered")
+            axs[i, 0].axhline(y=fov_pix/2)
+            axs[i, 0].axvline(x=fov_pix/2)
+            # PLOT RESULTING OPD:
+            im = axs[i, 1].imshow(ote.opd, vmin=-4e-6, vmax=4e-6, origin="lower")
+            axs[i, 1].set_title("OPD (yellow +)")
+            axs[i, 2].imshow(psfx[0].data, norm=matplotlib.colors.LogNorm(vmax=1e-2, vmin=1e-5), origin="lower")
+            axs[i, 2].set_title(iseg+": xtilt {} um".format(tilt))
+            axs[i, 2].axhline(y=fov_pix/2)
+            axs[i, 2].axvline(x=fov_pix/2)
+
+
+        ote.zero()
+        ote.move_seg_local(iseg, ytilt=tilt)
+        # YTILT PSF:
+        psfy = nrc.calc_psf(**psf_kwargs)
+        cen_ytilt = webbpsf.measure_centroid(psfy, boxsize=10, threshold=1)
+
+        if iseg.startswith("A"):
+            assert cen_ytilt[1] < cen_ref[1], "Expected A1:  +Y rotation -> -X pixels (DMS coords)"
+            assert np.isclose(cen_ytilt[0], cen_ref[0], atol=1), "Expected A1:  +Y rotation -> no change in Y"
+        elif iseg.startswith("A"):
+            assert cenyxtilt[0] > cen_ref[0], "Expected B1: +Y rotation -> +X pixels(DMS coords)"
+            assert np.isclose(cen_xtilt[0], cen_ref[0], atol=1), "Expected B1:  +Y rotation -> no change in Y"
+        elif iseg.startswith("C"):
+            assert cen_ytilt[0] < cen_ref[0], "Expected C1: +Y rotation -> -Y/+X pixels"
+            assert cen_ytilt[1] > cen_ref[1], "Expected C1: +Y rotation -> -Y/+X pixels"
+
+        # PLOT RESULTING OPD:
+        if plot:
+            im = axs[i, 3].imshow(ote.opd, vmin=-4e-6, vmax=4e-6, origin="lower")
+            axs[i, 3].set_title("OPD (yellow +)")
+            axs[i, 4].imshow(psfy[0].data, norm=matplotlib.colors.LogNorm(vmax=1e-2, vmin=1e-5), origin="lower")
+            axs[i, 4].set_title(iseg+": ytilt {} um".format(tilt))
+            axs[i, 4].axhline(y=fov_pix/2)
+            axs[i, 4].axvline(x=fov_pix/2)
