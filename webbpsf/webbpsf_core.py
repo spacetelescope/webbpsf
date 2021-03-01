@@ -54,7 +54,7 @@ except ImportError:
 from packaging import version as package_version
 poppy_ver = poppy.__version__
 try:
-    if package_version.parse(poppy_ver) > package_version.parse("0.9.2"):
+    if package_version.parse(poppy_ver) < package_version.parse("0.9.2"):
         import stsynphot
         import synphot
         _SYNPHOT_PKG = 'stsynphot'
