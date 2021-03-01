@@ -1,12 +1,12 @@
 import os
 import webbpsf
-import atpy
+import astropy
 from packaging import version as package_version
 import poppy
 
 poppy_ver = poppy.__version__
 try:
-    if package_version.parse(poppy_ver) > package_version.parse("0.9.2"):
+    if package_version.parse(poppy_ver) < package_version.parse("0.9.2"):
         import stsynphot
         import synphot
         _SYNPHOT_PKG = 'stsynphot'
@@ -30,13 +30,13 @@ def norm_one_filter(instrument, filter_, clobber=False):
         #normalized_throughput = bp.throughput / bp.throughput.max() # set max to 1.0
         bp = bp/bp.throughput.max() # set max to 1
 
-        t = atpy.Table()
+        t = astropy.Table()
         t.add_column('WAVELENGTH', bp.wave, unit=bp.waveunits.name)
         t.add_column('THROUGHPUT', bp.throughput)
         t.add_keyword('TELESCOP', 'JWST')
         t.add_keyword('INSTRUME', instrument)
         t.add_keyword('FILTER', filter_)
-        t.add_keyword('SOURCE', 'pysynphot, normalized to peak=1')
+        t.add_keyword('SOURCE', f'{_SYNPHOT_PKG}, normalized to peak=1')
 
 
         t.write("%s/%s/filters/%s_throughput.fits" % (WebbPSF_basepath, instrument, filter_))
