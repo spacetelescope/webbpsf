@@ -133,9 +133,9 @@ Instrument + Filter Throughputs
 ---------------------------------
 
 Where possible, instrumental relative spectral responses were derived from the
-Pysynphot CDBS files used for the development version of the JWST Exposure Time Calculators (ETCs),
+Stsynphot CDBS files used for the development version of the JWST Exposure Time Calculators (ETCs),
 normalized to peak transmission = 1.0 (because absolute throughput is not
-relevant for PSF calculations). Not all filters are yet supported in Pysynphot,
+relevant for PSF calculations). Not all filters are yet supported in Stsynphot,
 however.
 
 

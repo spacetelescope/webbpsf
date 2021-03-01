@@ -61,11 +61,11 @@ Input Source Spectra
 
 WebbPSF attempts to calculate realistic weighted broadband PSFs taking into account both the source spectrum and the instrumental spectral response.
 
-The default source spectrum is, if :py:mod:`pysynphot` is installed, a G2V star spectrum from Castelli & Kurucz 2004. Without :py:mod:`pysynphot`, the default is a simple flat spectrum such that the same number of photons are detected at each wavelength.
+The default source spectrum is, if :py:mod:`stsynphot` is installed, a G2V star spectrum from Castelli & Kurucz 2004. Without :py:mod:`stsynphot`, the default is a simple flat spectrum such that the same number of photons are detected at each wavelength.
 
 You may choose a different illuminating source spectrum by specifying a ``source`` parameter in the call to ``calc_psf()``. The following are valid sources:
 
-1. A :py:class:`pysynphot.Spectrum` object. This is the best option, providing maximum ease and accuracy, but requires the user to have :py:mod:`pysynphot` installed.  In this case, the :py:class:`Spectrum` object is combined with a :py:class:`pysynphot.ObsBandpass` for the selected instrument and filter to derive the effective stimulus in detected photoelectrons versus wavelength. This is binned to the number of wavelengths set by the ``nlambda`` parameter.
+1. A :py:class:`synphot.SourceSpectrum` object. This is the best option, providing maximum ease and accuracy, but requires the user to have :py:mod:`synphot` installed.  In this case, the :py:class:`SourceSpectrum` object is combined with a :py:class:`stsynphot.spectrum.ObservationSpectralElement` for the selected instrument and filter to derive the effective stimulus in detected photoelectrons versus wavelength. This is binned to the number of wavelengths set by the ``nlambda`` parameter.
 2. A dictionary with elements ``source["wavelengths"]`` and ``source["weights"]`` giving the wavelengths in meters and the relative weights for each. These should be numpy arrays or lists. In this case, the wavelengths and weights are used exactly as provided, without applying the instrumental filter profile.
 
    >>> src = {'wavelengths': [2.0e-6, 2.1e-6, 2.2e-6], 'weights': [0.3, 0.5, 0.2]}
@@ -74,7 +74,7 @@ You may choose a different illuminating source spectrum by specifying a ``source
 3. A tuple or list containing the numpy arrays ``(wavelength, weights)`` instead.
 
 
-As a convenience, webbpsf includes a function to retrieve an appropriate :py:class:`pysynphot.Spectrum` object for a given stellar spectral type from the PHOENIX or Castelli & Kurucz model libraries.
+As a convenience, webbpsf includes a function to retrieve an appropriate :py:class:`synphot.SourceSpectrum` object for a given stellar spectral type from the PHOENIX or Castelli & Kurucz model libraries.
 
    >>> src = webbpsf.specFromSpectralType('G0V', catalog='phoenix')
    >>> psf = miri.calc_psf(source=src)
