@@ -1,15 +1,32 @@
 import os
-import pysynphot
 import webbpsf
 import atpy
+from packaging import version as package_version
+import poppy
 
+poppy_ver = poppy.__version__
+try:
+    if package_version.parse(poppy_ver) > package_version.parse("0.9.2"):
+        import stsynphot
+        import synphot
+        _SYNPHOT_PKG = 'stsynphot'
+    else:
+        import pysynphot
+        _SYNPHOT_PKG = 'pysynphot'
+    _HAS_SYNPHOT = True
+except ImportError:
+    _SYNPHOT_PKG = None
+    _HAS_SYNPHOT = False
 
 WebbPSF_basepath = os.getenv('WEBBPSF_PATH', default= os.path.dirname(os.path.dirname(os.path.abspath(webbpsf.__file__))) +os.sep+"data" )
 
 
 def norm_one_filter(instrument, filter_, clobber=False):
     try:
-        bp = pysynphot.ObsBandpass('%s,im,%s' %(instrument.lower(), filter_.lower()))
+        if _SYNPHOT_PKG == 'pysynphot':
+            bp = pysynphot.ObsBandpass('%s,im,%s' %(instrument.lower(), filter_.lower()))
+        elif _SYNPHOT_PKG == 'stsynphot':
+            bp = stsynphot.band('%s,im,%s' % (instrument.lower(), filter_.lower()))
         #normalized_throughput = bp.throughput / bp.throughput.max() # set max to 1.0
         bp = bp/bp.throughput.max() # set max to 1
 
@@ -23,9 +40,9 @@ def norm_one_filter(instrument, filter_, clobber=False):
 
 
         t.write("%s/%s/filters/%s_throughput.fits" % (WebbPSF_basepath, instrument, filter_))
-        print "Wrote throughput.fits for %s %s" % (instrument, filter_)
+        print("Wrote throughput.fits for %s %s" % (instrument, filter_))
     except:
-        print "Error for %s %s" % (instrument, filter_)
+        print("Error for %s %s" % (instrument, filter_))
 
 
 
