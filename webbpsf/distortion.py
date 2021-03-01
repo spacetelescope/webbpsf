@@ -356,9 +356,18 @@ def apply_miri_scattering(hdulist_or_filename=None, kernel_amp=None):
                        'F1065C': 0.00010, 'F1140C': 0.00007, 'F1550C': 0.0,
                        'F2300C': 0.0}
 
+    # The above values are from that tech report, but empirically we need higher values to
+    # better match the MIRI CDP PSFS. See e.g. MIRI_FM_MIRIMAGE_F560W_PSF_07.02.00.fits
+    # and https://github.com/spacetelescope/webbpsf/issues/415
+    kernel_amp_corrections = {'F560W': 4.05, 'F770W': 4.1, 'F1000W': 3.8,
+                               'F1130W': 2.5, 'F1280W': 2.5, 'F1065C': 2.5, 'F1140C': 2.5}
+
     # Set values if not already set by a keyword argument
     if kernel_amp is None:
         kernel_amp = kernel_amp_dict[filt]
+
+        if filt in kernel_amp_corrections:
+            kernel_amp *= kernel_amp_corrections[filt]
 
     ext = 1  # edit the oversampled PSF (OVERDIST extension)
 
