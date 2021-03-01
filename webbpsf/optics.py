@@ -1760,7 +1760,7 @@ class LookupTableFieldDependentAberration(poppy.OpticalElement):
             self.table['V2'] = -self.table['XWAS']
             self.table['V3'] = self.table['YWAS'] - 468/60
 
-            phasemap_file = fp_path + 'all.fits'
+            phasemap_file = fp_path + 'all_26Feb2021.fits'
             self.phasemap_file = phasemap_file
             self.phasemaps = fits.getdata(phasemap_file)
             self.phasemaps = self.phasemaps.reshape(7*11*11, 256, 256)
