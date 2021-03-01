@@ -1858,7 +1858,7 @@ class LookupTableFieldDependentAberration(poppy.OpticalElement):
             self.instrument.options['defocus_wavelength'] = 1e-6  # Add 0.8 microns PTV defocus
             warnings.warn("Adding defocus=0.8 waves for NIRISS!")
 
-        if add_sm_defocus_pos:
+        if add_sm_defocus:
             if nwaves:
                 print("ADDING DEFOCUS {:4.1f} WAVES".format(nwaves))
                 self.instrument.options['defocus_waves'] = nwaves
