@@ -1687,7 +1687,7 @@ class LookupTableFieldDependentAberration(poppy.OpticalElement):
     nwaves: float
         Number of waves to defocus SM, if add_sm_defocus_pos or add_sm_defocus_neg is True.
     add_sm_defocus: bool
-        If True, add "nwaves" of SM defocus.
+        If True, add "nwaves" of SM defocus, measured at a reference wavelength of 2.0 microns.
 
 
     Usage:
@@ -1860,7 +1860,7 @@ class LookupTableFieldDependentAberration(poppy.OpticalElement):
 
         if add_sm_defocus:
             if nwaves:
-                print("ADDING DEFOCUS {:4.1f} WAVES".format(nwaves))
+                print("ADDING DEFOCUS {:4.1f} WAVES at 2.0 microns".format(nwaves))
                 self.instrument.options['defocus_waves'] = nwaves
                 self.instrument.options['defocus_wavelength'] = 2.0e-6
             else:
