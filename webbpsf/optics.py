@@ -1684,6 +1684,10 @@ class LookupTableFieldDependentAberration(poppy.OpticalElement):
         Remove piston, tip, tilt
     rm_center_ptt : bool
         If rm_ptt, use the center value for each detector rather than per field point
+    nwaves: float
+        Number of waves to defocus SM, if add_sm_defocus_pos or add_sm_defocus_neg is True.
+    add_sm_defocus: bool
+        If True, add "nwaves" of SM defocus, measured at a reference wavelength of 2.0 microns.
 
 
     Usage:
@@ -1695,7 +1699,8 @@ class LookupTableFieldDependentAberration(poppy.OpticalElement):
 
     def __init__(self, instrument, field_points_file=None, phasemap_file=None,
                  which_exercise='MIMF_KDP',
-                 add_niriss_defocus=None, rm_ptt=None, rm_center_ptt=None, add_mimf_defocus=False, **kwargs):
+                 add_niriss_defocus=None, rm_ptt=None, rm_center_ptt=None,
+                 add_mimf_defocus=False, add_sm_defocus=False, nwaves=None, **kwargs):
         super().__init__(
             name="Aberrations",
             **kwargs
@@ -1852,6 +1857,14 @@ class LookupTableFieldDependentAberration(poppy.OpticalElement):
             self.instrument.options['defocus_waves'] = 0.8
             self.instrument.options['defocus_wavelength'] = 1e-6  # Add 0.8 microns PTV defocus
             warnings.warn("Adding defocus=0.8 waves for NIRISS!")
+
+        if add_sm_defocus:
+            if nwaves:
+                print("ADDING DEFOCUS {:4.1f} WAVES at 2.0 microns".format(nwaves))
+                self.instrument.options['defocus_waves'] = nwaves
+                self.instrument.options['defocus_wavelength'] = 2.0e-6
+            else:
+                print("Not adding any defocus; set nwaves")
 
 
     def header_keywords(self):
