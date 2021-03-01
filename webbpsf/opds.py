@@ -1126,8 +1126,9 @@ class OTE_Linear_Model_WSS(OPD):
         self.remove_piston_only = rm_piston
         # Arbitrary additional perturbations can be added, ad hoc, as either Zernike or Hexike coefficients over the
         # whole primary. Use move_global_zernikes for a convenient interface to this.
-        self._global_zernike_coeffs = np.zeros(15)
-        self._global_hexike_coeffs = np.zeros(15)
+        self._number_global_zernikes = 9
+        self._global_zernike_coeffs = np.zeros(self._number_global_zernikes)
+        self._global_hexike_coeffs = np.zeros(self._number_global_zernikes)
 
         # Thermal OPD parameters
         self.delta_time = 0.0
@@ -1369,7 +1370,7 @@ class OTE_Linear_Model_WSS(OPD):
         aperture = self._segment_masks != 0
         # Get size of mask (1024)
         npix = np.shape(aperture)[0]
-        basis = poppy.zernike.hexike_basis_wss(nterms=9, npix=npix, aperture=aperture > 0.)
+        basis = poppy.zernike.hexike_basis_wss(nterms=self._number_global_zernikes, npix=npix, aperture=aperture > 0.)
         # Use the Hexike basis to reconstruct the global terms
         perturbation = poppy.zernike.opd_from_zernikes(coefficients,
                                                        basis=_get_basis,
