@@ -51,12 +51,20 @@ try:
 except ImportError:
     version = ''
 
+from packaging import version as package_version
+poppy_ver = poppy.__version__
 try:
-    import pysynphot
-
-    _HAS_PYSYNPHOT = True
+    if package_version.parse(poppy_ver) > package_version.parse("0.9.2"):
+        import stsynphot
+        import synphot
+        _SYNPHOT_PKG = 'stsynphot'
+    else:
+        import pysynphot
+        _SYNPHOT_PKG = 'pysynphot'
+    _HAS_SYNPHOT = True
 except ImportError:
-    _HAS_PYSYNPHOT = False
+    _SYNPHOT_PKG = None
+    _HAS_SYNPHOT = False
 
 import logging
 
@@ -217,7 +225,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
         self.pixelscale = pixelscale
         "Detector pixel scale, in arcsec/pixel"
-        self._spectra_cache = {}  # for caching pysynphot results.
+        self._spectra_cache = {}  # for caching stsynphot/pysynphot results.
 
         # n.b.STInstrument subclasses must set these
         self._detectors = {}
@@ -599,7 +607,8 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         raise NotImplementedError("needs to be subclassed.")
 
     def _get_synphot_bandpass(self, filtername):
-        """ Return a pysynphot.ObsBandpass object for the given desired band.
+        """ Return a stsynphot.spectrum.ObservationSpectralElement or
+        pysynphot.ObsBandpass object for the given desired band.
 
         By subclassing this, you can define whatever custom bandpasses are appropriate for
         your instrument
@@ -639,10 +648,17 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
         filterdata = filterfits[1].data
         try:
-            band = pysynphot.spectrum.ArraySpectralElement(
-                throughput=filterdata.THROUGHPUT, wave=filterdata.WAVELENGTH,
-                waveunits=waveunit, name=filtername
-            )
+            if _SYNPHOT_PKG == 'stsynphot':
+                band = synphot.SpectralElement(synphot.models.Empirical1D, points=filterdata.WAVELENGTH,
+                                               lookup_table=filterdata.THROUGHPUT, keep_neg=True)
+            elif _SYNPHOT_PKG == 'pysynphot':
+                band = pysynphot.spectrum.ArraySpectralElement(
+                    throughput=filterdata.THROUGHPUT, wave=filterdata.WAVELENGTH,
+                    waveunits=waveunit, name=filtername
+                )
+            else:
+                raise ValueError('If using Poppy > 0.9.2, must have stsynphot installed. For poppy <= 0.9.2, '
+                                 'must have pysynphot installed')
         except AttributeError:
             raise ValueError("The supplied file, %s, does not appear to be a FITS table "
                              "with WAVELENGTH and THROUGHPUT columns." % filter_info.filename)
