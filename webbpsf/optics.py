@@ -1699,8 +1699,8 @@ class LookupTableFieldDependentAberration(poppy.OpticalElement):
 
     def __init__(self, instrument, field_points_file=None, phasemap_file=None,
                  which_exercise='MIMF_KDP',
-                 add_niriss_defocus=None, rm_ptt=None, rm_center_ptt=None, add_mimf_defocus=False,
-                add_sm_defocus_pos=False, add_sm_defocus_neg=False, nwaves=None, **kwargs):
+                 add_niriss_defocus=None, rm_ptt=None, rm_center_ptt=None,
+                 add_mimf_defocus=False, add_sm_defocus=False, nwaves=None, **kwargs):
         super().__init__(
             name="Aberrations",
             **kwargs
