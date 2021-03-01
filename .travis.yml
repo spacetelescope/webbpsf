@@ -36,6 +36,9 @@ matrix:
         # Try released POPPY
         - env: TOXENV='py37-stable-test'
 
+        # Test for webbpsf PR 424
+        - env: TOXENV='py37-poppy-pysyn-stsyn-port-test'
+
     allow_failures:
         # Released POPPY and/or pySIAF may be missing new functionality used by dev WebbPSF
         - env: TOXENV='py37-stable-test'
