@@ -27,6 +27,9 @@ matrix:
         # Try Astropy development version
         - env: TOXENV='py38-astropydev-test'
 
+        # Try latest versions of all dependencies
+        - env: TOXENV='py38-latest-test'
+
         # Try minimum supported versions
         - env: TOXENV='py36-legacy36-test'
 

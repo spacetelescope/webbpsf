@@ -207,7 +207,7 @@ def test_apply_miri_scattering():
         if ext == 2:
             value = 5e-7
         else:
-            value = 1e-6
+            value = 1.5e-6
 
         # Show that these corner squares contain very small values
         assert_statement = "should have lower values because the scattering shouldn't be adding much to this region." \

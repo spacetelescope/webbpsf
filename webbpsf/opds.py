@@ -38,6 +38,7 @@ import astropy.units as u
 import logging
 from collections import OrderedDict
 from packaging.version import Version
+import copy
 
 import poppy
 import poppy.zernike as zernike
@@ -247,7 +248,7 @@ class OPD(poppy.FITSOpticalElement):
             y = radius * np.sin(t) + ycen
             plt.plot(x, y, **kwargs)
 
-        cmap = matplotlib.cm.get_cmap(poppy.conf.cmap_diverging)
+        cmap = copy.copy(matplotlib.cm.get_cmap(poppy.conf.cmap_diverging))
         cmap.set_bad('0.3')
 
         plt.clf()
@@ -362,7 +363,7 @@ class OPD(poppy.FITSOpticalElement):
                 raise RuntimeError("'clear=True' is incompatible with passing in an Axes instance.")
             plt.clf()
         if cmap is None:
-            cmap = matplotlib.cm.get_cmap(poppy.conf.cmap_diverging)
+            cmap = copy.copy(matplotlib.cm.get_cmap(poppy.conf.cmap_diverging))
         cmap.set_bad('0.3')
 
         mask = np.ones_like(self.opd)
@@ -499,7 +500,7 @@ class OPD(poppy.FITSOpticalElement):
         npix = 200
         hexap = zernike.hex_aperture(npix)
         hexap[np.where(hexap == 0)] = np.nan
-        cmap = matplotlib.cm.jet
+        cmap = copy.copy(matplotlib.cm.get_cmap('jet'))
         cmap.set_bad('0.5', alpha=0.0)
 
         for j in np.arange(nzerns) + 1:
@@ -1157,8 +1158,9 @@ class OTE_Linear_Model_WSS(OPD):
         self.remove_piston_only = rm_piston
         # Arbitrary additional perturbations can be added, ad hoc, as either Zernike or Hexike coefficients over the
         # whole primary. Use move_global_zernikes for a convenient interface to this.
-        self._global_zernike_coeffs = np.zeros(15)
-        self._global_hexike_coeffs = np.zeros(15)
+        self._number_global_zernikes = 9
+        self._global_zernike_coeffs = np.zeros(self._number_global_zernikes)
+        self._global_hexike_coeffs = np.zeros(self._number_global_zernikes)
 
         # Thermal OPD parameters
         self.delta_time = 0.0
@@ -1395,7 +1397,7 @@ class OTE_Linear_Model_WSS(OPD):
         aperture = self._segment_masks != 0
         # Get size of mask (1024)
         npix = np.shape(aperture)[0]
-        basis = poppy.zernike.hexike_basis_wss(nterms=9, npix=npix, aperture=aperture > 0.)
+        basis = poppy.zernike.hexike_basis_wss(nterms=self._number_global_zernikes, npix=npix, aperture=aperture > 0.)
         # Use the Hexike basis to reconstruct the global terms
         perturbation = poppy.zernike.opd_from_zernikes(coefficients,
                                                        basis=_get_basis,
