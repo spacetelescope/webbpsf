@@ -64,7 +64,7 @@ def test_diagnostic():
     assert("poppy version" in res)
 
 
-def test_measure_strehl():
+def test_measure_strehl(npix=100):
     # default NIRCam 2 micron PSF
     # FIXME this test will need reworking with the move to separate OTE and SI OPDs
     # for now I just doubled the tolerance to 6% instead of 3.
@@ -72,7 +72,7 @@ def test_measure_strehl():
 
     nc = webbpsf_core.NIRCam()
     nc.filter='F212N'
-    defpsf = nc.calc_psf(nlambda=1)
+    defpsf = nc.calc_psf(nlambda=1, fov_pixels=npix, add_distortion=False)
     meas_strehl = utils.measure_strehl(defpsf, display=False, verbose=False)
     assert meas_strehl <= 1.0, 'measured Strehl cannot be > 1'
     assert meas_strehl >  0.7, 'measured Strehl is implausibly low for NIRCam'
@@ -91,7 +91,7 @@ def test_measure_strehl():
     perfnc.filter='F212N'
     perfnc.pupilopd = None
     perfnc.include_si_wfe = False
-    perfpsf = perfnc.calc_psf(nlambda=1)
+    perfpsf = perfnc.calc_psf(nlambda=1, fov_pixels=npix, add_distortion=False)
     meas_perf_strehl = utils.measure_strehl(perfpsf, display=False, verbose=False)
     assert np.abs(meas_perf_strehl-1.0) < 0.01, 'measured Strehl for perfect PSF is insufficiently close to 1.0: {}'.format(meas_perf_strehl)
     assert meas_perf_strehl <= 1.0, 'measured Strehl cannot be > 1, even for a perfect PSF'
