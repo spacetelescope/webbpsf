@@ -1141,7 +1141,7 @@ class OTE_Linear_Model_WSS(OPD):
         # WFTP10 hotfix for RoC sign inconsitency relative to everything else, due to outdated version of WAS IFM used in table construction.
         # FIXME update the IFM file on disk and then delete the next three lines
         roc_rows = self._influence_fns['control_mode']=='ROC'
-        for icol in cnames[3:]:
+        for icol in self._influence_fns.colnames[3:]:
             self._influence_fns[icol][roc_rows] *= -1
 
         self._control_modes = ['Xtilt', 'Ytilt', 'Piston', 'Clocking', 'Radial', 'ROC']
