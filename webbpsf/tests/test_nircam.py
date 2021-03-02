@@ -27,7 +27,6 @@ test_nircam_blc_circ_45 =  lambda : do_test_nircam_blc(kind='circular', angle=45
 test_nircam_blc_circ_0 =   lambda : do_test_nircam_blc(kind='circular', angle=0)
 
 
-@pytest.mark.xfail
 def test_nircam_blc_wedge_0(**kwargs):
     return do_test_nircam_blc(kind='linear', angle=0, **kwargs)
 
