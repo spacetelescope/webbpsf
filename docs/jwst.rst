@@ -239,7 +239,7 @@ the measurement bounds, WebbPSF performs an extrapolation routine.
    :align: center
    :alt: NIRCam A SW WFE
 
-.. image:: ./jwst_figures/opds_combined_for_NIRCam_A_SW.png
+.. image:: ./jwst_figures/opds_combined_for_NIRCam_B_SW.png
    :scale: 45 %
    :align: center
    :alt: NIRCam B SW WFE
