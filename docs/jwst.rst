@@ -127,6 +127,8 @@ these varying Zernike coefficients to a second set of polynomials.  Since the fi
 set of two-dimensional Legendre polynomials were used for this field-fit.  Legendres are well-suited for this task
 because they are orthonormal over a rectangle and JWST's science instrument fields are also rectangular.
 
+For further details on the model for OTE field dependence, see `Field Dependence in JWST <multifield_documentation.html#Field-Dependence-in-JWST>`_.
+
 NIRCam
 ======
 
