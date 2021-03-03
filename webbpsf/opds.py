@@ -1165,6 +1165,7 @@ class OTE_Linear_Model_WSS(OPD):
         self._global_hexike_coeffs = np.zeros(self._number_global_zernikes)
 
         # Field dependence model data
+        self._include_nominal_field_dep = True
         self._field_dep_file = None
         self._field_dep_hdu = None
 
@@ -1421,44 +1422,25 @@ class OTE_Linear_Model_WSS(OPD):
         and model for field-dependence of a nominal (perfectly aligned) OTE.
 
         Updates self.opd based on V2V3 coordinates and amplitude of SM pose.
+
         """
+        if self.v2v3 is None:
+            # if this OTE linear model instance does not have field coordinates set,
+            # we cannot apply field dependence.
+            return
 
         # Model field dependence for the nominal OTE, based on Code V model coefficients
-        perturbation = self._get_field_dependence_nominal_ote(reference=reference)
-        self.opd += perturbation
+        if self._include_nominal_field_dep:
+            field_dep_nominal = self._get_field_dependence_nominal_ote(self.v2v3, reference=reference)
+            self.opd += field_dep_nominal
+            self.opd_header['HISTORY'] = 'Applied OTE nominal field-dependent aberrations'
 
-        # Model field dependence from any misalignment of the secondary mirror
-        if self.v2v3 is None:
-            return
-        else:
-            dx = -(self.v2v3[0] - self.ote_control_point[0]).to(
-                u.rad).value  # NEGATIVE SIGN B/C TELFER'S FIELD ANGLE COORD. SYSTEM IS (X,Y) = (-V2,V3)
-            dy = (self.v2v3[1] - self.ote_control_point[1]).to(u.rad).value
-
-            z_coeffs = self._get_zernike_coeffs_from_smif(dx, dy)
-
-            perturbation = poppy.zernike.opd_from_zernikes(z_coeffs, npix=1024,
-                                                           basis=poppy.zernike.hexike_basis_wss, aperture=self.amplitude)
-
-            perturbation[~np.isfinite(perturbation)] = 0.0
-
-            if Version(poppy.__version__) < Version('1.0'):
-                wfe_sign = -1  # In earlier poppy versions, fix sign convention for consistency with WSS
-            else:
-                wfe_sign = 1
-            self.opd += perturbation * (1e-6 * wfe_sign)
-
-            self.opd_header['HISTORY'] = 'Applied SMIF field-dependent aberrations:'
-            self.opd_header['HISTORY'] = ('SMIF_H3: {}'.format(z_coeffs[3]))
-            self.opd_header['HISTORY'] = ('SMIF_H4: {}'.format(z_coeffs[4]))
-            self.opd_header['HISTORY'] = ('SMIF_H5: {}'.format(z_coeffs[5]))
-            self.opd_header['HISTORY'] = ('SMIF_H6: {}'.format(z_coeffs[6]))
-            self.opd_header['HISTORY'] = ('SMIF_H7: {}'.format(z_coeffs[7]))
-            self.opd_header['HISTORY'] = ('SMIF_H8: {}'.format(z_coeffs[8]))
-            self.opd_header['HISTORY'] = ('Field point (x,y): ({})'.format(self.v2v3))
-            self.opd_header['HISTORY'] = (
-                'Control point: {} ({})'.format(self.control_point_fieldpoint.upper(), self.ote_control_point))
-            self.opd_header['HISTORY'] = ('Delta x/y: {} {} (radians))'.format(dx, dy))
+        # Model field dependence from a misaligned secondary mirror
+        # (only do so if the SM is in fact misaligned)
+        if not np.allclose(self.segment_state[-1], 0):
+            perturbation = self._get_field_dependence_secondary_mirror(self.v2v3)
+            self.opd += perturbation
+            self.opd_header['HISTORY'] = 'Applied SMIF field-dependent aberrations'
 
 
     def _get_zernike_coeffs_from_smif(self, dx=0., dy=0.):
@@ -1510,11 +1492,43 @@ class OTE_Linear_Model_WSS(OPD):
         coeffs = np.insert(coeffs, 0, [0., 0., 0.])
     
         return coeffs
-        
 
-    def _get_field_dependence_nominal_ote(self, reference='global',
+    def _get_field_dependence_secondary_mirror(self, v2v3):
+        """Calculate field dependence model for OTE with misaligned secondary mirror,
+        as is to be corrected by MIMF (Multi Instrument Multi Field) sensing.
+
+        Returns OPD based on V2V3 coordinates using model for secondary mirror influence functions.
+
+        """
+        # Model field dependence from any misalignment of the secondary mirror
+        dx = -(v2v3[0] - self.ote_control_point[0]).to( u.rad).value
+        # NEGATIVE SIGN IN THE ABOVE B/C TELFER'S FIELD ANGLE COORD. SYSTEM IS (X,Y) = (-V2,V3)
+        dy = (v2v3[1] - self.ote_control_point[1]).to(u.rad).value
+        z_coeffs = self._get_zernike_coeffs_from_smif(dx, dy)
+        perturbation = poppy.zernike.opd_from_zernikes(z_coeffs, npix=1024,
+                                                       basis=poppy.zernike.hexike_basis_wss, aperture=self.amplitude,
+                                                       outside=0)
+        if Version(poppy.__version__) < Version('1.0'):
+            wfe_sign = -1  # In earlier poppy versions, fix sign convention for consistency with WSS
+        else:
+            wfe_sign = 1
+
+        self.opd_header['HISTORY'] = ('SMIF_H3: {}'.format(z_coeffs[3]))
+        self.opd_header['HISTORY'] = ('SMIF_H4: {}'.format(z_coeffs[4]))
+        self.opd_header['HISTORY'] = ('SMIF_H5: {}'.format(z_coeffs[5]))
+        self.opd_header['HISTORY'] = ('SMIF_H6: {}'.format(z_coeffs[6]))
+        self.opd_header['HISTORY'] = ('SMIF_H7: {}'.format(z_coeffs[7]))
+        self.opd_header['HISTORY'] = ('SMIF_H8: {}'.format(z_coeffs[8]))
+        self.opd_header['HISTORY'] = ('Field point (x,y): ({})'.format(v2v3))
+        self.opd_header['HISTORY'] = (
+            'Control point: {} ({})'.format(self.control_point_fieldpoint.upper(), self.ote_control_point))
+        self.opd_header['HISTORY'] = ('Delta x/y: {} {} (radians))'.format(dx, dy))
+
+        return perturbation * (1e-6 * wfe_sign)
+
+    def _get_field_dependence_nominal_ote(self, v2v3, reference='global',
                                           zern_num=None, legendre_num=None):
-        """Calculate field dependence model for OTE wavefront error spatial variation.
+        """Calculate field dependence model for OTE nominal wavefront error spatial variation,
 
         Returns OPD based on V2V3 coordinates using model(s) for spatial variations.
 
@@ -1523,33 +1537,33 @@ class OTE_Linear_Model_WSS(OPD):
         accuracy isn't needed.
         """
 
-        if self.v2v3 is None:
+        if v2v3 is None:
             return 0
 
         # Figure out what instrument the field coordinate correspond to
-        if (self.v2v3[0] <= 4.7 * u.arcmin) and (self.v2v3[0] >= -0.9 * u.arcmin) and \
-            (self.v2v3[1] <= -10.4 * u.arcmin) and (self.v2v3[1] >= -12.9 * u.arcmin):
+        if (v2v3[0] <= 4.7 * u.arcmin) and (v2v3[0] >= -0.9 * u.arcmin) and \
+            (v2v3[1] <= -10.4 * u.arcmin) and (v2v3[1] >= -12.9 * u.arcmin):
             instrument = 'FGS'
             _log.info('Field coordinates determined to be in FGS field')
-        elif (self.v2v3[0] <= 2.6 * u.arcmin) and (self.v2v3[0] >= -2.6 * u.arcmin) and \
-            (self.v2v3[1] <= -6.2 * u.arcmin) and (self.v2v3[1] >= -9.4 * u.arcmin):
+        elif (v2v3[0] <= 2.6 * u.arcmin) and (v2v3[0] >= -2.6 * u.arcmin) and \
+            (v2v3[1] <= -6.2 * u.arcmin) and (v2v3[1] >= -9.4 * u.arcmin):
             instrument = 'NIRCam'
             _log.info('Field coordinates determined to be in NIRCam field')
-        elif (self.v2v3[0] <= 8.95 * u.arcmin) and (self.v2v3[0] >= 3.7 * u.arcmin) and \
-            (self.v2v3[1] <= -4.55 * u.arcmin) and (self.v2v3[1] >= -9.75 * u.arcmin):
+        elif (v2v3[0] <= 8.95 * u.arcmin) and (v2v3[0] >= 3.7 * u.arcmin) and \
+            (v2v3[1] <= -4.55 * u.arcmin) and (v2v3[1] >= -9.75 * u.arcmin):
             instrument = 'NIRSpec'
             _log.info('Field coordinates determined to be in NIRSpec field')
-        elif (self.v2v3[0] <= -6.2 * u.arcmin) and (self.v2v3[0] >= -8.3 * u.arcmin) and \
-            (self.v2v3[1] <= -5.2 * u.arcmin) and (self.v2v3[1] >= -7.3 * u.arcmin):
+        elif (v2v3[0] <= -6.2 * u.arcmin) and (v2v3[0] >= -8.3 * u.arcmin) and \
+            (v2v3[1] <= -5.2 * u.arcmin) and (v2v3[1] >= -7.3 * u.arcmin):
             instrument = 'MIRI'
             _log.info('Field coordinates determined to be in MIRI field')
-        elif (self.v2v3[0] <= -3.70 * u.arcmin) and (self.v2v3[0] >= -6.0 * u.arcmin) and \
-            (self.v2v3[1] <= -10.5 * u.arcmin) and (self.v2v3[1] >= -12.8 * u.arcmin):
+        elif (v2v3[0] <= -3.70 * u.arcmin) and (v2v3[0] >= -6.0 * u.arcmin) and \
+            (v2v3[1] <= -10.5 * u.arcmin) and (v2v3[1] >= -12.8 * u.arcmin):
             instrument = 'NIRISS'
             _log.info('Field coordinates determined to be in NIRISS field')
         else:
             _log.info(f'Not in a valid instrument field')
-            raise ValueError(f'Given V2V3 coordinates {self.v2v3} do not fall within an instrument region with a field dependence model')
+            raise ValueError(f'Given V2V3 coordinates {v2v3} do not fall within an instrument region with a field dependence model')
 
         base_path = utils.get_webbpsf_data_path()
         field_dep_file = os.path.join(base_path, f'{instrument}/OPD/field_dep_table_{instrument.lower()}.fits')
@@ -1617,10 +1631,10 @@ class OTE_Linear_Model_WSS(OPD):
             raise ValueError('Field angle unit specified in file is not supported')
 
         # Calculate field angle for our model from the V2/V3 coordinates
-        x_field_pt = hdr['v2sign'] * (self.v2v3[0] - hdr['v2origin'] * f_ang_unit)
-        y_field_pt = hdr['v3sign'] * (self.v2v3[1] - hdr['v3origin'] * f_ang_unit)
+        x_field_pt = hdr['v2sign'] * (v2v3[0] - hdr['v2origin'] * f_ang_unit)
+        y_field_pt = hdr['v3sign'] * (v2v3[1] - hdr['v3origin'] * f_ang_unit)
 
-        _log.info(f'Calculating field-dependent OPD at v2 = {self.v2v3[0]:.3f}, v3 = {self.v2v3[1]:.3f}')
+        _log.info(f'Calculating field-dependent OPD at v2 = {v2v3[0]:.3f}, v3 = {v2v3[1]:.3f}')
         _log.debug(f'Calculating field-dependent OPD at CodeV X field = {x_field_pt:.3f}, Y field= {y_field_pt:.3f}')
 
         # Confirm that the calculated field point is within our model's range
@@ -1635,7 +1649,7 @@ class OTE_Linear_Model_WSS(OPD):
             clip_dist = np.sqrt((x_field_pt-x_field_pt0)**2 + (y_field_pt-y_field_pt0)**2)
             if clip_dist > 0.1*u.arcsec:
                 # warn the user we're making an adjustment here (but no need to do so if the distance is trivially small)
-                warnings.warn(f'For (V2,V3) = {self.v2v3}, Field point {x_field_pt}, {y_field_pt} not within valid region for field dependence model: {min_x_field}-{max_x_field}, {min_y_field}-{max_y_field}. Clipping to closest available valid location, {clip_dist} away from the requested coordinates.')
+                warnings.warn(f'For (V2,V3) = {v2v3}, Field point {x_field_pt}, {y_field_pt} not within valid region for field dependence model: {min_x_field}-{max_x_field}, {min_y_field}-{max_y_field}. Clipping to closest available valid location, {clip_dist} away from the requested coordinates.')
 
 
         # Check the OPD units in the input file

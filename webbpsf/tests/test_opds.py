@@ -361,7 +361,7 @@ def test_get_zernike_coeffs_from_smif():
     dy = (otelm.v2v3[1] - otelm.ote_ctrl_pt[1]).to(u.rad).value
 
     assert (np.allclose(otelm._get_zernike_coeffs_from_smif(dx, dy)[3:], hexikes, rtol=1e-3))
-    
+
 
 def test_segment_tilt_signs(fov_pix = 50, plot=False):
     """Test that segments move in the direction expected when tilted.
@@ -382,7 +382,7 @@ def test_segment_tilt_signs(fov_pix = 50, plot=False):
 
     tilt = 1.0
 
-    # We im for relatively minimalist PSF calcs, to reduce test runtime
+    # We aim for relatively minimalist PSF calcs, to reduce test runtime
     psf_kwargs = {'monochromatic': 2e-6,
                   'fov_pixels': fov_pix,
                   'oversample': 1,
