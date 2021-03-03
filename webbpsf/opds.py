@@ -1443,7 +1443,7 @@ class OTE_Linear_Model_WSS(OPD):
             self.opd_header['HISTORY'] = 'Applied SMIF field-dependent aberrations'
 
 
-    def _get_zernike_coeffs_from_smif(self, dx=0., dy=0.):
+    def _get_hexike_coeffs_from_smif(self, dx=0., dy=0.):
         '''     
         Apply Secondary Mirror field dependence based on SM pose and field angle.
 
@@ -1499,12 +1499,16 @@ class OTE_Linear_Model_WSS(OPD):
 
         Returns OPD based on V2V3 coordinates using model for secondary mirror influence functions.
 
+        Parameters
+        ----------
+        v2v3 : tuple
+            JWST focal plane coordinates (V2,V3) as a tuple of astropy Quantities with angular dimension
         """
         # Model field dependence from any misalignment of the secondary mirror
         dx = -(v2v3[0] - self.ote_control_point[0]).to( u.rad).value
         # NEGATIVE SIGN IN THE ABOVE B/C TELFER'S FIELD ANGLE COORD. SYSTEM IS (X,Y) = (-V2,V3)
         dy = (v2v3[1] - self.ote_control_point[1]).to(u.rad).value
-        z_coeffs = self._get_zernike_coeffs_from_smif(dx, dy)
+        z_coeffs = self._get_hexike_coeffs_from_smif(dx, dy)
         perturbation = poppy.zernike.opd_from_zernikes(z_coeffs, npix=1024,
                                                        basis=poppy.zernike.hexike_basis_wss, aperture=self.amplitude,
                                                        outside=0)
@@ -1513,12 +1517,8 @@ class OTE_Linear_Model_WSS(OPD):
         else:
             wfe_sign = 1
 
-        self.opd_header['HISTORY'] = ('SMIF_H3: {}'.format(z_coeffs[3]))
-        self.opd_header['HISTORY'] = ('SMIF_H4: {}'.format(z_coeffs[4]))
-        self.opd_header['HISTORY'] = ('SMIF_H5: {}'.format(z_coeffs[5]))
-        self.opd_header['HISTORY'] = ('SMIF_H6: {}'.format(z_coeffs[6]))
-        self.opd_header['HISTORY'] = ('SMIF_H7: {}'.format(z_coeffs[7]))
-        self.opd_header['HISTORY'] = ('SMIF_H8: {}'.format(z_coeffs[8]))
+        for i in range(3,9):
+            self.opd_header[f'SMIF_H{i}'] = (z_coeffs[i], f"Hexike coeff from S.M. influence fn model")
         self.opd_header['HISTORY'] = ('Field point (x,y): ({})'.format(v2v3))
         self.opd_header['HISTORY'] = (
             'Control point: {} ({})'.format(self.control_point_fieldpoint.upper(), self.ote_control_point))

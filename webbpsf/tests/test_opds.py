@@ -328,7 +328,7 @@ def test_get_zernike_coeffs_from_smif():
     assert ( otelm._apply_field_dependence_model() is None)
 
     # Case 2: check coefficient at control point; should return zeros.
-    assert( np.allclose(otelm._get_zernike_coeffs_from_smif(0., 0.), np.asarray([0.]*9) ))
+    assert(np.allclose(otelm._get_hexike_coeffs_from_smif(0., 0.), np.asarray([0.] * 9)))
 
     # Case 3: dx=1, dy=1, SM Poses all equal to 1 um
     telfer_zern = [-0.055279643, -0.037571947, -0.80840763, -0.035680581, -0.0036747300, 0.0033910640] # Taken from Telfer's tool
@@ -342,7 +342,7 @@ def test_get_zernike_coeffs_from_smif():
 
     otelm.segment_state[-1, :] = 1.0
     
-    assert (np.allclose(otelm._get_zernike_coeffs_from_smif(1.0, 1.0)[3:], hexikes, rtol=1e-3))
+    assert (np.allclose(otelm._get_hexike_coeffs_from_smif(1.0, 1.0)[3:], hexikes, rtol=1e-3))
 
     # Case 4: test at MIRIM_FP1MIMF field point
     otelm.ote_ctrl_pt = pysiaf.Siaf('NIRCAM')['NRCA3_FP1'].reference_point('tel') *u.arcsec
@@ -360,7 +360,7 @@ def test_get_zernike_coeffs_from_smif():
     dx =-(otelm.v2v3[0] - otelm.ote_ctrl_pt[0]).to(u.rad).value 
     dy = (otelm.v2v3[1] - otelm.ote_ctrl_pt[1]).to(u.rad).value
 
-    assert (np.allclose(otelm._get_zernike_coeffs_from_smif(dx, dy)[3:], hexikes, rtol=1e-3))
+    assert (np.allclose(otelm._get_hexike_coeffs_from_smif(dx, dy)[3:], hexikes, rtol=1e-3))
 
 
 def test_segment_tilt_signs(fov_pix = 50, plot=False):
