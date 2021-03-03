@@ -830,7 +830,7 @@ class JWInstrument(SpaceTelescopeInstrument):
             lom_ote = opds.OTE_Linear_Model_WSS()
             lom_ote
 
-        optsys.planes[0].display_annotate = utils.annotate_ote_entrance_coords
+        optsys.planes[0].display_annotate = utils.annotate_ote_pupil_coords
         return optsys
 
     def _get_aberrations(self):
@@ -2581,7 +2581,6 @@ def one_segment_pupil(segmentname):
     """
 
     # get the master pupil file
-
     segmap = os.path.join(utils.get_webbpsf_data_path(), "JWpupil_segments.fits")
 
     newpupil = fits.open(segmap)

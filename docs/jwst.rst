@@ -260,7 +260,7 @@ the measurement bounds, WebbPSF performs an extrapolation routine.
    :align: center
    :alt: NIRCam A SW WFE
 
-.. image:: ./jwst_figures/opds_combined_for_NIRCam_A_SW.png
+.. image:: ./jwst_figures/opds_combined_for_NIRCam_B_SW.png
    :scale: 45 %
    :align: center
    :alt: NIRCam B SW WFE
@@ -437,6 +437,38 @@ Imaging
 WebbPSF models the MIRI imager; currently there is no specific support for MRS,
 however monochromatic PSFS computed for the imager may be used as a reasonable
 proxy for PSF properties at the entrance to the MRS slicers.
+
+
+MIRI detector cross artifact
+-----------------------------
+
+The MIRI imager's Si:As IBC detector exhibits a so-called "cross artifact", particularly at
+short wavelengths (5-8 microns), due to internal diffraction of photons within the detector subtrate
+itself. See `Gaspar et al. 2021 <https://ui.adsabs.harvard.edu/abs/2021PASP..133a4504G/abstract>`_ for details.
+WebbPSF implements a simplified model for this effect, following the approach described by Glasse et al. in
+MIRI technical report MIRI-TN-00076-ATC_Imager_PSF_Issue_4.pdf. The model coefficients have been adjusted to
+better match the cross artifact amplitudes from WebbPSF to the MIRI Calibration Data Product reference PSFs.
+
+.. note:: Where to find Results from the Cross Artifact Model
+
+    The cross artifact is added alongside the geometric distortion step, after the optical propagation. The results
+    are stored in FITS extensions 2 and 3 (ext names OVERDIST and DET_DIST for oversampled and detector sampled, respectively
+    *not* in the default 0th extension which is the raw oversampled PSF.  E.g.::
+
+        miri = webbpsf.MIRI()
+        psf = miri.calc_psf()
+        webbpsf.display_psf(psf, ext=3)
+        result = psf['DET_DIST'].data   # This is the PSF with the cross artifact model included
+
+
+.. figure:: ./jwst_figures/miri_cross_artifact.png
+   :scale: 75 %
+   :align: center
+   :alt: MIRI cross artifact
+
+   Comparison of models for the MIRI detector cross artifact.  Click for full size. Shown are the MIRI Calibration Data
+   Product PSFs (Left), the WebbPSF results (Center) and their difference.
+   The cross artifact is negligible at wavelengths beyond ~12 microns.
 
 
 Coronagraphy
