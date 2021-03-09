@@ -461,12 +461,6 @@ class WFI(RomanInstrument):
     def __init__(self):
         """
         Initiate WFI
-
-        Parameters
-        -----------
-        set_pupil_mask_on : bool or None
-            Set to True or False to force using or not using the cold pupil mask,
-            or to None for the automatic behavior.
         """
         # pixel scale is from Roman-AFTA SDT report final version (p. 91)
         # https://roman.ipac.caltech.edu/sims/Param_db.html
@@ -505,6 +499,18 @@ class WFI(RomanInstrument):
         self.pupilopd = self.opd_list[-1]
 
     def _load_detector_aberrations(self, path):
+        """
+        Helper function that, given a path to a file containing detector aberrations, loads the Zernike values and
+        populates the class' dictator list with `FieldDependentAberration` detectors. This function achieves this by
+        calling the `webbpsf.roman._load_wfi_detector_aberrations` function.
+
+        Users should use the `override_aberrations` function to override current aberrations.
+
+        Parameters
+        ----------
+        path : string
+            Path to file containing detector aberrations
+        """
         self._detectors = _load_wfi_detector_aberrations(path)
         self._current_aberrations_file = path
         assert len(self._detectors.keys()) > 0
@@ -611,7 +617,43 @@ class WFI(RomanInstrument):
         raise AttributeError("WFI mode cannot be directly specified; WFI mode is set by changing filters.")
 
     def override_aberrations(self, aberrations_path):
-        """Override and lock detector aberrations"""
+        """
+        This function loads user provided aberrations from a file and locks this instrument
+        to only use the provided aberrations (even if the filter or mode change).
+        To release the lock and load the default aberrations, use the `reset_override_aberrations` function.
+        To load new user provided aberrations, simply call this function with the new path.
+
+        To load custom aberrations, please provide a csv file containing the detector names,
+        positions and Zernike values. The file should contain the following column names
+        (comments in parentheses should not be included):
+            - sca (Detector name)
+            - wavelength (µm)
+            - field_point (filed point number/id for SCA and wavelength, starts with 1)
+            - local_x (mm, local detector coords)
+            - local_y (mm, local detector coords)
+            - global_x (mm, global instrument coords)
+            - global_y (mm, global instrument coords)
+            - axis_local_angle_x (XAN)
+            - axis_local_angle_y (YAN)
+            - wfe_rms_waves (nm)
+            - wfe_pv_waves (waves)
+            - Z1 (Zernike phase NOLL coefficients)
+            - Z2 (Zernike phase NOLL coefficients)
+            - Z3 (Zernike phase NOLL coefficients)
+            - Z4 (Zernike phase NOLL coefficients)
+              .
+              .
+              .
+
+        Please refer to the default aberrations files for examples. If you have the WebbPSF data installed and defined,
+        you can get the path to that file by running the following:
+            >>> from webbpsf import roman
+            >>> wfi = roman.WFI()
+            >>> print(wfi._aberrations_files["imaging"])
+
+        Warning: You should not edit the default files!
+
+        """
         self._load_detector_aberrations(aberrations_path)
         self._aberrations_files['custom'] = aberrations_path
         self._is_custom_aberrations = True
