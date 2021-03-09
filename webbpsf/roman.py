@@ -511,9 +511,11 @@ class WFI(RomanInstrument):
         path : string
             Path to file containing detector aberrations
         """
-        self._detectors = _load_wfi_detector_aberrations(path)
+        detectors = _load_wfi_detector_aberrations(path)
+        assert len(detectors.keys()) > 0
+        
+        self._detectors = detectors
         self._current_aberrations_file = path
-        assert len(self._detectors.keys()) > 0
 
     def _validate_config(self, **kwargs):
         """Validates that the WFI is configured sensibly
