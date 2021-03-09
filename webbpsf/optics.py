@@ -1674,7 +1674,7 @@ class MIRIFieldDependentAberrationAndObscuration(WebbFieldDependentAberration):
 class LookupTableFieldDependentAberration(poppy.OpticalElement):
     """ Retrieve OPDs from a lookup table over many field points.
     This is pretty much a hack, hard-coded for a specific data delivery from Ball!
-    Intended for WFR4 data prep, not generalized beyond that.
+    Intended for OTE team WFR4 and MIMF KDP Practice data prep, not generalized beyond that.
 
     Parameters
     -----------
@@ -1815,6 +1815,11 @@ class LookupTableFieldDependentAberration(poppy.OpticalElement):
         # Retrieve the phase map
 
         phasemap = self.phasemaps[closest]
+
+        # The phase maps are provided in OTE entrance pupil orientation, however we need it to be
+        # in exit pupil orientation, so flip it vertically here.
+        phasemap = phasemap[::-1]
+        print("Flipped input phase map vertically into exit pupil orientation.")
 
         if phasemap.shape[0] != 256:
             raise NotImplementedError("Hard coded for Ball delivery of 256 pixel phase maps")
