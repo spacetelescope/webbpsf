@@ -624,9 +624,9 @@ class WFI(RomanInstrument):
         To load new user provided aberrations, simply call this function with the new path.
 
         To load custom aberrations, please provide a csv file containing the detector names,
-        positions and Zernike values. The file should contain the following column names
+        field point positions and Zernike values. The file should contain the following column names/values
         (comments in parentheses should not be included):
-            - sca (Detector name)
+            - sca (Detector number)
             - wavelength (µm)
             - field_point (filed point number/id for SCA and wavelength, starts with 1)
             - local_x (mm, local detector coords)
@@ -652,7 +652,6 @@ class WFI(RomanInstrument):
             >>> print(wfi._aberrations_files["imaging"])
 
         Warning: You should not edit the default files!
-
         """
         self._load_detector_aberrations(aberrations_path)
         self._aberrations_files['custom'] = aberrations_path
