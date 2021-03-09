@@ -51,21 +51,12 @@ try:
 except ImportError:
     version = ''
 
-from packaging import version as package_version
-poppy_ver = poppy.__version__
-try:
-    if package_version.parse(poppy_ver) < package_version.parse("0.9.2"):
-        import stsynphot
-        import synphot
-        _SYNPHOT_PKG = 'stsynphot'
-    else:
-        import pysynphot
-        _SYNPHOT_PKG = 'pysynphot'
-    _HAS_SYNPHOT = True
-except ImportError:
-    _SYNPHOT_PKG = None
-    _HAS_SYNPHOT = False
-
+_SYNPHOT_PKG, _HAS_STSYNPHOT = utils.import_phot_packages()
+if _SYNPHOT_PKG == 'stsynphot':
+    import stsynphot
+    import synphot
+elif _SYNPHOT_PKG == 'pysynphot':
+    import pysynphot
 import logging
 
 _log = logging.getLogger('webbpsf')
@@ -650,7 +641,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         try:
             if _SYNPHOT_PKG == 'stsynphot':
                 band = synphot.SpectralElement(synphot.models.Empirical1D, points=filterdata.WAVELENGTH,
-                                               lookup_table=filterdata.THROUGHPUT, keep_neg=True)
+                                               lookup_table=filterdata.THROUGHPUT, keep_neg=False)
             elif _SYNPHOT_PKG == 'pysynphot':
                 band = pysynphot.spectrum.ArraySpectralElement(
                     throughput=filterdata.THROUGHPUT, wave=filterdata.WAVELENGTH,

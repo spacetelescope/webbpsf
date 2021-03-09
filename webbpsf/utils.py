@@ -4,6 +4,7 @@ import astropy.io.fits as fits
 from astropy.nddata import NDData
 import numpy as np
 import matplotlib.pyplot as plt
+import poppy
 
 import scipy.interpolate as sciint
 
@@ -760,3 +761,30 @@ def to_griddedpsfmodel(HDUlist_or_filename=None, ext_data=0, ext_header=0):
     model = GriddedPSFModel(ndd)
 
     return model
+
+def import_phot_packages():
+    """
+    Function to be run at the top of modules to check if the user's poppy
+    version is using pysynphot or stsynphot, and what packages the user
+    has installed.
+    Returns
+    -------
+    _SYNPHOT_PKG : str, None
+        Returns which photometry package to import. 'stsynphot', 'pysynphot', or None
+    _HAS_STSYNPHOT : bool
+        Returns a bool on if the user has the correct photometry pacakge installed
+    """
+    _HAS_STSYNPHOT = True
+    try:
+        from poppy.instrument import stsynphot  # poppy is using sysynphot
+        import stsynphot
+        _SYNPHOT_PKG = 'stsynphot'
+    except (ImportError, ModuleNotFoundError):
+        try:
+            from poppy.instrument import pysynphot  # poppy is using pysynphot
+            import pysynphot
+            _SYNPHOT_PKG = 'pysynphot'
+        except (ImportError, ModuleNotFoundError):
+            _SYNPHOT_PKG = None  # but neither are installed locally
+            _HAS_STSYNPHOT = False
+    return _SYNPHOT_PKG, _HAS_STSYNPHOT

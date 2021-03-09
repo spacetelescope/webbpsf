@@ -1,19 +1,18 @@
 import logging
 import matplotlib
 import astropy.io.fits as fits
-from packaging import version as package_version
 
 import poppy
 from . import webbpsf_core
 from . import roman
+from . import utils
 
-poppy_ver = poppy.__version__
-if package_version.parse(poppy_ver) > package_version.parse("0.9.2"):
-    _SYNPHOT_PKG = 'stsynphot'
-    _HAS_STSYNPHOT = True
-else:
-    _SYNPHOT_PKG = 'pysynphot'
-    _HAS_STSYNPHOT = False
+_SYNPHOT_PKG, _HAS_STSYNPHOT = utils.import_phot_packages()
+if _SYNPHOT_PKG == 'stsynphot':
+    import stsynphot
+    import synphot
+elif _SYNPHOT_PKG == 'pysynphot':
+    import pysynphot
 
 _log = logging.getLogger('webbpsf')
 

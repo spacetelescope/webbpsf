@@ -9,19 +9,20 @@ import os
 from itertools import product, chain
 import matplotlib
 matplotlib.use('Agg')
-from packaging import version as package_version
-import poppy
 if not os.environ.get('PYSYN_CDBS'):
     os.environ['PYSYN_CDBS'] = '/grp/hst/cdbs'
 assert exists(os.environ['PYSYN_CDBS']), "Can't load synthetic photometry files!"
-poppy_ver = poppy.__version__
-if package_version.parse(poppy_ver) > package_version.parse("0.9.2"):
-    import stsynphot
-else:
-    import pysynphot
+
 if not os.environ.get('WEBBPSF_PATH'):
     os.environ['WEBBPSF_PATH'] = '/grp/jwst/ote/webbpsf-data'
 import webbpsf
+
+_SYNPHOT_PKG, _HAS_STSYNPHOT = webbpsf.utils.import_phot_packages()
+if _SYNPHOT_PKG == 'stsynphot':
+    import stsynphot
+    import synphot
+elif _SYNPHOT_PKG == 'pysynphot':
+    import pysynphot
 
 N_PROCESSES = 16
 

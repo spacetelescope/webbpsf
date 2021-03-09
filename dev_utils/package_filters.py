@@ -1,22 +1,13 @@
 import os
 import webbpsf
 import astropy
-from packaging import version as package_version
-import poppy
 
-poppy_ver = poppy.__version__
-try:
-    if package_version.parse(poppy_ver) > package_version.parse("0.9.2"):
-        import stsynphot
-        import synphot
-        _SYNPHOT_PKG = 'stsynphot'
-    else:
-        import pysynphot
-        _SYNPHOT_PKG = 'pysynphot'
-    _HAS_SYNPHOT = True
-except ImportError:
-    _SYNPHOT_PKG = None
-    _HAS_SYNPHOT = False
+_SYNPHOT_PKG, _HAS_STSYNPHOT = webbpsf.utils.import_phot_packages()
+if _SYNPHOT_PKG == 'stsynphot':
+    import stsynphot
+    import synphot
+elif _SYNPHOT_PKG == 'pysynphot':
+    import pysynphot
 
 WebbPSF_basepath = os.getenv('WEBBPSF_PATH', default= os.path.dirname(os.path.dirname(os.path.abspath(webbpsf.__file__))) +os.sep+"data" )
 

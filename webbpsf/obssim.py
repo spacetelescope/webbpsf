@@ -15,20 +15,18 @@ import scipy.interpolate, scipy.ndimage
 import matplotlib.pyplot as plt
 import matplotlib
 import logging
-from packaging import version as package_version
 import poppy
 import astropy.units as units
 
 from . import webbpsf_core
+from . import utils
 
-poppy_ver = poppy.__version__
-if package_version.parse(poppy_ver) > package_version.parse("0.9.2"):
+_SYNPHOT_PKG, _HAS_STSYNPHOT = utils.import_phot_packages()
+if _SYNPHOT_PKG == 'stsynphot':
     import stsynphot
     import synphot
-    _HAS_STSYNPHOT = True
-else:
+elif _SYNPHOT_PKG == 'pysynphot':
     import pysynphot
-    _HAS_STSYNPHOT = False
 
 _log = logging.getLogger('webbpsf')
 #
