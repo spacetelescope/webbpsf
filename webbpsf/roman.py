@@ -489,7 +489,7 @@ class WFI(RomanInstrument):
         # Define defualt aberration files for WFI modes
         self._aberrations_files = {
             'imaging': os.path.join(self._datapath, 'wim_zernikes_cycle8.csv'),
-            'prisim': os.path.join(self._datapath, 'wim_zernikes_cycle8_prism.csv'),
+            'prism': os.path.join(self._datapath, 'wim_zernikes_cycle8_prism.csv'),
             'grism': os.path.join(self._datapath, 'wim_zernikes_cycle8_grism.csv'),
             'custom': None,
         }
@@ -582,7 +582,7 @@ class WFI(RomanInstrument):
         Returns
         -------
         mode : string
-            Returns 'imaging', 'grism' or 'prisim' depending on filter.
+            Returns 'imaging', 'grism' or 'prism' depending on filter.
 
         Raises
         ------
@@ -594,7 +594,7 @@ class WFI(RomanInstrument):
         if wfi_filter == GRISM_FILTER:
             return 'grism'
         elif wfi_filter == PRISM_FILTER:
-            return 'prisim'
+            return 'prism'
         elif wfi_filter in self.filter_list:
             return 'imaging'
         else:

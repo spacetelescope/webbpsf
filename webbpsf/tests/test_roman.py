@@ -207,7 +207,7 @@ def test_swapping_modes(wfi=None):
         # [filter, mode, pupil_file]
         ['F062', 'imaging',  wfi._unmasked_pupil_path],
         ['F184', 'imaging', wfi._masked_pupil_path],
-        [PRISM_FILTER, 'prisim', wfi._unmasked_pupil_path],
+        [PRISM_FILTER, 'prism', wfi._unmasked_pupil_path],
         [GRISM_FILTER, 'grism', wfi._masked_pupil_path],
     ]
 
