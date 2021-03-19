@@ -1440,8 +1440,8 @@ class MIRI(JWInstrument):
         # In most use cases it's better to offset the star away from the mask instead, using
         # options['source_offset_*'], but doing it this way instead is helpful when generating
         # the Pandeia ETC reference PSF library.
-        offsets = {'shift_x': self.options.get('coron_offset_x', None),
-                   'shift_y': self.options.get('coron_offset_y', None)}
+        offsets = {'shift_x': self.options.get('coron_shift_x', None),
+                   'shift_y': self.options.get('coron_shift_y', None)}
 
         def make_fqpm_wrapper(name, wavelength):
             container = poppy.CompoundAnalyticOptic(name=name,
@@ -1457,16 +1457,10 @@ class MIRI(JWInstrument):
             optsys.add_image(make_fqpm_wrapper("MIRI FQPM 1065", 10.65e-6))
             trySAM = False
         elif self.image_mask == 'FQPM1140':
-            container = poppy.CompoundAnalyticOptic(name="MIRI FQPM 1140",
-                                            opticslist=[poppy.IdealFQPM(wavelength=11.40e-6, name=self.image_mask),
-                                                        poppy.SquareFieldStop(size=24, rotation=self._rotation)])
-            optsys.add_image(container)
+            optsys.add_image(make_fqpm_wrapper("MIRI FQPM 1140", 11.40e-6))
             trySAM = False
         elif self.image_mask == 'FQPM1550':
-            container = poppy.CompoundAnalyticOptic(name="MIRI FQPM 1550",
-                                            opticslist=[poppy.IdealFQPM(wavelength=15.50e-6, name=self.image_mask),
-                                                        poppy.SquareFieldStop(size=24, rotation=self._rotation)])
-            optsys.add_image(container)
+            optsys.add_image(make_fqpm_wrapper("MIRI FQPM 1550", 15.50e-6))
             trySAM = False
         elif self.image_mask == 'LYOT2300':
             # diameter is 4.25 (measured) 4.32 (spec) supposedly 6 lambda/D
@@ -1476,9 +1470,9 @@ class MIRI(JWInstrument):
             # position angle of strut mask is 355.5 degrees  (no = =360 -2.76 degrees
             # optsys.add_image(function='fieldstop',size=30)
             container = poppy.CompoundAnalyticOptic(name="MIRI Lyot Occulter",
-                                            opticslist=[poppy.CircularOcculter(radius=4.25 / 2, name=self.image_mask),
-                                                        poppy.BarOcculter(width=0.722),
-                                                        poppy.SquareFieldStop(size=30, rotation=self._rotation)])
+                                            opticslist=[poppy.CircularOcculter(radius=4.25 / 2, name=self.image_mask, **offsets),
+                                                        poppy.BarOcculter(width=0.722, **offsets),
+                                                        poppy.SquareFieldStop(size=30, rotation=self._rotation, **offsets)])
             optsys.add_image(container)
             trySAM = False  # FIXME was True - see https://github.com/mperrin/poppy/issues/169
             SAM_box_size = [5, 20]
