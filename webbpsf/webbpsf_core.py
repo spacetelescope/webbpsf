@@ -1340,6 +1340,15 @@ class MIRI(JWInstrument):
     The pupil will auto-select appropriate values for the coronagraphic filters
     if the auto_pupil attribute is set True (which is the default).
 
+    Special Options:
+
+    The 'coron_shift_x' and 'coron_shift_y' options offset a coronagraphic mask in order to 
+    produce PSFs centered in the output image, rather than offsetting the PSF. This is useful 
+    for direct PSF convolutions. Values are in arcsec. 
+    ```
+    miri.options['coron_shift_x'] = 3  # Shifts mask 3" to right; or source 3" to left.
+    ```
+
     """
 
     def __init__(self):
@@ -1592,6 +1601,14 @@ class NIRCam(JWInstrument):
     ```
     nc.image_mask = 'MASKLWB'
     nc.options['bar_offset'] = 3 # 3 arcseconds towards the right (narrow end on module A)
+    ```
+
+    Similarly, the 'coron_shift_x' and 'coron_shift_y' options will offset the mask in order
+    to produce PSFs centered in the output image, rather than offsetting the PSF. This is useful 
+    for direct PSF convolutions of an image. Values are in arcsec. These options move the mask 
+    in the opposite sense as nc.options['bar_offset']. 
+    ```
+    nc.options['coron_shift_x'] = 3  # Shifts mask 3" to right, equivalent to source 3" to left.
     ```
 
     The 'nd_squares' option allows toggling on and off the ND squares for TA in the simulation.
