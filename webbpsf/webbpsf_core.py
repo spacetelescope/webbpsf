@@ -341,11 +341,6 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
         # Correct detector pixel coordinates to allow for even arrays to be centered on half pixel boundary
         dpos = np.asarray(self.detector_position, dtype=float)
-        oversamp = result[0].header['OVERSAMP']
-        size = result[0].data.shape[0]
-
-        if size / oversamp % 2 == 0: dpos += 0.5  # even arrays must be at a half pixel
-
         result[0].header['DET_X'] = (dpos[0], "Detector X pixel position of array center")
         result[0].header['DET_Y'] = (dpos[1], "Detector Y pixel position of array center")
 
