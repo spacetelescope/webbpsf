@@ -817,6 +817,19 @@ class JWInstrument(SpaceTelescopeInstrument):
         """ Return default FOV in arcseconds """
         return 5  # default for all NIR instruments
 
+    @SpaceTelescopeInstrument.detector_position.setter
+    def detector_position(self, position):
+        """ Detector position in 'sci' coordinates.
+        Used for conversion between 'sci' and 'tel' (V2/V3) coordinates.
+        These positions are updated from SIAF aperture information, so fractional values as well as values
+        outside of detector limits should be allowed for more precise calculations.
+        """
+        try:
+            x, y = map(float, position)
+        except ValueError:
+            raise ValueError("Detector pixel coordinates must be a pair of floats, not {}".format(position))
+        self._detector_position = x, y
+
     def get_optical_system(self, fft_oversample=2, detector_oversample=None, fov_arcsec=2, fov_pixels=None, options=None):
         # invoke superclass version of this
         # then add a few display tweaks
@@ -984,6 +997,11 @@ class JWInstrument(SpaceTelescopeInstrument):
     def _get_fits_header(self, result, options):
         """ populate FITS Header keywords """
         super(JWInstrument, self)._get_fits_header(result, options)
+
+        # Keep detector X and Y positions as floats
+        dpos = np.asarray(self.detector_position, dtype=float)
+        result[0].header['DET_X'] = (dpos[0], "Detector X pixel position of array center")
+        result[0].header['DET_Y'] = (dpos[1], "Detector Y pixel position of array center")
 
         # Add JWST-specific V2,V3 focal plane coordinate system.
         v2v3pos = self._tel_coords()
@@ -1330,6 +1348,93 @@ class JWInstrument(SpaceTelescopeInstrument):
         result[0].header['JITRSTRL'] = (strehl, 'Strehl reduction from jitter ')
 
         result[0].data = out
+
+    def psf_grid(self, num_psfs=16, all_detectors=True, save=False,
+                 outdir=None, outfile=None, overwrite=True, verbose=True,
+                 use_detsampled_psf=False, single_psf_centered=True, **kwargs):
+        """
+        Create a PSF library in the form of a grid of PSFs across the detector
+        based on the specified instrument, filter, and detector. The output
+        GriddedPSFModel object will contain a 3D array with axes [i, y, x]
+        where i is the PSF position on the detector grid and (y,x) is the 2D
+        PSF.
+
+        Parameters
+        ----------
+        num_psfs : int
+            The total number of fiducial PSFs to be created and saved in the files.
+            This number must be a square number. Default is 16.
+            E.g. num_psfs = 16 will create a 4x4 grid of fiducial PSFs.
+        all_detectors : bool
+            If True, run all detectors for the instrument. If False, run for
+            the detector set in the instance. Default is True
+        save : bool
+            True/False boolean if you want to save your file. Default is False.
+        outdir : str
+            If "save" keyword is set to True, your file will be saved in the
+            specified directory. Default of None will save it in the current
+            directory
+        outfile : str
+            If "save" keyword is set to True, your file will be saved as
+            {outfile}_det.fits. Default of None will save it as
+            instr_det_filt_fovp#_samp#_npsf#.fits
+        overwrite : bool
+            True/False boolean to overwrite the output file if it already exists.
+            Default is True.
+        verbose : bool
+            True/False boolean to print status updates. Default is True.
+        use_detsampled_psf : bool
+            If True, the grid of PSFs returned will be detector sampled (made
+            by binning down the oversampled PSF). If False, the PSFs will be
+            oversampled by the factor defined by the
+            oversample/detector_oversample/fft_oversample keywords. Default is False.
+            This is rarely needed - if uncertain, leave this alone.
+        single_psf_centered : bool
+            If num_psfs is set to 1, this defines where that psf is located.
+            If True it will be the center of the detector, if False it will
+            be the location defined in the WebbPSF attribute detector_position
+            (reminder - detector_position is (x,y)). Default is True
+            This is also rarely needed.
+        **kwargs
+            Any extra arguments to pass the WebbPSF calc_psf() method call.
+
+        Returns
+        -------
+        gridmodel : photutils GriddedPSFModel object or list of objects
+            Returns a GriddedPSFModel object or a list of objects if more than one
+            configuration is specified (1 per instrument, detector, and filter)
+            User also has the option to save the grid as a fits.HDUlist object.
+
+        Use
+        ----
+        nir = webbpsf.NIRCam()
+        nir.filter = "F090W"
+        list_of_grids = nir.psf_grid(all_detectors=True, num_psfs=4)
+
+        """
+
+        # Keywords that could be set before the method call
+        filt = self.filter
+
+        if all_detectors is True:
+            detectors = "all"
+        else:
+            detectors = self.detector
+
+        if single_psf_centered is True:
+            psf_location = ((self._detector_npixels - 1) / 2., (self._detector_npixels - 1) / 2.)  # center pt
+        else:
+            psf_location = self.detector_position[::-1]  # (y,x)
+
+        # Call CreatePSFLibrary class
+        inst = gridded_library.CreatePSFLibrary(instrument=self, filter_name=filt, detectors=detectors,
+                                                num_psfs=num_psfs, psf_location=psf_location,
+                                                use_detsampled_psf=use_detsampled_psf, save=save,
+                                                outdir=outdir, filename=outfile, overwrite=overwrite,
+                                                verbose=verbose, **kwargs)
+        gridmodel = inst.create_grid()
+
+        return gridmodel
 
 
 class MIRI(JWInstrument):
