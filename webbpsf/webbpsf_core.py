@@ -299,17 +299,15 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
     @detector_position.setter
     def detector_position(self, position):
+        """ Detector position in 'sci' coordinates.
+        Used for conversion between 'sci' and 'tel' (V2/V3) coordinates.
+        These positions are updated from SIAF aperture information, so fractional values as well as values
+        outside of detector limits should be allowed for more precise calculations.
+        """
         try:
-            x, y = map(int, position)
+            self._detector_position = map(float, position)
         except ValueError:
-            raise ValueError("Detector pixel coordinates must be pairs of nonnegative numbers, not {}".format(position))
-        if x < 0 or y < 0:
-            raise ValueError("Detector pixel coordinates must be nonnegative integers")
-        if x > self._detector_npixels - 1 or y > self._detector_npixels - 1:
-            raise ValueError("The maximum allowed detector pixel coordinate value is {}".format(
-                self._detector_npixels - 1))
-
-        self._detector_position = (int(position[0]), int(position[1]))
+            raise ValueError("Detector pixel coordinates must be a pair of floats, not {}".format(position))
 
     @property
     def aperturename(self):
