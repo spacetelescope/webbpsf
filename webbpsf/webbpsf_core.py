@@ -305,10 +305,11 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         outside of detector limits should be allowed for more precise calculations.
         """
         try:
-            self._detector_position = map(float, position)
+            x, y = map(float, position)
         except ValueError:
             raise ValueError("Detector pixel coordinates must be a pair of floats, not {}".format(position))
-
+        self._detector_position = x, y
+        
     @property
     def aperturename(self):
         """ SIAF aperture name for detector pixel to sky coords transformations"""
