@@ -828,6 +828,11 @@ class JWInstrument(SpaceTelescopeInstrument):
             x, y = map(float, position)
         except ValueError:
             raise ValueError("Detector pixel coordinates must be a pair of floats, not {}".format(position))
+
+        npix = self._detector_npixels
+        if (x < 0) or (y < 0) or (x >= npix) or (y >= npix):
+            _log.warning(f"Detector pixel coordinates are outside of detector region ({x:.2f}, {y:.2f})")
+
         self._detector_position = x, y
 
     def get_optical_system(self, fft_oversample=2, detector_oversample=None, fov_arcsec=2, fov_pixels=None, options=None):
