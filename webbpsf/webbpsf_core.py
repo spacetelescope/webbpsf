@@ -299,17 +299,18 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
     @detector_position.setter
     def detector_position(self, position):
-        """ Detector position in 'sci' coordinates.
-        Used for conversion between 'sci' and 'tel' (V2/V3) coordinates.
-        These positions are updated from SIAF aperture information, so fractional values as well as values
-        outside of detector limits should be allowed for more precise calculations.
-        """
         try:
-            x, y = map(float, position)
+            x, y = map(int, position)
         except ValueError:
-            raise ValueError("Detector pixel coordinates must be a pair of floats, not {}".format(position))
-        self._detector_position = x, y
-        
+            raise ValueError("Detector pixel coordinates must be pairs of nonnegative numbers, not {}".format(position))
+        if x < 0 or y < 0:
+            raise ValueError("Detector pixel coordinates must be nonnegative integers")
+        if x > self._detector_npixels - 1 or y > self._detector_npixels - 1:
+            raise ValueError("The maximum allowed detector pixel coordinate value is {}".format(
+                self._detector_npixels - 1))
+
+        self._detector_position = (int(position[0]), int(position[1]))
+
     @property
     def aperturename(self):
         """ SIAF aperture name for detector pixel to sky coords transformations"""
@@ -341,6 +342,11 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
         # Correct detector pixel coordinates to allow for even arrays to be centered on half pixel boundary
         dpos = np.asarray(self.detector_position, dtype=float)
+        oversamp = result[0].header['OVERSAMP']
+        size = result[0].data.shape[0]
+
+        if size / oversamp % 2 == 0: dpos += 0.5  # even arrays must be at a half pixel
+
         result[0].header['DET_X'] = (dpos[0], "Detector X pixel position of array center")
         result[0].header['DET_Y'] = (dpos[1], "Detector Y pixel position of array center")
 
