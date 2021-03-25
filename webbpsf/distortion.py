@@ -2,13 +2,10 @@ import copy
 
 import astropy.convolution
 import astropy.io.fits as fits
-from astropy.io.fits.util import fill
 import numpy as np
-from poppy.optics import NgonAperture
 import pysiaf
 from scipy.interpolate import RegularGridInterpolator
 from scipy.ndimage.interpolation import rotate
-
 
 def _get_default_siaf(instrument, aper_name):
     """
