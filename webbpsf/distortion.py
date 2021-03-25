@@ -91,6 +91,11 @@ def distort_image(hdulist_or_filename, ext=0, to_frame='sci', fill_value=0,
         will return the full set of new coordinates. Output will then
         be (psf_new, xnew, ynew), where all three array have the same
         shape.
+    aper : None or :mod:`pysiaf.Aperture`
+        Option to pass the SIAF aperture if it is already known or
+        specified to save time on generating a new one. If set to None,
+        then automatically determines a new `pysiaf` aperture based on
+        information stored in the header.
     """
 
     # Read in input PSF
