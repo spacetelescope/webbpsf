@@ -4,6 +4,7 @@ import astropy.io.fits as fits
 from astropy.nddata import NDData
 import numpy as np
 import matplotlib.pyplot as plt
+import poppy
 
 import scipy.interpolate as sciint
 
@@ -248,6 +249,7 @@ Python version: {python}
 numpy version: {numpy}
 scipy version: {scipy}
 astropy version: {astropy}
+stsynphot version: {stsyn}
 pysynphot version: {pysyn}
 
 numexpr version: {numexpr}
@@ -317,6 +319,11 @@ def system_diagnostic():
 
     except ImportError:
         pyfftw_version = 'not found'
+    try:
+        import stsynphot
+        stsynphot_version = stsynphot.__version__
+    except ImportError:
+        stsynphot_version = 'not found'
 
     try:
         import pysynphot
@@ -384,6 +391,7 @@ def system_diagnostic():
         tkinter=ttk_version,
         wxpython=wx_version,
         pyfftw=pyfftw_version,
+        stsyn=stsynphot_version,
         pysyn=pysynphot_version,
         astropy=astropy_version,
         finfo_float=numpy.finfo(numpy.float),
@@ -765,3 +773,28 @@ def to_griddedpsfmodel(HDUlist_or_filename=None, ext_data=0, ext_header=0):
     model = GriddedPSFModel(ndd)
 
     return model
+
+def import_phot_packages():
+    """
+    Function to be run at the top of modules to check if the user's poppy
+    version is using pysynphot or stsynphot, and what packages the user
+    has installed.
+    Returns
+    -------
+    _SYNPHOT_PKG : str, None
+        Returns which photometry package to import. 'stsynphot', 'pysynphot', or None
+    _HAS_SYNPHOT : bool
+        Returns a bool on if the user has the correct photometry pacakge installed
+    """
+    _HAS_SYNPHOT = True
+    try:
+        from poppy.instrument import synphot  # poppy is using synphot
+        _SYNPHOT_PKG = 'synphot'
+    except (ImportError, ModuleNotFoundError):
+        try:
+            from poppy.instrument import pysynphot  # poppy is using pysynphot
+            _SYNPHOT_PKG = 'pysynphot'
+        except (ImportError, ModuleNotFoundError):
+            _SYNPHOT_PKG = None  # but neither are installed locally
+            _HAS_SYNPHOT = False
+    return _SYNPHOT_PKG, _HAS_SYNPHOT

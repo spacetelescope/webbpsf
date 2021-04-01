@@ -14,12 +14,19 @@ import numpy as np
 import scipy.interpolate, scipy.ndimage
 import matplotlib.pyplot as plt
 import matplotlib
-import pysynphot
 import logging
 import poppy
+import astropy.units as units
 
 from . import webbpsf_core
+from . import utils
 
+_SYNPHOT_PKG, _HAS_STSYNPHOT = utils.import_phot_packages()
+if _SYNPHOT_PKG == 'stsynphot':
+    import stsynphot
+    import synphot
+elif _SYNPHOT_PKG == 'pysynphot':
+    import pysynphot
 
 _log = logging.getLogger('webbpsf')
 #
@@ -32,7 +39,7 @@ class TargetScene(object):
     plus one or more companions at specified separation, spectral type, etc. It automates the
     necessary calculations to perform a simulated JWST observation of that target.
 
-    pysynphot is required for this.
+    stsynphot/pysynphot is required for this.
 
     """
 
@@ -45,7 +52,7 @@ class TargetScene(object):
 
         Parameters
         -----------
-        sptype_or_spectrum : string or pysynphot.Spectrum
+        sptype_or_spectrum : string or synphot/pysynphot.Spectrum
             spectrum of the source
         name : str
             descriptive string
@@ -76,8 +83,8 @@ class TargetScene(object):
         else:
             spectrum = sptype_or_spectrum
 
-        self.sources.append(   {'spectrum': sptype_or_spectrum, 'separation': separation, 'PA': PA,
-            'normalization': normalization, 'name': name})
+        self.sources.append({'spectrum': sptype_or_spectrum, 'separation': separation, 'PA': PA,
+                            'normalization': normalization, 'name': name})
 
     def calc_image(self, instrument, outfile=None, noise=False, rebin=True, clobber=True,
             PA=0, offset_r=None, offset_PA=0.0, **kwargs):
@@ -151,7 +158,13 @@ class TargetScene(object):
                 # use the flux level already implicitly set by the source spectrum.
                 # i.e. figure out what the flux of the source is, inside the selected bandpass
                 bp = instrument._get_synphot_bandpass()
-                effstim_Jy = pysynphot.Observation(src_spectrum, bp).effstim('Jy')
+
+                if _HAS_STSYNPHOT:
+                    jwst_area = 25.4 * (units.m * units.m)
+                    effstim_Jy = synphot.Observation(src_spectrum, bp).effstim('Jy', area=jwst_area)
+                else:
+                    effstim_Jy = pysynphot.Observation(src_spectrum, bp).effstim('Jy')
+
                 fluxlogstring = "                with effstim = %.3g Jy" % effstim_Jy
                 src_psf[0].data *= effstim_Jy
 

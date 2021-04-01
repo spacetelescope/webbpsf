@@ -58,15 +58,15 @@ WebbPSF and its underlying optical library POPPY may be installed from the `Pyth
     Successfully installed webbpsf
 
 Note that ``pip install webbpsf`` only installs the program code. **If you install via pip, you must manually download and install the data files, as** :ref:`described <data_install>` **below.**
-To obtain source spectra for calculations, you should also follow :ref:`installation instructions for pysynphot <pysynphot_install>`.
+To obtain source spectra for calculations, you should also follow :ref:`installation instructions for synphot <synphot_install>`.
 
 
-.. _pysynphot_install:
+.. _synphot_install:
 
-Installing or updating pysynphot
+Installing or updating synphot
 --------------------------------
 
-Pysynphot is an optional dependency, but is highly recommended.  Pysynphot is best installed via AstroConda. Further installation instructions can be found in `the pysynphot docs <https://pysynphot.readthedocs.io/en/latest/#installation-and-setup>`_ or `a discussion in the POPPY docs <http://poppy-optics.readthedocs.io/en/stable/installation.html#installing-or-updating-pysynphot>`_.
+Stsynphot is an optional dependency, but is highly recommended.  Stsynphot is best installed via AstroConda. Further installation instructions can be found in `the synphot docs <https://synphot.readthedocs.io/en/latest/#installation-and-setup>`_ or `a discussion in the POPPY docs <http://poppy-optics.readthedocs.io/en/stable/installation.html#installing-or-updating-synphot>`_.
 
 .. _data_install:
 
@@ -111,10 +111,10 @@ The major dependencies are the standard `NumPy, SciPy <http://www.scipy.org/scip
 
 **Recommended Python packages**:
 
-* `pysynphot <https://pypi.python.org/pypi/pysynphot>`_ enables the simulation
+* `synphot <https://synphot.readthedocs.io/>`_ enables the simulation
   of PSFs with proper spectral response to realistic source spectra.  Without
   this, PSF fidelity is reduced. See above for :ref:`installation instructions
-  for pysynphot <pysynphot_install>`.  Pysynphot is recommended for most users.
+  for synphot <synphot_install>`.  Stsynphot is recommended for most users.
 
 **Optional Python packages**:
 
