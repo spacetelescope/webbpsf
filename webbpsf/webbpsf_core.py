@@ -837,7 +837,7 @@ class JWInstrument(SpaceTelescopeInstrument):
             lom_ote = opds.OTE_Linear_Model_WSS()
             lom_ote
 
-        optsys.planes[0].display_annotate = utils.annotate_ote_entrance_coords
+        optsys.planes[0].display_annotate = utils.annotate_ote_pupil_coords
         return optsys
 
     def _get_aberrations(self):
@@ -1347,6 +1347,15 @@ class MIRI(JWInstrument):
     The pupil will auto-select appropriate values for the coronagraphic filters
     if the auto_pupil attribute is set True (which is the default).
 
+    Special Options:
+
+    The 'coron_shift_x' and 'coron_shift_y' options offset a coronagraphic mask in order to 
+    produce PSFs centered in the output image, rather than offsetting the PSF. This is useful 
+    for direct PSF convolutions. Values are in arcsec. 
+    ```
+    miri.options['coron_shift_x'] = 3  # Shifts mask 3" to right; or source 3" to left.
+    ```
+
     """
 
     def __init__(self):
@@ -1447,8 +1456,8 @@ class MIRI(JWInstrument):
         # In most use cases it's better to offset the star away from the mask instead, using
         # options['source_offset_*'], but doing it this way instead is helpful when generating
         # the Pandeia ETC reference PSF library.
-        offsets = {'shift_x': self.options.get('coron_offset_x', None),
-                   'shift_y': self.options.get('coron_offset_y', None)}
+        offsets = {'shift_x': self.options.get('coron_shift_x', None),
+                   'shift_y': self.options.get('coron_shift_y', None)}
 
         def make_fqpm_wrapper(name, wavelength):
             container = poppy.CompoundAnalyticOptic(name=name,
@@ -1464,16 +1473,10 @@ class MIRI(JWInstrument):
             optsys.add_image(make_fqpm_wrapper("MIRI FQPM 1065", 10.65e-6))
             trySAM = False
         elif self.image_mask == 'FQPM1140':
-            container = poppy.CompoundAnalyticOptic(name="MIRI FQPM 1140",
-                                            opticslist=[poppy.IdealFQPM(wavelength=11.40e-6, name=self.image_mask),
-                                                        poppy.SquareFieldStop(size=24, rotation=self._rotation)])
-            optsys.add_image(container)
+            optsys.add_image(make_fqpm_wrapper("MIRI FQPM 1140", 11.40e-6))
             trySAM = False
         elif self.image_mask == 'FQPM1550':
-            container = poppy.CompoundAnalyticOptic(name="MIRI FQPM 1550",
-                                            opticslist=[poppy.IdealFQPM(wavelength=15.50e-6, name=self.image_mask),
-                                                        poppy.SquareFieldStop(size=24, rotation=self._rotation)])
-            optsys.add_image(container)
+            optsys.add_image(make_fqpm_wrapper("MIRI FQPM 1550", 15.50e-6))
             trySAM = False
         elif self.image_mask == 'LYOT2300':
             # diameter is 4.25 (measured) 4.32 (spec) supposedly 6 lambda/D
@@ -1483,9 +1486,9 @@ class MIRI(JWInstrument):
             # position angle of strut mask is 355.5 degrees  (no = =360 -2.76 degrees
             # optsys.add_image(function='fieldstop',size=30)
             container = poppy.CompoundAnalyticOptic(name="MIRI Lyot Occulter",
-                                            opticslist=[poppy.CircularOcculter(radius=4.25 / 2, name=self.image_mask),
-                                                        poppy.BarOcculter(width=0.722),
-                                                        poppy.SquareFieldStop(size=30, rotation=self._rotation)])
+                                            opticslist=[poppy.CircularOcculter(radius=4.25 / 2, name=self.image_mask, **offsets),
+                                                        poppy.BarOcculter(width=0.722, **offsets),
+                                                        poppy.SquareFieldStop(size=30, rotation=self._rotation, **offsets)])
             optsys.add_image(container)
             trySAM = False  # FIXME was True - see https://github.com/mperrin/poppy/issues/169
             SAM_box_size = [5, 20]
@@ -1605,6 +1608,14 @@ class NIRCam(JWInstrument):
     ```
     nc.image_mask = 'MASKLWB'
     nc.options['bar_offset'] = 3 # 3 arcseconds towards the right (narrow end on module A)
+    ```
+
+    Similarly, the 'coron_shift_x' and 'coron_shift_y' options will offset the mask in order
+    to produce PSFs centered in the output image, rather than offsetting the PSF. This is useful 
+    for direct PSF convolutions of an image. Values are in arcsec. These options move the mask 
+    in the opposite sense as nc.options['bar_offset']. 
+    ```
+    nc.options['coron_shift_x'] = 3  # Shifts mask 3" to right, equivalent to source 3" to left.
     ```
 
     The 'nd_squares' option allows toggling on and off the ND squares for TA in the simulation.
@@ -2579,7 +2590,6 @@ def one_segment_pupil(segmentname):
     """
 
     # get the master pupil file
-
     segmap = os.path.join(utils.get_webbpsf_data_path(), "JWpupil_segments.fits")
 
     newpupil = fits.open(segmap)
