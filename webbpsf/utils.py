@@ -783,20 +783,18 @@ def import_phot_packages():
     -------
     _SYNPHOT_PKG : str, None
         Returns which photometry package to import. 'stsynphot', 'pysynphot', or None
-    _HAS_STSYNPHOT : bool
+    _HAS_SYNPHOT : bool
         Returns a bool on if the user has the correct photometry pacakge installed
     """
-    _HAS_STSYNPHOT = True
+    _HAS_SYNPHOT = True
     try:
-        from poppy.instrument import stsynphot  # poppy is using sysynphot
-        import stsynphot
-        _SYNPHOT_PKG = 'stsynphot'
+        from poppy.instrument import synphot  # poppy is using synphot
+        _SYNPHOT_PKG = 'synphot'
     except (ImportError, ModuleNotFoundError):
         try:
             from poppy.instrument import pysynphot  # poppy is using pysynphot
-            import pysynphot
             _SYNPHOT_PKG = 'pysynphot'
         except (ImportError, ModuleNotFoundError):
             _SYNPHOT_PKG = None  # but neither are installed locally
-            _HAS_STSYNPHOT = False
-    return _SYNPHOT_PKG, _HAS_STSYNPHOT
+            _HAS_SYNPHOT = False
+    return _SYNPHOT_PKG, _HAS_SYNPHOT

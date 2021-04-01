@@ -51,9 +51,8 @@ try:
 except ImportError:
     version = ''
 
-_SYNPHOT_PKG, _HAS_STSYNPHOT = utils.import_phot_packages()
-if _SYNPHOT_PKG == 'stsynphot':
-    import stsynphot
+_SYNPHOT_PKG, _HAS_SYNPHOT = utils.import_phot_packages()
+if _SYNPHOT_PKG == 'synphot':
     import synphot
 elif _SYNPHOT_PKG == 'pysynphot':
     import pysynphot
@@ -216,7 +215,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
         self.pixelscale = pixelscale
         "Detector pixel scale, in arcsec/pixel"
-        self._spectra_cache = {}  # for caching stsynphot/pysynphot results.
+        self._spectra_cache = {}  # for caching synphot results.
 
         # n.b.STInstrument subclasses must set these
         self._detectors = {}
@@ -598,8 +597,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         raise NotImplementedError("needs to be subclassed.")
 
     def _get_synphot_bandpass(self, filtername):
-        """ Return a stsynphot.spectrum.ObservationSpectralElement or
-        pysynphot.ObsBandpass object for the given desired band.
+        """ Return a synphot.spectrum.SpectralElement object for the given desired band.
 
         By subclassing this, you can define whatever custom bandpasses are appropriate for
         your instrument
@@ -639,7 +637,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
         filterdata = filterfits[1].data
         try:
-            if _SYNPHOT_PKG == 'stsynphot':
+            if _SYNPHOT_PKG == 'synphot':
                 band = synphot.SpectralElement(synphot.models.Empirical1D, points=filterdata.WAVELENGTH,
                                                lookup_table=filterdata.THROUGHPUT, keep_neg=False)
             elif _SYNPHOT_PKG == 'pysynphot':
@@ -648,7 +646,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
                     waveunits=waveunit, name=filtername
                 )
             else:
-                raise ValueError('If using Poppy > 0.9.2, must have stsynphot installed. For poppy <= 0.9.2, '
+                raise ValueError('If using Poppy > 0.9.2, must have synphot installed. For poppy <= 0.9.2, '
                                  'must have pysynphot installed')
         except AttributeError:
             raise ValueError("The supplied file, %s, does not appear to be a FITS table "

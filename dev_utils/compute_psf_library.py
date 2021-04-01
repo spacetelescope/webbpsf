@@ -17,12 +17,6 @@ if not os.environ.get('WEBBPSF_PATH'):
     os.environ['WEBBPSF_PATH'] = '/grp/jwst/ote/webbpsf-data'
 import webbpsf
 
-_SYNPHOT_PKG, _HAS_STSYNPHOT = webbpsf.utils.import_phot_packages()
-if _SYNPHOT_PKG == 'stsynphot':
-    import stsynphot
-    import synphot
-elif _SYNPHOT_PKG == 'pysynphot':
-    import pysynphot
 
 N_PROCESSES = 16
 

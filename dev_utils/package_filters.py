@@ -2,22 +2,14 @@ import os
 import webbpsf
 import astropy
 
-_SYNPHOT_PKG, _HAS_STSYNPHOT = webbpsf.utils.import_phot_packages()
-if _SYNPHOT_PKG == 'stsynphot':
-    import stsynphot
-    import synphot
-elif _SYNPHOT_PKG == 'pysynphot':
-    import pysynphot
+import stsynphot
 
 WebbPSF_basepath = os.getenv('WEBBPSF_PATH', default= os.path.dirname(os.path.dirname(os.path.abspath(webbpsf.__file__))) +os.sep+"data" )
 
 
 def norm_one_filter(instrument, filter_, clobber=False):
     try:
-        if _SYNPHOT_PKG == 'pysynphot':
-            bp = pysynphot.ObsBandpass('%s,im,%s' %(instrument.lower(), filter_.lower()))
-        elif _SYNPHOT_PKG == 'stsynphot':
-            bp = stsynphot.band('%s,im,%s' % (instrument.lower(), filter_.lower()))
+        bp = stsynphot.band('%s,im,%s' % (instrument.lower(), filter_.lower()))
         #normalized_throughput = bp.throughput / bp.throughput.max() # set max to 1.0
         bp = bp/bp.throughput.max() # set max to 1
 
