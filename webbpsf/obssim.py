@@ -21,12 +21,8 @@ import astropy.units as units
 from . import webbpsf_core
 from . import utils
 
-_SYNPHOT_PKG, _HAS_STSYNPHOT = utils.import_phot_packages()
-if _SYNPHOT_PKG == 'stsynphot':
-    import stsynphot
-    import synphot
-elif _SYNPHOT_PKG == 'pysynphot':
-    import pysynphot
+if poppy.instrument._HAS_SYNPHOT:
+   import synphot
 
 _log = logging.getLogger('webbpsf')
 #
@@ -159,11 +155,8 @@ class TargetScene(object):
                 # i.e. figure out what the flux of the source is, inside the selected bandpass
                 bp = instrument._get_synphot_bandpass()
 
-                if _HAS_STSYNPHOT:
-                    jwst_area = 25.4 * (units.m * units.m)
-                    effstim_Jy = synphot.Observation(src_spectrum, bp).effstim('Jy', area=jwst_area)
-                else:
-                    effstim_Jy = pysynphot.Observation(src_spectrum, bp).effstim('Jy')
+                jwst_area = 25.4 * (units.m * units.m)
+                effstim_Jy = synphot.Observation(src_spectrum, bp).effstim('Jy', area=jwst_area)
 
                 fluxlogstring = "                with effstim = %.3g Jy" % effstim_Jy
                 src_psf[0].data *= effstim_Jy

@@ -51,11 +51,9 @@ try:
 except ImportError:
     version = ''
 
-_SYNPHOT_PKG, _HAS_SYNPHOT = utils.import_phot_packages()
-if _SYNPHOT_PKG == 'synphot':
+_HAS_SYNPHOT = poppy.instrument._HAS_SYNPHOT
+if _HAS_SYNPHOT:
     import synphot
-elif _SYNPHOT_PKG == 'pysynphot':
-    import pysynphot
 import logging
 
 _log = logging.getLogger('webbpsf')
@@ -603,22 +601,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         your instrument
         """
 
-        # Excise never-in-practice-used code path with ObsBandpass
-        # see https://github.com/mperrin/webbpsf/issues/51
-        #  Leaving this code here for now, just commented out, in case we ever decide to
-        #  implement HST modes a la effectively porting TinyTim to Python...
-        #
-        # obsmode = '{instrument},im,{filter}'.format(instrument=self.name, filter=filtername)
-        # try:
-        #    band = pysynphot.ObsBandpass(obsmode.lower())
-        #    return band
-        # except (ValueError, TypeError) as e:
-        #    _log.debug("Couldn't find filter '{}' in PySynphot, falling back to "
-        #               "local throughput files".format(filtername))
-        #    _log.debug("Underlying PySynphot exception was: {}".format(e))
-
-        # the requested band is not yet supported in synphot/CDBS. (those files are still a
-        # work in progress...). Therefore, use our local throughput files and create a synphot
+        # use our local throughput files and create a synphot
         # transmission object.
         try:
             filter_info = self._filters[filtername]
@@ -637,17 +620,9 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
         filterdata = filterfits[1].data
         try:
-            if _SYNPHOT_PKG == 'synphot':
-                band = synphot.SpectralElement(synphot.models.Empirical1D, points=filterdata.WAVELENGTH,
+            band = synphot.SpectralElement(synphot.models.Empirical1D, points=filterdata.WAVELENGTH,
                                                lookup_table=filterdata.THROUGHPUT, keep_neg=False)
-            elif _SYNPHOT_PKG == 'pysynphot':
-                band = pysynphot.spectrum.ArraySpectralElement(
-                    throughput=filterdata.THROUGHPUT, wave=filterdata.WAVELENGTH,
-                    waveunits=waveunit, name=filtername
-                )
-            else:
-                raise ValueError('If using Poppy > 0.9.2, must have synphot installed. For poppy <= 0.9.2, '
-                                 'must have pysynphot installed')
+
         except AttributeError:
             raise ValueError("The supplied file, %s, does not appear to be a FITS table "
                              "with WAVELENGTH and THROUGHPUT columns." % filter_info.filename)
