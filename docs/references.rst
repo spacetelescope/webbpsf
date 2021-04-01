@@ -132,11 +132,11 @@ MIRI imager internal pupil stop in regular imaging mode: 4% oversized tricontago
 Instrument + Filter Throughputs
 ---------------------------------
 
-Where possible, instrumental relative spectral responses were derived from the
-Stsynphot CDBS files used for the development version of the JWST Exposure Time Calculators (ETCs),
-normalized to peak transmission = 1.0 (because absolute throughput is not
-relevant for PSF calculations). Not all filters are yet supported in Stsynphot,
-however.
+Instrumental relative spectral responses are derived from the `reference data files used by the
+Pandeia engine <https://jwst-docs.stsci.edu/jwst-exposure-time-calculator-overview/
+jwst-etc-pandeia-engine-tutorial/installing-pandeia#InstallingPandeia-DataFiles>`_ for the
+`JWST Exposure Time Calculator <https://jwst.etc.stsci.edu>`_, normalized to peak transmission=1.0
+(because absolute throughput is not relevant for PSF calculations).
 
 
 For the following filters we take information from alternate sources other than the CDBS::
