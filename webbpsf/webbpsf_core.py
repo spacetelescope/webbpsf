@@ -442,8 +442,10 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
         # add rotation at this point, if present - needs to be after the
         # exit pupil inversion.
+        # Sign convention: Here we are rotating the *wavefront* so the sign is opposite the _rotation attribute,
+        # which gives the V3IdlYangle for the detector rotation.
         if self._rotation is not None:
-            optsys.add_rotation(self._rotation, hide=True)
+            optsys.add_rotation(-self._rotation, hide=True)
             optsys.planes[-1].wavefront_display_hint = 'intensity'
 
         # Allow instrument subclass to add field-dependent aberrations
@@ -1535,7 +1537,7 @@ class MIRI(JWInstrument):
             # now put back in the aberrations we grabbed above.
             optsys.add_pupil(miri_aberrations)
 
-        optsys.add_rotation(self._rotation, hide=True)
+        optsys.add_rotation(-self._rotation, hide=True)
         optsys.planes[-1].wavefront_display_hint = 'intensity'
 
         return (optsys, trySAM, SAM_box_size if trySAM else None)
