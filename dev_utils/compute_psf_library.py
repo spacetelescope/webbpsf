@@ -6,16 +6,23 @@ import datetime
 import time
 from os.path import abspath, sep, join, exists, isdir, split
 import os
-if not os.environ.get('PYSYN_CDBS'):
-    os.environ['PYSYN_CDBS'] = '/grp/hst/cdbs'
-assert exists(os.environ['PYSYN_CDBS']), "Can't load synthetic photometry files!"
-import pysynphot
 from itertools import product, chain
 import matplotlib
 matplotlib.use('Agg')
+if not os.environ.get('PYSYN_CDBS'):
+    os.environ['PYSYN_CDBS'] = '/grp/hst/cdbs'
+assert exists(os.environ['PYSYN_CDBS']), "Can't load synthetic photometry files!"
+
 if not os.environ.get('WEBBPSF_PATH'):
     os.environ['WEBBPSF_PATH'] = '/grp/jwst/ote/webbpsf-data'
 import webbpsf
+
+_SYNPHOT_PKG, _HAS_STSYNPHOT = webbpsf.utils.import_phot_packages()
+if _SYNPHOT_PKG == 'stsynphot':
+    import stsynphot
+    import synphot
+elif _SYNPHOT_PKG == 'pysynphot':
+    import pysynphot
 
 N_PROCESSES = 16
 

@@ -5,6 +5,14 @@ import astropy.io.fits as fits
 import poppy
 from . import webbpsf_core
 from . import roman
+from . import utils
+
+_SYNPHOT_PKG, _HAS_STSYNPHOT = utils.import_phot_packages()
+if _SYNPHOT_PKG == 'stsynphot':
+    import stsynphot
+    import synphot
+elif _SYNPHOT_PKG == 'pysynphot':
+    import pysynphot
 
 _log = logging.getLogger('webbpsf')
 
@@ -39,9 +47,12 @@ def show_notebook_interface_wfi(instrument):
     from matplotlib import pyplot as plt
 
     try:
-        import pysynphot
+        if _HAS_STSYNPHOT:
+            import stsynphot
+        else:
+            import pysynphot
     except ImportError:
-        raise ImportError("For now, PySynphot must be installed to use the notebook interface")
+        raise ImportError(f"For now, {_SYNPHOT_PKG} must be installed to use the notebook interface")
 
     # Clean up some warnings we know about so as not to scare the users
     import warnings
@@ -237,9 +248,12 @@ def show_notebook_interface_jwst(instrument):
         instrument = Instrument(instrument)
 
     try:
-        import pysynphot
+        if _HAS_STSYNPHOT:
+            import stsynphot
+        else:
+            import pysynphot
     except ImportError:
-        raise ImportError("For now, PySynphot must be installed to use the notebook interface")
+        raise ImportError(f"For now, {_SYNPHOT_PKG} must be installed to use the notebook interface")
 
     # Clean up some warnings we know about so as not to scare the users
     import warnings
