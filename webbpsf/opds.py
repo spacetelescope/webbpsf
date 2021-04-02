@@ -93,7 +93,7 @@ class OPD(poppy.FITSOpticalElement):
     """
 
     def __init__(self, name='unnamed OPD', opd=None, opd_index=0, transmission=None,
-                 segment_mask_file='JWpupil_segments_revW.fits',
+                 segment_mask_file='JWpupil_segments_revW.fits', npix=1024,
                  **kwargs):
         """
         Parameters
@@ -103,7 +103,9 @@ class OPD(poppy.FITSOpticalElement):
             compatible with the format expected by poppy.FITSOpticalElement.
         transmission: str
             FITS file for pupil mask, with throughput from 0-1. If not explicitly provided, will be inferred from
-            wherever is nonzero in the OPD file.
+            wherever is nonzero in the OPD file
+        npix: int
+            Number of pixels per side for the OPD
 
 
         ext : int, optional
@@ -112,9 +114,11 @@ class OPD(poppy.FITSOpticalElement):
             slice of a datacube to load OPD from, if the selected extension contains a datacube.
 
         """
+        self.npix = npix
+
         if opd is None and transmission is None:
             _log.debug('Neither a pupil mask nor OPD were specified. Using the default JWST pupil.')
-            transmission = os.path.join(utils.get_webbpsf_data_path(), "jwst_pupil_RevW_npix1024.fits.gz")
+            transmission = os.path.join(utils.get_webbpsf_data_path(), f"jwst_pupil_RevW_npix{self.npix}.fits.gz")
 
         super(OPD, self).__init__(name=name,
                                   opd=opd, transmission=transmission,
@@ -126,8 +130,18 @@ class OPD(poppy.FITSOpticalElement):
 
         self.segnames = np.asarray([a[0:2] for a in constants.SEGNAMES_WSS_ORDER])
 
-        full_seg_mask_file = os.path.join(utils.get_webbpsf_data_path(), segment_mask_file)
+        if full_seg_mask_file is None:
+            try:
+                full_seg_mask_file = os.path.join(utils.get_webbpsf_data_path(), f'JWpupil_segments_revW_npix{self.npix}.fits')
+            except FileNotFoundError:
+                _log.error(f'JWpupil_segments_revW_npix{self.npix}.fits is expected and does not exist, please pass in the filename of the segment mask file.')
+        else:
+            full_seg_mask_file = os.path.join(utils.get_webbpsf_data_path(), segment_mask_file)
+
         self._segment_masks = fits.getdata(full_seg_mask_file)
+        if not self._segment_masks.shape == (self.npix, self.npix):
+            raise ValueError(f"The shape if the segment mask file does not match the shape expect:{self.npix}, {self.npix}")
+
         self._segment_masks_version = fits.getheader(full_seg_mask_file)['VERSION']
 
         # Where are the centers of each segment?  From OTE design geometry
@@ -1124,7 +1138,7 @@ class OTE_Linear_Model_WSS(OPD):
             The OTE control point is the field point to which the OTE has been aligned and defines the field angles
             for the field-dependent SM pose aberrations.
         npix : int
-            Number of pixels wide
+            Size of OPD: npix x npix
 
         """
 
@@ -1136,8 +1150,8 @@ class OTE_Linear_Model_WSS(OPD):
         if self.opd is not None:
             if self.npix is None:
                 _log.info(f"Value for npix not given, using the size of the OPD: {self.opd.shape[0]}")
-            elif not self.npix == self.opd.shape[0]:
-                raise ValueError(f"npix value of {self.npix} does not match shape of OPD provided: {self.opd.shape[0]}")
+            elif not self.opd.shape == (self.npix, self.npix):
+                raise ValueError(f"npix value of {self.npix} does not match shape of OPD provided: {self.opd.shape}")
 
         # load influence function table:
         self._influence_fns = astropy.table.Table.read(os.path.join(__location__, 'otelm', 'JWST_influence_functions_control_with_sm.fits'))
@@ -1381,8 +1395,6 @@ class OTE_Linear_Model_WSS(OPD):
 
         """
 
-        if not self.opd.shape == (self.npix, self.npix):
-            raise NotImplementedError("Check that the OPD size is correct")
         perturbation = poppy.zernike.opd_from_zernikes(self._global_zernike_coeffs,
                                                        npix=self.npix,
                                                        basis=poppy.zernike.zernike_basis_faster)
@@ -2455,7 +2467,7 @@ def random_unstack(ote, radius=1, verbose=False):
 
 # --------------------------------------------------------------------------------
 
-def segment_primary(infile='JWpupil.fits', npix=1024):
+def segment_primary(infile='JWpupil.fits', plot=False):
     """ Given a FITS file containing the JWST aperture, create an array
     with the PMSAs numbered from 1 - 18.
 
@@ -2464,81 +2476,83 @@ def segment_primary(infile='JWpupil.fits', npix=1024):
     JWST pupil.
 
     M. P. 2011-02-15
-
-
     """
 
     def renumber_array(array):
-        uniq, inds = np.unique1d(array, return_inverse=True)
-        # res = np.zeros_like(res2.shape)
+        """Make sure to start numbering at 0 and iterate continuously """
+        uniq, inds = np.unique(array, return_inverse=True)
         newuniq = range(len(uniq))
         res = np.array([newuniq[i] for i in inds]).astype(np.int16)
         res.shape = array.shape
         return res
 
+    # Open data
     im = fits.getdata(infile)
+
+    # Separate each consequtive section with a different number
     markers = np.zeros_like(im).astype(np.int16)
+    npix = im.shape[0]
     xm, ym = np.ogrid[0:npix:102, 0:npix:100]
     markers[xm, ym] = np.arange(xm.size * ym.size).reshape((xm.size, ym.size))
-    res2 = scipy.ndimage.watershed_ift(im.astype(np.uint8), markers)
-    res2[xm, ym] = res2[xm - 1, ym - 1]  # remove the isolate seeds
+    res = scipy.ndimage.watershed_ift(im.astype(np.uint8), markers)
+    res[xm, ym] = res[xm - 1, ym - 1]  # remove the isolate seeds
 
-    res = renumber_array(res2)
+    res2 = renumber_array(res)
 
-    # split and merge segments as needed - hard coded for Rev V pupil
-
-    res3 = res.copy()  # np.zeros_like(res2.shape)
-    merge_inds = [[0, 3], [2, 4], [11, 15], [18, 19]]
+    # merge segments that are split by the struts
+    res3 = res2.copy()
+    if npix = 1024:
+        merge_inds = [[1, 2], [3, 4], [16, 13], [19, 20]] # Hard coded for 1024 revW
+    else:
+        _log.error("I can't handle anything other than 1024 right now")
     for pair in merge_inds:
-        res3[np.where(res == pair[1])] = pair[0]
+        res3[res2 == pair[1]] = pair[0]
 
-    Y, X = np.indices(res.shape)
-    w10h = np.where((res == 10) & (Y >= 512))
-    res3[w10h] = 31
-    w10h = np.where((res == 12) & (Y >= 512))
-    res3[w10h] = 32
+    Y, X = np.indices(res3.shape)
+    res4 = renumber_array(res3)
 
-    res3 = renumber_array(res3)
+    # List segment names in order starting with A1 then going CW, then to B1, going CW
+    number_of_segments = 18
+    segs = [f'A{i + 1}' for i in range(number_of_segments//3)]
+    for i in range(number_of_segments//3):
+        segs.append(f'B{i + 1}')
+        segs.append(f'C{i + 1}')
 
-    plt.clf()
-    # plt.subplot(121)
-    # plt.imshow(res)
-    plt.subplot(121)
-    plt.imshow(res3)
+    # Put numbers associated with above seg list in cooresponding order
+    seg_inds = [13, 11, 7, 3, 6, 10, # A segs
+                16, 17, 14, 9, 5, 2, 0, 1, 4, 8, 12, 15] # B & C segs
 
-    for i in range(19):
-        w = np.where(res3 == i)
-        mx = X[w].mean()
-        my = Y[w].mean()
-        plt.text(mx, my, str(i), color='k')
-
-    segs = ['A' + str(i + 1) for i in range(6)]
-    for i in range(6):
-        segs.append('B' + str(i + 1))
-    for i in range(6):
-        segs.append('C' + str(i + 1))
-    seg_inds = [9, 18, 10, 4, 8, 17, 15, 14, 5, 1, 3, 11, 13, 7, 2, 0, 6, 12]
-
-    result = np.zeros_like(res3)
-    mxs = []
-    mys = []
-    for i in range(18):
-        w = np.where(res3 == seg_inds[i])
+    result = np.zeros_like(res4)
+    mxs, mys = [], []
+    for i in range(number_of_segments):
+        w = np.where(res4 == seg_inds[i])
         result[w] = i + 1
         mxs.append(X[w].mean())
         mys.append(Y[w].mean())
 
-    plt.subplot(122)
-    plt.imshow(result)
-    for i in range(18):
-        plt.text(mxs[i], mys[i], segs[i], color='k', horizontalalignment='center', verticalalignment='center')
+    if plot:
+        plt.clf()
+        # Plot current configuation
+        plt.subplot(121)
+        plt.imshow(res4, origin='lower')
+        for i in range(number_of_segments):
+            w = np.where(res4 == i)
+            mx = X[w].mean()
+            my = Y[w].mean()
+            plt.text(mx, my, str(i), color='k')
+        # Plot remapped final JWST Pupil
+        plt.subplot(122)
+        plt.imshow(result, origin='lower')
+        for mx, my, seg in zip(mxs, mys, segs):
+            plt.text(mx, my, seg, color='k', horizontalalignment='center', verticalalignment='center')
+        plt.show()
 
     hdu = fits.PrimaryHDU((result * im).astype(np.uint8))
-    for i in range(18):
-        hdu.header.update('PMSA_' + str(i + 1), segs[i])
+    for i in range(number_of_segments):
+        hdu.header[f'PMSA_{i + 1}'] = segs[i]
 
     # TODO copy relevant keywords and history from input FITS file header
-    hdu.writeto("JWpupil_segments.fits", overwrite=True)
+    hdu.writeto(f"JWpupil_segments_npix{npix}.fits", overwrite=True)
 
 # --------------------------------------------------------------------------------
 
@@ -2775,9 +2789,6 @@ class JWST_WAS_PTT_Basis(object):
             be 0.0 sometimes.
 
         """
-        if npix != 1024:
-            raise ValueError("Only npix=1024 supported for now")
-
         if nterms is None:
             nterms = 3*self.nsegments
         elif nterms > 3*self.nsegments:
@@ -2858,9 +2869,6 @@ class JWST_WAS_Full_Basis(object):
             be 0.0 sometimes.
 
         """
-        if npix != 1024:
-            raise ValueError("Only npix=1024 supported for now")
-
         ndof = 6
 
         if nterms is None:
