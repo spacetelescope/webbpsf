@@ -1094,7 +1094,8 @@ class OTE_Linear_Model_WSS(OPD):
     """
 
     def __init__(self, name='Unnamed OPD', opd=None, opd_index=0, transmission=None, segment_mask_file='JWpupil_segments.fits',
-                 zero=False, rm_ptt=False, rm_piston=False, v2v3=None, control_point_fieldpoint='nrca3_full'):
+                 zero=False, rm_ptt=False, rm_piston=False, v2v3=None, control_point_fieldpoint='nrca3_full',
+                 npix=1024):
         """
         Parameters
         ----------
@@ -1118,15 +1119,25 @@ class OTE_Linear_Model_WSS(OPD):
             Tuple giving V2,v3 coordinates as quantities, typically in arcminutes, or None to default to
             the master chief ray location between the two NIRCam modules.
         control_point_fieldpoint: str
-            Name of the field point where the OTE control point is located, on instrument defined by "control_point_instr". 
+            Name of the field point where the OTE control point is located, on instrument defined by "control_point_instr".
             Default: 'nrca3_full'.
             The OTE control point is the field point to which the OTE has been aligned and defines the field angles
             for the field-dependent SM pose aberrations.
+        npix : int
+            Number of pixels wide
 
         """
 
         OPD.__init__(self, name=name, opd=opd, opd_index=opd_index, transmission=transmission, segment_mask_file=segment_mask_file)
         self.v2v3 = v2v3
+        self.npix = npix
+
+        # Check that the shape of the OPD that has been passed, matches the npix parameters
+        if self.opd is not None:
+            if self.npix is None:
+                _log.info(f"Value for npix not given, using the size of the OPD: {self.opd.shape[0]}")
+            elif not self.npix == self.opd.shape[0]:
+                raise ValueError(f"npix value of {self.npix} does not match shape of OPD provided: {self.opd.shape[0]}")
 
         # load influence function table:
         self._influence_fns = astropy.table.Table.read(os.path.join(__location__, 'otelm', 'JWST_influence_functions_control_with_sm.fits'))
@@ -1370,10 +1381,10 @@ class OTE_Linear_Model_WSS(OPD):
 
         """
 
-        if not self.opd.shape == (1024, 1024):
-            raise NotImplementedError("Code need to be generalized for OPD sizes other than 1024**2")
+        if not self.opd.shape == (self.npix, self.npix):
+            raise NotImplementedError("Check that the OPD size is correct")
         perturbation = poppy.zernike.opd_from_zernikes(self._global_zernike_coeffs,
-                                                       npix=1024,
+                                                       npix=self.npix,
                                                        basis=poppy.zernike.zernike_basis_faster)
         # Add perturbation to the opd
         self.opd += perturbation
@@ -1395,8 +1406,9 @@ class OTE_Linear_Model_WSS(OPD):
             return basis
         # Define aperture as the full OTE
         aperture = self._segment_masks != 0
-        # Get size of mask (1024)
+        # Get size of mask
         npix = np.shape(aperture)[0]
+        # FIXME check that the size of aperture match self.npix
         basis = poppy.zernike.hexike_basis_wss(nterms=self._number_global_zernikes, npix=npix, aperture=aperture > 0.)
         # Use the Hexike basis to reconstruct the global terms
         perturbation = poppy.zernike.opd_from_zernikes(coefficients,
@@ -1437,13 +1449,13 @@ class OTE_Linear_Model_WSS(OPD):
                      self.segment_state[-1, 0],    # X-TILT
                      self.segment_state[-1, 1],    # Y-TILT
                      self.segment_state[-1, 4]]    # PISTON
-        
-        # GET SM INFLUENCE MATRIX:   
+
+        # GET SM INFLUENCE MATRIX:
         # HEXIKE PROJECTED ONTO ENTRANCE PUPIL (WHAT WEBBPSF NEEDS):
         smif = astropy.table.Table.read(os.path.join(__location__, 'otelm', "SMIF_hexike.csv"), header_start=5)
-     
+
         alphas = smif[smif['Type'] == 'alpha']
-        betas  = smif[smif['Type'] == 'beta']  
+        betas  = smif[smif['Type'] == 'beta']
 
         # NOW, WE SUM UP THE ALPHAS AND BETAS FOR EACH HEXIKE,
         # AS DESCRIBED IN THE DOC STRING ABOVE.
@@ -1472,7 +1484,7 @@ class OTE_Linear_Model_WSS(OPD):
 
             z_coeffs = self._get_zernike_coeffs_from_smif(dx, dy, **kwargs)
 
-            perturbation =  poppy.zernike.opd_from_zernikes(z_coeffs, npix=1024, 
+            perturbation =  poppy.zernike.opd_from_zernikes(z_coeffs, npix=self.npix,
                                                     basis=poppy.zernike.hexike_basis_wss, aperture=self.amplitude)
 
             perturbation[~np.isfinite(perturbation)] = 0.0
@@ -2443,17 +2455,13 @@ def random_unstack(ote, radius=1, verbose=False):
 
 # --------------------------------------------------------------------------------
 
-def segment_primary(infile='JWpupil.fits'):
+def segment_primary(infile='JWpupil.fits', npix=1024):
     """ Given a FITS file containing the JWST aperture, create an array
     with the PMSAs numbered from 1 - 18.
 
     This is used to create the 'JWpupil_segments.fits' file used by the OPDbender code.
     You should not need to run this routine unless you want to change the model of the
     JWST pupil.
-
-    The basic algorithm is general, but right now this routine contains
-    a bunch of hard-coded values tuned for the 1024x1024 Rev V pupil,
-    so probably you will need to edit it for any other pupil.
 
     M. P. 2011-02-15
 
@@ -2470,7 +2478,7 @@ def segment_primary(infile='JWpupil.fits'):
 
     im = fits.getdata(infile)
     markers = np.zeros_like(im).astype(np.int16)
-    xm, ym = np.ogrid[0:1024:102, 0:1024:100]
+    xm, ym = np.ogrid[0:npix:102, 0:npix:100]
     markers[xm, ym] = np.arange(xm.size * ym.size).reshape((xm.size, ym.size))
     res2 = scipy.ndimage.watershed_ift(im.astype(np.uint8), markers)
     res2[xm, ym] = res2[xm - 1, ym - 1]  # remove the isolate seeds
