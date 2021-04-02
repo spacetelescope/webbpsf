@@ -1418,10 +1418,8 @@ class OTE_Linear_Model_WSS(OPD):
             return basis
         # Define aperture as the full OTE
         aperture = self._segment_masks != 0
-        # Get size of mask
-        npix = np.shape(aperture)[0]
-        # FIXME check that the size of aperture match self.npix
-        basis = poppy.zernike.hexike_basis_wss(nterms=self._number_global_zernikes, npix=npix, aperture=aperture > 0.)
+        # FIXME: make sure that aperture is same size as OPD (should be)
+        basis = poppy.zernike.hexike_basis_wss(nterms=self._number_global_zernikes, npix=self.npix, aperture=aperture > 0.)
         # Use the Hexike basis to reconstruct the global terms
         perturbation = poppy.zernike.opd_from_zernikes(coefficients,
                                                        basis=_get_basis,
