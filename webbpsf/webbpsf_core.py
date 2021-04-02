@@ -51,7 +51,10 @@ try:
 except ImportError:
     version = ''
 
-_HAS_SYNPHOT = poppy.instrument._HAS_SYNPHOT
+try:
+    _HAS_SYNPHOT = poppy.instrument._HAS_SYNPHOT
+except AttributeError:
+    _HAS_SYNPHOT = False
 if _HAS_SYNPHOT:
     import synphot
 import logging
