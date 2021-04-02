@@ -2475,7 +2475,13 @@ def segment_primary(infile='JWpupil.fits', plot=False):
     You should not need to run this routine unless you want to change the model of the
     JWST pupil.
 
-    M. P. 2011-02-15
+    This script currently only supports the three jwst_pupil_RevW files in webbpsf-data for
+    npix = 1024, 2048, and 16384. If you need to run it for another size, you will have to
+    find the correct indices for merge_inds and seg_inds, as this is currently figured out
+    by through testing. If you run this function with plot=True, the seg_ings list can be
+    inferred from displayed plot, if merge_inds is correct.
+
+    K. B. 2021-04-02
     """
 
     def renumber_array(array):
@@ -2501,10 +2507,16 @@ def segment_primary(infile='JWpupil.fits', plot=False):
 
     # merge segments that are split by the struts
     res3 = res2.copy()
-    if npix = 1024:
+    if npix == 1024:
         merge_inds = [[1, 2], [3, 4], [16, 13], [19, 20]] # Hard coded for 1024 revW
+        seg_inds = [13, 11, 7, 3, 6, 10, # A segs
+                    16, 17, 14, 9, 5, 2, 0, 1, 4, 8, 12, 15] # B & C segs
+    elif npix == 2048:
+        merge_inds = [[1, 4], [2, 3], [15, 16], [20, 21]]
+        seg_inds = [13, 11, 7, 4, 6, 10, # A segs
+                    17, 16, 14, 9, 5, 1, 0, 2, 3, 8, 12, 15] # B & C segs
     else:
-        _log.error("I can't handle anything other than 1024 right now")
+        _log.error("This script only currently supports npix=1024 and 2048")
     for pair in merge_inds:
         res3[res2 == pair[1]] = pair[0]
 
@@ -2519,9 +2531,6 @@ def segment_primary(infile='JWpupil.fits', plot=False):
         segs.append(f'C{i + 1}')
 
     # Put numbers associated with above seg list in cooresponding order
-    seg_inds = [13, 11, 7, 3, 6, 10, # A segs
-                16, 17, 14, 9, 5, 2, 0, 1, 4, 8, 12, 15] # B & C segs
-
     result = np.zeros_like(res4)
     mxs, mys = [], []
     for i in range(number_of_segments):
