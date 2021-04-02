@@ -85,7 +85,7 @@ Files containing such information as the JWST pupil shape, instrument throughput
 
 for bash. (You will probably want to add this to your ``.bashrc``.)
 
-You should now be able to successfully ``import webbpsf`` in a Python session, or start the GUI with the command ``webbpsfgui``.
+You should now be able to successfully ``import webbpsf`` in a Python session.
 
 .. warning::
 
