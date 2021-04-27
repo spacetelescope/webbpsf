@@ -93,7 +93,7 @@ class OPD(poppy.FITSOpticalElement):
     """
 
     def __init__(self, name='unnamed OPD', opd=None, opd_index=0, transmission=None,
-                 segment_mask_file='JWpupil_segments_RevW_npix1024.fits', npix=1024,
+                 segment_mask_file='JWpupil_segments.fits', npix=1024,
                  **kwargs):
         """
         Parameters
@@ -1107,8 +1107,9 @@ class OTE_Linear_Model_WSS(OPD):
 
     """
 
-    def __init__(self, name='Unnamed OPD', opd=None, opd_index=0, transmission=None, segment_mask_file='JWpupil_segments.fits',
-                 zero=False, rm_ptt=False, rm_piston=False, v2v3=None, control_point_fieldpoint='nrca3_full',
+    def __init__(self, name='Unnamed OPD', opd=None, opd_index=0, transmission=None,
+                 segment_mask_file='JWpupil_segments.fits', zero=False, rm_ptt=False,
+                 rm_piston=False, v2v3=None, control_point_fieldpoint='nrca3_full',
                  npix=1024):
         """
         Parameters
