@@ -130,9 +130,10 @@ class OPD(poppy.FITSOpticalElement):
 
         self.segnames = np.asarray([a[0:2] for a in constants.SEGNAMES_WSS_ORDER])
 
-        if full_seg_mask_file is None:
+        if segment_mask_file == 'JWpupil_segments.fits' and npix != 1024: # Be backwards compatible with file naming
             try:
-                full_seg_mask_file = os.path.join(utils.get_webbpsf_data_path(), f'JWpupil_segments_RevW_npix{self.npix}.fits')
+                full_seg_mask_file = os.path.join(utils.get_webbpsf_data_path(),
+                                                  f'JWpupil_segments_RevW_npix{self.npix}.fits')
             except FileNotFoundError:
                 _log.error(f'JWpupil_segments_RevW_npix{self.npix}.fits is expected and does not exist, please pass in the filename of the segment mask file.')
         else:
