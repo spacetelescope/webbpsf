@@ -112,7 +112,7 @@ Simulating telescope jitter
 Space-based observatories don't have to contend with the seeing limit, but imprecisions in telescope pointing can have the effect of smearing out the PSF. To simulate this with WebbPSF, the option names are ``jitter`` and ``jitter_sigma``.
 
 >>> instrument.options['jitter'] = 'gaussian'   # jitter model name or None
->>> instrument.options['jitter_sigma'] = 0.009  # in arcsec, default 0.007
+>>> instrument.options['jitter_sigma'] = 0.009  # in arcsec per axis, default 0.007
 
 Array sizes, star positions, and centering
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
