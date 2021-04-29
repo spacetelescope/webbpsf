@@ -13,9 +13,7 @@ Developed by Marshall Perrin and collaborators at STScI, 2010-2018.
 Documentation can be found online at https://webbpsf.readthedocs.io/
 """
 
-import os
 import sys
-from warnings import warn
 from astropy import config as _config
 
 try:
@@ -28,6 +26,7 @@ __minimum_python_version__ = "3.6"
 
 class UnsupportedPythonError(Exception):
     pass
+
 
 if sys.version_info < tuple((int(val) for val in __minimum_python_version__.split('.'))):
     raise UnsupportedPythonError("webbpsf does not support Python < {}".format(__minimum_python_version__))
@@ -74,26 +73,8 @@ class Conf(_config.ConfigNamespace):
         'Format for lines logged to a file.'
     )
 
-conf = Conf()
 
-# add these here so we only need to cleanup the namespace at the end
-config_dir = os.path.dirname(__file__)
-config_template = os.path.join(config_dir, __package__ + ".cfg")
-if os.path.isfile(config_template):
-    try:
-        _config.configuration.update_default_config(
-            __package__, config_dir, version=__version__)
-    except TypeError as orig_error:
-        try:
-            _config.configuration.update_default_config(
-                __package__, config_dir)
-        except _config.configuration.ConfigurationDefaultMissingError as e:
-            wmsg = (e.args[0] + " Cannot install default profile. If you are "
-                    "importing from source, this is expected.")
-            warn(_config.configuration.ConfigurationDefaultMissingWarning(wmsg))
-            del e
-        except:
-            raise orig_error
+conf = Conf()
 
 from . import utils
 from .utils import setup_logging, restart_logging, system_diagnostic, measure_strehl
@@ -111,4 +92,3 @@ from .opds import enable_adjustable_ote
 from .roman import WFI, CGI
 
 from .jupyter_gui import show_notebook_interface
-
