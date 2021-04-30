@@ -962,9 +962,13 @@ class JWInstrument(SpaceTelescopeInstrument):
         try:
             ap = self.siaf[aperture_name]
 
-            self.detector_position = (ap.XSciRef, ap.YSciRef)
+            # setting the detector must happen -before- we set the position
             detname = aperture_name.split('_')[0]
-            self.detector = detname # As a side effect this auto reloads SIAF info, see detector.setter
+            self.detector = detname  # As a side effect this auto reloads SIAF info, see detector.setter
+
+            self.aperturename = aperture_name
+
+            self.detector_position = (ap.XSciRef, ap.YSciRef)
             _log.debug("From {} set det. pos. to {} {}".format(aperture_name, detname, self.detector_position))
 
         except KeyError:
@@ -1653,9 +1657,13 @@ class NIRCam(JWInstrument):
         self._si_wfe_class = optics.NIRCamFieldAndWavelengthDependentAberration
 
     def _update_aperturename(self):
-        """Determine sensible SIAF aperture names for NIRCam. Implements the auto_aperturename functionality"""
+        """Determine sensible SIAF aperture names for NIRCam. Implements the auto_aperturename functionality:
+        when the detector is changed, the aperture updates to <det>_FULL, and coronagraph masks auto select the
+        appropriate aperture. Other apertures can be selected using set_position_from_aperture_name
 
-        str_debug = 'BEFORE - Det: {}, Ap: {}, ImMask: {}, PupMask: {}, DetPos: {}'.format(
+        """
+
+        str_debug = '_update_aperturename BEFORE - Det: {}, Ap: {}, ImMask: {}, PupMask: {}, DetPos: {}'.format(
             self._detector, self._aperturename, self.image_mask, self.pupil_mask, self.detector_position
         )
         _log.debug(str_debug)
@@ -1674,6 +1682,7 @@ class NIRCam(JWInstrument):
                         'MASK335R': 'NRCB5_MASK335R',
                         'MASK430R': 'NRCB5_MASK430R'}
             apname = aps_modA[self._image_mask] if self.module=='A' else aps_modB[self._image_mask]
+            _log.debug(f"Inferred {apname} from coronagraph focal plane mask selected.")
         elif (self._pupil_mask is not None) and (('LYOT' in self._pupil_mask) or ('MASK' in self._pupil_mask)):
             # Want to use full frame apertures if only Lyot stops defined (no image mask)
             # Unfortunately, no full frame SIAF apertures are defined for Module B w/ Lyot
@@ -1688,13 +1697,15 @@ class NIRCam(JWInstrument):
                     apname = 'NRCA4_FULL_WEDGE_BAR' if self.module=='A' else 'NRCB3_MASKSWB'
                 else:
                     apname = 'NRCA2_FULL_WEDGE_RND' if self.module=='A' else 'NRCB1_MASK210R'
+                    _log.debug(f"Inferred {apname} from coronagraph Lyot mask selected.")
         else:
             apname = self._detectors[self._detector]
+            _log.debug(f"Inferred {apname} from selected detector.")
 
         # Call aperturename.setter to update ap ref coords and DetectorGeometry class
         self.aperturename = apname
 
-        str_debug = 'AFTER  - Det: {}, Ap: {}, ImMask: {}, PupMask: {}, DetPos: {}'.format(
+        str_debug = '_update_aperturename AFTER  - Det: {}, Ap: {}, ImMask: {}, PupMask: {}, DetPos: {}'.format(
             self._detector, self._aperturename, self.image_mask, self.pupil_mask, self.detector_position
         )
         _log.debug(str_debug)
