@@ -133,7 +133,7 @@ class OPD(poppy.FITSOpticalElement):
         if segment_mask_file == 'JWpupil_segments.fits' and npix != 1024: # Be backwards compatible with file naming
             try:
                 full_seg_mask_file = os.path.join(utils.get_webbpsf_data_path(),
-                                                  f'JWpupil_segments_RevW_npix{self.npix}.fits')
+                                                  f'JWpupil_segments_RevW_npix{self.npix}.fits.gz')
             except FileNotFoundError:
                 _log.error(f'JWpupil_segments_RevW_npix{self.npix}.fits is expected and does not exist, please pass in the filename of the segment mask file.')
         else:
@@ -1144,7 +1144,7 @@ class OTE_Linear_Model_WSS(OPD):
 
         """
 
-        OPD.__init__(self, name=name, opd=opd, opd_index=opd_index, transmission=transmission, segment_mask_file=segment_mask_file)
+        OPD.__init__(self, name=name, opd=opd, opd_index=opd_index, transmission=transmission, segment_mask_file=segment_mask_file, npix=npix)
         self.v2v3 = v2v3
         self.npix = npix
 
@@ -1152,6 +1152,7 @@ class OTE_Linear_Model_WSS(OPD):
         if self.opd is not None:
             if self.npix is None:
                 _log.info(f"Value for npix not given, using the size of the OPD: {self.opd.shape[0]}")
+                self.npix = self.opd.shape[0]
             elif not self.opd.shape == (self.npix, self.npix):
                 raise ValueError(f"npix value of {self.npix} does not match shape of OPD provided: {self.opd.shape}")
 
@@ -1363,7 +1364,7 @@ class OTE_Linear_Model_WSS(OPD):
         apmask = np.ones_like(Xc)  # by construction, we're only evaluating this for the good pixels
 
         hexikes = zernike.hexike_basis_wss(x=Xc, y=Yc, nterms=len(hexike_coeffs),
-                                           aperture=apmask)
+                                           aperture=apmask, npix=self.npix) #FIXME: KJB do we need to pass npix here?
         # returns a list of hexike array values each with the same shape as Xc
 
         if self.remove_piston_tip_tilt:
@@ -1420,7 +1421,6 @@ class OTE_Linear_Model_WSS(OPD):
             return basis
         # Define aperture as the full OTE
         aperture = self._segment_masks != 0
-        # FIXME: make sure that aperture is same size as OPD (should be)
         basis = poppy.zernike.hexike_basis_wss(nterms=self._number_global_zernikes, npix=self.npix, aperture=aperture > 0.)
         # Use the Hexike basis to reconstruct the global terms
         perturbation = poppy.zernike.opd_from_zernikes(coefficients,
@@ -1497,7 +1497,8 @@ class OTE_Linear_Model_WSS(OPD):
             z_coeffs = self._get_zernike_coeffs_from_smif(dx, dy, **kwargs)
 
             perturbation =  poppy.zernike.opd_from_zernikes(z_coeffs, npix=self.npix,
-                                                    basis=poppy.zernike.hexike_basis_wss, aperture=self.amplitude)
+                                                            basis=poppy.zernike.hexike_basis_wss,
+                                                            aperture=self.amplitude)
 
             perturbation[~np.isfinite(perturbation)] = 0.0
 
