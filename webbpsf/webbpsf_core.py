@@ -2582,7 +2582,7 @@ def segname(val):
             return "{0}{1}-{2}".format(val[0], val[1], offset + int(val[1]) * 2)
 
 
-def one_segment_pupil(segmentname):
+def one_segment_pupil(segmentname, npix=1024):
     """ Return a pupil image which corresponds to only a single
     segment of the telescope. This can be useful when simulating
     early stages of JWST alignment.
@@ -2595,12 +2595,15 @@ def one_segment_pupil(segmentname):
 
     """
 
-    # get the master pupil file
-    segmap = os.path.join(utils.get_webbpsf_data_path(), "JWpupil_segments_RevW_npix1024.fits")
+    # get the master pupil file, which may or may not be gzipped
+    segmap = os.path.join(utils.get_webbpsf_data_path(), f"JWpupil_segments_RevW_npix{npix}.fits.gz")
+    if not os.path.exists(segmap):
+        # try without .gz
+        segmap = os.path.join(utils.get_webbpsf_data_path(), f"JWpupil_segments_RevW_npix{npix}.fits")
 
     newpupil = fits.open(segmap)
     if newpupil[0].header['VERSION'] < 2:
-        raise RuntimeError("Expecting file version >= 2 for JWpupil_segments_RevW_npix1024.fits")
+        raise RuntimeError(f"Expecting file version >= 2 for {segmap}")
 
     segment_official_name = segname(segmentname)
     num = int(segment_official_name.split('-')[1])
