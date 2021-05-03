@@ -93,7 +93,7 @@ class OPD(poppy.FITSOpticalElement):
     """
 
     def __init__(self, name='unnamed OPD', opd=None, opd_index=0, transmission=None,
-                 segment_mask_file='JWpupil_segments_RevW_npix1024.fits', npix=1024,
+                 segment_mask_file=None, npix=1024,
                  **kwargs):
         """
         Parameters
@@ -105,9 +105,9 @@ class OPD(poppy.FITSOpticalElement):
             FITS file for pupil mask, with throughput from 0-1. If not explicitly provided, will be inferred from
             wherever is nonzero in the OPD file
         npix: int
-            Number of pixels per side for the OPD
-
-
+            Number of pixels per side for the OPD. Can be 1024, 2048, 4096 with current data files.
+        segment_mask_file : string, or None
+            if None, will infer based on npix.
         ext : int, optional
             FITS extension to load OPD from
         slice : int, optional
@@ -115,6 +115,9 @@ class OPD(poppy.FITSOpticalElement):
 
         """
         self.npix = npix
+
+        if segment_mask_file is None:
+            segment_mask_file = f'JWpupil_segments_RevW_npix{self.npix}.fits.gz'
 
         if opd is None and transmission is None:
             _log.debug('Neither a pupil mask nor OPD were specified. Using the default JWST pupil.')
@@ -1110,7 +1113,7 @@ class OTE_Linear_Model_WSS(OPD):
     """
 
     def __init__(self, name='Unnamed OPD', opd=None, opd_index=0, transmission=None,
-                 segment_mask_file='JWpupil_segments_RevW_npix1024.fits', zero=False, rm_ptt=False,
+                 segment_mask_file=None, zero=False, rm_ptt=False,
                  rm_piston=False, v2v3=None, control_point_fieldpoint='nrca3_full',
                  npix=1024):
         """
@@ -1126,7 +1129,7 @@ class OTE_Linear_Model_WSS(OPD):
             slice of a datacube to load OPD from, if the selected extension contains a datacube.
         segment_mask_file : str
             FITS file for pupil mask, with throughput from 0-1. If not explicitly provided, will
-            use JWpupil_segments_RevW_npix1024.fits
+            use JWpupil_segments_RevW_npix1024.fits, or equivalent for other value of npix
         zero: bool
             Load a perfectly zero OPD, overriding anything present in the opdfile parameter.
         rm_ptt : bool
