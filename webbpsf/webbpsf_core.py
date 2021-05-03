@@ -278,7 +278,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         if value.upper() not in self.detector_list:
             raise ValueError("Invalid detector. Valid detector names are: {}".format(', '.join(self.detector_list)))
         self._detector = value.upper()
-        self._update_aperturename()
+        self._update_aperturename()  # automatically set an appropriate aperture name
 
     @property
     def detector_list(self):
@@ -1530,9 +1530,11 @@ class MIRI(JWInstrument):
 
 
     def _update_aperturename(self):
-        """Determine sensible SIAF aperture names for MIRI. Implements the auto_aperturename functionality"""
+        """Determine sensible SIAF aperture names for MIRI. Implements the auto_aperturename functionality.
+        Called after detector is changed
+        """
 
-        str_debug = 'BEFORE - Det: {}, Ap: {}, ImMask: {}, PupMask: {}, DetPos: {}'.format(
+        str_debug = '_update_aperturename BEFORE - Det: {}, Ap: {}, ImMask: {}, PupMask: {}, DetPos: {}'.format(
             self._detector, self._aperturename, self.image_mask, self.pupil_mask, self.detector_position
         )
         _log.debug(str_debug)
@@ -1549,7 +1551,7 @@ class MIRI(JWInstrument):
         # Call aperturename.setter to update ap ref coords and DetectorGeometry class
         self.aperturename = apname
 
-        str_debug = 'AFTER  - Det: {}, Ap: {}, ImMask: {}, PupMask: {}, DetPos: {}'.format(
+        str_debug = '_update_aperturename AFTER  - Det: {}, Ap: {}, ImMask: {}, PupMask: {}, DetPos: {}'.format(
             self._detector, self._aperturename, self.image_mask, self.pupil_mask, self.detector_position
         )
         _log.debug(str_debug)
@@ -1661,6 +1663,8 @@ class NIRCam(JWInstrument):
         when the detector is changed, the aperture updates to <det>_FULL, and coronagraph masks auto select the
         appropriate aperture. Other apertures can be selected using set_position_from_aperture_name
 
+        Called after detector is changed; see detector.setter
+
         """
 
         str_debug = '_update_aperturename BEFORE - Det: {}, Ap: {}, ImMask: {}, PupMask: {}, DetPos: {}'.format(
@@ -1697,7 +1701,7 @@ class NIRCam(JWInstrument):
                     apname = 'NRCA4_FULL_WEDGE_BAR' if self.module=='A' else 'NRCB3_MASKSWB'
                 else:
                     apname = 'NRCA2_FULL_WEDGE_RND' if self.module=='A' else 'NRCB1_MASK210R'
-                    _log.debug(f"Inferred {apname} from coronagraph Lyot mask selected.")
+                    _log.debug(f"Inferred {apname} from coronagraph Lyot mask selected, and channel={self.channel}, module={self.module}")
         else:
             apname = self._detectors[self._detector]
             _log.debug(f"Inferred {apname} from selected detector.")
@@ -1847,14 +1851,23 @@ class NIRCam(JWInstrument):
         self._image_mask = name
 
         # Update aperture position, which updates detector and detector position
+        self._update_aperturename()
         self.set_position_from_aperture_name(self._aperturename)
 
     @JWInstrument.pupil_mask.setter
     def pupil_mask(self, name):
-        super(NIRCam, self.__class__).pupil_mask.__set__(self, name)
 
-        # Update aperture position, which updates detector and detector position
-        self.set_position_from_aperture_name(self._aperturename)
+        if name != self._pupil_mask:
+            # only apply updates if the value is in fact new
+
+            super(NIRCam, self.__class__).pupil_mask.__set__(self, name)
+            print(f"NIRCam pupil mask setter: aperturename {self._aperturename}")
+
+            # infer a new aperture, since the coronagraph mask choice affects this
+            self._update_aperturename()
+
+            # Update aperture position, which updates detector and detector position
+            self.set_position_from_aperture_name(self._aperturename)
 
     def _validate_config(self, **kwargs):
         """Validate instrument config for NIRCam

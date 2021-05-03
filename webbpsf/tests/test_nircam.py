@@ -466,6 +466,9 @@ def test_nircam_auto_aperturename():
     assert (nc.aperturename == 'NRCA2_FULL_WEDGE_RND') or (nc.aperturename == 'NRCA2_FULL_MASK210R')
     nc.pupil_mask = 'MASKRND'
     assert (nc.aperturename == 'NRCA2_FULL_WEDGE_RND') or (nc.aperturename == 'NRCA2_FULL_MASK210R')
+    # if we switch to LW we should get an aperture on A5
+    nc.detector='NRCA5'
+    assert (nc.aperturename == 'NRCA5_FULL_WEDGE_RND')
 
     # Add in coronagraphic occulter
     nc.image_mask = 'MASK210R'
