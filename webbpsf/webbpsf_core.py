@@ -2596,11 +2596,11 @@ def one_segment_pupil(segmentname):
     """
 
     # get the master pupil file
-    segmap = os.path.join(utils.get_webbpsf_data_path(), "JWpupil_segments.fits")
+    segmap = os.path.join(utils.get_webbpsf_data_path(), "JWpupil_segments_RevW_npix1024.fits")
 
     newpupil = fits.open(segmap)
     if newpupil[0].header['VERSION'] < 2:
-        raise RuntimeError("Expecting file version >= 2 for JWpupil_segments.fits")
+        raise RuntimeError("Expecting file version >= 2 for JWpupil_segments_RevW_npix1024.fits")
 
     segment_official_name = segname(segmentname)
     num = int(segment_official_name.split('-')[1])
