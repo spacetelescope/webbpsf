@@ -1,4 +1,5 @@
 import os
+import numpy as np
 import pytest
 from webbpsf import roman, measure_fwhm
 from numpy import allclose
@@ -281,6 +282,20 @@ def test_WFI_limits_interpolation_range():
     assert allclose(det.get_aberration_terms(0.48e-6), det.get_aberration_terms(0.40e-6)), (
         "Aberration outside wavelength range did not return closest value."
     )
+
+    # Test border pixels that are outside of the ref data
+    # As of cycle 8 and 9, (4, 4) is the first pixel so we
+    # check if (0, 0) is approximated to (4, 4) via nearest point
+    # approximation:
+
+    det.field_position = (0, 0)
+    coefficients_outlier = det.get_aberration_terms(1e-6)
+
+    det.field_position = (4, 4)
+    coefficients_data = det.get_aberration_terms(1e-6)
+
+    assert np.allclose(coefficients_outlier, coefficients_data), "nearest point extrapolation " \
+                                                                 "failed for outlier field point"
 
 def test_CGI_detector_position():
     """ Test existence of the CGI detector position etc, and that you can't set it."""

@@ -161,7 +161,8 @@ class FieldDependentAberration(poppy.ZernikeWFE):
                                                      "(inconsistent number of Zernike terms " \
                                                      "at each point?)"
 
-            field_position = tuple(np.clip(self.field_position, 4, 4092))
+            field_position = tuple(self.field_position)
+
             coefficients = griddata(
                 np.asarray(field_points),
                 np.asarray(aberration_terms),
@@ -169,7 +170,19 @@ class FieldDependentAberration(poppy.ZernikeWFE):
                 method='linear'
             )
             if np.any(np.isnan(coefficients)):
-                raise RuntimeError("Could not get aberrations for input field point")
+                coefficients = griddata(
+                    np.asarray(field_points),
+                    np.asarray(aberration_terms),
+                    field_position,
+                    method='nearest'
+                )
+
+                assert not np.any(np.isnan(coefficients)), "Could not compute aberration " \
+                                                           "at field point {}".format(field_position)
+
+                _log.warn("Attempted to get aberrations at field point {} which is outside the range "
+                          "of the reference data; approximating to nearest field point".format(field_position))
+
         if self._omit_piston_tip_tilt:
             _log.debug("Omitting piston/tip/tilt")
             coefficients[:3] = 0.0  # omit piston, tip, and tilt Zernikes
