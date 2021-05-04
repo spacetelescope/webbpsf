@@ -52,12 +52,11 @@ except ImportError:
     version = ''
 
 try:
-    import pysynphot
-
-    _HAS_PYSYNPHOT = True
-except ImportError:
-    _HAS_PYSYNPHOT = False
-
+    _HAS_SYNPHOT = poppy.instrument._HAS_SYNPHOT
+except AttributeError:
+    _HAS_SYNPHOT = False
+if _HAS_SYNPHOT:
+    import synphot
 import logging
 
 _log = logging.getLogger('webbpsf')
@@ -217,7 +216,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
         self.pixelscale = pixelscale
         "Detector pixel scale, in arcsec/pixel"
-        self._spectra_cache = {}  # for caching pysynphot results.
+        self._spectra_cache = {}  # for caching synphot results.
 
         # n.b.STInstrument subclasses must set these
         self._detectors = {}
@@ -444,8 +443,10 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
         # add rotation at this point, if present - needs to be after the
         # exit pupil inversion.
+        # Sign convention: Here we are rotating the *wavefront* so the sign is opposite the _rotation attribute,
+        # which gives the V3IdlYangle for the detector rotation.
         if self._rotation is not None:
-            optsys.add_rotation(self._rotation, hide=True)
+            optsys.add_rotation(-self._rotation, hide=True)
             optsys.planes[-1].wavefront_display_hint = 'intensity'
 
         # Allow instrument subclass to add field-dependent aberrations
@@ -454,9 +455,13 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
             optsys.add_pupil(aberration_optic)
 
             try:
-                inst_rms_wfe_nm = np.sqrt(np.mean(aberration_optic.opd[aberration_optic.amplitude == 1] ** 2)) * 1e9
+                # Calculate SI WFE over just the OTE entrance pupil aperture,
+                # though with a flip in the Y axis to account for entrance vs. exit pupil conventions
+                exit_pupil_mask = pupil_optic.amplitude[::-1] == 1
+                inst_rms_wfe_nm = np.sqrt(np.mean(aberration_optic.opd[exit_pupil_mask] ** 2)) * 1e9
                 self._extra_keywords['SI_WFE'] = (inst_rms_wfe_nm, '[nm] instrument pupil RMS wavefront error')
-            except TypeError:
+            except (TypeError, IndexError):
+                # Currently the above does not work for Roman, but fixing this is deferred to future work
                 pass
 
             if hasattr(aberration_optic, 'header_keywords'):
@@ -599,28 +604,13 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         raise NotImplementedError("needs to be subclassed.")
 
     def _get_synphot_bandpass(self, filtername):
-        """ Return a pysynphot.ObsBandpass object for the given desired band.
+        """ Return a synphot.spectrum.SpectralElement object for the given desired band.
 
         By subclassing this, you can define whatever custom bandpasses are appropriate for
         your instrument
         """
 
-        # Excise never-in-practice-used code path with ObsBandpass
-        # see https://github.com/mperrin/webbpsf/issues/51
-        #  Leaving this code here for now, just commented out, in case we ever decide to
-        #  implement HST modes a la effectively porting TinyTim to Python...
-        #
-        # obsmode = '{instrument},im,{filter}'.format(instrument=self.name, filter=filtername)
-        # try:
-        #    band = pysynphot.ObsBandpass(obsmode.lower())
-        #    return band
-        # except (ValueError, TypeError) as e:
-        #    _log.debug("Couldn't find filter '{}' in PySynphot, falling back to "
-        #               "local throughput files".format(filtername))
-        #    _log.debug("Underlying PySynphot exception was: {}".format(e))
-
-        # the requested band is not yet supported in synphot/CDBS. (those files are still a
-        # work in progress...). Therefore, use our local throughput files and create a synphot
+        # use our local throughput files and create a synphot
         # transmission object.
         try:
             filter_info = self._filters[filtername]
@@ -639,10 +629,9 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
         filterdata = filterfits[1].data
         try:
-            band = pysynphot.spectrum.ArraySpectralElement(
-                throughput=filterdata.THROUGHPUT, wave=filterdata.WAVELENGTH,
-                waveunits=waveunit, name=filtername
-            )
+            band = synphot.SpectralElement(synphot.models.Empirical1D, points=filterdata.WAVELENGTH,
+                                               lookup_table=filterdata.THROUGHPUT, keep_neg=False)
+
         except AttributeError:
             raise ValueError("The supplied file, %s, does not appear to be a FITS table "
                              "with WAVELENGTH and THROUGHPUT columns." % filter_info.filename)
@@ -1349,6 +1338,15 @@ class MIRI(JWInstrument):
     The pupil will auto-select appropriate values for the coronagraphic filters
     if the auto_pupil attribute is set True (which is the default).
 
+    Special Options:
+
+    The 'coron_shift_x' and 'coron_shift_y' options offset a coronagraphic mask in order to 
+    produce PSFs centered in the output image, rather than offsetting the PSF. This is useful 
+    for direct PSF convolutions. Values are in arcsec. 
+    ```
+    miri.options['coron_shift_x'] = 3  # Shifts mask 3" to right; or source 3" to left.
+    ```
+
     """
 
     def __init__(self):
@@ -1449,8 +1447,8 @@ class MIRI(JWInstrument):
         # In most use cases it's better to offset the star away from the mask instead, using
         # options['source_offset_*'], but doing it this way instead is helpful when generating
         # the Pandeia ETC reference PSF library.
-        offsets = {'shift_x': self.options.get('coron_offset_x', None),
-                   'shift_y': self.options.get('coron_offset_y', None)}
+        offsets = {'shift_x': self.options.get('coron_shift_x', None),
+                   'shift_y': self.options.get('coron_shift_y', None)}
 
         def make_fqpm_wrapper(name, wavelength):
             container = poppy.CompoundAnalyticOptic(name=name,
@@ -1466,16 +1464,10 @@ class MIRI(JWInstrument):
             optsys.add_image(make_fqpm_wrapper("MIRI FQPM 1065", 10.65e-6))
             trySAM = False
         elif self.image_mask == 'FQPM1140':
-            container = poppy.CompoundAnalyticOptic(name="MIRI FQPM 1140",
-                                            opticslist=[poppy.IdealFQPM(wavelength=11.40e-6, name=self.image_mask),
-                                                        poppy.SquareFieldStop(size=24, rotation=self._rotation)])
-            optsys.add_image(container)
+            optsys.add_image(make_fqpm_wrapper("MIRI FQPM 1140", 11.40e-6))
             trySAM = False
         elif self.image_mask == 'FQPM1550':
-            container = poppy.CompoundAnalyticOptic(name="MIRI FQPM 1550",
-                                            opticslist=[poppy.IdealFQPM(wavelength=15.50e-6, name=self.image_mask),
-                                                        poppy.SquareFieldStop(size=24, rotation=self._rotation)])
-            optsys.add_image(container)
+            optsys.add_image(make_fqpm_wrapper("MIRI FQPM 1550", 15.50e-6))
             trySAM = False
         elif self.image_mask == 'LYOT2300':
             # diameter is 4.25 (measured) 4.32 (spec) supposedly 6 lambda/D
@@ -1485,9 +1477,9 @@ class MIRI(JWInstrument):
             # position angle of strut mask is 355.5 degrees  (no = =360 -2.76 degrees
             # optsys.add_image(function='fieldstop',size=30)
             container = poppy.CompoundAnalyticOptic(name="MIRI Lyot Occulter",
-                                            opticslist=[poppy.CircularOcculter(radius=4.25 / 2, name=self.image_mask),
-                                                        poppy.BarOcculter(width=0.722),
-                                                        poppy.SquareFieldStop(size=30, rotation=self._rotation)])
+                                            opticslist=[poppy.CircularOcculter(radius=4.25 / 2, name=self.image_mask, **offsets),
+                                                        poppy.BarOcculter(width=0.722, **offsets),
+                                                        poppy.SquareFieldStop(size=30, rotation=self._rotation, **offsets)])
             optsys.add_image(container)
             trySAM = False  # FIXME was True - see https://github.com/mperrin/poppy/issues/169
             SAM_box_size = [5, 20]
@@ -1536,7 +1528,7 @@ class MIRI(JWInstrument):
             # now put back in the aberrations we grabbed above.
             optsys.add_pupil(miri_aberrations)
 
-        optsys.add_rotation(self._rotation, hide=True)
+        optsys.add_rotation(-self._rotation, hide=True)
         optsys.planes[-1].wavefront_display_hint = 'intensity'
 
         return (optsys, trySAM, SAM_box_size if trySAM else None)
@@ -1607,6 +1599,14 @@ class NIRCam(JWInstrument):
     ```
     nc.image_mask = 'MASKLWB'
     nc.options['bar_offset'] = 3 # 3 arcseconds towards the right (narrow end on module A)
+    ```
+
+    Similarly, the 'coron_shift_x' and 'coron_shift_y' options will offset the mask in order
+    to produce PSFs centered in the output image, rather than offsetting the PSF. This is useful 
+    for direct PSF convolutions of an image. Values are in arcsec. These options move the mask 
+    in the opposite sense as nc.options['bar_offset']. 
+    ```
+    nc.options['coron_shift_x'] = 3  # Shifts mask 3" to right, equivalent to source 3" to left.
     ```
 
     The 'nd_squares' option allows toggling on and off the ND squares for TA in the simulation.

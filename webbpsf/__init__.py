@@ -76,19 +76,6 @@ class Conf(_config.ConfigNamespace):
 
 conf = Conf()
 
-def _save_config():
-    """ Save package configuration variables using the Astropy.config system
-
-    NOTE: The functionality for saving config was was deprecated as of astropy v0.4
-    See http://astropy.readthedocs.org/en/latest/config/config_0_4_transition.html
-
-    This code is an undocumented workaround as advised by mdboom for the specific
-    purpose of saving webbpsf GUI state, logging state, and related.
-    """
-
-    from astropy.config import configuration
-    configuration._save_config("webbpsf")
-
 # add these here so we only need to cleanup the namespace at the end
 config_dir = os.path.dirname(__file__)
 config_template = os.path.join(config_dir, __package__ + ".cfg")
@@ -111,7 +98,7 @@ if os.path.isfile(config_template):
 from . import utils
 from .utils import setup_logging, restart_logging, system_diagnostic, measure_strehl
 
-from poppy import ( display_psf, display_psf_difference, display_ee, measure_ee, # current names
+from poppy import ( display_psf, display_psf_difference, display_ee, measure_ee,
         display_profiles, radial_profile,
         measure_radial, measure_fwhm, measure_sharpness, measure_centroid,
         specFromSpectralType, fwcentroid)
@@ -123,45 +110,5 @@ from .opds import enable_adjustable_ote
 
 from .roman import WFI, CGI
 
-# Temporally make "wfirst" available
-from . import roman as wfirst
-
 from .jupyter_gui import show_notebook_interface
 
-try:
-    from .wxgui import wxgui
-    _HAVE_WX_GUI = True
-except ImportError:
-    _HAVE_WX_GUI = False
-
-try:
-    from .tkgui import tkgui
-    _HAVE_TK_GUI = True
-except ImportError:
-    _HAVE_TK_GUI = False
-
-
-
-#if (_HAVE_WX_GUI or _HAVE_TK_GUI):
-
-    #import warnings
-    #warnings.warn("Warning: Neither Tk nor wx GUIs could be imported. "
-    #              "Graphical interface disabled")
-#else:
-def gui(preferred='wx'):
-    """ Start the WebbPSF GUI with the selected interface
-
-    Parameters
-    -------------
-    preferred : string
-        either 'wx' or 'ttk' to indicate which GUI toolkit should be started.
-
-
-    """
-    if preferred == 'wx' and _HAVE_WX_GUI:
-        wxgui()
-        pass
-    elif preferred=='ttk' or _HAVE_TK_GUI:
-        tkgui()
-    else:
-        raise NotImplementedError("Neither TK nor WX GUI libraries are available. Cannot start GUI.")

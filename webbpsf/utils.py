@@ -4,6 +4,7 @@ import astropy.io.fits as fits
 from astropy.nddata import NDData
 import numpy as np
 import matplotlib.pyplot as plt
+import poppy
 
 import scipy.interpolate as sciint
 
@@ -248,6 +249,7 @@ Python version: {python}
 numpy version: {numpy}
 scipy version: {scipy}
 astropy version: {astropy}
+stsynphot version: {stsyn}
 pysynphot version: {pysyn}
 
 numexpr version: {numexpr}
@@ -317,6 +319,11 @@ def system_diagnostic():
 
     except ImportError:
         pyfftw_version = 'not found'
+    try:
+        import stsynphot
+        stsynphot_version = stsynphot.__version__
+    except ImportError:
+        stsynphot_version = 'not found'
 
     try:
         import pysynphot
@@ -384,6 +391,7 @@ def system_diagnostic():
         tkinter=ttk_version,
         wxpython=wx_version,
         pyfftw=pyfftw_version,
+        stsyn=stsynphot_version,
         pysyn=pysynphot_version,
         astropy=astropy_version,
         finfo_float=numpy.finfo(numpy.float),
@@ -765,3 +773,4 @@ def to_griddedpsfmodel(HDUlist_or_filename=None, ext_data=0, ext_header=0):
     model = GriddedPSFModel(ndd)
 
     return model
+

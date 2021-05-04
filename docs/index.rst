@@ -71,7 +71,6 @@ Appendices and Reference
    available_opds.rst
    field_dependence/multifield_documentation.ipynb
    references.rst
-   gui.rst
    release.rst
 
 
