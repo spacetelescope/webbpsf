@@ -885,25 +885,15 @@ class JWInstrument(SpaceTelescopeInstrument):
                                 "that type: {}".format(type(self.pupil)))
             # ---- apply pupil intensity and OPD to the optical model
 
-            # TODO - more flexibly be smart about if the pupil size works for the LOM or not...
+            # get npix from pupil_transmission
+            npix = int(pupil_transmission.split('npix')[-1].split('.')[0])
+            pupil_optic = opds.OTE_Linear_Model_WSS(
+                name='{} Entrance Pupil'.format(self.telescope),
+                transmission=pupil_transmission,
+                opd=opd_map,
+                v2v3=self._tel_coords(), npix=npix
+            )
 
-            if 'npix1024' in pupil_transmission:
-                # The linear model is limited to require 1024 pixels right now, so in this case (the default)
-                # we can use that:
-                pupil_optic = opds.OTE_Linear_Model_WSS(
-                    name='{} Entrance Pupil'.format(self.telescope),
-                    transmission=pupil_transmission,
-                    opd=opd_map,
-                    v2v3=self._tel_coords()
-                )
-            else:
-                _log.warning("Nonstandard resolution pupil, so linear model for OTE mirror moves is not supported")
-                pupil_optic = poppy.FITSOpticalElement(
-                    name='{} Entrance Pupil'.format(self.telescope),
-                    transmission=pupil_transmission,
-                    opd=opd_map,
-                    planetype=poppy.poppy_core.PlaneType.pupil
-                )
         return pupil_optic
 
 

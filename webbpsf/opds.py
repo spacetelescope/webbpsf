@@ -93,8 +93,7 @@ class OPD(poppy.FITSOpticalElement):
     """
 
     def __init__(self, name='unnamed OPD', opd=None, opd_index=0, transmission=None,
-                 segment_mask_file=None, npix=1024,
-                 **kwargs):
+                 segment_mask_file=None, npix=1024, **kwargs):
         """
         Parameters
         ----------
@@ -114,10 +113,8 @@ class OPD(poppy.FITSOpticalElement):
             slice of a datacube to load OPD from, if the selected extension contains a datacube.
 
         """
-        self.npix = npix
 
-        if segment_mask_file is None:
-            segment_mask_file = f'JWpupil_segments_RevW_npix{self.npix}.fits.gz'
+        self.npix = npix
 
         if opd is None and transmission is None:
             _log.debug('Neither a pupil mask nor OPD were specified. Using the default JWST pupil.')
@@ -127,25 +124,22 @@ class OPD(poppy.FITSOpticalElement):
                                   opd=opd, transmission=transmission,
                                   opd_index=opd_index, transmission_index=0,
                                   planetype=poppy.poppy_core.PlaneType.pupil, **kwargs)
-
         if self.opd_header is None:
             self.opd_header = self.amplitude_header.copy()
 
         self.segnames = np.asarray([a[0:2] for a in constants.SEGNAMES_WSS_ORDER])
 
-        if segment_mask_file != f'JWpupil_segments_RevW_npix{self.npix}.fits':
-            try:
-                full_seg_mask_file = os.path.join(utils.get_webbpsf_data_path(),
-                                                  f'JWpupil_segments_RevW_npix{self.npix}.fits.gz')
-                _log.info(f"Mismatch in segment_mask_file and npix. Using segment_mask_file associated with npix = {self.npix}")
-            except FileNotFoundError:
-                _log.error(f'JWpupil_segments_RevW_npix{self.npix}.fits is expected and does not exist, please pass in the filename of the segment mask file.')
-        else:
-            full_seg_mask_file = os.path.join(utils.get_webbpsf_data_path(), segment_mask_file)
+        if segment_mask_file is None:
+            segment_mask_file = f'JWpupil_segments_RevW_npix{self.npix}.fits.gz'
+
+        full_seg_mask_file = os.path.join(utils.get_webbpsf_data_path(), segment_mask_file)
+        if not os.path.exists(full_seg_mask_file):
+            # try without .gz
+            full_seg_mask_file = os.path.join(utils.get_webbpsf_data_path(), f"JWpupil_segments_RevW_npix{npix}.fits")
 
         self._segment_masks = fits.getdata(full_seg_mask_file)
-        if not self._segment_masks.shape == (self.npix, self.npix):
-            raise ValueError(f"The shape if the segment mask file does not match the shape expect:{self.npix}, {self.npix}")
+        if not self._segment_masks.shape[0] == self.npix:
+            raise ValueError(f"The shape of the segment mask file {self._segment_masks.shape} does not match the shape expect: ({self.npix}, {self.npix})")
 
         self._segment_masks_version = fits.getheader(full_seg_mask_file)['VERSION']
 
@@ -1154,10 +1148,7 @@ class OTE_Linear_Model_WSS(OPD):
 
         # Check that the shape of the OPD that has been passed, matches the npix parameters
         if self.opd is not None:
-            if self.npix is None:
-                _log.info(f"Value for npix not given, using the size of the OPD: {self.opd.shape[0]}")
-                self.npix = self.opd.shape[0]
-            elif not self.opd.shape == (self.npix, self.npix):
+            if not self.opd.shape == (self.npix, self.npix):
                 raise ValueError(f"npix value of {self.npix} does not match shape of OPD provided: {self.opd.shape}")
 
         # load influence function table:

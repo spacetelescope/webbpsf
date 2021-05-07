@@ -1,8 +1,12 @@
 """
 Tests for opds.py
 """
+import os
+
 from astropy.io import fits
 import astropy.units as u
+import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
 import pysiaf
 import pytest
@@ -438,3 +442,24 @@ def test_segment_tilt_signs(fov_pix = 50, plot=False):
             axs[i, 4].set_title(iseg+": ytilt {} um".format(tilt))
             axs[i, 4].axhline(y=fov_pix/2)
             axs[i, 4].axvline(x=fov_pix/2)
+
+
+def test_changing_npix():
+    '''
+    Test that using different npix will result in same PSF
+    '''
+    # Create a NIRCam instance using the default npix=1024
+    nircam_1024 = webbpsf.NIRCam()
+    nircam_1024.pupilopd = None # Set to none so I don't have to worry about making new OPDs
+    psf_1024 = nircam_1024.calc_psf(oversample=2)
+
+    # Create a NIRCam instance using npix=2048
+    npix = 2048
+    nircam_2048 = webbpsf.NIRCam()
+    nircam_2048.pupil = os.path.join(webbpsf.utils.get_webbpsf_data_path(),
+                                     f'jwst_pupil_RevW_npix{npix}.fits.gz')
+    nircam_2048.pupilopd = None # Set to none so I don't have to worry about making new OPDs
+    psf_2048 = nircam_2048.calc_psf(oversample=2)
+
+    # Check that they are acceptably similar
+    assert np.abs(psf_1024[1].data - psf_2048[1].data).sum() < .005 # FIXME: Completely arbitrary
