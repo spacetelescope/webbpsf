@@ -114,7 +114,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         Type of jitter model to apply. Currently only convolution with a Gaussian kernel of specified
         width `jitter_sigma` is implemented. (default: None)
     jitter_sigma : float
-        Width of the jitter kernel in arcseconds (default: 0.007 arcsec)
+        Width of the jitter kernel in arcseconds (default: 0.006 arcsec, 1 sigma per axis)
     parity : string "even" or "odd"
         You may wish to ensure that the output PSF grid has either an odd or even number of pixels.
         Setting this option will force that to be the case by increasing npix by one if necessary.
@@ -797,7 +797,7 @@ class JWInstrument(SpaceTelescopeInstrument):
         self.include_si_wfe = True
         """Should calculations include the Science Instrument internal WFE?"""
         self.options['jitter'] = 'gaussian'
-        self.options['jitter_sigma'] = 0.007
+        self.options['jitter_sigma'] = 0.006   # 6 mas, see https://jwst-docs.stsci.edu/jwst-observatory-hardware/jwst-pointing-performance#JWSTPointingPerformance-Pointing_stabilityPointingstability
 
         # class name to use for SI internal WFE, which can be overridden in subclasses
         self._si_wfe_class = optics.WebbFieldDependentAberration
