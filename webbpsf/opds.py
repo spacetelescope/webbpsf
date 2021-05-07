@@ -1446,9 +1446,9 @@ class OTE_Linear_Model_WSS(OPD):
         # Model field dependence from a misaligned secondary mirror
         # (only do so if the SM is in fact misaligned)
         if not np.allclose(self.segment_state[-1], 0):
-            perturbation = self._get_field_dependence_secondary_mirror(self.v2v3)
-            self.opd += perturbation
-            self.opd_header['HISTORY'] = 'Applied SMIF field-dependent aberrations'
+            field_dep_sm_perturbation = self._get_field_dependence_secondary_mirror(self.v2v3)
+            self.opd += field_dep_sm_perturbation
+            self.opd_header['HISTORY'] = 'Applied OTE SM alignment field-dependent aberrations (MIMF)'
 
 
     def _get_hexike_coeffs_from_smif(self, dx=0., dy=0.):
@@ -2316,6 +2316,8 @@ class OTE_Linear_Model_WSS(OPD):
 
         # always start from the input OPD, then apply perturbations
         self.opd = self._opd_original.copy()
+        self.opd_header.add_history('')
+        self.opd_header.add_history('OTE linear model: updated OPD based on input segment poses')
 
         sm = 18
         sm_pose_coeffs = self.segment_state[sm].copy()[0:5]  # 6th row is n/a for SM
@@ -2351,8 +2353,8 @@ class OTE_Linear_Model_WSS(OPD):
 
                 self._apply_hexikes_to_seg(segname, hexike_coeffs_combined)
 
-       # The thermal slew model for the SM global defocus is implemented as a global hexike.
-       # So we have to combine that with the _global_hexikes array here
+        # The thermal slew model for the SM global defocus is implemented as a global hexike.
+        # So we have to combine that with the _global_hexikes array here
         global_hexike_coeffs_combined = self._global_hexike_coeffs.copy()
         if self.delta_time != 0.0:
             global_hexike_coeffs_combined[4] += self._get_thermal_slew_coeffs('SM')
