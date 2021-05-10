@@ -119,15 +119,17 @@ class OPD(poppy.FITSOpticalElement):
         if opd is None and transmission is None:
             _log.debug('Neither a pupil mask nor OPD were specified. Using the default JWST pupil.')
             transmission = os.path.join(utils.get_webbpsf_data_path(), f"jwst_pupil_RevW_npix{self.npix}.fits.gz")
-        # Check that the shape of the OPD that has been passed, matches the npix parameters
-        elif self.opd is not None:
-            if not self.opd.shape == (self.npix, self.npix):
-                raise ValueError(f"npix value of {self.npix} does not match shape of OPD provided: {self.opd.shape}")
 
         super(OPD, self).__init__(name=name,
                                   opd=opd, transmission=transmission,
                                   opd_index=opd_index, transmission_index=0,
                                   planetype=poppy.poppy_core.PlaneType.pupil, **kwargs)
+
+        # Check that the shape of the OPD that has been passed, matches the npix parameters
+        if self.opd is not None:
+            if not self.opd.shape == (self.npix, self.npix):
+                raise ValueError(f"npix value of {self.npix} does not match shape of OPD provided: {self.opd.shape}")
+
         if self.opd_header is None:
             self.opd_header = self.amplitude_header.copy()
 
