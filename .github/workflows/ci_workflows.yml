@@ -15,37 +15,32 @@ jobs:
             os: ubuntu-latest
             python: 3.8
             toxenv: py38-poppydev-pysiafdev-cov
-            continue-on-error: false
 
           - name: Check for Sphinx doc build errors
             os: ubuntu-latest
             python: 3.8
             toxenv: docbuild
-            continue-on-error: false
 
           - name: Try Astropy development version
             os: ubuntu-latest
             python: 3.8
             toxenv: py38-astropydev-test
-            continue-on-error: false
 
           - name: Try latest versions of all dependencies
             os: ubuntu-latest
             python: 3.8
             toxenv: py38-latest-test
-            continue-on-error: false
 
           - name: Try minimum supported versions
             os: ubuntu-latest
             python: 3.6
             toxenv: py36-legacy36-test
-            continue-on-error: false
 
-          - name: Try released POPPY and PySIAF # ALLOW FAILURE - HOW
+          - name: Try released POPPY and PySIAF
             os: ubuntu-latest
             python: 3.7
             toxenv: py37-stable-test
-            continue-on-error: true
+            continue-on-error: 'true'
 
     steps:
     - name: Checkout code
@@ -61,21 +56,21 @@ jobs:
     - name: Install Python dependencies
       run: pip install tox tox-conda>=0.2
 
-    - name: Grab WebbPSF Data
+    - name: Get WebbPSF Data
       run: | # Get WebbPSF data files (just a subset of the full 250 MB!) and set up environment variable
            wget https://stsci.box.com/shared/static/qcptcokkbx7fgi3c00w2732yezkxzb99.gz -O /tmp/minimal-webbpsf-data.tar.gz
            tar -xzvf /tmp/minimal-webbpsf-data.tar.gz
-           export WEBBPSF_PATH="${{ GITHUB_WORKSPACE }}/webbpsf-data"
+           echo "WEBBPSF_PATH=${{github.workspace}}/webbpsf-data" >> $GITHUB_ENV
 
     - name: Check conda info
       run: conda info
 
     - name: Run tests
-      if: ${{ contains(matrix.continue-on-error,'false') }}
+      if: matrix.continue-on-error == null
       run: tox -e ${{ matrix.toxenv }}
 
-    - name: Run tests (allow failures)
-      if: ${{ contains(matrix.continue-on-error,'true') }}
+    - name: Run tests and allow failures
+      if: matrix.continue-on-error
       continue-on-error: true
       run: tox -e ${{ matrix.toxenv }}
 
