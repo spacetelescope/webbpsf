@@ -342,8 +342,7 @@ def test_get_zernike_coeffs_from_smif():
 
     assert (np.allclose(otelm._get_zernike_coeffs_from_smif(dx, dy)[3:], hexikes, rtol=1e-3))
     
-    
-def test_segment_tilt_signs(fov_pix = 50, plot=False):
+def test_segment_tilt_signs(fov_pix = 50, plot=False, npix=1024):
     """Test that segments move in the direction expected when tilted.
 
     The local coordinate systems are non-obvious, to say the least. This verifies
@@ -357,7 +356,7 @@ def test_segment_tilt_signs(fov_pix = 50, plot=False):
 
     nrc = webbpsf.NIRCam()
 
-    ote = webbpsf.opds.OTE_Linear_Model_WSS()
+    ote = webbpsf.opds.OTE_Linear_Model_WSS(npix=npix)
     nrc.include_si_wfe = False # not relevant for this test
 
     tilt = 1.0
@@ -380,7 +379,7 @@ def test_segment_tilt_signs(fov_pix = 50, plot=False):
     for i, iseg in enumerate(['A1', 'B1', 'C1']):
         ote.zero()
 
-        pupil = webbpsf.webbpsf_core.one_segment_pupil(iseg)
+        pupil = webbpsf.webbpsf_core.one_segment_pupil(iseg, npix=npix)
 
         ote.amplitude = pupil[0].data
         nrc.pupil = ote
@@ -443,6 +442,12 @@ def test_segment_tilt_signs(fov_pix = 50, plot=False):
             axs[i, 4].axhline(y=fov_pix/2)
             axs[i, 4].axvline(x=fov_pix/2)
 
+def test_segment_tilt_signs_2048npix():
+    """ Re-run same test as above, but with a different value for npix
+
+    This verifies the LOM works as expected for a size other than 1024 pixels
+    """
+    test_segment_tilt_signs(npix=2048)
 
 def test_changing_npix():
     '''
