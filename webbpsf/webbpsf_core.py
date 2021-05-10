@@ -877,16 +877,18 @@ class JWInstrument(SpaceTelescopeInstrument):
                         self._WebbPSF_basepath,
                         self.pupil
                     )
+                # Get npix from pupil_transmission
+                npix = int(pupil_transmission.split('npix')[-1].split('.')[0])
             elif isinstance(self.pupil, fits.HDUList):
                 # POPPY can use self.pupil as-is
                 pupil_transmission = self.pupil
+                # Get npix from the shape of the data
+                npix = self.pupil[0].data.shape[0]
             else:
                 raise TypeError("Not sure what to do with a pupil of "
                                 "that type: {}".format(type(self.pupil)))
-            # ---- apply pupil intensity and OPD to the optical model
 
-            # get npix from pupil_transmission
-            npix = int(pupil_transmission.split('npix')[-1].split('.')[0])
+            # ---- apply pupil intensity and OPD to the optical model
             pupil_optic = opds.OTE_Linear_Model_WSS(
                 name='{} Entrance Pupil'.format(self.telescope),
                 transmission=pupil_transmission,

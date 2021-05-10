@@ -119,6 +119,10 @@ class OPD(poppy.FITSOpticalElement):
         if opd is None and transmission is None:
             _log.debug('Neither a pupil mask nor OPD were specified. Using the default JWST pupil.')
             transmission = os.path.join(utils.get_webbpsf_data_path(), f"jwst_pupil_RevW_npix{self.npix}.fits.gz")
+        # Check that the shape of the OPD that has been passed, matches the npix parameters
+        elif self.opd is not None:
+            if not self.opd.shape == (self.npix, self.npix):
+                raise ValueError(f"npix value of {self.npix} does not match shape of OPD provided: {self.opd.shape}")
 
         super(OPD, self).__init__(name=name,
                                   opd=opd, transmission=transmission,
@@ -1144,12 +1148,6 @@ class OTE_Linear_Model_WSS(OPD):
 
         OPD.__init__(self, name=name, opd=opd, opd_index=opd_index, transmission=transmission, segment_mask_file=segment_mask_file, npix=npix)
         self.v2v3 = v2v3
-        self.npix = npix
-
-        # Check that the shape of the OPD that has been passed, matches the npix parameters
-        if self.opd is not None:
-            if not self.opd.shape == (self.npix, self.npix):
-                raise ValueError(f"npix value of {self.npix} does not match shape of OPD provided: {self.opd.shape}")
 
         # load influence function table:
         self._influence_fns = astropy.table.Table.read(os.path.join(__location__, 'otelm', 'JWST_influence_functions_control_with_sm.fits'))
@@ -1359,7 +1357,7 @@ class OTE_Linear_Model_WSS(OPD):
         apmask = np.ones_like(Xc)  # by construction, we're only evaluating this for the good pixels
 
         hexikes = zernike.hexike_basis_wss(x=Xc, y=Yc, nterms=len(hexike_coeffs),
-                                           aperture=apmask, npix=self.npix) #FIXME: KJB do we need to pass npix here?
+                                           aperture=apmask)
         # returns a list of hexike array values each with the same shape as Xc
 
         if self.remove_piston_tip_tilt:
