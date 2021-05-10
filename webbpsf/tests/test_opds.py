@@ -461,5 +461,16 @@ def test_changing_npix():
     nircam_2048.pupilopd = None # Set to none so I don't have to worry about making new OPDs
     psf_2048 = nircam_2048.calc_psf(oversample=2)
 
-    # Check that they are acceptably similar
-    assert np.abs(psf_1024[1].data - psf_2048[1].data).sum() < .005 # FIXME: Completely arbitrary
+    # Let's check individual pixel values, at least where the PSF is not too dim.
+    # Check all pixels which have > 1e-6 of the total flux (we can safely ignore pixels with very low intensity)
+    mask = psf_1024[0].data>1e-6
+    assert np.allclose(psf_1024[0].data[mask], psf_2048[0].data[mask], rtol=0.01), 'Pixel values differ by more than 1%'
+
+    # Let's check that the total flux in the PSF does not change much.
+    #  (A small amount is acceptable and not surprising, since higher resolution improves the fidelity at which
+    #   we model light that is scattered by segment edges to very wide angles outside of the simulated PSF FOV)
+    assert np.isclose(psf_1024[0].data.sum(), psf_2048[0].data.sum(), rtol=0.005), "PSF total flux should not change much"
+
+    # Let's also check a derived property of the whole PSF: the FWHM.
+    # The FWHM should be very close to identical for the two PSFs.
+    assert np.isclose(webbpsf.measure_fwhm(psf_1024), webbpsf.measure_fwhm(psf_2048), rtol=0.0001), "PSF FWHM should not vary for different npix"
