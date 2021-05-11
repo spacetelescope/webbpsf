@@ -1,8 +1,12 @@
 """
 Tests for opds.py
 """
+import os
+
 from astropy.io import fits
 import astropy.units as u
+import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
 import pysiaf
 import pytest
@@ -338,8 +342,7 @@ def test_get_zernike_coeffs_from_smif():
 
     assert (np.allclose(otelm._get_zernike_coeffs_from_smif(dx, dy)[3:], hexikes, rtol=1e-3))
     
-    
-def test_segment_tilt_signs(fov_pix = 50, plot=False):
+def test_segment_tilt_signs(fov_pix = 50, plot=False, npix=1024):
     """Test that segments move in the direction expected when tilted.
 
     The local coordinate systems are non-obvious, to say the least. This verifies
@@ -353,7 +356,7 @@ def test_segment_tilt_signs(fov_pix = 50, plot=False):
 
     nrc = webbpsf.NIRCam()
 
-    ote = webbpsf.opds.OTE_Linear_Model_WSS()
+    ote = webbpsf.opds.OTE_Linear_Model_WSS(npix=npix)
     nrc.include_si_wfe = False # not relevant for this test
 
     tilt = 1.0
@@ -376,7 +379,7 @@ def test_segment_tilt_signs(fov_pix = 50, plot=False):
     for i, iseg in enumerate(['A1', 'B1', 'C1']):
         ote.zero()
 
-        pupil = webbpsf.webbpsf_core.one_segment_pupil(iseg)
+        pupil = webbpsf.webbpsf_core.one_segment_pupil(iseg, npix=npix)
 
         ote.amplitude = pupil[0].data
         nrc.pupil = ote
@@ -393,8 +396,8 @@ def test_segment_tilt_signs(fov_pix = 50, plot=False):
         if iseg.startswith("A"):
             assert cen_xtilt[0] < cen_ref[0], "Expected A1:  +X rotation -> -Y pixels (DMS coords)"
             assert np.isclose(cen_xtilt[1], cen_ref[1], atol=1), "Expected A1:  +X rotation -> no change in X"
-        elif iseg.startswith("A"):
-            assert cen_xtilt[0] > cen_ref[0], "Expected B1: +X rotation -> +Y pixels(DMS coords)"
+        elif iseg.startswith("B"):
+            assert cen_xtilt[0] > cen_ref[0], "Expected B1: +X rotation -> +Y pixels (DMS coords)"
             assert np.isclose(cen_xtilt[1], cen_ref[1], atol=1), "Expected B1:  +X rotation -> no change in Y"
         elif iseg.startswith("C"):
             assert cen_xtilt[0] > cen_ref[0], "Expected C1: +X rotation -> +X/+Y pixels"
@@ -423,9 +426,9 @@ def test_segment_tilt_signs(fov_pix = 50, plot=False):
         if iseg.startswith("A"):
             assert cen_ytilt[1] < cen_ref[1], "Expected A1:  +Y rotation -> -X pixels (DMS coords)"
             assert np.isclose(cen_ytilt[0], cen_ref[0], atol=1), "Expected A1:  +Y rotation -> no change in Y"
-        elif iseg.startswith("A"):
-            assert cenyxtilt[0] > cen_ref[0], "Expected B1: +Y rotation -> +X pixels(DMS coords)"
-            assert np.isclose(cen_xtilt[0], cen_ref[0], atol=1), "Expected B1:  +Y rotation -> no change in Y"
+        elif iseg.startswith("B"):
+            assert cen_ytilt[0] > cen_ref[0], "Expected B1: +Y rotation -> +X pixels(DMS coords)"
+            assert np.isclose(cen_ytilt[0], cen_ref[0], atol=1), "Expected B1:  +Y rotation -> no change in Y"
         elif iseg.startswith("C"):
             assert cen_ytilt[0] < cen_ref[0], "Expected C1: +Y rotation -> -Y/+X pixels"
             assert cen_ytilt[1] > cen_ref[1], "Expected C1: +Y rotation -> -Y/+X pixels"
@@ -438,3 +441,41 @@ def test_segment_tilt_signs(fov_pix = 50, plot=False):
             axs[i, 4].set_title(iseg+": ytilt {} um".format(tilt))
             axs[i, 4].axhline(y=fov_pix/2)
             axs[i, 4].axvline(x=fov_pix/2)
+
+def test_segment_tilt_signs_2048npix():
+    """ Re-run same test as above, but with a different value for npix
+
+    This verifies the LOM works as expected for a size other than 1024 pixels
+    """
+    test_segment_tilt_signs(npix=2048)
+
+def test_changing_npix():
+    '''
+    Test that using different npix will result in same PSF
+    '''
+    # Create a NIRCam instance using the default npix=1024
+    nircam_1024 = webbpsf.NIRCam()
+    nircam_1024.pupilopd = None # Set to none so I don't have to worry about making new OPDs
+    psf_1024 = nircam_1024.calc_psf(oversample=2)
+
+    # Create a NIRCam instance using npix=2048
+    npix = 2048
+    nircam_2048 = webbpsf.NIRCam()
+    nircam_2048.pupil = os.path.join(webbpsf.utils.get_webbpsf_data_path(),
+                                     f'jwst_pupil_RevW_npix{npix}.fits.gz')
+    nircam_2048.pupilopd = None # Set to none so I don't have to worry about making new OPDs
+    psf_2048 = nircam_2048.calc_psf(oversample=2)
+
+    # Let's check individual pixel values, at least where the PSF is not too dim.
+    # Check all pixels which have > 1e-6 of the total flux (we can safely ignore pixels with very low intensity)
+    mask = psf_1024[0].data>1e-6
+    assert np.allclose(psf_1024[0].data[mask], psf_2048[0].data[mask], rtol=0.01), 'Pixel values differ by more than 1%'
+
+    # Let's check that the total flux in the PSF does not change much.
+    #  (A small amount is acceptable and not surprising, since higher resolution improves the fidelity at which
+    #   we model light that is scattered by segment edges to very wide angles outside of the simulated PSF FOV)
+    assert np.isclose(psf_1024[0].data.sum(), psf_2048[0].data.sum(), rtol=0.005), "PSF total flux should not change much"
+
+    # Let's also check a derived property of the whole PSF: the FWHM.
+    # The FWHM should be very close to identical for the two PSFs.
+    assert np.isclose(webbpsf.measure_fwhm(psf_1024), webbpsf.measure_fwhm(psf_2048), rtol=0.0001), "PSF FWHM should not vary for different npix"
