@@ -396,8 +396,8 @@ def test_segment_tilt_signs(fov_pix = 50, plot=False, npix=1024):
         if iseg.startswith("A"):
             assert cen_xtilt[0] < cen_ref[0], "Expected A1:  +X rotation -> -Y pixels (DMS coords)"
             assert np.isclose(cen_xtilt[1], cen_ref[1], atol=1), "Expected A1:  +X rotation -> no change in X"
-        elif iseg.startswith("A"):
-            assert cen_xtilt[0] > cen_ref[0], "Expected B1: +X rotation -> +Y pixels(DMS coords)"
+        elif iseg.startswith("B"):
+            assert cen_xtilt[0] > cen_ref[0], "Expected B1: +X rotation -> +Y pixels (DMS coords)"
             assert np.isclose(cen_xtilt[1], cen_ref[1], atol=1), "Expected B1:  +X rotation -> no change in Y"
         elif iseg.startswith("C"):
             assert cen_xtilt[0] > cen_ref[0], "Expected C1: +X rotation -> +X/+Y pixels"
@@ -426,9 +426,9 @@ def test_segment_tilt_signs(fov_pix = 50, plot=False, npix=1024):
         if iseg.startswith("A"):
             assert cen_ytilt[1] < cen_ref[1], "Expected A1:  +Y rotation -> -X pixels (DMS coords)"
             assert np.isclose(cen_ytilt[0], cen_ref[0], atol=1), "Expected A1:  +Y rotation -> no change in Y"
-        elif iseg.startswith("A"):
-            assert cenyxtilt[0] > cen_ref[0], "Expected B1: +Y rotation -> +X pixels(DMS coords)"
-            assert np.isclose(cen_xtilt[0], cen_ref[0], atol=1), "Expected B1:  +Y rotation -> no change in Y"
+        elif iseg.startswith("B"):
+            assert cen_ytilt[0] > cen_ref[0], "Expected B1: +Y rotation -> +X pixels(DMS coords)"
+            assert np.isclose(cen_ytilt[0], cen_ref[0], atol=1), "Expected B1:  +Y rotation -> no change in Y"
         elif iseg.startswith("C"):
             assert cen_ytilt[0] < cen_ref[0], "Expected C1: +Y rotation -> -Y/+X pixels"
             assert cen_ytilt[1] > cen_ref[1], "Expected C1: +Y rotation -> -Y/+X pixels"
