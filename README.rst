@@ -37,4 +37,4 @@ Documentation can be found online at https://webbpsf.readthedocs.io
 WebbPSF requires input data for its simulations, including optical path
 difference (OPD) maps, filter transmission curves, and coronagraph Lyot mask
 shapes. These data files are not included in this source distribution.
-Please see the documentation to download the required data files.
+Please see the documentation to download the required data files. 
