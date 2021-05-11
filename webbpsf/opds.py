@@ -1739,10 +1739,8 @@ class OTE_Linear_Model_WSS(OPD):
         zernike_coeffs[0:3] = 0  # ignore piston/tip/tilt
 
         # Apply perturbation to OPD according to Zernike coefficients calculated above.
-        if not self.opd.shape == (1024, 1024):
-            raise NotImplementedError("Code need to be generalized for OPD sizes other than 1024**2")
         perturbation = poppy.zernike.opd_from_zernikes(zernike_coeffs * opd_to_meters,
-                                                       npix=1024,
+                                                       npix=self.npix,
                                                        basis=poppy.zernike.zernike_basis_faster,
                                                        outside=0)
         return perturbation
