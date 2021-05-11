@@ -123,20 +123,35 @@ class OPD(poppy.FITSOpticalElement):
 
         if opd is None and transmission is None:
             _log.debug('Neither a pupil mask nor OPD were specified. Using the default JWST pupil.')
-            transmission = os.path.join(utils.get_webbpsf_data_path(), "jwst_pupil_RevW_npix1024.fits.gz")
+            transmission = os.path.join(utils.get_webbpsf_data_path(), f"jwst_pupil_RevW_npix{self.npix}.fits.gz")
 
         super(OPD, self).__init__(name=name,
                                   opd=opd, transmission=transmission,
                                   opd_index=opd_index, transmission_index=0,
                                   planetype=poppy.poppy_core.PlaneType.pupil, **kwargs)
 
+        # Check that the shape of the OPD that has been passed, matches the npix parameters
+        if self.opd is not None:
+            if not self.opd.shape == (self.npix, self.npix):
+                raise ValueError(f"npix value of {self.npix} does not match shape of OPD provided: {self.opd.shape}")
+
         if self.opd_header is None:
             self.opd_header = self.amplitude_header.copy()
 
         self.segnames = np.asarray([a[0:2] for a in constants.SEGNAMES_WSS_ORDER])
 
+        if segment_mask_file is None:
+            segment_mask_file = f'JWpupil_segments_RevW_npix{self.npix}.fits.gz'
+
         full_seg_mask_file = os.path.join(utils.get_webbpsf_data_path(), segment_mask_file)
+        if not os.path.exists(full_seg_mask_file):
+            # try without .gz
+            full_seg_mask_file = os.path.join(utils.get_webbpsf_data_path(), f"JWpupil_segments_RevW_npix{npix}.fits")
+
         self._segment_masks = fits.getdata(full_seg_mask_file)
+        if not self._segment_masks.shape[0] == self.npix:
+            raise ValueError(f"The shape of the segment mask file {self._segment_masks.shape} does not match the shape expect: ({self.npix}, {self.npix})")
+
         self._segment_masks_version = fits.getheader(full_seg_mask_file)['VERSION']
 
         # Where are the centers of each segment?  From OTE design geometry
@@ -1128,14 +1143,16 @@ class OTE_Linear_Model_WSS(OPD):
             Tuple giving V2,v3 coordinates as quantities, typically in arcminutes, or None to default to
             the master chief ray location between the two NIRCam modules.
         control_point_fieldpoint: str
-            Name of the field point where the OTE control point is located, on instrument defined by "control_point_instr". 
+            Name of the field point where the OTE control point is located, on instrument defined by "control_point_instr".
             Default: 'nrca3_full'.
             The OTE control point is the field point to which the OTE has been aligned and defines the field angles
             for the field-dependent SM pose aberrations.
+        npix : int
+            Size of OPD: npix x npix
 
         """
 
-        OPD.__init__(self, name=name, opd=opd, opd_index=opd_index, transmission=transmission, segment_mask_file=segment_mask_file)
+        OPD.__init__(self, name=name, opd=opd, opd_index=opd_index, transmission=transmission, segment_mask_file=segment_mask_file, npix=npix)
         self.v2v3 = v2v3
 
         # load influence function table:
@@ -1385,10 +1402,8 @@ class OTE_Linear_Model_WSS(OPD):
 
         """
 
-        if not self.opd.shape == (1024, 1024):
-            raise NotImplementedError("Code need to be generalized for OPD sizes other than 1024**2")
         perturbation = poppy.zernike.opd_from_zernikes(self._global_zernike_coeffs,
-                                                       npix=1024,
+                                                       npix=self.npix,
                                                        basis=poppy.zernike.zernike_basis_faster,
                                                        outside=0)
         # Add perturbation to the opd
@@ -1411,9 +1426,7 @@ class OTE_Linear_Model_WSS(OPD):
             return basis
         # Define aperture as the full OTE
         aperture = self._segment_masks != 0
-        # Get size of mask (1024)
-        npix = np.shape(aperture)[0]
-        basis = poppy.zernike.hexike_basis_wss(nterms=self._number_global_zernikes, npix=npix, aperture=aperture > 0.)
+        basis = poppy.zernike.hexike_basis_wss(nterms=self._number_global_zernikes, npix=self.npix, aperture=aperture > 0.)
         # Use the Hexike basis to reconstruct the global terms
         perturbation = poppy.zernike.opd_from_zernikes(coefficients,
                                                        basis=_get_basis,
@@ -1482,13 +1495,13 @@ class OTE_Linear_Model_WSS(OPD):
                      self.segment_state[-1, 0],    # X-TILT
                      self.segment_state[-1, 1],    # Y-TILT
                      self.segment_state[-1, 4]]    # PISTON
-        
-        # GET SM INFLUENCE MATRIX:   
+
+        # GET SM INFLUENCE MATRIX:
         # HEXIKE PROJECTED ONTO ENTRANCE PUPIL (WHAT WEBBPSF NEEDS):
         smif = astropy.table.Table.read(os.path.join(__location__, 'otelm', "SMIF_hexike.csv"), header_start=5)
-     
+
         alphas = smif[smif['Type'] == 'alpha']
-        betas  = smif[smif['Type'] == 'beta']  
+        betas  = smif[smif['Type'] == 'beta']
 
         # NOW, WE SUM UP THE ALPHAS AND BETAS FOR EACH HEXIKE,
         # AS DESCRIBED IN THE DOC STRING ABOVE.
@@ -1517,7 +1530,7 @@ class OTE_Linear_Model_WSS(OPD):
         # NEGATIVE SIGN IN THE ABOVE B/C TELFER'S FIELD ANGLE COORD. SYSTEM IS (X,Y) = (-V2,V3)
         dy = (v2v3[1] - self.ote_control_point[1]).to(u.rad).value
         z_coeffs = self._get_hexike_coeffs_from_smif(dx, dy)
-        perturbation = poppy.zernike.opd_from_zernikes(z_coeffs, npix=1024,
+        perturbation = poppy.zernike.opd_from_zernikes(z_coeffs, npix=self.npix,
                                                        basis=poppy.zernike.hexike_basis_wss, aperture=self.amplitude,
                                                        outside=0)
         if Version(poppy.__version__) < Version('1.0'):
@@ -1533,6 +1546,7 @@ class OTE_Linear_Model_WSS(OPD):
         self.opd_header['HISTORY'] = ('Delta x/y: {} {} (radians))'.format(dx, dy))
 
         return perturbation * (1e-6 * wfe_sign)
+
 
     def _get_field_dependence_nominal_ote(self, v2v3, reference='global',
                                           zern_num=None, legendre_num=None):
@@ -2678,98 +2692,6 @@ def random_unstack(ote, radius=1, verbose=False):
 
     ote.update_opd(verbose=verbose)
 
-
-# --------------------------------------------------------------------------------
-
-def segment_primary(infile='JWpupil.fits'):
-    """ Given a FITS file containing the JWST aperture, create an array
-    with the PMSAs numbered from 1 - 18.
-
-    This is used to create the 'JWpupil_segments.fits' file used by the OPDbender code.
-    You should not need to run this routine unless you want to change the model of the
-    JWST pupil.
-
-    The basic algorithm is general, but right now this routine contains
-    a bunch of hard-coded values tuned for the 1024x1024 Rev V pupil,
-    so probably you will need to edit it for any other pupil.
-
-    M. P. 2011-02-15
-
-
-    """
-
-    def renumber_array(array):
-        uniq, inds = np.unique1d(array, return_inverse=True)
-        # res = np.zeros_like(res2.shape)
-        newuniq = range(len(uniq))
-        res = np.array([newuniq[i] for i in inds]).astype(np.int16)
-        res.shape = array.shape
-        return res
-
-    im = fits.getdata(infile)
-    markers = np.zeros_like(im).astype(np.int16)
-    xm, ym = np.ogrid[0:1024:102, 0:1024:100]
-    markers[xm, ym] = np.arange(xm.size * ym.size).reshape((xm.size, ym.size))
-    res2 = scipy.ndimage.watershed_ift(im.astype(np.uint8), markers)
-    res2[xm, ym] = res2[xm - 1, ym - 1]  # remove the isolate seeds
-
-    res = renumber_array(res2)
-
-    # split and merge segments as needed - hard coded for Rev V pupil
-
-    res3 = res.copy()  # np.zeros_like(res2.shape)
-    merge_inds = [[0, 3], [2, 4], [11, 15], [18, 19]]
-    for pair in merge_inds:
-        res3[np.where(res == pair[1])] = pair[0]
-
-    Y, X = np.indices(res.shape)
-    w10h = np.where((res == 10) & (Y >= 512))
-    res3[w10h] = 31
-    w10h = np.where((res == 12) & (Y >= 512))
-    res3[w10h] = 32
-
-    res3 = renumber_array(res3)
-
-    plt.clf()
-    # plt.subplot(121)
-    # plt.imshow(res)
-    plt.subplot(121)
-    plt.imshow(res3)
-
-    for i in range(19):
-        w = np.where(res3 == i)
-        mx = X[w].mean()
-        my = Y[w].mean()
-        plt.text(mx, my, str(i), color='k')
-
-    segs = ['A' + str(i + 1) for i in range(6)]
-    for i in range(6):
-        segs.append('B' + str(i + 1))
-    for i in range(6):
-        segs.append('C' + str(i + 1))
-    seg_inds = [9, 18, 10, 4, 8, 17, 15, 14, 5, 1, 3, 11, 13, 7, 2, 0, 6, 12]
-
-    result = np.zeros_like(res3)
-    mxs = []
-    mys = []
-    for i in range(18):
-        w = np.where(res3 == seg_inds[i])
-        result[w] = i + 1
-        mxs.append(X[w].mean())
-        mys.append(Y[w].mean())
-
-    plt.subplot(122)
-    plt.imshow(result)
-    for i in range(18):
-        plt.text(mxs[i], mys[i], segs[i], color='k', horizontalalignment='center', verticalalignment='center')
-
-    hdu = fits.PrimaryHDU((result * im).astype(np.uint8))
-    for i in range(18):
-        hdu.header.update('PMSA_' + str(i + 1), segs[i])
-
-    # TODO copy relevant keywords and history from input FITS file header
-    hdu.writeto("JWpupil_segments.fits", overwrite=True)
-
 # --------------------------------------------------------------------------------
 
 def test_OPDbender():
@@ -3005,9 +2927,6 @@ class JWST_WAS_PTT_Basis(object):
             be 0.0 sometimes.
 
         """
-        if npix != 1024:
-            raise ValueError("Only npix=1024 supported for now")
-
         if nterms is None:
             nterms = 3*self.nsegments
         elif nterms > 3*self.nsegments:
@@ -3088,9 +3007,6 @@ class JWST_WAS_Full_Basis(object):
             be 0.0 sometimes.
 
         """
-        if npix != 1024:
-            raise ValueError("Only npix=1024 supported for now")
-
         ndof = 6
 
         if nterms is None:

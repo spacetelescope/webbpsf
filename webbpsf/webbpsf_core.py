@@ -877,33 +877,25 @@ class JWInstrument(SpaceTelescopeInstrument):
                         self._WebbPSF_basepath,
                         self.pupil
                     )
+                # Get npix from pupil_transmission
+                npix = int(pupil_transmission.split('npix')[-1].split('.')[0])
             elif isinstance(self.pupil, fits.HDUList):
                 # POPPY can use self.pupil as-is
                 pupil_transmission = self.pupil
+                # Get npix from the shape of the data
+                npix = self.pupil[0].data.shape[0]
             else:
                 raise TypeError("Not sure what to do with a pupil of "
                                 "that type: {}".format(type(self.pupil)))
+
             # ---- apply pupil intensity and OPD to the optical model
+            pupil_optic = opds.OTE_Linear_Model_WSS(
+                name='{} Entrance Pupil'.format(self.telescope),
+                transmission=pupil_transmission,
+                opd=opd_map,
+                v2v3=self._tel_coords(), npix=npix
+            )
 
-            # TODO - more flexibly be smart about if the pupil size works for the LOM or not...
-
-            if 'npix1024' in pupil_transmission:
-                # The linear model is limited to require 1024 pixels right now, so in this case (the default)
-                # we can use that:
-                pupil_optic = opds.OTE_Linear_Model_WSS(
-                    name='{} Entrance Pupil'.format(self.telescope),
-                    transmission=pupil_transmission,
-                    opd=opd_map,
-                    v2v3=self._tel_coords()
-                )
-            else:
-                _log.warning("Nonstandard resolution pupil, so linear model for OTE mirror moves is not supported")
-                pupil_optic = poppy.FITSOpticalElement(
-                    name='{} Entrance Pupil'.format(self.telescope),
-                    transmission=pupil_transmission,
-                    opd=opd_map,
-                    planetype=poppy.poppy_core.PlaneType.pupil
-                )
         return pupil_optic
 
 
