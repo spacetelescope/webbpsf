@@ -1415,7 +1415,9 @@ class OTE_Linear_Model_WSS(OPD):
         Parameters
         ----------
         coefficients : ndarray. By default this applies the self._global_hexike_coeffs values, but
-            you can overtide that by optionally providing different coefficients to this function
+            you can override that by optionally providing different coefficients to this function.
+            In particular this is used for adding the thermal slew global terms onto any other
+            global hexikes already present. See update_opd()
         """
 
         if coefficients is None:
@@ -1436,6 +1438,7 @@ class OTE_Linear_Model_WSS(OPD):
         # Add perturbation to the opd
         self.opd += perturbation
 
+    #---- OTE field dependence is implemented across the next several functions ----
     def _apply_field_dependence_model(self, reference='global'):
         """Apply field dependence model for OTE wavefront error spatial variation.
 
@@ -1466,7 +1469,8 @@ class OTE_Linear_Model_WSS(OPD):
 
     def _get_hexike_coeffs_from_smif(self, dx=0., dy=0.):
         '''     
-        Apply Secondary Mirror field dependence based on SM pose and field angle.
+        Apply Secondary Mirror field dependence based on SM pose and field angle,
+        using coefficients from the Secondary Mirror Influence Functions
 
         NOTES:
         Wavefront Phi(x,y) = Sum[ m_j * Sum[ (alpha_jk*dx + beta_jk*dy)*Z_k ] ]
@@ -2219,7 +2223,7 @@ class OTE_Linear_Model_WSS(OPD):
                     raise NotImplementedError("Only moves of type='pose' or 'roc' are supported.")
         self.update_opd()
 
-
+    #---- OPD perturbations from drifts are implemented in the next several functions ----
     def thermal_slew(self, delta_time, start_angle=-5,end_angle=45,
                      scaling=None, display=False, case='EOL', delay_update=False):
         """ Update the OPD based on presence of a pitch angle change between
