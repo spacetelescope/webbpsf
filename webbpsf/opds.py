@@ -1563,9 +1563,6 @@ class OTE_Linear_Model_WSS(OPD):
         accuracy isn't needed.
         """
 
-        ## FIXME DEBUG TEST
-        return 0
-
         if v2v3 is None:
             return 0
 
@@ -1614,6 +1611,9 @@ class OTE_Linear_Model_WSS(OPD):
                 return 0
         else:
             hdu = self._field_dep_hdu
+
+        ## FIXME DEBUG TEST
+        return 0
 
         # Pull useful parameters from header
         hdr = hdu[0].header
