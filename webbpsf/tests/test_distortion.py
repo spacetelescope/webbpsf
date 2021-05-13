@@ -23,6 +23,8 @@ def test_apply_distortion_skew():
     fgs.options["output_mode"] = "Oversampled image"
     psf = fgs.calc_psf(add_distortion=False)
 
+    raise ValueError()
+
     # Set up new extensions (from webbpsf_core.JWInstrument._calc_psf_format_output)
     n_exts = len(psf)
     for ext in np.arange(n_exts):
