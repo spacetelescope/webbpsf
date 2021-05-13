@@ -1689,9 +1689,8 @@ class OTE_Linear_Model_WSS(OPD):
                 # warn the user we're making an adjustment here (but no need to do so if the distance is trivially small)
                 warnings.warn(f'For (V2,V3) = {v2v3}, Field point {x_field_pt}, {y_field_pt} not within valid region for field dependence model: {min_x_field}-{max_x_field}, {min_y_field}-{max_y_field}. Clipping to closest available valid location, {clip_dist} away from the requested coordinates.')
 
-
         # DEBUG TEMP
-        return 0
+        # CI tests run to completion if return 0 here
 
         # Check the OPD units in the input file
         if hdr['opdunit'] == 'nm':
@@ -1737,6 +1736,9 @@ class OTE_Linear_Model_WSS(OPD):
             map2 += list(range(0, index_i + 1))
         poly_vals = poly_val_2d[map1, map2]
         poly_vals = poly_vals[0:legendre_num]
+
+        # DEBUG TEMP
+        return 0
 
         # poly_vals now has the value of all of the Legendre polynomials at our field point of interest.  So now we
         # need to multiply each value there with the value of the Legendre coefficients in each column and sum.  That
