@@ -1593,24 +1593,40 @@ class OTE_Linear_Model_WSS(OPD):
 
         base_path = utils.get_webbpsf_data_path()
         field_dep_file = os.path.join(base_path, f'{instrument}/OPD/field_dep_table_{instrument.lower()}.fits')
-        # For efficiency, reload from disk. And, for back-compatibility, fail gracefully if file not found
-        if self._field_dep_file != field_dep_file:
-            self._field_dep_file = field_dep_file
-            _log.info(f'Loading field dependent model parameters from {self._field_dep_file}')
 
-            try:
+        if 0:
+            # For efficiency, reload from disk. And, for back-compatibility, fail gracefully if file not found
+            if self._field_dep_file != field_dep_file:
+                self._field_dep_file = field_dep_file
+                _log.info(f'Loading field dependent model parameters from {self._field_dep_file}')
 
-                #first if we already have a different data file loaded, close it (avoid memory leak)
-                if self._field_dep_hdu is not None:
-                    self._field_dep_hdu.close()
-                # Read in data file.
-                hdu = fits.open(self._field_dep_file)
-                self._field_dep_hdu = hdu
-            except FileNotFoundError:
-                warnings.warn(f"Could not load {self._field_dep_file}; OTE field dependence model disabled")
-                return 0
+                try:
+
+                    #first if we already have a different data file loaded, close it (avoid memory leak)
+                    if self._field_dep_hdu is not None:
+                        self._field_dep_hdu.close()
+                    # Read in data file.
+                    hdu = fits.open(self._field_dep_file)
+                    self._field_dep_hdu = hdu
+                except FileNotFoundError:
+                    warnings.warn(f"Could not load {self._field_dep_file}; OTE field dependence model disabled")
+                    return 0
+            else:
+                hdu = self._field_dep_hdu
         else:
-            hdu = self._field_dep_hdu
+
+            # Inefficient version using fits.getdata to avoid leaking open file handles???
+            hdr = fits.getdata(field_dep_file)
+
+            # Read in the data table with the coefficients for our model  hdu[1] ==> local reference point hdu[2] ==>
+            # global reference point
+            if reference == 'global':
+                ext = 2
+            elif reference == 'local':
+                ext = 1
+            else:
+                raise ValueError('Invalid wavefront reference')
+            data = fits.getdata(field_dep_file, ext=ext)
 
         ## FIXME DEBUG TEST
         return 0
@@ -1697,14 +1713,6 @@ class OTE_Linear_Model_WSS(OPD):
         else:
             ValueError('OPD unit specified in file is not supported')
 
-        # Read in the data table with the coefficients for our model  hdu[1] ==> local reference point hdu[2] ==>
-        # global reference point
-        if reference == 'global':
-            data = hdu[2].data
-        elif reference == 'local':
-            data = hdu[1].data
-        else:
-            raise ValueError('Invalid wavefront reference')
 
         # Get value of Legendre Polynomials at desired field point.  Need to implement model in G. Brady's prototype
         # polynomial basis code, independent of that code for now.  Perhaps at some point in the future this model
