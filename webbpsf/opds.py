@@ -1737,8 +1737,7 @@ class OTE_Linear_Model_WSS(OPD):
         poly_vals = poly_val_2d[map1, map2]
         poly_vals = poly_vals[0:legendre_num]
 
-        # DEBUG TEMP
-        return 0
+        # CI tests run to completion if return 0 here
 
         # poly_vals now has the value of all of the Legendre polynomials at our field point of interest.  So now we
         # need to multiply each value there with the value of the Legendre coefficients in each column and sum.  That
@@ -1750,6 +1749,9 @@ class OTE_Linear_Model_WSS(OPD):
             zernike_coeffs[z_index] = np.einsum('i, i->', cur_legendre[0:legendre_num], poly_vals)
 
         zernike_coeffs[0:3] = 0  # ignore piston/tip/tilt
+
+        # DEBUG TEMP
+        return 0
 
         # Apply perturbation to OPD according to Zernike coefficients calculated above.
         perturbation = poppy.zernike.opd_from_zernikes(zernike_coeffs * opd_to_meters,
