@@ -230,7 +230,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
     @image_mask.setter
     def image_mask(self, name):
-        if name is "": name = None
+        if name == "": name = None
         if name is not None:
             if name in self.image_mask_list:
                 pass  # there's a perfect match, this is fine.
@@ -249,7 +249,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
     @pupil_mask.setter
     def pupil_mask(self, name):
-        if name is "":
+        if name == "":
             name = None
         if name is not None:
             if name in self.pupil_mask_list:
@@ -1840,7 +1840,7 @@ class NIRCam(JWInstrument):
     # Need to redefine image_mask.setter because _image_mask_apertures has limited aperture definitions
     @JWInstrument.image_mask.setter
     def image_mask(self, name):
-        if name is "": name = None
+        if name == "": name = None
         if name is not None:
             if name in self.image_mask_list:
                 pass  # there's a perfect match, this is fine.
