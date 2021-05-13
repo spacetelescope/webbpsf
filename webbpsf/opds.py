@@ -1192,7 +1192,8 @@ class OTE_Linear_Model_WSS(OPD):
         # Field dependence model data
         self._include_nominal_field_dep = True
         self._field_dep_file = None
-        self._field_dep_hdu = None
+        self._field_dep_hdr = None
+        self._field_dep_data = None
 
         # Thermal OPD parameters
         self.delta_time = 0.0
@@ -1594,45 +1595,33 @@ class OTE_Linear_Model_WSS(OPD):
         base_path = utils.get_webbpsf_data_path()
         field_dep_file = os.path.join(base_path, f'{instrument}/OPD/field_dep_table_{instrument.lower()}.fits')
 
-        if 0:
-            # For efficiency, reload from disk. And, for back-compatibility, fail gracefully if file not found
-            if self._field_dep_file != field_dep_file:
-                self._field_dep_file = field_dep_file
-                _log.info(f'Loading field dependent model parameters from {self._field_dep_file}')
+        # For efficiency, load from disk only if needed. And, for back-compatibility, fail gracefully if file not found
+        if self._field_dep_file != field_dep_file:
+            self._field_dep_file = field_dep_file
+            _log.info(f'Loading field dependent model parameters from {self._field_dep_file}')
 
-                try:
+            try:
+                self._field_dep_hdr = fits.getheader(field_dep_file)
+                # Read in the data table with the coefficients for our model
+                #   hdu[1] ==> local reference point
+                #   hdu[2] ==> # global reference point
+                if reference == 'global':
+                    ext = 2
+                elif reference == 'local':
+                    ext = 1
+                    # we don't need both options for this. Simpler to only support one (even though the data files have two)
+                    raise ValueError("Local field dependent OTE coordinates discouraged; use global")
+                else:
+                    raise ValueError('Invalid wavefront reference')
+                self._field_dep_data = fits.getdata(field_dep_file, ext=ext)
 
-                    #first if we already have a different data file loaded, close it (avoid memory leak)
-                    if self._field_dep_hdu is not None:
-                        self._field_dep_hdu.close()
-                    # Read in data file.
-                    hdu = fits.open(self._field_dep_file)
-                    self._field_dep_hdu = hdu
-                except FileNotFoundError:
-                    warnings.warn(f"Could not load {self._field_dep_file}; OTE field dependence model disabled")
-                    return 0
-            else:
-                hdu = self._field_dep_hdu
-        else:
+            except FileNotFoundError:
+                warnings.warn(f"Could not load {self._field_dep_file}; OTE field dependence model disabled")
+                return 0
 
-            # Inefficient version using fits.getdata to avoid leaking open file handles???
-            hdr = fits.getdata(field_dep_file)
-
-            # Read in the data table with the coefficients for our model  hdu[1] ==> local reference point hdu[2] ==>
-            # global reference point
-            if reference == 'global':
-                ext = 2
-            elif reference == 'local':
-                ext = 1
-            else:
-                raise ValueError('Invalid wavefront reference')
-            data = fits.getdata(field_dep_file, ext=ext)
-
-        ## FIXME DEBUG TEST
-        return 0
 
         # Pull useful parameters from header
-        hdr = hdu[0].header
+        hdr = self._field_dep_hdr
 
         # Extent of box in field over which the data is defined
         min_x_field = hdr['MINXFIE'] * u.arcmin
@@ -1752,7 +1741,7 @@ class OTE_Linear_Model_WSS(OPD):
 
         zernike_coeffs = np.zeros(zern_num)
         for z_index in range(0, zern_num):
-            cur_legendre = data.field(z_index)
+            cur_legendre = self._field_dep_data.field(z_index)
             zernike_coeffs[z_index] = np.einsum('i, i->', cur_legendre[0:legendre_num], poly_vals)
 
         zernike_coeffs[0:3] = 0  # ignore piston/tip/tilt
