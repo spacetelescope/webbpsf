@@ -1599,6 +1599,10 @@ class OTE_Linear_Model_WSS(OPD):
             _log.info(f'Loading field dependent model parameters from {self._field_dep_file}')
 
             try:
+
+                #first if we already have a different data file loaded, close it (avoid memory leak)
+                if self._field_dep_hdu is not None:
+                    self._field_dep_hdu.close()
                 # Read in data file.
                 hdu = fits.open(self._field_dep_file)
                 self._field_dep_hdu = hdu
