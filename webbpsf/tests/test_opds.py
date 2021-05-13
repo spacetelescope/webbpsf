@@ -295,6 +295,7 @@ def test_single_seg_psf(segmentid=1):
     assert np.abs(webbpsf.measure_centroid(psf)[0] - webbpsf.measure_centroid(psf_rm_ptt)[0]) > 40, "centroid should shift susbtantially with/without tip/tilt removal"
 
 
+@pytest.mark.xfail
 def test_apply_field_dependence_model():
     ''' Test to make sure the field dependence model is giving sensible output'''
 
@@ -365,8 +366,6 @@ def test_get_zernike_coeffs_from_smif():
     dy = (otelm.v2v3[1] - otelm.ote_ctrl_pt[1]).to(u.rad).value
 
     assert (np.allclose(otelm._get_hexike_coeffs_from_smif(dx, dy)[3:], hexikes, rtol=1e-3))
-
-
 
 def test_segment_tilt_signs(fov_pix=50, plot=False, npix=1024):
     """Test that segments move in the direction expected when tilted.
