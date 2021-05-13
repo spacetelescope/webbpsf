@@ -193,7 +193,7 @@ def test_saving(tmpdir):
     fgs = webbpsf_core.FGS()
     fgs.filter = "FGS"
     fgs.detector = "FGS2"
-    grid = fgs.psf_grid(all_detectors=False, num_psfs=4, save=True, outdir=directory, outfile=file, overwrite=True)
+    grid = fgs.psf_grid(all_detectors=False, num_psfs=4, nlambda=1, save=True, outdir=directory, outfile=file, overwrite=True)
 
     # Check that the saved file matches the returned file (and thus that the save worked through properly)
     with fits.open(os.path.join(directory, file[:-5]+"_fgs2.fits")) as infile:

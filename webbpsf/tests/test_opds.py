@@ -456,7 +456,7 @@ def test_changing_npix():
     # Create a NIRCam instance using the default npix=1024
     nircam_1024 = webbpsf.NIRCam()
     nircam_1024.pupilopd = None # Set to none so I don't have to worry about making new OPDs
-    psf_1024 = nircam_1024.calc_psf(oversample=2)
+    psf_1024 = nircam_1024.calc_psf(oversample=2, nlambda=1, add_distortion=False)
 
     # Create a NIRCam instance using npix=2048
     npix = 2048
@@ -464,7 +464,7 @@ def test_changing_npix():
     nircam_2048.pupil = os.path.join(webbpsf.utils.get_webbpsf_data_path(),
                                      f'jwst_pupil_RevW_npix{npix}.fits.gz')
     nircam_2048.pupilopd = None # Set to none so I don't have to worry about making new OPDs
-    psf_2048 = nircam_2048.calc_psf(oversample=2)
+    psf_2048 = nircam_2048.calc_psf(oversample=2, nlambda=1, add_distortion=False)
 
     # Let's check individual pixel values, at least where the PSF is not too dim.
     # Check all pixels which have > 1e-6 of the total flux (we can safely ignore pixels with very low intensity)
