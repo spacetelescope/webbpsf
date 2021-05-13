@@ -1690,6 +1690,9 @@ class OTE_Linear_Model_WSS(OPD):
                 warnings.warn(f'For (V2,V3) = {v2v3}, Field point {x_field_pt}, {y_field_pt} not within valid region for field dependence model: {min_x_field}-{max_x_field}, {min_y_field}-{max_y_field}. Clipping to closest available valid location, {clip_dist} away from the requested coordinates.')
 
 
+        # DEBUG TEMP
+        return 0
+
         # Check the OPD units in the input file
         if hdr['opdunit'] == 'nm':
             opd_to_meters = 1e-9
