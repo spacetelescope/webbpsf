@@ -1563,6 +1563,9 @@ class OTE_Linear_Model_WSS(OPD):
         accuracy isn't needed.
         """
 
+        ## FIXME DEBUG TEST
+        return 0
+
         if v2v3 is None:
             return 0
 
