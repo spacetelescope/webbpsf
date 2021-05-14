@@ -1750,14 +1750,16 @@ class OTE_Linear_Model_WSS(OPD):
 
         zernike_coeffs[0:3] = 0  # ignore piston/tip/tilt
 
-        # DEBUG TEMP
-        return 0
+        # CI tests run to completion if return 0 here
 
         # Apply perturbation to OPD according to Zernike coefficients calculated above.
         perturbation = poppy.zernike.opd_from_zernikes(zernike_coeffs * opd_to_meters,
                                                        npix=self.npix,
                                                        basis=poppy.zernike.zernike_basis_faster,
                                                        outside=0)
+        # DEBUG TEMP
+        return 0
+
         return perturbation
         
 
