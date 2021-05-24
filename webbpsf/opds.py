@@ -1758,7 +1758,7 @@ class OTE_Linear_Model_WSS(OPD):
                                                        basis=poppy.zernike.zernike_basis_faster,
                                                        outside=0)
         # DEBUG TEMP
-        return 0
+        #return 0
 
         return perturbation
         
