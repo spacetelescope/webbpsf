@@ -183,6 +183,8 @@ def distort_image(hdulist_or_filename, ext=0, to_frame='sci', fill_value=0,
     # Create an array of (yidl, xidl) values to interpolate onto
     pts = np.array([ynew_idl.flatten(),xnew_idl.flatten()]).transpose()
     psf_new = func(pts).reshape(xnew.shape)
+
+    hdu_list.close()
     
     if return_coords:
         return (psf_new, xnew, ynew)
@@ -218,11 +220,12 @@ def apply_distortion(hdulist_or_filename=None, fill_value=0):
 
     # Create a copy of the PSF
     psf = copy.deepcopy(hdu_list)
+    hdu_list.close()
     ext = 1  # edit the oversampled PSF (OVERDIST extension)
 
     # Log instrument and detector names
-    instrument = hdu_list[0].header["INSTRUME"].upper()
-    aper_name = hdu_list[0].header["APERNAME"].upper()
+    instrument = psf[0].header["INSTRUME"].upper()
+    aper_name = psf[0].header["APERNAME"].upper()
 
     # Pull default values
     aper = _get_default_siaf(instrument, aper_name)
@@ -284,10 +287,11 @@ def apply_rotation(hdulist_or_filename=None, rotate_value=None, crop=True):
 
     # Create a copy of the PSF
     psf = copy.deepcopy(hdu_list)
+    hdu_list.close()
 
     # Log instrument and detector names
-    instrument = hdu_list[0].header["INSTRUME"].upper()
-    aper_name = hdu_list[0].header["APERNAME"].upper()
+    instrument = psf[0].header["INSTRUME"].upper()
+    aper_name = psf[0].header["APERNAME"].upper()
 
     if instrument in ["MIRI", "NIRSPEC"]:
         raise ValueError("{}'s rotation is already included in WebbPSF and "
@@ -428,10 +432,11 @@ def apply_miri_scattering(hdulist_or_filename=None, kernel_amp=None):
 
     # Create a copy of the PSF
     psf = copy.deepcopy(hdu_list)
+    hdu_list.close()
 
     # Log instrument name and filter
-    instrument = hdu_list[0].header["INSTRUME"].upper()
-    filt = hdu_list[0].header["FILTER"].upper()
+    instrument = psf[0].header["INSTRUME"].upper()
+    filt = psf[0].header["FILTER"].upper()
 
     if instrument != "MIRI":
         raise ValueError("MIRI's Scattering Effect should only be applied to MIRI PSFs")

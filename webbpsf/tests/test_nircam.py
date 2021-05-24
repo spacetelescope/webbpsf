@@ -1,3 +1,4 @@
+import copy
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -169,7 +170,9 @@ def do_test_nircam_blc(clobber=False, kind='circular', angle=0, save=False, disp
                 plt.savefig(fnout+".pdf")
                 psf.writeto(fnout, clobber=clobber)
         else:
-            psf = fits.open(fnout)
+            psf_from_file = fits.open(fnout)
+            psf = copy.deepcopy(psf_from_file)
+            psf_from_file.close()
         totflux = psf[0].data.sum()
 
         #print("Offset: {}    Expected Flux: {}  Calc Flux: {}".format(offset,exp_flux,totflux))

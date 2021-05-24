@@ -1155,6 +1155,7 @@ class JWInstrument(SpaceTelescopeInstrument):
         arrayOPD = wasopd[1].data
         dim = arrayOPD.shape[0]
         hdr = wasopd[0].header
+        wasopd.close()
         print("Converting {:s} from {:d}x{:d} to 1024x1024".format(inputWasOpd, dim, dim))
 
         hdr["BUNIT"] = 'micron'
@@ -2602,6 +2603,8 @@ def one_segment_pupil(segmentname, npix=1024):
         segmap = os.path.join(utils.get_webbpsf_data_path(), f"JWpupil_segments_RevW_npix{npix}.fits")
 
     newpupil = fits.open(segmap)
+    newpupil = copy.deepcopy(newpupil)
+    newpupil.close()
     if newpupil[0].header['VERSION'] < 2:
         raise RuntimeError(f"Expecting file version >= 2 for {segmap}")
 
