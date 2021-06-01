@@ -1689,9 +1689,6 @@ class OTE_Linear_Model_WSS(OPD):
                 # warn the user we're making an adjustment here (but no need to do so if the distance is trivially small)
                 warnings.warn(f'For (V2,V3) = {v2v3}, Field point {x_field_pt}, {y_field_pt} not within valid region for field dependence model: {min_x_field}-{max_x_field}, {min_y_field}-{max_y_field}. Clipping to closest available valid location, {clip_dist} away from the requested coordinates.')
 
-        # DEBUG TEMP
-        # CI tests run to completion if return 0 here
-
         # Check the OPD units in the input file
         if hdr['opdunit'] == 'nm':
             opd_to_meters = 1e-9
@@ -1737,8 +1734,6 @@ class OTE_Linear_Model_WSS(OPD):
         poly_vals = poly_val_2d[map1, map2]
         poly_vals = poly_vals[0:legendre_num]
 
-        # CI tests run to completion if return 0 here
-
         # poly_vals now has the value of all of the Legendre polynomials at our field point of interest.  So now we
         # need to multiply each value there with the value of the Legendre coefficients in each column and sum.  That
         # sum will be the value of a Zernike, so we loop to repeat that for each Zernike coefficient
@@ -1750,16 +1745,11 @@ class OTE_Linear_Model_WSS(OPD):
 
         zernike_coeffs[0:3] = 0  # ignore piston/tip/tilt
 
-        # CI tests run to completion if return 0 here
-        return 0
-
         # Apply perturbation to OPD according to Zernike coefficients calculated above.
         perturbation = poppy.zernike.opd_from_zernikes(zernike_coeffs * opd_to_meters,
                                                        npix=self.npix,
                                                        basis=poppy.zernike.zernike_basis_faster,
                                                        outside=0)
-
-        # Ci tests fail is return 0 is here
 
         return perturbation
         
