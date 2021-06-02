@@ -1853,7 +1853,7 @@ class NIRCam(JWInstrument):
             # only apply updates if the value is in fact new
 
             super(NIRCam, self.__class__).pupil_mask.__set__(self, name)
-            print(f"NIRCam pupil mask setter: aperturename {self._aperturename}")
+            _log.info(f"NIRCam pupil mask setter: aperturename {self._aperturename}")
 
             # infer a new aperture, since the coronagraph mask choice affects this
             self._update_aperturename()
