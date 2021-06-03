@@ -1339,8 +1339,9 @@ class MIRI(JWInstrument):
     def __init__(self):
         self.auto_pupil = True
         JWInstrument.__init__(self, "MIRI")
-        self.pixelscale = 0.1110  # Source: SIAF PRDDEVSOC-D-012, 2016 April
-        self._rotation = 4.4497  # Source: SIAF PRDOPSSOC-H-014
+        self.pixelscale = 0.1108  # MIRI average of X and Y pixel scales. Source: SIAF PRDOPSSOC-031, 2021 April
+        self._rotation = 4.834  # V3IdlYAngle, Source: SIAF PRDOPSSOC-031
+                                # This is rotation counterclockwise; when summed with V3PA it will yield the Y axis PA on sky
 
         self.options['pupil_shift_x'] = -0.0069 # CV3 on-orbit estimate (RPT028027) + OTIS delta from predicted (037134)
         self.options['pupil_shift_y'] = -0.0027
@@ -1609,8 +1610,8 @@ class NIRCam(JWInstrument):
     LONG_WAVELENGTH_MAX = 5.3 * 1e-6
 
     def __init__(self):
-        self._pixelscale_short = 0.0311  # for short-wavelen channels, SIAF PRDDEVSOC-D-012, 2016 April
-        self._pixelscale_long = 0.0630  # for long-wavelen channels,  SIAF PRDDEVSOC-D-012, 2016 April
+        self._pixelscale_short = 0.0311  # average over both X and Y for short-wavelen channels, SIAF PRDOPSSOC-031, 2021 April
+        self._pixelscale_long = 0.0630  # average over both X and Y for long-wavelen channels, SIAF PRDOPSSOC-031, 2021 April
         self.pixelscale = self._pixelscale_short
 
         self.options['pupil_shift_x'] = 0  # Set to 0 since NIRCam FAM corrects for PM shear in flight
@@ -2092,9 +2093,10 @@ class NIRSpec(JWInstrument):
 
     def __init__(self):
         JWInstrument.__init__(self, "NIRSpec")
-        self.pixelscale = 0.1043  # Average over both detectors.  SIAF PRDDEVSOC-D-012, 2016 April
+        self.pixelscale = 0.1043  # Average over both detectors.  SIAF PRDOPSSOC-031, 2021 April
         # Microshutters are 0.2x0.46 but we ignore that here.
-        self._rotation = 138.4  # Average for both detectors in SIAF PRDOPSSOC-H-014
+        self._rotation = 138.4  # Average for both detectors in SIAF PRDOPSSOC-031
+                                # This is rotation counterclockwise; when summed with V3PA it will yield the Y axis PA on sky
         self.filter_list.append("IFU")
         self._IFU_pixelscale = 0.1043  # same.
         self.monochromatic = 3.0
@@ -2226,7 +2228,7 @@ class NIRISS(JWInstrument):
     def __init__(self, auto_pupil=True):
         self.auto_pupil = auto_pupil
         JWInstrument.__init__(self, "NIRISS")
-        self.pixelscale = 0.0656  # SIAF PRDDEVSOC-D-012, 2016 April
+        self.pixelscale = 0.0656  # Average of X and Y scales, SIAF PRDOPSSOC-031, 2021 April
 
         self.options['pupil_shift_x'] = 0.0243  # CV3 on-orbit estimate (RPT028027) + OTIS delta from predicted (037134)
         self.options['pupil_shift_y'] = -0.0141
@@ -2354,7 +2356,7 @@ class FGS(JWInstrument):
 
     def __init__(self):
         JWInstrument.__init__(self, "FGS")
-        self.pixelscale = 0.0691  # SIAF PRDDEVSOC-D-012, 2016 April
+        self.pixelscale = 0.0691  # Average of X and Y scales for both detectors, SIAF PRDOPSSOC-031, 2021 April
 
         self.options['pupil_shift_x'] = 0.0041  # CV3 on-orbit estimate (RPT028027) + OTIS delta from predicted (037134)
         self.options['pupil_shift_y'] = -0.0023
