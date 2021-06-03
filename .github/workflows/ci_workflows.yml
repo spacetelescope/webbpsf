@@ -48,6 +48,10 @@ jobs:
       with:
         fetch-depth: 0
 
+    - name: Fix Conda permissions on macOS
+      run: sudo chown -R $UID $CONDA
+      if: matrix.os == 'macos-latest'
+
     - name: Set up Python ${{ matrix.python }}
       uses: actions/setup-python@v2
       with:
