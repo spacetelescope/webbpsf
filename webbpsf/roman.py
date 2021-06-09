@@ -11,11 +11,15 @@ WARNING: This model has not yet been validated against other PSF
 import os.path
 import poppy
 import numpy as np
-from . import webbpsf_core
-from scipy.interpolate import griddata
+
+from scipy.interpolate import griddata, RegularGridInterpolator
 from astropy.io import fits
 import astropy.units as u
 import logging
+
+from . import webbpsf_core
+from .optics import _fix_zgrid_NaNs
+
 
 _log = logging.getLogger('webbpsf')
 import pprint
@@ -169,13 +173,32 @@ class FieldDependentAberration(poppy.ZernikeWFE):
                 field_position,
                 method='linear'
             )
+
             if np.any(np.isnan(coefficients)):
-                coefficients = griddata(
-                    np.asarray(field_points),
-                    np.asarray(aberration_terms),
-                    field_position,
-                    method='nearest'
-                )
+                # Create fine mesh grid
+                dstep = 1. / 2.  # 0.5 pixel steps
+
+                xgrid = np.arange(0, self.pixel_width + dstep, dstep)
+                ygrid = np.arange(0, self.pixel_height + dstep, dstep)
+                X, Y = np.meshgrid(xgrid, ygrid)
+
+                # Cubic interpolation of all points
+                # Will produce a number of NaN's that need to be extrapolated over
+                zgrid = griddata(np.asarray(field_points),
+                                 np.asarray(aberration_terms),
+                                 (X, Y), method='cubic')
+
+                # Fix the NaN's within zgrid array
+                # Perform specified rotation for certain SIs
+                # Trim rows/cols
+                zgrid = _fix_zgrid_NaNs(xgrid, ygrid, zgrid, rot_ang=0)
+
+                # Create final function for extrapolation
+                func = RegularGridInterpolator((ygrid, xgrid), zgrid, method='linear',
+                                               bounds_error=False, fill_value=None)
+
+                # Extrapolate at requested field_position coordinates
+                coefficients = func(field_position).tolist()
 
                 assert not np.any(np.isnan(coefficients)), "Could not compute aberration " \
                                                            "at field point {}".format(field_position)
