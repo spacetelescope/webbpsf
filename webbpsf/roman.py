@@ -164,48 +164,46 @@ class FieldDependentAberration(poppy.ZernikeWFE):
             assert len(aberration_array.shape) == 2, "computed aberration array is not 2D " \
                                                      "(inconsistent number of Zernike terms " \
                                                      "at each point?)"
-
             field_position = tuple(self.field_position)
-
             coefficients = griddata(
                 np.asarray(field_points),
                 np.asarray(aberration_terms),
                 field_position,
                 method='linear'
             )
-
             if np.any(np.isnan(coefficients)):
-                # Create fine mesh grid
-                dstep = 1. / 2.  # 0.5 pixel steps
-
-                xgrid = np.arange(0, self.pixel_width + dstep, dstep)
-                ygrid = np.arange(0, self.pixel_height + dstep, dstep)
-                X, Y = np.meshgrid(xgrid, ygrid)
-
-                # Cubic interpolation of all points
-                # Will produce a number of NaN's that need to be extrapolated over
-                zgrid = griddata(np.asarray(field_points),
-                                 np.asarray(aberration_terms),
-                                 (X, Y), method='cubic')
-
-                # Fix the NaN's within zgrid array
-                # Perform specified rotation for certain SIs
-                # Trim rows/cols
-                zgrid = _fix_zgrid_NaNs(xgrid, ygrid, zgrid, rot_ang=0)
-
-                # Create final function for extrapolation
-                func = RegularGridInterpolator((ygrid, xgrid), zgrid, method='linear',
-                                               bounds_error=False, fill_value=None)
-
-                # Extrapolate at requested field_position coordinates
-                coefficients = func(field_position).tolist()
-
+                # FIND TWO CLOSEST INPUT GRID POINTS:
+                dist = []
+                corners = field_points[1:]  # use only the corner points
+                for i, ip in enumerate(corners):
+                    dist.append(np.sqrt(((ip[0] - field_position[0]) ** 2) + ((ip[1] - field_position[1]) ** 2)))
+                min_dist_indx = np.argsort(dist)[:2]  # keep two closest points
+                # DEFINE LINE B/W TWO POINTS, FIND ORTHOGONAL LINE AT POINT OF INTEREST,
+                # AND FIND INTERSECTION OF THESE TWO LINES.
+                x1, y1 = corners[min_dist_indx[0]]
+                x2, y2 = corners[min_dist_indx[1]]
+                dx = x2 - x1
+                dy = y2 - y1
+                a = (dy * (field_position[1] - y1) + dx * (field_position[0] - x1)) / (dx * dx + dy * dy)
+                closest_interp_point = (x1 + a * dx, y1 + a * dy)
+                # INTERPOLATE ABERRATIONS TO CLOSEST INTERPOLATED POINT:
+                coefficients = griddata(
+                    np.asarray(field_points),
+                    np.asarray(aberration_terms),
+                    closest_interp_point,
+                    method='linear')
+                # IF CLOSEST INTERPOLATED POINT IS STILL OUTSIDE THE INPUT GRID,
+                # THEN USE NEAREST GRID POINT INSTEAD:
+                if np.any(np.isnan(coefficients)):
+                    coefficients = aberration_terms[min_dist_indx[0] + 1]
+                    _log.warn("Attempted to get aberrations at field point {} which is outside the range "
+                              "of the reference data; approximating to nearest input grid point".format(field_position))
+                else:
+                    _log.warn("Attempted to get aberrations at field point {} which is outside the range "
+                              "of the reference data; approximating to nearest interpolated point {}".format(
+                        field_position, closest_interp_point))
                 assert not np.any(np.isnan(coefficients)), "Could not compute aberration " \
                                                            "at field point {}".format(field_position)
-
-                _log.warn("Attempted to get aberrations at field point {} which is outside the range "
-                          "of the reference data; approximating to nearest field point".format(field_position))
-
         if self._omit_piston_tip_tilt:
             _log.debug("Omitting piston/tip/tilt")
             coefficients[:3] = 0.0  # omit piston, tip, and tilt Zernikes
