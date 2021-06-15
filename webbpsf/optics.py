@@ -2,8 +2,8 @@ import os
 import poppy
 import poppy.utils
 import numpy as np
-import scipy
 import matplotlib
+import matplotlib.pyplot as plt
 
 from astropy.table import Table
 import astropy.io.fits as fits
@@ -856,7 +856,7 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
             # Note: 180 deg rotation needed relative to Krist's figures for the flight SCI orientation:
 
             if ((self.module == 'A' and self.name == 'MASKLWB') or
-                    (self.module == 'B' and self.name == 'MASK210R')):
+                (self.module == 'B' and self.name == 'MASK210R')):
                 # left edge:
                 # has one fully in the corner and one half in the other corner, half outside the 10x10 box
                 wnd_5 = np.where(
@@ -908,7 +908,7 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
 
             # Add in the opaque border of the coronagraph mask holder.
             if ((self.module == 'A' and self.name == 'MASKLWB') or
-                    (self.module == 'B' and self.name == 'MASK210R')):
+                (self.module == 'B' and self.name == 'MASK210R')):
                 # left edge
                 woutside = np.where((x > 10) & (y > -11.5))
                 self.transmission[woutside] = 0.0
@@ -994,7 +994,7 @@ def _width_blc(desired_width, approx=None, plot=False):
         return sig_ans
     else:
         # use recursion
-        sig_ans = width_blc(loc, sig_ans)
+        sig_ans = _width_blc(loc, sig_ans)
 
     if plot:
         check = (1 - (np.sin(sig_ans * loc) / sig_ans / loc) ** 2) ** 2
@@ -1018,7 +1018,7 @@ def _calc_blc_wedge(deg=4, wavelength=2.1e-6):
     """
     import scipy
     r = np.linspace(2, 6, 161)
-    difflim = wavelen / 6.5 * 180. * 60 * 60 / np.pi
+    difflim = wavelength / 6.5 * 180. * 60 * 60 / np.pi
     sigs = [_width_blc(difflim * ri) for ri in r]
 
     pcs = scipy.polyfit(r, sigs, deg)

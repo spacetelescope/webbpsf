@@ -20,7 +20,6 @@ def test_WFI_filters():
     wi = roman.WFI()
     filter_list = wi.filter_list
     for filter in filter_list:
-        wi = roman.WFI()
         wi.filter = filter
         wi.calc_psf(fov_pixels=4, oversample=1, nlambda=3)
 

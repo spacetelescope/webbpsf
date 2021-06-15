@@ -4,9 +4,8 @@ import astropy.convolution
 import astropy.io.fits as fits
 import numpy as np
 import pysiaf
-from scipy.interpolate import griddata
+from scipy.interpolate import RegularGridInterpolator
 from scipy.ndimage.interpolation import rotate
-
 
 def _get_default_siaf(instrument, aper_name):
     """
@@ -40,8 +39,155 @@ def _get_default_siaf(instrument, aper_name):
 
     return aper
 
+# Functions for applying distortion from SIAF polynomials
+def distort_image(hdulist_or_filename, ext=0, to_frame='sci', fill_value=0, 
+                  xnew_coords=None, ynew_coords=None, return_coords=False,
+                  aper=None):
+    """ Distort an image
 
-# Function for applying distortion from SIAF polynomials
+    Apply SIAF instrument distortion to an image that is assumed to be in 
+    its ideal coordinates. The header information should contain the relevant
+    SIAF point information, such as SI instrument, aperture name, pixel scale,
+    detector oversampling, and detector position ('sci' coords).
+
+    This function then transforms the image to the new coordinate system using
+    scipy's RegularGridInterpolator (linear interpolation).
+
+    Parameters
+    ----------
+    hdulist_or_filename : str or HDUList
+        A PSF from WebbPSF, either as an HDUlist object or as a filename
+    ext : int
+        Extension of HDUList to perform distortion on.
+    fill_value : float or None
+        Value used to fill in any blank space by the skewed PSF. Default = 0.
+        If set to None, values outside the domain are extrapolated.
+    to_frame : str
+        Type of input coordinates. 
+
+            * 'tel': arcsecs V2,V3
+            * 'sci': pixels, in conventional DMS axes orientation
+            * 'det': pixels, in raw detector read out axes orientation
+            * 'idl': arcsecs relative to aperture reference location.
+
+    xnew_coords : None or ndarray
+        Array of x-values in new coordinate frame to interpolate onto.
+        Can be a 1-dimensional array of unique values, in which case 
+        the final image will be of size (ny_new, nx_new). Or a 2d array 
+        that corresponds to full regular grid and has same shape as 
+        `ynew_coords` (ny_new, nx_new). If set to None, then final image
+        is same size as input image, and coordinate grid spans the min
+        and max values of siaf_ap.convert(xidl,yidl,'idl',to_frame). 
+    ynew_coords : None or ndarray
+        Array of y-values in new coordinate frame to interpolate onto.
+        Can be a 1-dimensional array of unique values, in which case 
+        the final image will be of size (ny_new, nx_new). Or a 2d array 
+        that corresponds to full regular grid and has same shape as 
+        `xnew_coords` (ny_new, nx_new). If set to None, then final image
+        is same size as input image, and coordinate grid spans the min
+        and max values of siaf_ap.convert(xidl,yidl,'idl',to_frame). 
+    return_coords : bool
+        In addition to returning the final image, setting this to True
+        will return the full set of new coordinates. Output will then
+        be (psf_new, xnew, ynew), where all three array have the same
+        shape.
+    aper : None or :mod:`pysiaf.Aperture`
+        Option to pass the SIAF aperture if it is already known or
+        specified to save time on generating a new one. If set to None,
+        then automatically determines a new `pysiaf` aperture based on
+        information stored in the header.
+    """
+
+    # Read in input PSF
+    if isinstance(hdulist_or_filename, str):
+        hdu_list = fits.open(hdulist_or_filename)
+    elif isinstance(hdulist_or_filename, fits.HDUList):
+        hdu_list = hdulist_or_filename
+    else:
+        raise ValueError("input must be a filename or HDUlist")
+
+    if aper is None:
+        # Log instrument and detector names
+        instrument = hdu_list[0].header["INSTRUME"].upper()
+        aper_name = hdu_list[0].header["APERNAME"].upper()
+        # Pull default values
+        aper = _get_default_siaf(instrument, aper_name)
+    
+    # Pixel scale information
+    ny, nx = hdu_list[ext].shape
+    pixelscale = hdu_list[ext].header["PIXELSCL"]  # the pixel scale carries the over-sample value
+    oversamp   = hdu_list[ext].header["DET_SAMP"]  # PSF oversampling relative to detector 
+
+    # Get 'sci' reference location where PSF is observed
+    xsci_cen = hdu_list[ext].header["DET_X"]  # center x location in pixels ('sci')
+    ysci_cen = hdu_list[ext].header["DET_Y"]  # center y location in pixels ('sci')
+
+    # ###############################################
+    # Create an array of indices (in pixels) for where the PSF is located on the detector
+    nx_half, ny_half = ( (nx-1)/2., (ny-1)/2. )
+    xlin = np.linspace(-1*nx_half, nx_half, nx)
+    ylin = np.linspace(-1*ny_half, ny_half, ny)
+    xarr, yarr = np.meshgrid(xlin, ylin) 
+
+    # Convert the PSF center point from pixels to arcseconds using pysiaf
+    xidl_cen, yidl_cen = aper.sci_to_idl(xsci_cen, ysci_cen)
+
+    # Get 'idl' coords
+    xidl = xarr * pixelscale + xidl_cen
+    yidl = yarr * pixelscale + yidl_cen
+
+    # ###############################################
+    # Create an array of indices (in pixels) that the final data will be interpolated onto
+    xnew_cen, ynew_cen = aper.convert(xsci_cen, ysci_cen, 'sci', to_frame)
+    # If new x and y values are specified, create a meshgrid
+    if (xnew_coords is not None) and (ynew_coords is not None):
+        if len(xnew_coords.shape)==1 and len(ynew_coords.shape)==1:
+            xnew, ynew = np.meshgrid(xnew_coords, ynew_coords)
+        elif len(xnew_coords.shape)==2 and len(ynew_coords.shape)==2:
+            assert xnew_coords.shape==ynew_coords.shape, "If new x and y inputs are a grid, must be same shapes"
+            xnew, ynew = xnew_coords, ynew_coords
+    elif to_frame=='sci':
+        xnew = xarr / oversamp + xnew_cen
+        ynew = yarr / oversamp + ynew_cen
+    else:
+        xv, yv = aper.convert(xidl, yidl, 'idl', to_frame)
+        xmin, xmax = (xv.min(), xv.max())
+        ymin, ymax = (yv.min(), yv.max())
+        
+        # Range xnew from 0 to 1
+        xnew = xarr - xarr.min()
+        xnew /= xnew.max()
+        # Set to xmin to xmax
+        xnew = xnew * (xmax - xmin) + xmin
+        # Make sure center value is xnew_cen
+        xnew += xnew_cen - np.median(xnew)
+
+        # Range ynew from 0 to 1
+        ynew = yarr - yarr.min()
+        ynew /= ynew.max()
+        # Set to ymin to ymax
+        ynew = ynew * (ymax - ymin) + ymin
+        # Make sure center value is xnew_cen
+        ynew += ynew_cen - np.median(ynew)
+    
+    # Convert requested coordinates to 'idl' coordinates
+    xnew_idl, ynew_idl = aper.convert(xnew, ynew, to_frame, 'idl')
+
+    # ###############################################
+    # Interpolate using Regular Grid Interpolator
+    xvals = xlin * pixelscale + xidl_cen
+    yvals = ylin * pixelscale + yidl_cen
+    func = RegularGridInterpolator((yvals,xvals), hdu_list[ext].data, method='linear', 
+                                   bounds_error=False, fill_value=fill_value)
+
+    # Create an array of (yidl, xidl) values to interpolate onto
+    pts = np.array([ynew_idl.flatten(),xnew_idl.flatten()]).transpose()
+    psf_new = func(pts).reshape(xnew.shape)
+    
+    if return_coords:
+        return (psf_new, xnew, ynew)
+    else:
+        return psf_new
 
 def apply_distortion(hdulist_or_filename=None, fill_value=0):
     """
@@ -72,6 +218,7 @@ def apply_distortion(hdulist_or_filename=None, fill_value=0):
 
     # Create a copy of the PSF
     psf = copy.deepcopy(hdu_list)
+    ext = 1  # edit the oversampled PSF (OVERDIST extension)
 
     # Log instrument and detector names
     instrument = hdu_list[0].header["INSTRUME"].upper()
@@ -80,68 +227,8 @@ def apply_distortion(hdulist_or_filename=None, fill_value=0):
     # Pull default values
     aper = _get_default_siaf(instrument, aper_name)
 
-    ext = 1  # edit the oversampled PSF (OVERDIST extension)
-
-    # Pull PSF header information
-    pixelscale = psf[ext].header["PIXELSCL"]  # the pixel scale carries the over-sample value
-    oversamp = psf[ext].header["OVERSAMP"]  # will be 1 for ext=1
-    xpix_center = psf[ext].header["DET_X"]  # center x location in pixels
-    ypix_center = psf[ext].header["DET_Y"]  # center y location in pixels
-    len_y = psf[ext].shape[0]
-    len_x = psf[ext].shape[1]
-
-    # Convert the PSF center point from pixels to arcseconds using pysiaf
-    xarc_center, yarc_center = aper.sci_to_idl(xpix_center, ypix_center)
-
-    # ###############################################
-    # Create an array of indices (in pixels) for where the PSF is located on the detector
-    # 1) Set up blank indices (in pixels)
-    ypix, xpix = np.indices((len_y, len_x), dtype=float)
-
-    # 2) Shift indices to be centered on (0,0) (starting to transform into the Ideal frame)
-    ypix -= (len_y - 1.) / 2.
-    xpix -= (len_x - 1.) / 2.
-
-    # 3) Convert these indices from pixels to arcseconds
-    # Note: This also shifts the oversampled indices so they span the same region as the detector-sampled indices
-    # but the oversampled array is still longer by a factor of the oversample
-    yarc = ypix * pixelscale
-    xarc = xpix * pixelscale
-
-    # 4) Shift the indices so they match where on the detector the PSF is located
-    yidl = yarc + yarc_center
-    xidl = xarc + xarc_center
-
-    # 5) Now that the indices are in the Ideal frame, convert them to the Science Frame using idl_to_sci
-    # Going from Idl to Sci this way allows us to add in the distortion
-    xsci, ysci = aper.idl_to_sci(xidl, yidl)
-
-    # 6) Shift the sci indices so they match the PSF's position again (moved slightly off from pysiaf calculation)
-    xsci += xpix_center - np.median(xsci)
-    ysci += ypix_center - np.median(ysci)
-
-    # ###############################################
-    # Create an array of indices (in pixels) that the final data will be interpolated on to
-    # 1) Set up blank indices (in pixels)
-    ynew, xnew = np.indices([len_y, len_x], dtype=float)
-
-    # 2) Shift indices to be in the Ideal frame (centered on 0)
-    xnew -= (len_x - 1.) / 2.
-    ynew -= (len_y - 1.) / 2.
-
-    # 3) Shift the oversampled indices so they span the same region as the detector-sampled indices
-    # Note: the oversampled array is still longer by a factor of the oversample
-    xnew /= oversamp
-    ynew /= oversamp
-
-    # 4) Shift the indices so they match where on the detector the PSF is located
-    xnew += xpix_center
-    ynew += ypix_center
-
-    # ###############################################
-    # Interpolate from the original indices (xsci, ysci) on to new indices (xnew, ynew)
-    psf_new = griddata((xsci.flatten(), ysci.flatten()), psf[ext].data.flatten(), (xnew, ynew),
-                       fill_value=fill_value)
+    # Distort grid through interpolation
+    psf_new = distort_image(psf, ext, to_frame='sci', fill_value=fill_value, aper=aper)
 
     # Apply data to correct extensions
     psf[ext].data = psf_new

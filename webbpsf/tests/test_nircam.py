@@ -466,6 +466,9 @@ def test_nircam_auto_aperturename():
     assert (nc.aperturename == 'NRCA2_FULL_WEDGE_RND') or (nc.aperturename == 'NRCA2_FULL_MASK210R')
     nc.pupil_mask = 'MASKRND'
     assert (nc.aperturename == 'NRCA2_FULL_WEDGE_RND') or (nc.aperturename == 'NRCA2_FULL_MASK210R')
+    # if we switch to LW we should get an aperture on A5
+    nc.detector='NRCA5'
+    assert (nc.aperturename == 'NRCA5_FULL_WEDGE_RND')
 
     # Add in coronagraphic occulter
     nc.image_mask = 'MASK210R'
@@ -496,3 +499,23 @@ def test_nircam_auto_aperturename():
     # but changing the detector explicitly always updates apname
     nc.detector = 'NRCA5'
     assert nc.aperturename == 'NRCA5_FULL'
+
+    # Test the ability to set arbitrary apertures by name, using a representative subset
+    names = ['NRCA1_FULL', 'NRCA3_FP1', 'NRCA2_FP4MIMF', 'NRCB2_FP3MIMF', 'NRCB5_FULL', 'NRCB5_TAMASK430R']
+
+    for apname in names:
+        nc.set_position_from_aperture_name(apname)
+        # CHeck aperture name and detector name
+        assert nc.aperturename == apname, "Aperture name did not match"
+        assert nc.detector == apname.split('_')[0], "Detector name did not match"
+
+        # check the detector positions match (to integer pixel precision)
+        assert nc.detector_position[0] == int(nc.siaf[
+                                                   apname].XSciRef), f"Aperture XSci did not match for {apname}: {nc.detector_position}, {nc.siaf[apname].XSciRef} "
+        assert nc.detector_position[1] == int(nc.siaf[
+                                                   apname].YSciRef), f"Aperture YSci did not match for {apname}: {nc.detector_position}, {nc.siaf[apname].YSciRef} "
+
+    # Test that switching any detector sets to the FULL aperture for that.
+    for det in nc.detector_list:
+        nc.detector = det
+        assert nc.aperturename == f'{det}_FULL'

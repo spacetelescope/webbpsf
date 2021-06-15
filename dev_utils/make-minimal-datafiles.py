@@ -43,8 +43,10 @@ for instr in insts:
     f0.close()
 
 print("#### Removing extra optional pupil files ####")
-os.remove(os.path.join(WORKING_DIR, 'webbpsf-data','jwst_pupil_revW_npix2048.fits.gz'))
-os.remove(os.path.join(WORKING_DIR, 'webbpsf-data','jwst_pupil_revW_npix16384.fits.gz'))
+# keep just the 1024 and 2048 ones for tests; don't need the rest
+os.remove(os.path.join(WORKING_DIR, 'webbpsf-data','jwst_pupil_RevW_npix4096.fits.gz'))
+os.remove(os.path.join(WORKING_DIR, 'webbpsf-data','jwst_pupil_RevW_npix16384.fits.gz'))
+os.remove(os.path.join(WORKING_DIR, 'webbpsf-data','JWpupil_segments_RevW_npix4096.fits.gz'))
 os.remove(os.path.join(WORKING_DIR, 'webbpsf-data','tricontagon.fits.gz'))
 
 print("#### Creating tar file ####")

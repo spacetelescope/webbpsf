@@ -22,8 +22,6 @@ Conceptually, this simulation code has two layers of abstraction:
  * A base package for wavefront propagation through generic optical systems (provided by :py:mod:`POPPY <poppy>`)
  * Models of the JWST and Roman instruments implemented on top of that base system (provided by :py:mod:`WebbPSF <webbpsf>`)
 
-(There has formerly been a basic GUI front end, but that GUI is now deprecated and no longer recommended for use.)
-
 .. _intro_why_webbpsf:
 
 Why WebbPSF?
