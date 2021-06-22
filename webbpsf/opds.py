@@ -37,6 +37,7 @@ import astropy.io.fits as fits
 import astropy.units as u
 import logging
 from collections import OrderedDict
+from packaging.version import Version
 import copy
 
 import poppy
@@ -92,8 +93,7 @@ class OPD(poppy.FITSOpticalElement):
     """
 
     def __init__(self, name='unnamed OPD', opd=None, opd_index=0, transmission=None,
-                 segment_mask_file='JWpupil_segments.fits',
-                 **kwargs):
+                 segment_mask_file=None, npix=1024, **kwargs):
         """
         Parameters
         ----------
@@ -102,31 +102,51 @@ class OPD(poppy.FITSOpticalElement):
             compatible with the format expected by poppy.FITSOpticalElement.
         transmission: str
             FITS file for pupil mask, with throughput from 0-1. If not explicitly provided, will be inferred from
-            wherever is nonzero in the OPD file.
-
-
+            wherever is nonzero in the OPD file
+        npix: int
+            Number of pixels per side for the OPD. Can be 1024, 2048, 4096 with current data files.
+        segment_mask_file : string, or None
+            if None, will infer based on npix.
         ext : int, optional
             FITS extension to load OPD from
         slice : int, optional
             slice of a datacube to load OPD from, if the selected extension contains a datacube.
 
         """
+
+        self.npix = npix
+
         if opd is None and transmission is None:
             _log.debug('Neither a pupil mask nor OPD were specified. Using the default JWST pupil.')
-            transmission = os.path.join(utils.get_webbpsf_data_path(), "jwst_pupil_RevW_npix1024.fits.gz")
+            transmission = os.path.join(utils.get_webbpsf_data_path(), f"jwst_pupil_RevW_npix{self.npix}.fits.gz")
 
         super(OPD, self).__init__(name=name,
                                   opd=opd, transmission=transmission,
                                   opd_index=opd_index, transmission_index=0,
                                   planetype=poppy.poppy_core.PlaneType.pupil, **kwargs)
 
+        # Check that the shape of the OPD that has been passed, matches the npix parameters
+        if self.opd is not None:
+            if not self.opd.shape == (self.npix, self.npix):
+                raise ValueError(f"npix value of {self.npix} does not match shape of OPD provided: {self.opd.shape}")
+
         if self.opd_header is None:
             self.opd_header = self.amplitude_header.copy()
 
         self.segnames = np.asarray([a[0:2] for a in constants.SEGNAMES_WSS_ORDER])
 
+        if segment_mask_file is None:
+            segment_mask_file = f'JWpupil_segments_RevW_npix{self.npix}.fits.gz'
+
         full_seg_mask_file = os.path.join(utils.get_webbpsf_data_path(), segment_mask_file)
+        if not os.path.exists(full_seg_mask_file):
+            # try without .gz
+            full_seg_mask_file = os.path.join(utils.get_webbpsf_data_path(), f"JWpupil_segments_RevW_npix{npix}.fits")
+
         self._segment_masks = fits.getdata(full_seg_mask_file)
+        if not self._segment_masks.shape[0] == self.npix:
+            raise ValueError(f"The shape of the segment mask file {self._segment_masks.shape} does not match the shape expect: ({self.npix}, {self.npix})")
+
         self._segment_masks_version = fits.getheader(full_seg_mask_file)['VERSION']
 
         # Where are the centers of each segment?  From OTE design geometry
@@ -304,8 +324,9 @@ class OPD(poppy.FITSOpticalElement):
         return np.asarray(components)
 
     def display_opd(self, ax=None, labelsegs=True, vmax=150., colorbar=True, clear=False, title=None, unit='nm',
+                    pupil_orientation='entrance_pupil',
                     cbpad=None, colorbar_orientation='vertical',
-                    show_axes=False, show_rms=True,
+                    show_axes=False, show_rms=True, show_v2v3=False,
                     cmap=None):
         """ Draw on screen the perturbed OPD
 
@@ -315,7 +336,14 @@ class OPD(poppy.FITSOpticalElement):
             axes instance to display into.
         labelsegs : bool
             draw segment name labels on each segment? default True.
-
+        show_axes: bool
+            Draw local control axes per each segment
+        show_rms : bool
+            Annotate the RMS wavefront value
+        show_v2v3:
+            Draw the observatory V2V3 coordinate axes
+        pupil_orientation : string
+            either 'entrance_pupil' or 'exit_pupil', for which orientation we should display the OPD in.
         clear : bool
             Clear plot window before display? default true
         unit : str
@@ -331,6 +359,23 @@ class OPD(poppy.FITSOpticalElement):
             scalefact = 1
         else:
             raise ValueError("unknown unit keyword")
+
+        # The actual OPD data is stored in "entrance pupil" orientation, looking in to JWST,
+        # by convention and for consistency with the JWST WSS.
+        # In the case of JWST it turns out the "exit pupil" orientation is in effect a vertical
+        # flip. This is because of (1) inversion in both X and Y axes from the physical entrance pupil
+        # at the primary to the real image of that pupil on the FSM which is the OTE exit pupil, plus
+        # (2) the change in viewing convention from "in front of OTE looking in" to "at the instruments
+        # looking outward". That results in a flip in the X axis. Thus overall we can just flip the
+        # Y axis to get to the exit pupil orientation. In this display function we can do that using the
+        # origin parameter to matplotlib.imshow. In the actual optical propagation we do that with a
+        # poppy coordinate transform instance.
+        if pupil_orientation=='entrance_pupil':
+            origin='lower'
+        elif pupil_orientation == 'exit_pupil':
+            origin = 'upper'
+        else:
+            raise ValueError("pupil_orientation must be 'entrance_pupil' or 'exit_pupil'.")
 
         if clear:
             if ax is not None:
@@ -353,7 +398,7 @@ class OPD(poppy.FITSOpticalElement):
         if ax is None:
             ax = plt.gca()
 
-        plot = ax.imshow(self.opd * mask * scalefact, vmin=-vmax, vmax=vmax, cmap=cmap, extent=extent, origin='lower')
+        plot = ax.imshow(self.opd * mask * scalefact, vmin=-vmax, vmax=vmax, cmap=cmap, extent=extent, origin=origin)
 
         _log.debug("Displaying OPD. Vmax is %f, data max is %f " % (vmax, self.opd.max()))
 
@@ -362,10 +407,12 @@ class OPD(poppy.FITSOpticalElement):
         ax.set_title(title)
         if show_rms:
             ax.set_xlabel("RMS WFE = %.1f nm" % self.rms())
+        if show_v2v3:
+            utils.annotate_ote_pupil_coords(None, ax, orientation=pupil_orientation)
 
         if labelsegs:
             for seg in self.segnames[0:18]:
-                self.label_seg(seg, ax=ax, show_axes=show_axes)
+                self.label_seg(seg, ax=ax, show_axes=show_axes, pupil_orientation=pupil_orientation)
         if colorbar:
             if cbpad is None:
                 cbpad = 0.05 if colorbar_orientation == 'vertical' else 0.15
@@ -377,23 +424,24 @@ class OPD(poppy.FITSOpticalElement):
 
         return ax, cb
 
-    def label_seg(self, segment, ax=None, show_axes=False, color='black'):
-        # Y, X = np.indices(self.opd.shape)
-
-        # base = {'A':0, 'B':6,'C':12}
-        # iseg = np.where(self.segnames == segment)[0][0] + 1  # segment index from 1 - 18
-        # iseg = base[segment.upper()[0]]+int(segment[1])
-        # wseg = np.where(self._segment_masks == iseg)
-        # pupilscale = self.opd_header['PUPLSCAL']
+    def label_seg(self, segment, ax=None, show_axes=False, color='black', pupil_orientation='entrance_pupil'):
+        """ Annotate a plot with a text label for a particular segment """
         cx, cy = self._seg_centers_m[segment]
-        # cx = (np.mean([X[wseg].min(), X[wseg].max()])  -512) * pupilscale
-        # cy = (np.mean([Y[wseg].min(), Y[wseg].max()])  -512) * pupilscale
+
+        # See note about pupil orientations in OPD.display_opd() for explanation
+        # of the Y axis signs here
+        if pupil_orientation == 'entrance_pupil':
+            ysign = 1
+        elif pupil_orientation == 'exit_pupil':
+            ysign = -1
+        else:
+            raise ValueError("pupil_orientation must be 'entrance_pupil' or 'exit_pupil'.")
 
         offset = 0.2 if show_axes else 0
 
         if ax is None:
             ax = plt.gca()
-        label = ax.text(cx + offset, cy + offset, segment, color=color, horizontalalignment='center', verticalalignment='center')
+        label = ax.text(cx + offset, (cy + offset)*ysign, segment, color=color, horizontalalignment='center', verticalalignment='center')
 
         if show_axes:
             ax_arrow_len = .3
@@ -406,12 +454,12 @@ class OPD(poppy.FITSOpticalElement):
                     b = self._rot_matrix_local_to_global(segment) * vec
                     b = np.asarray(b).flatten()  # Inelegant but it works
 
-                    ax.arrow(cx, cy, ax_arrow_len * b[0], ax_arrow_len * b[1], color=color,
+                    ax.arrow(cx, cy*ysign, ax_arrow_len * b[0], (ax_arrow_len * b[1])*ysign, color=color,
                              # width=ax,
                              head_width=.050, head_length=.080)  # in units of mm
 
                     xoffset = 0.1 if i == 2 else 0
-                    ax.text(cx + ax_arrow_len * b[0] * 1.5 + xoffset, cy + ax_arrow_len * b[1] * 1.5, label,
+                    ax.text(cx + ax_arrow_len * b[0] * 1.5 + xoffset, (cy + ax_arrow_len * b[1] * 1.5)*ysign, label,
                             color=color, fontsize=8,
                             horizontalalignment='center', verticalalignment='center'
                             )
@@ -1064,8 +1112,10 @@ class OTE_Linear_Model_WSS(OPD):
 
     """
 
-    def __init__(self, name='Unnamed OPD', opd=None, opd_index=0, transmission=None, segment_mask_file='JWpupil_segments.fits',
-                 zero=False, rm_ptt=False, rm_piston=False, v2v3=None, control_point_fieldpoint='nrca3_full'):
+    def __init__(self, name='Unnamed OPD', opd=None, opd_index=0, transmission=None,
+                 segment_mask_file=None, zero=False, rm_ptt=False,
+                 rm_piston=False, v2v3=None, control_point_fieldpoint='nrca3_full',
+                 npix=1024):
         """
         Parameters
         ----------
@@ -1079,7 +1129,7 @@ class OTE_Linear_Model_WSS(OPD):
             slice of a datacube to load OPD from, if the selected extension contains a datacube.
         segment_mask_file : str
             FITS file for pupil mask, with throughput from 0-1. If not explicitly provided, will
-            use JWpupil_segments.fits
+            use JWpupil_segments_RevW_npix1024.fits, or equivalent for other value of npix
         zero: bool
             Load a perfectly zero OPD, overriding anything present in the opdfile parameter.
         rm_ptt : bool
@@ -1089,28 +1139,33 @@ class OTE_Linear_Model_WSS(OPD):
             Tuple giving V2,v3 coordinates as quantities, typically in arcminutes, or None to default to
             the master chief ray location between the two NIRCam modules.
         control_point_fieldpoint: str
-            Name of the field point where the OTE control point is located, on instrument defined by "control_point_instr". 
+            Name of the field point where the OTE control point is located, on instrument defined by "control_point_instr".
             Default: 'nrca3_full'.
             The OTE control point is the field point to which the OTE has been aligned and defines the field angles
             for the field-dependent SM pose aberrations.
+        npix : int
+            Size of OPD: npix x npix
 
         """
 
-        OPD.__init__(self, name=name, opd=opd, opd_index=opd_index, transmission=transmission, segment_mask_file=segment_mask_file)
+        OPD.__init__(self, name=name, opd=opd, opd_index=opd_index, transmission=transmission, segment_mask_file=segment_mask_file, npix=npix)
         self.v2v3 = v2v3
 
         # load influence function table:
         self._influence_fns = astropy.table.Table.read(os.path.join(__location__, 'otelm', 'JWST_influence_functions_control_with_sm.fits'))
 
-        #fix IFM sign convention for consistency to WSS
-        cnames = self._influence_fns.colnames
-        for icol in cnames[3:]:
-            self._influence_fns[icol] *= -1
-            
+        # With updated sign convention in poppy 1.0.0, the WSS influence function values can be used in WebbPSF directly,
+        # with no change in sign.
+        if Version(poppy.__version__) < Version('1.0'):
+            # For earlier poppy versions, fix IFM sign convention for consistency to WSS
+            cnames = self._influence_fns.colnames
+            for icol in cnames[3:]:
+                self._influence_fns[icol] *= -1
+
         # WFTP10 hotfix for RoC sign inconsitency relative to everything else, due to outdated version of WAS IFM used in table construction.
         # FIXME update the IFM file on disk and then delete the next three lines
         roc_rows = self._influence_fns['control_mode']=='ROC'
-        for icol in cnames[3:]:
+        for icol in self._influence_fns.colnames[3:]:
             self._influence_fns[icol][roc_rows] *= -1
 
         self._control_modes = ['Xtilt', 'Ytilt', 'Piston', 'Clocking', 'Radial', 'ROC']
@@ -1285,13 +1340,10 @@ class OTE_Linear_Model_WSS(OPD):
         # so here we can just work in unrotated coordinates.
 
         # determine the X and Y hexike coordinates for each segment
-        # determine the center of each segment, as the mean of the min and max X and Y values
-        # FIXME this should just use the BATC-provided center coordinates; see jwst_ote3d.py
+        # determine the center of each segment using the BATC-provided center coordinates; see constants.py
 
         Y, X = np.indices(self.opd.shape, dtype=float)
         cx, cy = self._seg_centers_pixels[segment]
-        # cx = np.mean([X[wseg].min(), X[wseg].max()])
-        # cy = np.mean([Y[wseg].min(), Y[wseg].max()])
 
         seg_radius = (X[wseg].max() - X[wseg].min()) / 2.0
 
@@ -1335,18 +1387,14 @@ class OTE_Linear_Model_WSS(OPD):
                 continue
             self.opd[wseg] += hexikes[i] * hexike_coeffs[i]
 
-        # outtxt="Hs=["+", ".join(['%.1e'%z for z in hexike_coeffs])+"]"
-        # _log.debug("     "+outtxt)
 
     def _apply_global_zernikes(self):
         """ Apply Zernike perturbations to the whole primary
 
         """
 
-        if not self.opd.shape == (1024, 1024):
-            raise NotImplementedError("Code need to be generalized for OPD sizes other than 1024**2")
         perturbation = poppy.zernike.opd_from_zernikes(self._global_zernike_coeffs,
-                                                       npix=1024,
+                                                       npix=self.npix,
                                                        basis=poppy.zernike.zernike_basis_faster)
         # Add perturbation to the opd
         self.opd += perturbation
@@ -1368,9 +1416,7 @@ class OTE_Linear_Model_WSS(OPD):
             return basis
         # Define aperture as the full OTE
         aperture = self._segment_masks != 0
-        # Get size of mask (1024)
-        npix = np.shape(aperture)[0]
-        basis = poppy.zernike.hexike_basis_wss(nterms=self._number_global_zernikes, npix=npix, aperture=aperture > 0.)
+        basis = poppy.zernike.hexike_basis_wss(nterms=self._number_global_zernikes, npix=self.npix, aperture=aperture > 0.)
         # Use the Hexike basis to reconstruct the global terms
         perturbation = poppy.zernike.opd_from_zernikes(coefficients,
                                                        basis=_get_basis,
@@ -1410,13 +1456,13 @@ class OTE_Linear_Model_WSS(OPD):
                      self.segment_state[-1, 0],    # X-TILT
                      self.segment_state[-1, 1],    # Y-TILT
                      self.segment_state[-1, 4]]    # PISTON
-        
-        # GET SM INFLUENCE MATRIX:   
+
+        # GET SM INFLUENCE MATRIX:
         # HEXIKE PROJECTED ONTO ENTRANCE PUPIL (WHAT WEBBPSF NEEDS):
         smif = astropy.table.Table.read(os.path.join(__location__, 'otelm', "SMIF_hexike.csv"), header_start=5)
-     
+
         alphas = smif[smif['Type'] == 'alpha']
-        betas  = smif[smif['Type'] == 'beta']  
+        betas  = smif[smif['Type'] == 'beta']
 
         # NOW, WE SUM UP THE ALPHAS AND BETAS FOR EACH HEXIKE,
         # AS DESCRIBED IN THE DOC STRING ABOVE.
@@ -1445,12 +1491,17 @@ class OTE_Linear_Model_WSS(OPD):
 
             z_coeffs = self._get_zernike_coeffs_from_smif(dx, dy, **kwargs)
 
-            perturbation =  poppy.zernike.opd_from_zernikes(z_coeffs, npix=1024, 
-                                                    basis=poppy.zernike.hexike_basis_wss, aperture=self.amplitude)
+            perturbation =  poppy.zernike.opd_from_zernikes(z_coeffs, npix=self.npix,
+                                                            basis=poppy.zernike.hexike_basis_wss,
+                                                            aperture=self.amplitude)
 
             perturbation[~np.isfinite(perturbation)] = 0.0
 
-            self.opd += -perturbation*1e-6
+            if Version(poppy.__version__) < Version('1.0'):
+                wfe_sign = -1  # In earlier poppy versions, fix sign convention for consistency with WSS
+            else:
+                wfe_sign = 1
+            self.opd += perturbation*(1e-6*wfe_sign)
             
             self.opd_header['HISTORY'] = 'Applied SMIF field-dependent aberrations:'
             self.opd_header['HISTORY'] = ('SMIF_H3: {}'.format(z_coeffs[3]))
@@ -2409,98 +2460,6 @@ def random_unstack(ote, radius=1, verbose=False):
 
     ote.update_opd(verbose=verbose)
 
-
-# --------------------------------------------------------------------------------
-
-def segment_primary(infile='JWpupil.fits'):
-    """ Given a FITS file containing the JWST aperture, create an array
-    with the PMSAs numbered from 1 - 18.
-
-    This is used to create the 'JWpupil_segments.fits' file used by the OPDbender code.
-    You should not need to run this routine unless you want to change the model of the
-    JWST pupil.
-
-    The basic algorithm is general, but right now this routine contains
-    a bunch of hard-coded values tuned for the 1024x1024 Rev V pupil,
-    so probably you will need to edit it for any other pupil.
-
-    M. P. 2011-02-15
-
-
-    """
-
-    def renumber_array(array):
-        uniq, inds = np.unique1d(array, return_inverse=True)
-        # res = np.zeros_like(res2.shape)
-        newuniq = range(len(uniq))
-        res = np.array([newuniq[i] for i in inds]).astype(np.int16)
-        res.shape = array.shape
-        return res
-
-    im = fits.getdata(infile)
-    markers = np.zeros_like(im).astype(np.int16)
-    xm, ym = np.ogrid[0:1024:102, 0:1024:100]
-    markers[xm, ym] = np.arange(xm.size * ym.size).reshape((xm.size, ym.size))
-    res2 = scipy.ndimage.watershed_ift(im.astype(np.uint8), markers)
-    res2[xm, ym] = res2[xm - 1, ym - 1]  # remove the isolate seeds
-
-    res = renumber_array(res2)
-
-    # split and merge segments as needed - hard coded for Rev V pupil
-
-    res3 = res.copy()  # np.zeros_like(res2.shape)
-    merge_inds = [[0, 3], [2, 4], [11, 15], [18, 19]]
-    for pair in merge_inds:
-        res3[np.where(res == pair[1])] = pair[0]
-
-    Y, X = np.indices(res.shape)
-    w10h = np.where((res == 10) & (Y >= 512))
-    res3[w10h] = 31
-    w10h = np.where((res == 12) & (Y >= 512))
-    res3[w10h] = 32
-
-    res3 = renumber_array(res3)
-
-    plt.clf()
-    # plt.subplot(121)
-    # plt.imshow(res)
-    plt.subplot(121)
-    plt.imshow(res3)
-
-    for i in range(19):
-        w = np.where(res3 == i)
-        mx = X[w].mean()
-        my = Y[w].mean()
-        plt.text(mx, my, str(i), color='k')
-
-    segs = ['A' + str(i + 1) for i in range(6)]
-    for i in range(6):
-        segs.append('B' + str(i + 1))
-    for i in range(6):
-        segs.append('C' + str(i + 1))
-    seg_inds = [9, 18, 10, 4, 8, 17, 15, 14, 5, 1, 3, 11, 13, 7, 2, 0, 6, 12]
-
-    result = np.zeros_like(res3)
-    mxs = []
-    mys = []
-    for i in range(18):
-        w = np.where(res3 == seg_inds[i])
-        result[w] = i + 1
-        mxs.append(X[w].mean())
-        mys.append(Y[w].mean())
-
-    plt.subplot(122)
-    plt.imshow(result)
-    for i in range(18):
-        plt.text(mxs[i], mys[i], segs[i], color='k', horizontalalignment='center', verticalalignment='center')
-
-    hdu = fits.PrimaryHDU((result * im).astype(np.uint8))
-    for i in range(18):
-        hdu.header.update('PMSA_' + str(i + 1), segs[i])
-
-    # TODO copy relevant keywords and history from input FITS file header
-    hdu.writeto("JWpupil_segments.fits", overwrite=True)
-
 # --------------------------------------------------------------------------------
 
 def test_OPDbender():
@@ -2707,9 +2666,12 @@ class JWST_WAS_PTT_Basis(object):
         See poppy.zernike.opd_expand_segments()
         and coeffs_to_seg_state() in this file.
 
+        See also JWST_WAS_Full_Basis, which includes the other three degrees of freedom
+
         """
 
-        # Internally this is implemented as a wrapper on OTE Linear WEE model
+        # Internally this is implemented as a wrapper on an OTE Linear WFE model;
+        # we use the degrees of freedom of that model directly as the basis functions here
 
         self.ote = OTE_Linear_Model_WSS()
         self.nsegments=18
@@ -2733,9 +2695,6 @@ class JWST_WAS_PTT_Basis(object):
             be 0.0 sometimes.
 
         """
-        if npix != 1024:
-            raise ValueError("Only npix=1024 supported for now")
-
         if nterms is None:
             nterms = 3*self.nsegments
         elif nterms > 3*self.nsegments:
@@ -2770,6 +2729,103 @@ class JWST_WAS_PTT_Basis(object):
             basis[i*3+2][wseg] = self.ote.opd[wseg]
 
         return basis[0:nterms]
+
+class JWST_WAS_Full_Basis(object):
+    def __init__(self):
+        """ Segment pose full basis using the same conventions as JWST WAS
+        i.e. local mechanical control coordinates per each segment and its local
+        orientation.
+
+        Similar to JWST_WAS_PTT_Basis, but:
+            - includes clocking, radial translation, and radius of curvature degrees of freedom too
+
+            (Note, azimuthal translation is intentionally not controlled in the JWST
+            alignment schema, but is left as a redundant degree of freedom given the azimuthal
+            rotational symmetry of the observatory.)
+
+        Useful for decomposing WFE maps into segment piston, tip, tilts, translations, RoC.
+        See poppy.zernike.opd_expand_segments()
+        and coeffs_to_seg_state() in this file.
+
+        See also JWST_WAS_PTT_Basis, which includes just the piston, tip, tilt degrees of freedom
+        """
+
+        # Internally this is implemented as a wrapper on an OTE Linear WFE model;
+        # we use the degrees of freedom of that model directly as the basis functions here
+
+        self.ote = OTE_Linear_Model_WSS()
+        self.nsegments=18
+
+    def aperture(self):
+        """ Return the overall aperture across all segments """
+        return self.ote.amplitude
+
+    def __call__(self, nterms=None, npix=1024, outside=np.nan):
+        """ Generate basis ndarray for the specified aperture
+
+        Parameters
+        ----------
+        nterms : int
+            Number of terms. Set to 6x the number of segments.
+        npix : int
+            Size, in pixels, of the aperture array.
+        outside : float
+            Value for pixels outside the specified aperture.
+            Default is `np.nan`, but you may also find it useful for this to
+            be 0.0 sometimes.
+
+        """
+        ndof = 6
+
+        if nterms is None:
+            nterms = ndof*self.nsegments
+        elif nterms > ndof*self.nsegments:
+            raise ValueError("nterms must be <= {} for the specified segment aperture.".format(3*self.nsegments))
+
+        # Re-use the machinery inside the OTE Linear model class class to set up the
+        # arrays defining the segment and zernike geometry.
+
+        # For simplicity we always generate the basis for all the segments
+        # even if for some reason the user has set a smaller nterms.
+        basis = np.zeros((self.nsegments*6, npix, npix))
+        basis[:] = outside
+        for i, segname in enumerate(self.ote.segnames[0:18]):
+            # We do these intentionally with the base units, though those result in unphysically large moves
+
+            iseg = i+1
+            wseg = np.where(self.ote._segment_masks==iseg)
+
+            # Piston
+            self.ote.zero()
+            self.ote.move_seg_local(segname, piston=1, trans_unit='meter')
+            basis[i*ndof][wseg] = self.ote.opd[wseg]
+
+            # Tip
+            self.ote.zero()
+            self.ote.move_seg_local(segname, xtilt=1, rot_unit='radian')
+            basis[i*ndof+1][wseg] = self.ote.opd[wseg]
+
+            # Tilt
+            self.ote.zero()
+            self.ote.move_seg_local(segname, ytilt=1, rot_unit='radian')
+            basis[i*ndof+2][wseg] = self.ote.opd[wseg]
+
+            # Clocking
+            self.ote.zero()
+            self.ote.move_seg_local(segname, clocking=1, rot_unit='radian')
+
+            # Radial Translation
+            self.ote.zero()
+            self.ote.move_seg_local(segname, radial=1, trans_unit='meter')
+            basis[i * ndof + 4][wseg] = self.ote.opd[wseg]
+
+            # Radius of Curvature
+            self.ote.zero()
+            self.ote.move_seg_local(segname, roc=1, trans_unit='meter')
+            basis[i * ndof + 5][wseg] = self.ote.opd[wseg]
+        return basis[0:nterms]
+
+
 
 
 def coeffs_to_seg_state(coeffs):

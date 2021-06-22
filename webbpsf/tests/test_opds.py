@@ -1,8 +1,12 @@
 """
 Tests for opds.py
 """
+import os
+
 from astropy.io import fits
 import astropy.units as u
+import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
 import pysiaf
 import pytest
@@ -338,5 +342,140 @@ def test_get_zernike_coeffs_from_smif():
 
     assert (np.allclose(otelm._get_zernike_coeffs_from_smif(dx, dy)[3:], hexikes, rtol=1e-3))
     
- 
-    
+def test_segment_tilt_signs(fov_pix = 50, plot=False, npix=1024):
+    """Test that segments move in the direction expected when tilted.
+
+    The local coordinate systems are non-obvious, to say the least. This verifies
+    sign conventions and coordinates are consistent in the linear optical model and
+    optical propagation code.
+
+    """
+
+    if plot:
+        fig, axs = plt.subplots(3, 5, figsize=(14,9))#, sharex = True, sharey = True)
+
+    nrc = webbpsf.NIRCam()
+
+    ote = webbpsf.opds.OTE_Linear_Model_WSS(npix=npix)
+    nrc.include_si_wfe = False # not relevant for this test
+
+    tilt = 1.0
+
+	# We im for relatively minimalist PSF calcs, to reduce test runtime
+    psf_kwargs = {'monochromatic': 2e-6,
+                  'fov_pixels': fov_pix,
+                  'oversample': 1,
+                  'add_distortion': False}
+
+    # Which way are things expected to move?
+    #
+    # A1:  +X rotation -> -Y pixels (DMS), +Y rotation -> -X pixels
+    # B1: +X rotation -> +Y pixels, +Y rotation -> +X pixels
+    # C1: +X rotation -> +X/+Y pixels, +Y rotation -> -Y/+X pixels
+    # (for C1, A/B means A is the sqrt(3)/2 component, B is the 1/2 component)
+    #
+    # The above derived from Code V models by R. Telfer, subsequently cross checked by Perrin
+
+    for i, iseg in enumerate(['A1', 'B1', 'C1']):
+        ote.zero()
+
+        pupil = webbpsf.webbpsf_core.one_segment_pupil(iseg, npix=npix)
+
+        ote.amplitude = pupil[0].data
+        nrc.pupil = ote
+
+        # CENTERED PSF:
+        psf = nrc.calc_psf(**psf_kwargs)
+        cen_ref = webbpsf.measure_centroid(psf, boxsize=10, threshold=1)
+
+        ote.move_seg_local(iseg, xtilt=tilt)
+        # XTILT PSF:
+        psfx = nrc.calc_psf(**psf_kwargs)
+        cen_xtilt = webbpsf.measure_centroid(psfx, boxsize=10, threshold=1)
+
+        if iseg.startswith("A"):
+            assert cen_xtilt[0] < cen_ref[0], "Expected A1:  +X rotation -> -Y pixels (DMS coords)"
+            assert np.isclose(cen_xtilt[1], cen_ref[1], atol=1), "Expected A1:  +X rotation -> no change in X"
+        elif iseg.startswith("B"):
+            assert cen_xtilt[0] > cen_ref[0], "Expected B1: +X rotation -> +Y pixels (DMS coords)"
+            assert np.isclose(cen_xtilt[1], cen_ref[1], atol=1), "Expected B1:  +X rotation -> no change in Y"
+        elif iseg.startswith("C"):
+            assert cen_xtilt[0] > cen_ref[0], "Expected C1: +X rotation -> +X/+Y pixels"
+            assert cen_xtilt[1] > cen_ref[1], "Expected C1: +X rotation -> +X/+Y pixels"
+
+        if plot:
+            axs[i, 0].imshow(psf[0].data, norm=matplotlib.colors.LogNorm(vmax=1e-2, vmin=1e-5), origin="lower")
+            axs[i, 0].set_title(iseg+": centered")
+            axs[i, 0].axhline(y=fov_pix/2)
+            axs[i, 0].axvline(x=fov_pix/2)
+            # PLOT RESULTING OPD:
+            im = axs[i, 1].imshow(ote.opd, vmin=-4e-6, vmax=4e-6, origin="lower")
+            axs[i, 1].set_title("OPD (yellow +)")
+            axs[i, 2].imshow(psfx[0].data, norm=matplotlib.colors.LogNorm(vmax=1e-2, vmin=1e-5), origin="lower")
+            axs[i, 2].set_title(iseg+": xtilt {} um".format(tilt))
+            axs[i, 2].axhline(y=fov_pix/2)
+            axs[i, 2].axvline(x=fov_pix/2)
+
+
+        ote.zero()
+        ote.move_seg_local(iseg, ytilt=tilt)
+        # YTILT PSF:
+        psfy = nrc.calc_psf(**psf_kwargs)
+        cen_ytilt = webbpsf.measure_centroid(psfy, boxsize=10, threshold=1)
+
+        if iseg.startswith("A"):
+            assert cen_ytilt[1] < cen_ref[1], "Expected A1:  +Y rotation -> -X pixels (DMS coords)"
+            assert np.isclose(cen_ytilt[0], cen_ref[0], atol=1), "Expected A1:  +Y rotation -> no change in Y"
+        elif iseg.startswith("B"):
+            assert cen_ytilt[0] > cen_ref[0], "Expected B1: +Y rotation -> +X pixels(DMS coords)"
+            assert np.isclose(cen_ytilt[0], cen_ref[0], atol=1), "Expected B1:  +Y rotation -> no change in Y"
+        elif iseg.startswith("C"):
+            assert cen_ytilt[0] < cen_ref[0], "Expected C1: +Y rotation -> -Y/+X pixels"
+            assert cen_ytilt[1] > cen_ref[1], "Expected C1: +Y rotation -> -Y/+X pixels"
+
+        # PLOT RESULTING OPD:
+        if plot:
+            im = axs[i, 3].imshow(ote.opd, vmin=-4e-6, vmax=4e-6, origin="lower")
+            axs[i, 3].set_title("OPD (yellow +)")
+            axs[i, 4].imshow(psfy[0].data, norm=matplotlib.colors.LogNorm(vmax=1e-2, vmin=1e-5), origin="lower")
+            axs[i, 4].set_title(iseg+": ytilt {} um".format(tilt))
+            axs[i, 4].axhline(y=fov_pix/2)
+            axs[i, 4].axvline(x=fov_pix/2)
+
+def test_segment_tilt_signs_2048npix():
+    """ Re-run same test as above, but with a different value for npix
+
+    This verifies the LOM works as expected for a size other than 1024 pixels
+    """
+    test_segment_tilt_signs(npix=2048)
+
+def test_changing_npix():
+    '''
+    Test that using different npix will result in same PSF
+    '''
+    # Create a NIRCam instance using the default npix=1024
+    nircam_1024 = webbpsf.NIRCam()
+    nircam_1024.pupilopd = None # Set to none so I don't have to worry about making new OPDs
+    psf_1024 = nircam_1024.calc_psf(oversample=2, nlambda=1, add_distortion=False)
+
+    # Create a NIRCam instance using npix=2048
+    npix = 2048
+    nircam_2048 = webbpsf.NIRCam()
+    nircam_2048.pupil = os.path.join(webbpsf.utils.get_webbpsf_data_path(),
+                                     f'jwst_pupil_RevW_npix{npix}.fits.gz')
+    nircam_2048.pupilopd = None # Set to none so I don't have to worry about making new OPDs
+    psf_2048 = nircam_2048.calc_psf(oversample=2, nlambda=1, add_distortion=False)
+
+    # Let's check individual pixel values, at least where the PSF is not too dim.
+    # Check all pixels which have > 1e-6 of the total flux (we can safely ignore pixels with very low intensity)
+    mask = psf_1024[0].data>1e-6
+    assert np.allclose(psf_1024[0].data[mask], psf_2048[0].data[mask], rtol=0.01), 'Pixel values differ by more than 1%'
+
+    # Let's check that the total flux in the PSF does not change much.
+    #  (A small amount is acceptable and not surprising, since higher resolution improves the fidelity at which
+    #   we model light that is scattered by segment edges to very wide angles outside of the simulated PSF FOV)
+    assert np.isclose(psf_1024[0].data.sum(), psf_2048[0].data.sum(), rtol=0.005), "PSF total flux should not change much"
+
+    # Let's also check a derived property of the whole PSF: the FWHM.
+    # The FWHM should be very close to identical for the two PSFs.
+    assert np.isclose(webbpsf.measure_fwhm(psf_1024), webbpsf.measure_fwhm(psf_2048), rtol=0.0001), "PSF FWHM should not vary for different npix"

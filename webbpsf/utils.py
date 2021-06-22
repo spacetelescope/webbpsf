@@ -4,6 +4,7 @@ import astropy.io.fits as fits
 from astropy.nddata import NDData
 import numpy as np
 import matplotlib.pyplot as plt
+import poppy
 
 import scipy.interpolate as sciint
 
@@ -248,6 +249,7 @@ Python version: {python}
 numpy version: {numpy}
 scipy version: {scipy}
 astropy version: {astropy}
+stsynphot version: {stsyn}
 pysynphot version: {pysyn}
 
 numexpr version: {numexpr}
@@ -317,6 +319,11 @@ def system_diagnostic():
 
     except ImportError:
         pyfftw_version = 'not found'
+    try:
+        import stsynphot
+        stsynphot_version = stsynphot.__version__
+    except ImportError:
+        stsynphot_version = 'not found'
 
     try:
         import pysynphot
@@ -384,6 +391,7 @@ def system_diagnostic():
         tkinter=ttk_version,
         wxpython=wx_version,
         pyfftw=pyfftw_version,
+        stsyn=stsynphot_version,
         pysyn=pysynphot_version,
         astropy=astropy_version,
         finfo_float=numpy.finfo(numpy.float),
@@ -511,15 +519,27 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, displa
 # use via poppy's display_annotate feature by assigning these to
 # the display_annotate attribute of an OpticalElement class
 
-def annotate_ote_entrance_coords(self, ax):
+def annotate_ote_pupil_coords(self, ax, orientation='entrance_pupil'):
     """ Draw OTE V frame axes on first optical plane """
     color = 'yellow'
-    loc = 3
-    ax.arrow(-loc, -loc, .2, 0, color=color, width=0.005)
-    ax.arrow(-loc, -loc, 0, .2, color=color, width=0.005)
-    ax.text(-loc, -loc + 0.4, '+V3', color=color, size='small',
-            horizontalalignment='center', verticalalignment='bottom')
-    ax.text(-loc + 0.4, -loc, '+V2', color=color, size='small',
+
+    xloc = 3
+    if orientation=='entrance_pupil':
+        yloc = 3
+        v3sign = +1
+        v3verticalalignment = 'bottom'
+    elif orientation=='exit_pupil':
+        yloc = 2.5
+        v3sign = -1
+        v3verticalalignment = 'top'
+    else:
+        raise ValueError(f"Unknown orientation {orientation}. Must be either 'entrance_pupil' or 'exit_pupil'. ")
+
+    ax.arrow(-xloc, -yloc, .2, 0, color=color, width=0.005)
+    ax.arrow(-xloc, -yloc, 0, .2*v3sign, color=color, width=0.005)
+    ax.text(-xloc, -yloc + 0.4*v3sign, '+V3', color=color, size='small',
+            horizontalalignment='center', verticalalignment=v3verticalalignment)
+    ax.text(-xloc + 0.4, -yloc, '+V2', color=color, size='small',
             horizontalalignment='left', verticalalignment='center')
 
 
@@ -753,3 +773,4 @@ def to_griddedpsfmodel(HDUlist_or_filename=None, ext_data=0, ext_header=0):
     model = GriddedPSFModel(ndd)
 
     return model
+

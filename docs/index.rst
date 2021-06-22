@@ -70,7 +70,6 @@ Appendices and Reference
 
    available_opds.rst
    references.rst
-   gui.rst
    release.rst
 
 
