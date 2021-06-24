@@ -212,7 +212,7 @@ class FieldDependentAberration(poppy.ZernikeWFE):
 
 def _load_wfi_detector_aberrations(filename):
     from astropy.io import ascii
-    zernike_table = ascii.read(filename)
+    zernike_table = ascii.read(filename, encoding='utf-8-sig')
     detectors = {}
 
     def build_detector_from_table(number, zernike_table):
@@ -514,11 +514,11 @@ class WFI(RomanInstrument):
 
         self.pupil_mask_list = self._pupil_controller.pupil_mask_list
 
-        # Define defualt aberration files for WFI modes
+        # Define default aberration files for WFI modes
         self._aberrations_files = {
-            'imaging': os.path.join(self._datapath, 'wim_zernikes_cycle8.csv'),
-            'prism': os.path.join(self._datapath, 'wim_zernikes_cycle8_prism.csv'),
-            'grism': os.path.join(self._datapath, 'wim_zernikes_cycle8_grism.csv'),
+            'imaging': os.path.join(self._datapath, 'wim_zernikes_cycle9.csv'),
+            'prism': os.path.join(self._datapath, 'wsm_prism_zernikes_cycle9.csv'),
+            'grism': os.path.join(self._datapath, 'wsm_grism_zernikes_cycle9.csv'),
             'custom': None,
         }
 
