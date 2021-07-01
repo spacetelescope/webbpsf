@@ -5,4 +5,4 @@ numpy==1.21.0
 photutils==1.1.0
 poppy>=0.9.1
 pysiaf==0.11.0
-scipy==1.6.3
+scipy==1.7.0
