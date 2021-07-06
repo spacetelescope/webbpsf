@@ -12,32 +12,32 @@ jobs:
         include:
 
           - name: Coverage test in Python 3
-            os: ubuntu-latest
+            os: macos-latest
             python: 3.8
             toxenv: py38-poppydev-pysiafdev-cov
 
           - name: Check for Sphinx doc build errors
-            os: ubuntu-latest
+            os: macos-latest
             python: 3.8
             toxenv: docbuild
 
           - name: Try Astropy development version
-            os: ubuntu-latest
+            os: macos-latest
             python: 3.8
             toxenv: py38-astropydev-test
 
           - name: Try latest versions of all dependencies
-            os: ubuntu-latest
+            os: macos-latest
             python: 3.8
             toxenv: py38-latest-test
 
           - name: Try minimum supported versions
-            os: ubuntu-latest
+            os: macos-latest
             python: 3.6
             toxenv: py36-legacy36-test
 
           - name: Try released POPPY and PySIAF
-            os: ubuntu-latest
+            os: macos-latest
             python: 3.7
             toxenv: py37-stable-test
             continue-on-error: 'true'
@@ -47,6 +47,10 @@ jobs:
       uses: actions/checkout@v2
       with:
         fetch-depth: 0
+
+    - name: Fix Conda permissions on macOS
+      run: sudo chown -R $UID $CONDA
+      if: matrix.os == 'macos-latest'
 
     - name: Set up Python ${{ matrix.python }}
       uses: actions/setup-python@v2

@@ -462,6 +462,7 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, displa
 
     image = HDUlist[ext].data
     header = HDUlist[ext].header
+    HDUlist.close()
 
     if image.ndim >= 3:  # handle datacubes gracefully
         image = image[slice, :, :]
@@ -502,7 +503,7 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, displa
     if display:
         plt.clf()
         plt.subplot(121)
-        display_psf(HDUlist, title="Observed PSF")
+        display_psf(image, title="Observed PSF")
         plt.subplot(122)
         display_psf(comparison_psf, title="Perfect PSF")
         plt.gcf().suptitle("Strehl ratio = %.3f" % strehl)
@@ -738,6 +739,7 @@ def to_griddedpsfmodel(HDUlist_or_filename=None, ext_data=0, ext_header=0):
 
     data = HDUlist[ext_data].data
     header = HDUlist[ext_header].header
+    HDUlist.close()
 
     # If there's only 1 PSF and the data is 2D, make the data 3D for photutils can use it
     if len(data.shape) == 2 and len(header['DET_YX*']) == 1:
