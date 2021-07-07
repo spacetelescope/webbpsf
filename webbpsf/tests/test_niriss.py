@@ -65,7 +65,7 @@ def test_niriss_aperturename():
     ref_tel_coords = niriss._tel_coords()
 
     niriss.aperturename = 'NIS_SUB128'
-    assert niriss.detector_position == (64, 64), "Changing to a subarray aperture didn't change the " \
+    assert niriss.detector_position == (64.5, 64.5), "Changing to a subarray aperture didn't change the " \
                                                  "reference pixel coords as expected"
     assert np.any(
         niriss._tel_coords() != ref_tel_coords), "Changing to a subarray aperture didn't change the V2V3 coords " \

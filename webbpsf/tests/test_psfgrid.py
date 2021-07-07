@@ -33,8 +33,7 @@ def test_compare_to_calc_psf_oversampled():
     # Pull one of the PSFs out of the grid
     psfnum = 1
     loc = grid.meta["grid_xypos"][psfnum]
-    locy = int(float(loc[1]) - 0.5)
-    locx = int(float(loc[0]) - 0.5)
+    locx, locy = loc
     gridpsf = grid.data[psfnum, :, :]
 
     # Using meta data, create the expected same PSF via calc_psf
@@ -68,8 +67,7 @@ def test_compare_to_calc_psf_detsampled():
     # Pull one of the PSFs out of the grid
     psfnum = 1
     loc = grid.meta["grid_xypos"][psfnum]
-    locy = int(float(loc[1]))
-    locx = int(float(loc[0]))
+    locx, locy = loc
     gridpsf = grid.data[psfnum, :, :]
 
     # Using meta data, create the expected same PSF via calc_psf
@@ -245,8 +243,7 @@ def test_wfi():
     # Pull one of the PSFs out of the grid
     psfnum = 1
     loc = grid.meta["grid_xypos"][psfnum]
-    locy = int(float(loc[1])-0.5)
-    locx = int(float(loc[0])-0.5)
+    locx, locy = loc
     gridpsf = grid.data[psfnum, :, :]
 
     # Using meta data, create the expected same PSF via calc_psf
