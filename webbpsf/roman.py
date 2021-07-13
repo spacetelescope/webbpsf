@@ -447,53 +447,7 @@ class WFIPupilController:
     def unlock_pupil_mask(self):
         # how do we know which mask to reset to?
         self._auto_pupil_mask = True
-        wfi_filter = wfi_filter.upper()
-        if wfi_filter == GRISM_FILTER:
-            return 'grism'
-        elif wfi_filter == PRISM_FILTER:
-            return 'prism'
-        elif wfi_filter in ['F184', 'F213']:
-            return 'wide'
-        else:
-            # this method should only be called after WFI.filter was validated,
-            # so we assume all inputs are valid and direct those that don't pass
-            # preceding cases to skinny
-            return 'skinny'
 
-    def set_base_path(self, datapath):
-        """
-        Sets the path to the WebbPSF data files.
-        This should be set before this class is used.
-        Parameters
-        ----------
-        datapath : string
-            Path to WebbPSF-WFI data files
-        """
-        self._datapath = datapath
-        self._pupil_basepath = os.path.join(self._datapath, "pupils")
-
-    def update_pupil(self, filter, detector):
-        """
-        """
-        if not self._auto_pupil:
-            _log.info('Automatic pupil selection was locked; '
-                      'using user-provided pupil.')
-            return
-
-        #if set_path and self._pupil_basepath is None:
-        if self._pupil_basepath is None:
-           raise Exception('update_pupil called before setting pupil file path')
-
-        pupil_mask = (self._get_filter_mask(filter) if self._auto_pupil_mask
-                      else self.pupil_mask)
-        # log the else case?
-        path_formatter = self.pupil_path_formatters[pupil_mask]
-
-        pupil = os.path.join(self._pupil_basepath,
-                             path_formatter.format(detector))
-
-        self._pupil = pupil
-        self._pupil_mask = pupil_mask
 
 class WFI(RomanInstrument):
     """
