@@ -11,15 +11,21 @@ WARNING: This model has not yet been validated against other PSF
 import os.path
 import poppy
 import numpy as np
-from . import webbpsf_core
-from scipy.interpolate import griddata
+
+from scipy.interpolate import griddata, RegularGridInterpolator
 from astropy.io import fits
 import astropy.units as u
 import logging
 
+from . import webbpsf_core
+from .optics import _fix_zgrid_NaNs
+
+
 _log = logging.getLogger('webbpsf')
 import pprint
 
+GRISM_FILTER = 'G150'
+PRISM_FILTER = 'P120'
 
 class WavelengthDependenceInterpolator(object):
     """WavelengthDependenceInterpolator can be configured with
@@ -158,8 +164,7 @@ class FieldDependentAberration(poppy.ZernikeWFE):
             assert len(aberration_array.shape) == 2, "computed aberration array is not 2D " \
                                                      "(inconsistent number of Zernike terms " \
                                                      "at each point?)"
-
-            field_position = tuple(np.clip(self.field_position, 4, 4092))
+            field_position = tuple(self.field_position)
             coefficients = griddata(
                 np.asarray(field_points),
                 np.asarray(aberration_terms),
@@ -167,7 +172,38 @@ class FieldDependentAberration(poppy.ZernikeWFE):
                 method='linear'
             )
             if np.any(np.isnan(coefficients)):
-                raise RuntimeError("Could not get aberrations for input field point")
+                # FIND TWO CLOSEST INPUT GRID POINTS:
+                dist = []
+                corners = field_points[1:]  # use only the corner points
+                for i, ip in enumerate(corners):
+                    dist.append(np.sqrt(((ip[0] - field_position[0]) ** 2) + ((ip[1] - field_position[1]) ** 2)))
+                min_dist_indx = np.argsort(dist)[:2]  # keep two closest points
+                # DEFINE LINE B/W TWO POINTS, FIND ORTHOGONAL LINE AT POINT OF INTEREST,
+                # AND FIND INTERSECTION OF THESE TWO LINES.
+                x1, y1 = corners[min_dist_indx[0]]
+                x2, y2 = corners[min_dist_indx[1]]
+                dx = x2 - x1
+                dy = y2 - y1
+                a = (dy * (field_position[1] - y1) + dx * (field_position[0] - x1)) / (dx * dx + dy * dy)
+                closest_interp_point = (x1 + a * dx, y1 + a * dy)
+                # INTERPOLATE ABERRATIONS TO CLOSEST INTERPOLATED POINT:
+                coefficients = griddata(
+                    np.asarray(field_points),
+                    np.asarray(aberration_terms),
+                    closest_interp_point,
+                    method='linear')
+                # IF CLOSEST INTERPOLATED POINT IS STILL OUTSIDE THE INPUT GRID,
+                # THEN USE NEAREST GRID POINT INSTEAD:
+                if np.any(np.isnan(coefficients)):
+                    coefficients = aberration_terms[min_dist_indx[0] + 1]
+                    _log.warn("Attempted to get aberrations at field point {} which is outside the range "
+                              "of the reference data; approximating to nearest input grid point".format(field_position))
+                else:
+                    _log.warn("Attempted to get aberrations at field point {} which is outside the range "
+                              "of the reference data; approximating to nearest interpolated point {}".format(
+                        field_position, closest_interp_point))
+                assert not np.any(np.isnan(coefficients)), "Could not compute aberration " \
+                                                           "at field point {}".format(field_position)
         if self._omit_piston_tip_tilt:
             _log.debug("Omitting piston/tip/tilt")
             coefficients[:3] = 0.0  # omit piston, tip, and tilt Zernikes
@@ -176,7 +212,7 @@ class FieldDependentAberration(poppy.ZernikeWFE):
 
 def _load_wfi_detector_aberrations(filename):
     from astropy.io import ascii
-    zernike_table = ascii.read(filename)
+    zernike_table = ascii.read(filename, encoding='utf-8-sig')
     detectors = {}
 
     def build_detector_from_table(number, zernike_table):
@@ -295,22 +331,62 @@ class WFIPupilController:
         self._pupil_basepath = None
 
         self._pupil = None
-
-        # Paths to the two possible pupils. The correct one is selected based on requested
-        # wavelengths in _validate_config()
-        self._unmasked_pupil_path = None
-        self._masked_pupil_path = None
-
-        # List of filters that need the masked pupil
-        self._masked_filters = ['F184']
+        self._pupil_mask = None # new for webbpsf 1.0
 
         # Flag to en-/disable automatic selection of the appropriate pupil_mask
-        self.auto_pupil = True
+        self._auto_pupil = True
 
-        self._pupil_mask = "AUTO"
-        # 'COLD_PUPIL' and 'UNMASKED' are outdated but available for backward comparability
-        self.pupil_mask_list = ['AUTO', 'FULL_MASK', 'RIM_MASK', 'COLD_PUPIL', 'UNMASKED']
-        self._currently_masked = False
+        # Flag to en-/disable automatic selection of the appropriate pupil file
+        self._auto_pupil_mask = True
+
+        self.pupil_path_formatters = {
+            'skinny': 'RST_WIM_Filter_skinny_{0}.fits.gz',
+            'wide': 'RST_WIM_Filter_F184_{0}.fits.gz',
+            'grism': 'RST_WSM_Grism_grism_{0}.fits.gz',
+            'prism': 'RST_WSM_Prism_prism_{0}.fits.gz'}
+
+    @property
+    def pupil(self):
+        return self._pupil
+
+    @pupil.setter
+    def pupil(self, value):
+        raise AttributeError('Pupil cannot be directly specified. '
+                             'Use lock_pupil() instead.')
+
+    @property
+    def pupil_mask(self):
+        """
+        pupil_mask types:
+        - "skinny"
+        - "wide"
+        - "prism"
+        - "grism"
+        """
+        return self._pupil_mask
+
+    @pupil_mask.setter
+    def pupil_mask(self, name):
+        """
+        """
+
+        raise AttributeError('Pupil mask cannot be directly specified. '
+                             'Use lock_pupil_mask() instead.')
+
+    def _get_filter_mask(self, wfi_filter):
+        # FOR NEW PUPIL/MASK EDITS
+        wfi_filter = wfi_filter.upper()
+        if wfi_filter == GRISM_FILTER:
+            return 'grism'
+        elif wfi_filter == PRISM_FILTER:
+            return 'prism'
+        elif wfi_filter in ['F184', 'F213']:
+            return 'wide'
+        else:
+            # this method should only be called after WFI.filter was validated,
+            # so we assume all inputs are valid and direct those that don't pass
+            # preceding cases to skinny
+            return 'skinny'
 
     def set_base_path(self, datapath):
         """
@@ -324,126 +400,53 @@ class WFIPupilController:
         self._datapath = datapath
         self._pupil_basepath = os.path.join(self._datapath, "pupils")
 
-    @property
-    def pupil(self):
-        return self._pupil
-
-    @pupil.setter
-    def pupil(self, value):
-        self._pupil = value
-
-    @property
-    def pupil_mask(self):
+    def update_pupil(self, filter, detector):
         """
-        pupil_mask types:
-        - "AUTO":
-            Automatically select pupil
-        - "COLD_PUPIL":
-            Masked pupil override
-        - "UNMASKED":
-            Unmasked pupil override
         """
-        return self._pupil_mask
+        if not self._auto_pupil:
+            _log.info('Automatic pupil selection was locked; '
+                      'using user-provided pupil.')
+            return
 
-    @pupil_mask.setter
-    def pupil_mask(self, name):
-        """
-        Set the pupil mask
-
-        Parameters
-        ------------
-        name : string
-            Name of setting.
-            Settings:
-                - "AUTO":
-                    Automatically select pupil
-                - "FULL_MASK":
-                    Full mask pupil override (outdated version: "COLD_PUPIL")
-                - "RIM_MASK":
-                    Rim mask pupil override (outdated version: "UNMASKED")
-        """
-        if name and isinstance(name, str):
-            name = name.upper()
-            if "AUTO" == name:
-                self.auto_pupil = True
-                _log.info("Using default pupil mask.")
-            elif name in ["FULL_MASK", "COLD_PUPIL"]:
-                self.auto_pupil = False
-                _log.info("Using custom pupil mask: Masked Pupil.")
-            elif name in ["RIM_MASK", "UNMASKED"]:
-                self.auto_pupil = False
-                _log.info("Using custom pupil mask: Unmasked Pupil.")
-            else:
-                raise ValueError("Instrument {0} doesn't have a pupil mask called '{1}'.".format(self.name, name))
-        else:
-            raise ValueError("Pupil mask setting is not valid or empty.")
-        self._pupil_mask = name
-
-        self._update_pupil()
-
-    def update_pupil_path(self, detector):
-        """
-        Update the masked and unmasked pupil paths according to the SCA selected
-        """
+        #if set_path and self._pupil_basepath is None:
         if self._pupil_basepath is None:
-            raise Exception("update_pupil_path called before pupil file path is set")
-        if detector is None:
-            raise ValueError("Detector was not set when trying to set pupil file path")
-        if 'SCA' not in detector:
-            raise ValueError("Unidentified detector selected, could not assign pupil")
+           raise Exception('update_pupil called before setting pupil file path')
 
-        detector = detector[:3] + str(int((detector[3:])))  # example "SCA01" -> "SCA1"
+        pupil_mask = (self._get_filter_mask(filter) if self._auto_pupil_mask
+                      else self.pupil_mask)
+        # log the else case?
+        path_formatter = self.pupil_path_formatters[pupil_mask]
 
-        self._unmasked_pupil_path = os.path.join(self._pupil_basepath,
-                                                 '{}_rim_mask.fits.gz'.format(detector))
+        pupil = os.path.join(self._pupil_basepath,
+                             path_formatter.format(detector))
 
-        self._masked_pupil_path = os.path.join(self._pupil_basepath,
-                                               '{}_full_mask.fits.gz'.format(detector))
-        self._update_pupil()
+        self._pupil = pupil
+        self._pupil_mask = pupil_mask
 
-    def _update_pupil(self):
-        """
-        Update the actual pupil by setting the pupil variable
-        to the correct pupil path.
-        """
-        if self._pupil_basepath is None:
-            raise Exception("update pupil called before pupil file path is set")
+        _log.info(f"Using {'' if self._auto_pupil_mask else 'locked '}"
+                  f"pupil mask '{pupil_mask}' and detector '{detector}'.")
 
-        if 'AUTO' == self.pupil_mask:
-            if self._currently_masked:
-                self.pupil = self._masked_pupil_path
-            else:
-                self.pupil = self._unmasked_pupil_path
-        elif self.pupil_mask in ["FULL_MASK", "COLD_PUPIL"]:
-            self.pupil = self._masked_pupil_path
-        elif self.pupil_mask in ["RIM_MASK", "UNMASKED"]:
-            self.pupil = self._unmasked_pupil_path
+    def lock_pupil(self, pupil_path):
+        self._pupil_mask = None
+        self._pupil = pupil_path
+        self._auto_pupil = False
+
+    def unlock_pupil(self):
+        self._auto_pupil = True
+
+    def lock_pupil_mask(self, pupil_mask):
+        '''
+        only skinny, wide, prism, grism
+        '''
+        if pupil_mask not in self.pupil_path_formatters.keys():
+            raise Exception('invalid pupil mask')
         else:
-            raise ValueError("Pupil mask setting is not valid or empty.")
+            self._pupil_mask = pupil_mask
+            self._auto_pupil_mask = False
 
-    def validate_pupil(self, filter, **kwargs):
-        """Validates that the WFI is configured sensibly
-
-        This mainly consists of selecting the masked or unmasked pupil
-        appropriately based on the wavelengths requested.
-        """
-        if self.auto_pupil:
-            if filter in self._masked_filters:
-                # use masked pupil optic
-                self.pupil = self._masked_pupil_path
-                _log.info("Using the masked WFI pupil shape based on filter requested")
-            else:
-                # use unmasked pupil optic
-                self.pupil = self._unmasked_pupil_path
-                _log.info("Using the unmasked WFI pupil shape based on filter requested")
-        else:
-            # If the user has set the pupil to a custom value, let them worry about the
-            # correct shape it should have
-            pass
-
-    def remove_pupil_mask_override(self):
-        _log.info("Removing custom pupil mask")
-        self.pupil_mask = 'AUTO'
+    def unlock_pupil_mask(self):
+        # how do we know which mask to reset to?
+        self._auto_pupil_mask = True
 
 
 class WFI(RomanInstrument):
@@ -459,35 +462,64 @@ class WFI(RomanInstrument):
     def __init__(self):
         """
         Initiate WFI
-
-        Parameters
-        -----------
-        set_pupil_mask_on : bool or None
-            Set to True or False to force using or not using the cold pupil mask,
-            or to None for the automatic behavior.
         """
         # pixel scale is from Roman-AFTA SDT report final version (p. 91)
         # https://roman.ipac.caltech.edu/sims/Param_db.html
-        pixelscale = 110e-3 # arcsec/px
+        pixelscale = 110e-3 # arcsec/px # IS THIS STILL CORRECT?
 
         # Initialize the pupil controller
         self._pupil_controller = WFIPupilController()
+
+        # Initialize the aberrations for super().__init__
+        self._aberration_files = {}
+        self._is_custom_aberration = False
+        self._current_aberration_file = ""
 
         super(WFI, self).__init__("WFI", pixelscale=pixelscale)
 
         self._pupil_controller.set_base_path(self._datapath)
 
-        self.pupil_mask_list = self._pupil_controller.pupil_mask_list
+        self.pupil_mask_list = self._pupil_controller.pupil_path_formatters.keys()
 
+        # Define default aberration files for WFI modes
+        self._aberration_files = {
+            'imaging': os.path.join(self._datapath, 'wim_zernikes_cycle9.csv'),
+            'prism': os.path.join(self._datapath,
+                                  'wsm_prism_zernikes_cycle9.csv'),
+            'grism': os.path.join(self._datapath,
+                                  'wsm_grism_zernikes_cycle9.csv'),
+            'custom': None}
+
+        # Load default detector from aberration file
         self._detector_npixels = 4096
-        self._detectors = _load_wfi_detector_aberrations(os.path.join(self._datapath, 'wim_zernikes_cycle8.csv'))
-        assert len(self._detectors.keys()) > 0
+        self._load_detector_aberrations(self._aberration_files[self.mode])
         self.detector = 'SCA01'
 
-        self.opd_list = [
-            os.path.join(self._WebbPSF_basepath, 'upscaled_HST_OPD.fits'),
-        ]
+        self.opd_list = [os.path.join(self._WebbPSF_basepath,
+                                      'upscaled_HST_OPD.fits')]
         self.pupilopd = self.opd_list[-1]
+
+    def _addAdditionalOptics(self, optsys, **kwargs):
+        return optsys, False, None
+
+    def _load_detector_aberrations(self, path):
+        """
+        Helper function that, given a path to a file containing detector aberrations, loads the Zernike values and
+        populates the class' dictator list with `FieldDependentAberration` detectors. This function achieves this by
+        calling the `webbpsf.roman._load_wfi_detector_aberrations` function.
+
+        Users should use the `override_aberrations` function to override current aberrations.
+
+        Parameters
+        ----------
+        path : string
+            Path to file containing detector aberrations
+        """
+        detectors = _load_wfi_detector_aberrations(path)
+        assert len(detectors.keys()) > 0
+
+        self._detectors = detectors
+        self._current_aberration_file = path
 
     def _validate_config(self, **kwargs):
         """Validates that the WFI is configured sensibly
@@ -495,15 +527,93 @@ class WFI(RomanInstrument):
         This mainly consists of selecting the masked or unmasked pupil
         appropriately based on the wavelengths requested.
         """
-        self._pupil_controller.validate_pupil(self.filter, **kwargs)
+        assert self.filter is not None, 'filter is None'
+        assert self.detector is not None, 'detector is None'
+        self._update_pupil()
+
+        assert self.pupil is not None, 'pupil is None'
         super(WFI, self)._validate_config(**kwargs)
+
+    def _get_filter_mode(self, wfi_filter):
+        """
+        Given a filter name, return the WFI mode
+
+        Parameters
+        ----------
+        wfi_filter : string
+            Name of WFI filter
+
+        Returns
+        -------
+        mode : string
+            Returns 'imaging', 'grism' or 'prism' depending on filter.
+
+        Raises
+        ------
+        ValueError
+            If the input filter is not found in the WFI filter list
+        """
+
+        wfi_filter = wfi_filter.upper()
+        if wfi_filter == GRISM_FILTER:
+            return 'grism'
+        elif wfi_filter == PRISM_FILTER:
+            return 'prism'
+        elif wfi_filter in self.filter_list:
+            return 'imaging'
+        else:
+            raise ValueError(f"Instrument {self.name} doesn't have a filter "
+                             f"called {wfi_filter}.")
+
+    def _update_pupil(self, filter=None, detector=None):
+        if detector is None:
+            detector = self.detector
+        if filter is None:
+            filter = self.filter
+
+        if detector is not None and filter is not None:
+            self._pupil_controller.update_pupil(filter=filter,detector=detector)
 
     @RomanInstrument.detector.setter
     def detector(self, value):
         if value.upper() not in self.detector_list:
             raise ValueError("Invalid detector. Valid detector names are: {}".format(', '.join(self.detector_list)))
+
         self._detector = value.upper()
-        self._pupil_controller.update_pupil_path(self.detector)
+        if self._detector is not None:
+            self._update_pupil(detector=self._detector)
+
+    @RomanInstrument.filter.setter
+    def filter(self, value):
+
+        # Update Filter
+        # -------------
+        value = value.upper()
+
+        if value not in self.filter_list:
+            raise ValueError("Instrument %s doesn't have a filter called %s." % (self.name, value))
+
+        self._filter = value
+
+        # Update Aberrations
+        # ------------------
+        # Check if _aberration_files has been initiated (not empty) and if aberrations are locked by user
+        if self._aberration_files and not self._is_custom_aberration:
+
+            # Identify aberration file for new mode
+            mode = self._get_filter_mode(self._filter)
+            aberration_file = self._aberration_files[mode]
+
+            # If aberrations are not already loaded for the new mode,
+            # load and replace detectors using the new mode's aberration file.
+            if not os.path.samefile(self._current_aberration_file,
+                                    aberration_file):
+                self._load_detector_aberrations(aberration_file)
+
+        # Update Pupil
+        # ------------
+        if self.detector is not None:
+            self._update_pupil(filter=self._filter)
 
     @property
     def pupil(self):
@@ -511,22 +621,16 @@ class WFI(RomanInstrument):
 
     @pupil.setter
     def pupil(self, value):
-        # self._pupil_controller is not available at initiation thus
-        # we must ignore any assignments at super(WFI, self).__init__(...)
-        if self._pupil_controller:
-            self._pupil_controller.pupil = value
+        if self._aberration_files: # check if we've been through super() in init (could be more sophisticated...)
+            raise AttributeError('Pupil cannot be directly specified. '
+                                 'Use lock_pupil() instead.')
+        # ASK ROBEL:
+        # else: # SHOULD WE JUST IGNORE super's self.pupil ASSIGNMENT??
+        #     self._pupil_controller.pupil = value
 
     @property
     def pupil_mask(self):
         return self._pupil_controller.pupil_mask
-
-    @RomanInstrument.filter.setter
-    def filter(self, value):
-        value = value.upper()  # force to uppercase
-        if value not in self.filter_list:
-            raise ValueError("Instrument %s doesn't have a filter called %s." % (self.name, value))
-        self._filter = value
-        self._pupil_controller.validate_pupil(self.filter)
 
     @pupil_mask.setter
     def pupil_mask(self, name):
@@ -534,29 +638,103 @@ class WFI(RomanInstrument):
         Set the pupil mask
 
         Parameters
-        ------------
+        ----------
         name : string
             Name of setting.
             Settings:
-                - "AUTO":
-                    Automatically select pupil
-                - "FULL_MASK":
-                    Full mask pupil override (outdated version: "COLD_PUPIL")
-                - "RIM_MASK"
-                    Rim mask pupil override (outdated version: "UNMASKED")
+                - "skinny"
+                - "wide"
+                - "prism"
+                - "grism"
         """
-        self._pupil_controller.pupil_mask = name
-
-    def _addAdditionalOptics(self, optsys, **kwargs):
-        return optsys, False, None
+        raise AttributeError('Pupil mask cannot be directly specified. '
+                             'Use lock_pupil_mask() instead.')
 
     @property
-    def _unmasked_pupil_path(self):
-        return self._pupil_controller._unmasked_pupil_path
+    def mode(self):
+        """Current WFI mode"""
+        return self._get_filter_mode(self.filter)
 
-    @property
-    def _masked_pupil_path(self):
-        return self._pupil_controller._masked_pupil_path
+    @mode.setter
+    def mode(self, value):
+        """Mode is set by changing filters"""
+        raise AttributeError("WFI mode cannot be directly specified; "
+                             "WFI mode is set by changing filters.")
+
+    def lock_aberrations(self, aberration_path):
+        """
+        This function loads user provided aberrations from a file and locks this instrument
+        to only use the provided aberrations (even if the filter or mode change).
+        To release the lock and load the default aberrations, use the `reset_override_aberrations` function.
+        To load new user provided aberrations, simply call this function with the new path.
+
+        To load custom aberrations, please provide a csv file containing the detector names,
+        field point positions and Zernike values. The file should contain the following column names/values
+        (comments in parentheses should not be included):
+            - sca (Detector number)
+            - wavelength (µm)
+            - field_point (filed point number/id for SCA and wavelength, starts with 1)
+            - local_x (mm, local detector coords)
+            - local_y (mm, local detector coords)
+            - global_x (mm, global instrument coords)
+            - global_y (mm, global instrument coords)
+            - axis_local_angle_x (XAN)
+            - axis_local_angle_y (YAN)
+            - wfe_rms_waves (nm)
+            - wfe_pv_waves (waves)
+            - Z1 (Zernike phase NOLL coefficients)
+            - Z2 (Zernike phase NOLL coefficients)
+            - Z3 (Zernike phase NOLL coefficients)
+            - Z4 (Zernike phase NOLL coefficients)
+              .
+              .
+              .
+
+        Please refer to the default aberrations files for examples. If you have the WebbPSF data installed and defined,
+        you can get the path to that file by running the following:
+            >>> from webbpsf import roman
+            >>> wfi = roman.WFI()
+            >>> print(wfi._aberration_files["imaging"])
+
+        Warning: You should not edit the default files!
+        """
+        self._load_detector_aberrations(aberration_path)
+        self._aberration_files['custom'] = aberration_path
+        self._is_custom_aberration = True
+
+    def unlock_aberrations(self):
+         """Release detector aberrations override and load defaults"""
+         aberration_path = self._aberration_files[self.mode]
+         self._load_detector_aberrations(aberration_path)
+         self._aberration_files['custom'] = None
+         self._is_custom_aberration = False
+
+    def lock_pupil(self, pupil_path):
+        if os.path.isfile(pupil_path):
+            self._pupil_controller.lock_pupil(pupil_path)
+        else:
+            raise FileNotFoundError(f"{pupil_path} not found.")
+
+        _log.warning("you're on your own...")
+
+    def unlock_pupil(self):
+        # QUESTION: how do we know which pupil to reset to? make it clear in the docstring that you're unlocking *and* resetting to default.
+        # QUESTION: if you unlock_pupil_mask, lock_pupil, unlock_pupil, does the pupil mask also reset?
+        self._pupil_controller.unlock_pupil()
+
+        self._update_pupil() # reset pupil
+
+    def lock_pupil_mask(self, pupil_mask):
+        '''
+        only skinny, wide, prism, grism
+        '''
+        self._pupil_controller.lock_pupil_mask(pupil_mask)
+
+    def unlock_pupil_mask(self):
+        # QUESTION: how do we know which mask to reset to? make it clear in the docstring that you're unlocking *and* resetting to default.
+        self._pupil_controller.unlock_pupil_mask()
+
+        self._update_pupil() # reset pupil mask
 
 
 class CGI(RomanInstrument):
