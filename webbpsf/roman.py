@@ -412,13 +412,17 @@ class WFIPupilController:
         if self._pupil_basepath is None:
            raise Exception('update_pupil called before setting pupil file path')
 
+        # change detector string to match file format (e.g., "SCA01" -> "SCA_1")
+        det_frag = f"{detector[:3]}_{str(int((detector[3:])))}"
+
+        # figure out proper mask based on filter (or use locked mask if enabled)
         pupil_mask = (self._get_filter_mask(filter) if self._auto_pupil_mask
                       else self.pupil_mask)
         # log the else case?
         path_formatter = self.pupil_path_formatters[pupil_mask]
 
         pupil = os.path.join(self._pupil_basepath,
-                             path_formatter.format(detector))
+                             path_formatter.format(det_frag))
 
         self._pupil = pupil
         self._pupil_mask = pupil_mask
@@ -624,9 +628,8 @@ class WFI(RomanInstrument):
         if self._aberration_files: # check if we've been through super() in init (could be more sophisticated...)
             raise AttributeError('Pupil cannot be directly specified. '
                                  'Use lock_pupil() instead.')
-        # ASK ROBEL:
-        # else: # SHOULD WE JUST IGNORE super's self.pupil ASSIGNMENT??
-        #     self._pupil_controller.pupil = value
+
+        # super() tries to set self.pupil = None, which we are ignoring
 
     @property
     def pupil_mask(self):
