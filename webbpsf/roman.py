@@ -24,8 +24,8 @@ from .optics import _fix_zgrid_NaNs
 _log = logging.getLogger('webbpsf')
 import pprint
 
-GRISM_FILTER = 'G150'
-PRISM_FILTER = 'P120'
+GRISM_FILTERS = ('GRISM0', 'GRISM1')
+PRISM_FILTERS = ('PRISM')
 
 class WavelengthDependenceInterpolator(object):
     """WavelengthDependenceInterpolator can be configured with
@@ -320,8 +320,9 @@ class WFIPupilController:
     """
     This is a helper class for the WFI and is used to swap in
     the correct pupil each time the detector is changed.
-    The pupil depends on the selected detector, filter and the
-    pupil_mask flag provided by the user.
+    The pupil depends on pupil_mask, detector, and filter;
+    pupil_mask is set automatically upon the receipt of the
+    detector and filter values selected by the user in the WFI class.
     The user should not interact with this class directly, only
     through the API provided through the WFI class.
     """
@@ -339,14 +340,20 @@ class WFIPupilController:
         # Flag to en-/disable automatic selection of the appropriate pupil file
         self._auto_pupil_mask = True
 
-        self.pupil_path_formatters = {
-            'skinny': 'RST_WIM_Filter_skinny_{0}.fits.gz',
-            'wide': 'RST_WIM_Filter_F184_{0}.fits.gz',
-            'grism': 'RST_WSM_Grism_grism_{0}.fits.gz',
-            'prism': 'RST_WSM_Prism_prism_{0}.fits.gz'}
+        # Save formattable pupil file names for each pupil mask
+        self.pupil_file_formatters = {
+            'SKINNY': 'RST_WIM_Filter_skinny_{0}.fits.gz',
+            'WIDE': 'RST_WIM_Filter_F184_{0}.fits.gz',
+            'GRISM': 'RST_WSM_Grism_grism_{0}.fits.gz',
+            'PRISM': 'RST_WSM_Prism_prism_{0}.fits.gz'}
 
     @property
     def pupil(self):
+        """
+        The path to the FITS file containing pupil information for the
+        detector/filter combination sent from the WFI class. Cannot be
+        directly set by the user.
+        """
         return self._pupil
 
     @pupil.setter
@@ -357,41 +364,45 @@ class WFIPupilController:
     @property
     def pupil_mask(self):
         """
-        pupil_mask types:
-        - "skinny"
-        - "wide"
-        - "prism"
-        - "grism"
+        The corresponding mask for the filter sent from the WFI class.
+        (See WFI.pupil_mask_list for a list of valid filters.) Cannot
+        be directly set by the user.
         """
         return self._pupil_mask
 
     @pupil_mask.setter
     def pupil_mask(self, name):
-        """
-        """
-
         raise AttributeError('Pupil mask cannot be directly specified. '
                              'Use lock_pupil_mask() instead.')
 
     def _get_filter_mask(self, wfi_filter):
-        # FOR NEW PUPIL/MASK EDITS
+        """
+        Returns the appropriate mask for a given WFI filter.
+
+        Parameters
+        ----------
+        wfi_filter : string
+            See WFI.filter_list for a list of valid filters.
+        """
         wfi_filter = wfi_filter.upper()
-        if wfi_filter == GRISM_FILTER:
-            return 'grism'
-        elif wfi_filter == PRISM_FILTER:
-            return 'prism'
+
+        if wfi_filter in GRISM_FILTERS:
+            return 'GRISM'
+        elif wfi_filter in PRISM_FILTERS:
+            return 'PRISM'
         elif wfi_filter in ['F184', 'F213']:
-            return 'wide'
+            return 'WIDE'
         else:
             # this method should only be called after WFI.filter was validated,
             # so we assume all inputs are valid and direct those that don't pass
             # preceding cases to skinny
-            return 'skinny'
+            return 'SKINNY'
 
     def set_base_path(self, datapath):
         """
-        Sets the path to the WebbPSF data files.
+        Sets the root directory of the path to WebbPSF's data files.
         This should be set before this class is used.
+
         Parameters
         ----------
         datapath : string
@@ -402,13 +413,23 @@ class WFIPupilController:
 
     def update_pupil(self, filter, detector):
         """
+        Selects the specific pupil file corresponding with a detector
+        and filter combination sent from the WFI class. Also finds and
+        indirectly sets the proper pupil_mask in the process.
+
+        Parameters
+        ----------
+        filter : string
+            See WFI.filter_list for a list of valid filters.
+
+        detector : string
+            See WFI.detector_list for a list of valid detectors.
         """
         if not self._auto_pupil:
             _log.info('Automatic pupil selection was locked; '
                       'using user-provided pupil.')
             return
 
-        #if set_path and self._pupil_basepath is None:
         if self._pupil_basepath is None:
            raise Exception('update_pupil called before setting pupil file path')
 
@@ -419,44 +440,79 @@ class WFIPupilController:
         pupil_mask = (self._get_filter_mask(filter) if self._auto_pupil_mask
                       else self.pupil_mask)
         # log the else case?
-        path_formatter = self.pupil_path_formatters[pupil_mask]
 
+        path_formatter = self.pupil_file_formatters[pupil_mask]
         pupil = os.path.join(self._pupil_basepath,
                              path_formatter.format(det_frag))
 
-        self._pupil = pupil
         self._pupil_mask = pupil_mask
+        self._pupil = pupil
 
         _log.info(f"Using {'' if self._auto_pupil_mask else 'locked '}"
                   f"pupil mask '{pupil_mask}' and detector '{detector}'.")
 
     def lock_pupil(self, pupil_path):
+        """
+        Prevents the WFIPupilController class from dynamically updating
+        the path to the pupil on any changes to the detector or filter
+        selected in the WFI class. Instead, the path remains locked on
+        whichever `pupil_path` was provided to this method.
+
+        CAUTION: This is non-standard usage of the WFI class and may
+        lead to unexpected behavior.
+
+        Parameters
+        ----------
+        pupil_path : string
+            The custom path to your pupil file.
+        """
         self._pupil_mask = None
         self._pupil = pupil_path
         self._auto_pupil = False
 
     def unlock_pupil(self):
+        """
+        Undoes the effects of lock_pupil() and resets WFIPupilController
+        to its default state of updating the pupil whenever a detector
+        or filter is changed in the WFI class.
+        """
         self._auto_pupil = True
 
     def lock_pupil_mask(self, pupil_mask):
-        '''
-        only skinny, wide, prism, grism
-        '''
-        if pupil_mask not in self.pupil_path_formatters.keys():
+        """
+        Prevents the WFIPupilController class from dynamically updating
+        the pupil mask on any changes to the filter selected in the WFI
+        class. Instead, the pupil mask remains locked on whichever
+        `pupil_mask` was provided to this method.
+
+        CAUTION: This is non-standard usage of the WFI class and may
+        lead to unexpected behavior.
+
+        Parameters
+        ----------
+        filter : string
+            See WFI.pupil_mask_list for a list of valid pupil masks.
+        """
+        if pupil_mask not in self.pupil_file_formatters.keys():
             raise Exception('invalid pupil mask')
         else:
             self._pupil_mask = pupil_mask
             self._auto_pupil_mask = False
 
     def unlock_pupil_mask(self):
-        # how do we know which mask to reset to?
+        """
+        Undoes the effects of lock_pupil_mask() and resets
+        WFIPupilController to its default state of updating the pupil
+        mask whenever filter is changed in the WFI class.
+
+        UNRESOLVED: how do we know which mask to reset to?
+        """
         self._auto_pupil_mask = True
 
 
 class WFI(RomanInstrument):
     """
-    WFI represents the Roman wide field imager
-    for the Roman mission
+    WFI represents the Roman mission's Wide Field Imager.
 
     WARNING: This model has not yet been validated against other PSF
              simulations, and uses several approximations (e.g. for
@@ -464,12 +520,9 @@ class WFI(RomanInstrument):
     """
 
     def __init__(self):
-        """
-        Initiate WFI
-        """
         # pixel scale is from Roman-AFTA SDT report final version (p. 91)
         # https://roman.ipac.caltech.edu/sims/Param_db.html
-        pixelscale = 110e-3 # arcsec/px # IS THIS STILL CORRECT?
+        pixelscale = 110e-3 # arcsec/px
 
         # Initialize the pupil controller
         self._pupil_controller = WFIPupilController()
@@ -483,7 +536,7 @@ class WFI(RomanInstrument):
 
         self._pupil_controller.set_base_path(self._datapath)
 
-        self.pupil_mask_list = self._pupil_controller.pupil_path_formatters.keys()
+        self.pupil_mask_list = list(self._pupil_controller.pupil_file_formatters.keys())
 
         # Define default aberration files for WFI modes
         self._aberration_files = {
@@ -494,7 +547,7 @@ class WFI(RomanInstrument):
                                   'wsm_grism_zernikes_cycle9.csv'),
             'custom': None}
 
-        # Load default detector from aberration file
+        # Load and set default detector from aberration file
         self._detector_npixels = 4096
         self._load_detector_aberrations(self._aberration_files[self.mode])
         self.detector = 'SCA01'
@@ -508,16 +561,19 @@ class WFI(RomanInstrument):
 
     def _load_detector_aberrations(self, path):
         """
-        Helper function that, given a path to a file containing detector aberrations, loads the Zernike values and
-        populates the class' dictator list with `FieldDependentAberration` detectors. This function achieves this by
-        calling the `webbpsf.roman._load_wfi_detector_aberrations` function.
+        Helper function that, given a path to a file containing detector
+        aberrations, loads the Zernike values and populates the class'
+        dictator list with `FieldDependentAberration` detectors. This
+        function achieves this by calling the
+        `webbpsf.roman._load_wfi_detector_aberrations` function.
 
-        Users should use the `override_aberrations` function to override current aberrations.
+        Users should use the `override_aberrations` function to override
+        current aberrations.
 
         Parameters
         ----------
         path : string
-            Path to file containing detector aberrations
+            The path to the file containing detector aberrations.
         """
         detectors = _load_wfi_detector_aberrations(path)
         assert len(detectors.keys()) > 0
@@ -526,10 +582,13 @@ class WFI(RomanInstrument):
         self._current_aberration_file = path
 
     def _validate_config(self, **kwargs):
-        """Validates that the WFI is configured sensibly
+        """
+        Validates that the WFI is configured sensibly.
 
         This mainly consists of selecting the masked or unmasked pupil
         appropriately based on the wavelengths requested.
+
+        UNRESOLVED: better double-checking strategy than assert?
         """
         assert self.filter is not None, 'filter is None'
         assert self.detector is not None, 'detector is None'
@@ -540,12 +599,12 @@ class WFI(RomanInstrument):
 
     def _get_filter_mode(self, wfi_filter):
         """
-        Given a filter name, return the WFI mode
+        Given a filter name, returns the WFI mode.
 
         Parameters
         ----------
         wfi_filter : string
-            Name of WFI filter
+            Name of WFI filter. See WFI.filter_list for valid values.
 
         Returns
         -------
@@ -555,13 +614,13 @@ class WFI(RomanInstrument):
         Raises
         ------
         ValueError
-            If the input filter is not found in the WFI filter list
+            ...if the input filter is not found in the WFI filter list.
         """
 
         wfi_filter = wfi_filter.upper()
-        if wfi_filter == GRISM_FILTER:
+        if wfi_filter in GRISM_FILTERS:
             return 'grism'
-        elif wfi_filter == PRISM_FILTER:
+        elif wfi_filter in PRISM_FILTERS:
             return 'prism'
         elif wfi_filter in self.filter_list:
             return 'imaging'
@@ -580,6 +639,9 @@ class WFI(RomanInstrument):
 
     @RomanInstrument.detector.setter
     def detector(self, value):
+        """
+        The current WFI detector. See WFI.detector_list for valid values.
+        """
         if value.upper() not in self.detector_list:
             raise ValueError("Invalid detector. Valid detector names are: {}".format(', '.join(self.detector_list)))
 
@@ -589,9 +651,10 @@ class WFI(RomanInstrument):
 
     @RomanInstrument.filter.setter
     def filter(self, value):
-
-        # Update Filter
-        # -------------
+        """
+        The current WFI filter. See WFI.filter_list for valid values.
+        """
+        # Update filter
         value = value.upper()
 
         if value not in self.filter_list:
@@ -599,84 +662,87 @@ class WFI(RomanInstrument):
 
         self._filter = value
 
-        # Update Aberrations
-        # ------------------
-        # Check if _aberration_files has been initiated (not empty) and if aberrations are locked by user
+        # Update aberrations if self._aberration_files has been initiated (not
+        # empty) and if they haven't been locked by user
         if self._aberration_files and not self._is_custom_aberration:
 
-            # Identify aberration file for new mode
+            # identify aberration file for new mode
             mode = self._get_filter_mode(self._filter)
             aberration_file = self._aberration_files[mode]
 
-            # If aberrations are not already loaded for the new mode,
-            # load and replace detectors using the new mode's aberration file.
+            # if aberrations are not already loaded for the new mode,
+            # load and replace detectors using the new mode's aberration file
             if not os.path.samefile(self._current_aberration_file,
                                     aberration_file):
                 self._load_detector_aberrations(aberration_file)
 
-        # Update Pupil
-        # ------------
+        # Update pupil only if detector was previously loaded
+        # ( i.e., skip this step when called by super() )
         if self.detector is not None:
             self._update_pupil(filter=self._filter)
 
     @property
     def pupil(self):
+        """
+        The path to the FITS file containing pupil information for the
+        detector/filter combination sent from the WFI class. Cannot be
+        directly set by the user.
+        """
         return self._pupil_controller.pupil
 
     @pupil.setter
     def pupil(self, value):
-        if self._aberration_files: # check if we've been through super() in init (could be more sophisticated...)
+        # check if we've been through super() in init
+        # UNRESOLVED: the check could be more explicit...
+        if self._aberration_files:
             raise AttributeError('Pupil cannot be directly specified. '
                                  'Use lock_pupil() instead.')
 
-        # super() tries to set self.pupil = None, which we are ignoring
+        # super() tries to set self.pupil = None, which we ignore
 
     @property
     def pupil_mask(self):
+        """
+        The corresponding mask for the current filter. Cannot be
+        directly set by the user.
+        """
         return self._pupil_controller.pupil_mask
 
     @pupil_mask.setter
     def pupil_mask(self, name):
-        """
-        Set the pupil mask
-
-        Parameters
-        ----------
-        name : string
-            Name of setting.
-            Settings:
-                - "skinny"
-                - "wide"
-                - "prism"
-                - "grism"
-        """
         raise AttributeError('Pupil mask cannot be directly specified. '
                              'Use lock_pupil_mask() instead.')
 
     @property
     def mode(self):
-        """Current WFI mode"""
+        """
+        The current WFI mode. Cannot be directly set by the user.
+        """
         return self._get_filter_mode(self.filter)
 
     @mode.setter
     def mode(self, value):
-        """Mode is set by changing filters"""
         raise AttributeError("WFI mode cannot be directly specified; "
-                             "WFI mode is set by changing filters.")
+                             "it is set by changing filters.")
 
     def lock_aberrations(self, aberration_path):
         """
-        This function loads user provided aberrations from a file and locks this instrument
-        to only use the provided aberrations (even if the filter or mode change).
-        To release the lock and load the default aberrations, use the `reset_override_aberrations` function.
-        To load new user provided aberrations, simply call this function with the new path.
+        This function loads user provided aberrations from a file and
+        locks this instrument to only use the provided aberrations (even
+        if the filter or mode change).
 
-        To load custom aberrations, please provide a csv file containing the detector names,
-        field point positions and Zernike values. The file should contain the following column names/values
-        (comments in parentheses should not be included):
+        To release the lock and load the default aberrations, use
+        unlock_aberrations(). To load new user provided
+        aberrations, call this function with the new path.
+
+        To load custom aberrations, please provide a csv file
+        containing the detector names, field point positions and Zernike
+        values. The file should contain the following column
+        names/values (comments in parentheses should not be included):
             - sca (Detector number)
             - wavelength (µm)
-            - field_point (filed point number/id for SCA and wavelength, starts with 1)
+            - field_point (field point number/ID for SCA and wavelength,
+            starts with 1)
             - local_x (mm, local detector coords)
             - local_y (mm, local detector coords)
             - global_x (mm, global instrument coords)
@@ -693,8 +759,9 @@ class WFI(RomanInstrument):
               .
               .
 
-        Please refer to the default aberrations files for examples. If you have the WebbPSF data installed and defined,
-        you can get the path to that file by running the following:
+        Please refer to the default aberration files for examples. If
+        you have the WebbPSF data installed and defined, you can get the
+        path to that file by running the following:
             >>> from webbpsf import roman
             >>> wfi = roman.WFI()
             >>> print(wfi._aberration_files["imaging"])
@@ -706,37 +773,73 @@ class WFI(RomanInstrument):
         self._is_custom_aberration = True
 
     def unlock_aberrations(self):
-         """Release detector aberrations override and load defaults"""
+         """
+         Releases the lock on the detector aberration file location
+         and loads the default file.
+         """
          aberration_path = self._aberration_files[self.mode]
          self._load_detector_aberrations(aberration_path)
          self._aberration_files['custom'] = None
          self._is_custom_aberration = False
 
     def lock_pupil(self, pupil_path):
+        """
+        Prevents dynamic updates of the path to the proper pupil file on
+        any changes to the selected detector or filter. Instead, the
+        path remains locked on whichever `pupil_path` was provided here.
+
+        WARNING: This is non-standard usage of the WFI class and may
+        lead to unexpected behavior.
+
+        Parameters
+        ----------
+        pupil_path : string
+            The custom path to your pupil file.
+        """
         if os.path.isfile(pupil_path):
             self._pupil_controller.lock_pupil(pupil_path)
         else:
             raise FileNotFoundError(f"{pupil_path} not found.")
 
-        _log.warning("you're on your own...")
+        _log.warning("Disabling default pupil selection behavior.")
 
     def unlock_pupil(self):
-        # QUESTION: how do we know which pupil to reset to? make it clear in the docstring that you're unlocking *and* resetting to default.
-        # QUESTION: if you unlock_pupil_mask, lock_pupil, unlock_pupil, does the pupil mask also reset?
-        self._pupil_controller.unlock_pupil()
+        """
+        Undoes the effects of lock_pupil() and resets the class to its
+        default state of updating the pupil whenever a detector or
+        filter is changed.
 
+        # UNRESOLVED: how do we know which pupil to reset to? make it clear in the docstring that you're unlocking *and* resetting to default.
+        # UNRESOLVED: if you unlock_pupil_mask, lock_pupil, unlock_pupil, does the pupil mask also reset?
+        """
+        self._pupil_controller.unlock_pupil()
         self._update_pupil() # reset pupil
 
     def lock_pupil_mask(self, pupil_mask):
-        '''
-        only skinny, wide, prism, grism
-        '''
+        """
+        Prevents dynamic updates of the pupil mask on any change to the
+        selected filter. Instead, the pupil mask remains locked on
+        whichever `pupil_mask` was provided here.
+
+        WARNING: This is non-standard usage of the WFI class and may
+        lead to unexpected behavior.
+
+        Parameters
+        ----------
+        filter : string
+            See WFI.pupil_mask_list for a list of valid pupil masks.
+        """
         self._pupil_controller.lock_pupil_mask(pupil_mask)
 
     def unlock_pupil_mask(self):
-        # QUESTION: how do we know which mask to reset to? make it clear in the docstring that you're unlocking *and* resetting to default.
-        self._pupil_controller.unlock_pupil_mask()
+        """
+        Undoes the effects of lock_pupil_mask() and resets the class to
+        its default state of updating the pupil mask whenever the filter
+        is changed.
 
+        UNRESOLVED: how do we know which mask to reset to?
+        """
+        self._pupil_controller.unlock_pupil_mask()
         self._update_pupil() # reset pupil mask
 
 
