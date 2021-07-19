@@ -58,7 +58,7 @@ jobs:
 
     - name: Get WebbPSF Data
       run: | # Get WebbPSF data files (just a subset of the full 250 MB!) and set up environment variable
-           wget https://stsci.box.com/shared/static/60dyd6xgax2nb5nzaepng1kp20q89k34.gz -O /tmp/minimal-webbpsf-data.tar.gz
+           wget https://stsci.box.com/shared/static/ci3vkozwgyj82f1qle986k1hmeoggzzh.gz -O /tmp/minimal-webbpsf-data.tar.gz
            tar -xzvf /tmp/minimal-webbpsf-data.tar.gz
            echo "WEBBPSF_PATH=${{github.workspace}}/webbpsf-data" >> $GITHUB_ENV
 
