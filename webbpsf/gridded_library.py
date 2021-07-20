@@ -472,8 +472,8 @@ class CreatePSFLibrary:
         hdu.writeto(file, overwrite=self.overwrite)
 
 
-def display_psf_grid(grid, zoom_in=True, figsize=(12, 12)):
-    """ Display a PSF grid in a pair of lpots
+def display_psf_grid(grid, zoom_in=True, figsize=(14, 12), scale_range=1e-4):
+    """ Display a PSF grid in a pair of plots
 
     Shows the NxN grid in NxN subplots, repeated to show
     first the individual PSFs, and then their differences
@@ -488,6 +488,8 @@ def display_psf_grid(grid, zoom_in=True, figsize=(12, 12)):
     -------
     grid : photutils.GriddedPSFModel object
         The grid of PSFs to be displayed.
+    scale_range : float
+        Dynamic range for display scale. vmin will be set to this factor timex vmax.
 
 
     """
@@ -518,19 +520,24 @@ def display_psf_grid(grid, zoom_in=True, figsize=(12, 12)):
         for ix in range(n):
             for iy in range(n):
                 i = ix*n+iy
-                axes[n-1-iy, ix].imshow(data[i], vmax=vmax, vmin=vmin, norm=norm)
+                im = axes[n-1-iy, ix].imshow(data[i], vmax=vmax, vmin=vmin, norm=norm)
                 axes[n-1-iy, ix].xaxis.set_visible(False)
                 axes[n-1-iy, ix].yaxis.set_visible(False)
                 axes[n-1-iy, ix].set_title("{}".format(tuple_to_int(grid.grid_xypos[i])))
                 if zoom_in:
                     axes[n-1-iy,ix].use_sticky_edges = False
                     axes[n-1-iy,ix].margins(x=-0.25, y=-0.25)
-        plt.suptitle("{} for {} in {} ".format(title,
+        plt.suptitle("{} for {} in {} \noversampling: {}x".format(title,
                                                grid.meta['detector'][0],
-                                               grid.meta['filter'][0]), fontsize=16)
+                                               grid.meta['filter'][0], grid.oversampling), fontsize=16)
+
+
+        cbar = fig.colorbar(im, ax=axes.ravel().tolist(), shrink=0.95)
+        cbar.set_label("Intensity, relative to PSF sum = 1.0")
+
 
     vmax = grid.data.max()
-    vmin = vmax/1e4
+    vmin = vmax*scale_range
     show_grid_helper(grid, grid.data, vmax=vmax, vmin=vmin)
 
     meanpsf = np.mean(grid.data, axis=0)
