@@ -53,7 +53,7 @@ This release only improves a subset of WFIRST functionality; additional improvem
 
 **Software and Package Infrastructure Updates:**
 
-- This minor release uses CircleCI and removes TravisCI. [:pr:`455`, :user:`shanosborne`, :pr:`471`, :user:`robelgeda`]
+- This release uses Github Actions CI and removes TravisCI. [:pr:`455`, :user:`shanosborne`, :pr:`471`, :user:`robelgeda`]
 
 --------
 
