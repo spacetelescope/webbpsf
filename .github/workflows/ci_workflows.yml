@@ -26,11 +26,6 @@ jobs:
             python: 3.8
             toxenv: py38-astropydev-test
 
-          - name: Try latest versions of all dependencies
-            os: ubuntu-latest
-            python: 3.8
-            toxenv: py38-latest-test
-
           - name: Try minimum supported versions
             os: ubuntu-latest
             python: 3.6
