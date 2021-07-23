@@ -7,12 +7,16 @@ WebbPSF: Simulated Point Spread Functions for the James Webb and Nancy Grace Rom
    :target: https://pypi.python.org/pypi/webbpsf
    :alt: Badge showing current released PyPI version
 
-.. image:: https://travis-ci.org/spacetelescope/webbpsf.svg?branch=master
-   :target: https://travis-ci.org/spacetelescope/webbpsf
-   :alt: Badge showing continuous integration test status
+.. image:: https://github.com/spacetelescope/webbpsf/workflows/CI/badge.svg?branch=develop
+   :target: https://github.com/spacetelescope/webbpsf/actions
+   :alt: Github Actions CI Status
 
 .. image:: https://codecov.io/gh/spacetelescope/webbpsf/branch/master/graph/badge.svg
   :target: https://codecov.io/gh/spacetelescope/webbpsf
+
+.. |Documentation Status| image:: https://img.shields.io/readthedocs/webbpsf/latest.svg?logo=read%20the%20docs&logoColor=white&label=Docs&version=latest
+   :target: https://webbpsf.readthedocs.io/en/latest/
+   :alt: Documentation Status
 
 .. image:: https://img.shields.io/badge/ascl-1504.007-blue.svg?colorB=262255
    :target: http://ascl.net/1504.007
@@ -22,7 +26,7 @@ flagship infrared space telescope. WebbPSF can simulate images for any of the
 four science instruments plus the fine guidance sensor, including both direct
 imaging and coronagraphic modes.
 
-WebbPSF also supports simulating PSFs for the upcoming Nancy Grace Roman Space Telescope (formerly WFIRST),
+WebbPSF also supports simulating PSFs for the upcoming WFIRST,
 including its Wide Field Instrument and a preliminary version of the Coronagraph Instrument.
 
 Developed by Marshall Perrin, Joseph Long, Neil Zimmerman, Robel Geda, Shannon
