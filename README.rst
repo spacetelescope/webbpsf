@@ -26,7 +26,7 @@ flagship infrared space telescope. WebbPSF can simulate images for any of the
 four science instruments plus the fine guidance sensor, including both direct
 imaging and coronagraphic modes.
 
-WebbPSF also supports simulating PSFs for the upcoming WFIRST,
+WebbPSF also supports simulating PSFs for the upcoming Nancy Grace Roman Space Telescope (formerly WFIRST),
 including its Wide Field Instrument and a preliminary version of the Coronagraph Instrument.
 
 Developed by Marshall Perrin, Joseph Long, Neil Zimmerman, Robel Geda, Shannon
