@@ -1,8 +1,11 @@
 import os
+import numpy as np
 import pytest
 from webbpsf import wfirst, measure_fwhm
 from numpy import allclose
 
+GRISM_FILTER = wfirst.GRISM_FILTER
+PRISM_FILTER = wfirst.PRISM_FILTER
 MASKED_FLAG = "FULL_MASK"
 UNMASKED_FLAG = "RIM_MASK"
 AUTO_FLAG = "AUTO"
@@ -190,8 +193,51 @@ def test_WFI_chooses_pupil_masks():
     _test_filter_pupil('F062', wfi._unmasked_pupil_path)
     _test_filter_pupil('F158', wfi._unmasked_pupil_path)
     _test_filter_pupil('F146', wfi._unmasked_pupil_path)
+    _test_filter_pupil(PRISM_FILTER, wfi._unmasked_pupil_path)
 
     _test_filter_pupil('F184', wfi._masked_pupil_path)
+    _test_filter_pupil(GRISM_FILTER, wfi._masked_pupil_path)
+
+
+def test_swapping_modes(wfi=None):
+    if wfi is None:
+        wfi = wfirst.WFI()
+
+    tests = [
+        # [filter, mode, pupil_file]
+        ['F062', 'imaging', wfi._unmasked_pupil_path],
+        ['F184', 'imaging', wfi._masked_pupil_path],
+        [PRISM_FILTER, 'prism', wfi._unmasked_pupil_path],
+        [GRISM_FILTER, 'grism', wfi._masked_pupil_path],
+    ]
+
+    for test_filter, test_mode, test_pupil in tests:
+        wfi.filter = test_filter
+        assert wfi.filter == test_filter
+        assert wfi.mode == test_mode
+        assert wfi._current_aberrations_file == wfi._aberrations_files[test_mode]
+        assert wfi.pupil == test_pupil
+
+
+def test_custom_aberrations():
+    wfi = wfirst.WFI()
+
+    # Use grism aberrations_file for testing
+    test_aberrations_file = wfi._aberrations_files['grism']
+
+    # Test override
+    # -------------
+    wfi.override_aberrations(test_aberrations_file)
+
+    for filter in wfi.filter_list:
+        wfi.filter = filter
+        assert wfi._current_aberrations_file == test_aberrations_file, "Filter change caused override to fail"
+
+    # Test Release Override
+    # ---------------------
+    wfi.reset_override_aberrations()
+    assert wfi._aberrations_files['custom'] is None, "Custom aberrations file not deleted on override release."
+    test_swapping_modes(wfi)
 
 def test_WFI_limits_interpolation_range():
     wfi = wfirst.WFI()
@@ -235,6 +281,20 @@ def test_WFI_limits_interpolation_range():
     assert allclose(det.get_aberration_terms(0.48e-6), det.get_aberration_terms(0.40e-6)), (
         "Aberration outside wavelength range did not return closest value."
     )
+
+    # Test border pixels that are outside of the ref data
+    # As of cycle 8 and 9, (4, 4) is the first pixel so we
+    # check if (0, 0) is approximated to (4, 4) via nearest point
+    # approximation:
+
+    det.field_position = (0, 0)
+    coefficients_outlier = det.get_aberration_terms(1e-6)
+
+    det.field_position = (4, 4)
+    coefficients_data = det.get_aberration_terms(1e-6)
+
+    assert np.allclose(coefficients_outlier, coefficients_data), "nearest point extrapolation " \
+                                                                 "failed for outlier field point"
 
 def test_CGI_detector_position():
     """ Test existence of the CGI detector position etc, and that you can't set it."""
