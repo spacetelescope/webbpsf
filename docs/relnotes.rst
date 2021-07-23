@@ -30,6 +30,33 @@ Road Map for Future Releases
 Version History and Change Log
 -------------------------------
 
+Version 0.9.2
+=============
+*2021 July 23*
+
+This release only improves a subset of WFIRST functionality; additional improvements to both WFIRST (including renaming to Roman) and JWST models will be at the upcoming 1.0.0 major release.
+
+**WFIRST Improvements**
+
+- New Grism and Prism filters: [:pr:`416`, :pr:`471`, :user:`robelgeda`]
+    - `GRISM_FILTER = 'G150'`
+    - `PRISM_FILTER = 'P120'`
+- Changing filters to `G150` or  `P120` changes the mode of the WFI and the aberrations files (unless there is a user aberrations override) [:pr:`416`, :pr:`471`, :user:`robelgeda`]
+- New `WFI.mode`: Class property that returns the current mode of the WFI instance by passing the current filter to `WFI. _get_filter_mode`. WFI modes are: [:pr:`416`, :pr:`471`, :user:`robelgeda`]
+    -  Imaging
+    -  Grism
+    -  Prisim
+- New `WFI.override_aberrations(aberrations_path)`: Overrides and locks the current aberrations with aberrations at `aberrations_path`. Lock means changing the filter/mode has no effect on the aberrations. [:pr:`416`, :pr:`471`, :user:`robelgeda`]
+- New `WFI.reset_override_aberrations()`: Releases `WFI.override_aberrations` lock and start using the default aberrations. [:pr:`416`, :pr:`471`, :user:`robelgeda`]
+- New Tests for mode and filter switching. [:pr:`416`, :pr:`471`, :user:`robelgeda`]
+- New Field point nearest point approximation (extrapolation). [:pr:`416`, :pr:`471`, :user:`robelgeda`]
+
+**Software and Package Infrastructure Updates:**
+
+- This minor release uses CircleCI and removes TravisCI. [:pr:`455`, :user:`shanosborne`, :pr:`471`, :user:`robelgeda`]
+
+--------
+
 Version 0.9.1
 =============
 *2020 June 22*
