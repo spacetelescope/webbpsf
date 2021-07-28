@@ -25,7 +25,7 @@ _log = logging.getLogger('webbpsf')
 import pprint
 
 GRISM_FILTERS = ('GRISM0', 'GRISM1')
-PRISM_FILTERS = ('PRISM')
+PRISM_FILTERS = ('PRISM',)
 
 class WavelengthDependenceInterpolator(object):
     """WavelengthDependenceInterpolator can be configured with
@@ -434,7 +434,7 @@ class WFIPupilController:
            raise Exception('update_pupil called before setting pupil file path')
 
         # change detector string to match file format (e.g., "SCA01" -> "SCA_1")
-        det_frag = f"{detector[:3]}_{str(int((detector[3:])))}"
+        det_substr = f"{detector[:3]}_{str(int((detector[3:])))}"
 
         # figure out proper mask based on filter (or use locked mask if enabled)
         pupil_mask = (self._get_filter_mask(filter) if self._auto_pupil_mask
@@ -443,7 +443,7 @@ class WFIPupilController:
 
         path_formatter = self.pupil_file_formatters[pupil_mask]
         pupil = os.path.join(self._pupil_basepath,
-                             path_formatter.format(det_frag))
+                             path_formatter.format(det_substr))
 
         self._pupil_mask = pupil_mask
         self._pupil = pupil
@@ -495,6 +495,8 @@ class WFIPupilController:
         """
         if pupil_mask not in self.pupil_file_formatters.keys():
             raise Exception('invalid pupil mask')
+        elif not self._auto_pupil:
+            raise Exception('Pupil is locked. Unlock pupil before locking pupil mask.')
         else:
             self._pupil_mask = pupil_mask
             self._auto_pupil_mask = False
@@ -658,7 +660,8 @@ class WFI(RomanInstrument):
         value = value.upper()
 
         if value not in self.filter_list:
-            raise ValueError("Instrument %s doesn't have a filter called %s." % (self.name, value))
+            raise ValueError(f"Instrument {self.name} doesn't have a "
+                             f"filter called {value}.")
 
         self._filter = value
 
@@ -830,6 +833,7 @@ class WFI(RomanInstrument):
             See WFI.pupil_mask_list for a list of valid pupil masks.
         """
         self._pupil_controller.lock_pupil_mask(pupil_mask)
+        self._update_pupil()
 
     def unlock_pupil_mask(self):
         """
