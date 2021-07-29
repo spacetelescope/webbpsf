@@ -1725,6 +1725,11 @@ class LookupTableFieldDependentAberration(poppy.OpticalElement):
             add_niriss_defocus=False
             rm_ptt = False
             rm_center_ptt = False
+        elif self.which_exercise == 'LRE4' or self.which_exercise == 'LRE4-OTE26':
+            add_niriss_defocus=False
+            rm_ptt = False
+            rm_center_ptt = False
+
 
 
         if self.instr_name =='NIRCam':
@@ -1736,6 +1741,7 @@ class LookupTableFieldDependentAberration(poppy.OpticalElement):
 
         # load the OPD lookup map table (datacube) here
 
+        import webbpsf.constants
         if self.which_exercise == 'WFR4':
             fp_path = '/ifs/jwst/tel/wfr4_mirage_sims/phase_maps_from_ball/'
             if field_points_file is None:
@@ -1753,8 +1759,8 @@ class LookupTableFieldDependentAberration(poppy.OpticalElement):
 
             self.phasemaps = fits.getdata(phasemap_file)
 
-            import webbpsf.constants
             self.phasemap_pixelscale = webbpsf.constants.JWST_CIRCUMSCRIBED_DIAMETER/256 * units.meter / units.pixel
+            resample = True
 
         elif self.which_exercise == 'MIMF_KDP':
             fp_path = '/ifs/jwst/tel/MIMF_KDP_Practice/Ball_Phase_Maps/'
@@ -1766,11 +1772,26 @@ class LookupTableFieldDependentAberration(poppy.OpticalElement):
             self.table['V3'] = self.table['YWAS'] - 468/60
 
             phasemap_file = fp_path + 'all_26Feb2021.fits'
-            self.phasemap_file = phasemap_file
             self.phasemaps = fits.getdata(phasemap_file)
             self.phasemaps = self.phasemaps.reshape(7*11*11, 256, 256)
-            import webbpsf.constants
             self.phasemap_pixelscale = webbpsf.constants.JWST_CIRCUMSCRIBED_DIAMETER / 256 * units.meter / units.pixel
+            resample = True
+        elif self.which_exercise == 'LRE4' or self.which_exercise == 'LRE4-OTE26':
+            fp_path = '/ifs/jwst/tel/LRE4/from_ball/'
+            if self.which_exercise == 'LRE4':
+                field_points_file = fp_path + 'coordinates.ecsv'
+                phasemap_file = fp_path + 'rescaled_opds_for_OTE-25.2.fits'
+            elif self.which_exercise == 'LRE4-OTE26':
+                field_points_file = fp_path + 'coordinates-ote26.ecsv'
+                phasemap_file = fp_path + 'rescaled_opds_for_OTE-26.fits'
+
+            self.table = Table.read(field_points_file)
+            self.phasemaps = fits.getdata(phasemap_file)
+            # Phase maps have been pre-zoomed in this case by the import notebook
+            resample = False
+            self.phasemap_pixelscale = webbpsf.constants.JWST_CIRCUMSCRIBED_DIAMETER / 1024 * units.meter / units.pixel
+        self.phasemap_file = phasemap_file
+
 
         # Determine the pupil sampling of the first aperture in the
         # instrument's optical system
@@ -1821,12 +1842,16 @@ class LookupTableFieldDependentAberration(poppy.OpticalElement):
         phasemap = phasemap[::-1]
         print("Flipped input phase map vertically into exit pupil orientation.")
 
-        if phasemap.shape[0] != 256:
-            raise NotImplementedError("Hard coded for Ball delivery of 256 pixel phase maps")
-
-        # Resample to 1024 across, by replicating each pixel into a 4x4 block
-        resample_factor = 4
-        phasemap_big = np.kron(phasemap, np.ones((resample_factor,resample_factor)))
+        if resample:
+            if phasemap.shape[0] != 256:
+                raise NotImplementedError("Hard coded for Ball delivery of 256 pixel phase maps")
+    
+            # Resample to 1024 across, by replicating each pixel into a 4x4 block
+            resample_factor = 4
+            phasemap_big = np.kron(phasemap, np.ones((resample_factor,resample_factor)))
+        else:
+            # no resampling / zooming needed
+            phasemap_big = phasemap
 
         self.opd = phasemap_big * 1e-6   # Convert from microns to meters
         self.amplitude = np.ones_like(self.opd)
