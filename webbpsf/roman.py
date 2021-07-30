@@ -344,8 +344,8 @@ class WFIPupilController:
         self.pupil_file_formatters = {
             'SKINNY': 'RST_WIM_Filter_skinny_{0}.fits.gz',
             'WIDE': 'RST_WIM_Filter_F184_{0}.fits.gz',
-            'GRISM': 'RST_WSM_Grism_grism_{0}.fits.gz',
-            'PRISM': 'RST_WSM_Prism_prism_{0}.fits.gz'}
+            'GRISM': 'RST_WSM_Grism_Grism_{0}.fits.gz',
+            'PRISM': 'RST_WSM_Prism_Prism_{0}.fits.gz'}
 
     @property
     def pupil(self):

@@ -95,56 +95,14 @@ def test_WFI_fwhm():
 def test_WFI_pupil_controller():
     wfi = roman.WFI()
 
-    # change detector string to match file format (e.g., "SCA01" -> "SCA_1")
-    # detector_substr = lambda det: f"{det[:3]}_{str(int((det[3:])))}"
-
-    # dynamically generate current pupil path for a given WFI instance
-    # pupil_path = (
-    #     lambda self, mask=None: os.path.join(
-    #         self._pupil_controller._pupil_basepath,
-    #         self._pupil_controller.pupil_file_formatters[self._pupil_controller._get_filter_mask(self.filter) if mask is None else mask]
-    #     ).format(detector_substr(self.detector))
-    # )
-
     for detector in wfi.detector_list:
         wfi.detector = detector
 
-        # assert os.path.isfile(unmasked_pupil_path), "Pupil file missing {}".format(unmasked_pupil_path)
-        # assert os.path.isfile(masked_pupil_path), "Pupil file missing {}".format(masked_pupil_path)
         assert os.path.isfile(pupil_path(wfi)), f"Pupil file missing: {pupil_path(wfi)}"
 
         # Test detector change was successful
         assert wfi.detector == detector, "WFI detector was not set correctly"
-        # assert wfi._unmasked_pupil_path == unmasked_pupil_path, "unmasked_pupil_path was not set correctly"
-        # assert wfi._masked_pupil_path == masked_pupil_path, "masked_pupil_path was not set correctly"
-        # assert wfi.pupil in [unmasked_pupil_path, masked_pupil_path], "pupil was not set correctly"
         assert wfi.pupil == pupil_path(wfi), "pupil path was not set correctly"
-
-        # Test mask overriding
-        # wfi.pupil_mask = MASKED_FLAG
-        # assert wfi.pupil == masked_pupil_path, "pupil was not set correctly"
-        # assert wfi._pupil_controller.auto_pupil is False, "auto_pupil is active after user override"
-        # assert wfi._pupil_controller._pupil_mask == wfi.pupil_mask, "pupil mask was not set correctly"
-
-        # wfi.pupil_mask = UNMASKED_FLAG
-        # assert wfi.pupil == unmasked_pupil_path, "pupil was not set correctly"
-        # assert wfi._pupil_controller.auto_pupil is False, "auto_pupil is active after user override"
-        # assert wfi._pupil_controller._pupil_mask == wfi.pupil_mask, "pupil mask was not set correctly"
-
-        # Outdated mask overriding backward comparability test:
-        # wfi.pupil_mask = "COLD_PUPIL"
-        # assert wfi.pupil == masked_pupil_path, "pupil was not set correctly"
-        # assert wfi._pupil_controller.auto_pupil is False, "auto_pupil is active after user override"
-        # assert wfi._pupil_controller._pupil_mask == wfi.pupil_mask, "pupil mask was not set correctly"
-
-        # wfi.pupil_mask = "UNMASKED"
-        # assert wfi.pupil == unmasked_pupil_path, "pupil was not set correctly"
-        # assert wfi._pupil_controller.auto_pupil is False, "auto_pupil is active after user override"
-        # assert wfi._pupil_controller._pupil_mask == wfi.pupil_mask, "pupil mask was not set correctly"
-
-        # wfi.pupil_mask = AUTO_FLAG
-        # assert wfi._pupil_controller.auto_pupil is True, "auto_pupil is inactive after mask is set to AUTO"
-        # assert wfi._pupil_controller._pupil_mask == wfi.pupil_mask, "pupil mask was not set correctly"
 
         # Test pupil mask lock/unlock
         for mask in wfi.pupil_mask_list:
@@ -183,12 +141,6 @@ def test_WFI_pupil_controller():
         # Test effect of changing the filter on pupil path
         for filter in wfi.filter_list:
             wfi.filter = filter
-            # if filter in wfi._pupil_controller._masked_filters:
-            #     assert wfi.pupil == masked_pupil_path, \
-            #         "Pupil did not set to correct value according to filter {}".format(filter)
-            # else:
-            #     assert wfi.pupil == unmasked_pupil_path, \
-            #         "Pupil did not set to correct value according to filter {}".format(filter)
 
             assert wfi.pupil == pupil_path(wfi), f"Pupil was not set to correct value for filter {filter}"
 
@@ -197,10 +149,6 @@ def test_WFI_pupil_controller():
     wfi2.detector = detector
     valid_pos = (4000, 1000)
     wfi2.detector_position = valid_pos
-    #wfi.pupil_mask = "COLD_PUPIL"
-    #assert wfi.pupil == masked_pupil_path, "Pupil did not set to correct value according to override"
-    #wfi.calc_psf(fov_pixels=4)
-    #assert wfi.pupil == masked_pupil_path, "Pupil did not set to correct value according to override"
 
     wfi2.filter = "F129"
     wfi2.lock_pupil_mask("GRISM")
@@ -232,46 +180,6 @@ def test_WFI_includes_aberrations():
         "field dependent aberration virtual optic"
     )
 
-def test_WFI_chooses_pupils():
-    wfi = roman.WFI()
-
-    # IS THIS TEST STILL NECESSARY NOW THAT WFIPupilController NO LONGER SPLITS PUPIL BY MASKED AND UNMASKED? WE TEST HOW SWITCHING filter AFFECTS pupil in test_WFI_pupil_controller().
-    # get the filter test (how changing filter affects pupil)
-    def autopupil():
-        """Helper to trigger pupil selection in testing"""
-        wavelengths, _ = wfi._get_weights()
-        wfi._validate_config(wavelengths=wavelengths)
-
-    wfi.filter = 'F087'
-    autopupil()
-    assert wfi.pupil == wfi._unmasked_pupil_path, f"WFI did not select unmasked pupil for {wfi.filter}"
-    wfi.filter = 'F184'
-    autopupil()
-    assert wfi.pupil == wfi._masked_pupil_path, f"WFI did not select unmasked pupil for {wfi.filter}"
-    wfi.filter = 'F087'
-    autopupil()
-    assert wfi.pupil == wfi._unmasked_pupil_path, f"WFI did not select unmasked pupil for {wfi.filter}"
-
-    # AGAIN, IS THIS TEST STILL NECESSARY NOW THAT EACH DETECTOR/FILTER COMBINATION ONLY POINTS TO ONE PUPIL FILE (instead of one for rim and one for full)? WE TEST HOW SWITCHING filter AFFECTS pupil in test_WFI_pupil_controller().
-    #
-    def _test_filter_pupil(filter_name, expected_pupil):
-        wfi.filter = 'F087'
-        autopupil()
-        wfi.filter = filter_name
-        autopupil()
-        assert wfi.pupil == expected_pupil, "Expected pupil {} " \
-                                            "for filter {}".format(filter_name, expected_pupil)
-
-    _test_filter_pupil('F106', wfi._unmasked_pupil_path)
-    _test_filter_pupil('F129', wfi._unmasked_pupil_path)
-    _test_filter_pupil('F062', wfi._unmasked_pupil_path)
-    _test_filter_pupil('F158', wfi._unmasked_pupil_path)
-    _test_filter_pupil('F146', wfi._unmasked_pupil_path)
-    _test_filter_pupil(PRISM_FILTER, wfi._unmasked_pupil_path)
-
-    _test_filter_pupil('F184', wfi._masked_pupil_path)
-    _test_filter_pupil(GRISM_FILTER, wfi._masked_pupil_path)
-
 def test_swapping_modes(wfi=None):
 
     if wfi is None:
@@ -290,10 +198,6 @@ def test_swapping_modes(wfi=None):
 
     tests = [
         # [filter, mode, pupil_file]
-        # ['F062', 'imaging', wfi._unmasked_pupil_path],
-        # ['F184', 'imaging', wfi._masked_pupil_path],
-        # [PRISM_FILTERS[0], 'prism', wfi._unmasked_pupil_path],
-        # [GRISM_FILTERS[0], 'grism', wfi._masked_pupil_path],
         ['F146', 'imaging', pupil_path],
         ['F213', 'imaging', pupil_path],
         [PRISM_FILTERS[0], 'prism', pupil_path],

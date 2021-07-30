@@ -18,30 +18,30 @@ Wide Field Instrument (WFI)
 
    Sample PSFs for the filters in the Roman WFI. Angular scale in arcseconds, log-scaled intensity.
 
-The WFI model is based on the `Cycle 8 instrument reference information <https://roman.gsfc.nasa.gov/science/Roman_Reference_Information.html>`_ from the Roman team at Goddard Space Flight Center.
+The WFI model is based on the `Cycle 9 instrument reference information <https://roman.gsfc.nasa.gov/science/Roman_Reference_Information.html>`_ from the Roman team at Goddard Space Flight Center (GSFC). The reported jitter for the Roman observatory is 0.012 arcsec per axis, per `GSFC <https://roman.ipac.caltech.edu/sims/Param_db.html#telescope>`_.
 
 To work with the WFI model, import and instantiate it just like any of the JWST instruments::
 
->>> import webbpsf
->>> wfi = webbpsf.WFI()
+    >>> from webbpsf import roman
+    >>> wfi = roman.WFI()
 
-Usage of the WFI model class is, for the most part, just like any other WebbPSF instrument model. For help setting things like filters, position offsets, and sampling refer back to :ref:`using_api`.
+Usage of the WFI model class is, for the most part, just like any other WebbPSF instrument model. For help setting attributes like filters, position offsets, and sampling, refer to :ref:`using_api`.
 
-The WFI model includes a model for field dependent PSF aberrations. With as large a field of view as the WFI is designed to cover, there will be variation in the PSF from one end of the field of view to the other. WebbPSF's WFI model faithfully reproduces the field dependent aberrations calculated from the Goddard Roman team's Cycle 8 WFI design. This provides a toolkit for users to assess the impact of inter-SCA and intra-SCA PSF variations on science cases of interest.
+The WFI model includes a model for field dependent PSF aberrations. With as large a field of view as the WFI is designed to cover, there will be variation in the PSF from one end of the field of view to the other. WebbPSF's WFI model faithfully reproduces the field dependent aberrations calculated from the Goddard Roman team's Cycle 9 WFI design. This provides a toolkit for users to assess the impact of inter-SCA and intra-SCA PSF variations on science cases of interest.
 
-.. note:: 
+.. note::
 
    *Tutorial notebook for Roman*
 
-   This documentation is complemented by an `IPython Notebook tutorial for Roman PSFs <http://nbviewer.ipython.org/github/spacetelescope/webbpsf/blob/stable/notebooks/WebbPSF-Roman_Tutorial.ipynb>`_. Downloading and run that notebook to use a beta notebook GUI for the WFI model, and to explore code samples for common tasks interactively.
+   This documentation is complemented by an `IPython Notebook tutorial for Roman PSFs <http://nbviewer.ipython.org/github/spacetelescope/webbpsf/blob/stable/notebooks/WebbPSF-Roman_Tutorial.ipynb>`_. Download and run that notebook to use a beta notebook GUI for the WFI model, and to explore code samples for common tasks interactively.
 
 
 .. caution::
 
    Note that unlike most JWST modes, Roman WFI is *significantly* undersampled relative to Nyquist.
    Undersampled data is inherently lossy with information, and subject to aliasing. Measurements of
-   properties such as encircled energy, FWHM, Strehl ratio, etc cannot be done precisely on
-   undersampled data. 
+   properties such as encircled energy, FWHM, Strehl ratio, etc. cannot be done precisely on
+   undersampled data.
 
    In flight, we will use dithering and similar strategies to reconstruct better-sampled images. The
    same can be done in simulation using WebbPSF. **Only measure PSF properties such as FWHM or
@@ -73,12 +73,12 @@ The WFI field of view is laid out as shown in the figure. To select a different 
    ['SCA01', 'SCA02', 'SCA03', 'SCA04', 'SCA05', 'SCA06', 'SCA07', 'SCA08', 'SCA09', 'SCA10', 'SCA11', 'SCA12', 'SCA13', 'SCA14', 'SCA15', 'SCA16', 'SCA17', 'SCA18']
    >>> wfi.detector = 'SCA03'
 
-The usable region of the 4096 by 4096 pixel detectors specified for the Wide Field Instrument will range from (4, 4) to (4092, 4092), accounting for the 4 pixel wide bands of reference pixels. To change the position at which to calculate a PSF, simply assign an (X, Y) tuple::
+The usable region of the 4096 by 4096 pixel detectors specified for the Wide Field Instrument will range from (4, 4) to (4092, 4092), accounting for the 4 pixel wide bands of reference pixels. **[The preceding may no longer be true.]** To change the position at which to calculate a PSF, simply assign an (X, Y) tuple::
 
    >>> wfi.detector_position = (4, 400)
 
 
-The reference information available gives the field dependent aberrations in terms of Zernike polynomial coefficients from :math:`Z_1` to :math:`Z_{22}`. These coefficients were calculated for five field points on each of 18 detectors, each at 16 unique wavelengths providing coverage from 0.76 :math:`\mu m` to 2.0 :math:`\mu m` (that is, the entire wavelength range of the WFI). WebbPSF interpolates the coefficients in position and wavelength space to allow the user to simulate PSFs at any valid pixel position and wavelength.
+The reference information available gives the field dependent aberrations in terms of Zernike polynomial coefficients from :math:`Z_1` to :math:`Z_{22}`. These coefficients were calculated for five field points on each of 18 detectors, each at 18 unique wavelengths providing coverage from 0.76 :math:`\mu m` to 2.3 :math:`\mu m` (that is, the entire wavelength range of the WFI). WebbPSF interpolates the coefficients in position and wavelength space to allow the user to simulate PSFs at any valid pixel position and wavelength.
 WebbPSF will approximate the aberrations for an out of range detector position by using the nearest field point.
 
 Bear in mind that the pixel position you set does not automatically set the **centering** of your calculated PSF. As with other models in WebbPSF, an ``options`` dictionary key can be set to specify 'even' (center on crosshairs between four pixels) or 'odd' (center on pixel center) parity. ::
@@ -103,45 +103,42 @@ This example shows the power of WebbPSF to simulate and analyze field dependent 
    >>> wfi.detector_position = (4092, 4092)
    >>> psf_sca17 = wfi.calc_psf()
    >>> fig, (ax_sca09, ax_sca17, ax_diff) = plt.subplots(1, 3, figsize=(16, 4))
-   >>> webbpsf.display_psf(psf_sca09, ax=ax_sca09, imagecrop=2.0, title='WFI SCA09, bottom left - F129')
-   >>> webbpsf.display_psf(psf_sca17, ax=ax_sca17, imagecrop=2.0, title='WFI SCA17, top right - F129')
-   >>> webbpsf.display_psf_difference(psf_sca09, psf_sca17, vmax=5e-3, title='(SCA09) - (SCA17)', imagecrop=2.0, ax=ax_diff)
+   >>> webbpsf.display_psf(psf_sca09, ax=ax_sca09, imagecrop=2.0,
+                           title='WFI SCA09, bottom left - F129')
+   >>> webbpsf.display_psf(psf_sca17, ax=ax_sca17, imagecrop=2.0,
+                           title='WFI SCA17, top right - F129')
+   >>> webbpsf.display_psf_difference(psf_sca09, psf_sca17, ax=ax_diff,
+                                       vmax=5e-3, title='SCA09 - SCA17', imagecrop=2.0)
 
 .. figure:: ./roman_figures/compare_wfi_sca09_sca17.png
-   :alt: This figure shows oversampled PSFs in the J129 filter at two different field points, and the intensity difference image between the two.
+   :alt: This figure shows oversampled PSFs in the F129 filter at two different field points, and the intensity difference image between the two.
 
-   This figure shows oversampled PSFs in the J129 filter at two different field points, and the intensity difference image between the two.
-
+   This figure shows oversampled PSFs in the F129 filter at two different field points, and the intensity difference image between the two.
 
 Pupil variation and pupil masks in the WFI model
 ------------------------------------------------
 
+As before, the Cycle 9 reference data release from the Goddard Space Flight Center features field-dependent pupil images for the WFI. However, this cycle's pupil images are categorized in a manner that diverges from that of previous cycles.
 
-The cycle 8 reference data from the GSFC introduced field-dependent pupil images for the WFI.
-The first set of pupil images ("Rim Mask") is for filters F062, F087, F129, F158, F146, and the prism. For these filters,
-the cold pupil mask consists only of an outer rim that blocks most rays from outside the primary mirror aperture stop.
-The second set of pupil images ("Full Mask") is for filters F184. For these filters, the cold pupil mask blocks most rays
-from the central baffles and the secondary mirror support tubes as well as material outside the primary mirror aperture stop.
-We have updated the pupil_mask attribute names to match the project’s current nomenclature for “rim mask” and “full mask”.
-For back compatibility, the setting names used in prior versions of webbpsf will continue to work.
-The old “COLD_PUPIL” is synonymous with the new “RIM_MASK”, and so on.
+A plurality of the filters -- F062, F087, F106, F129, and F158 -- now use the "Skinny" mask, which is exclusive to the imaging mode. The remaining imaging filters, F184 and the new F213, share F184's "Wide" mask. Both the undispersed zeroth order and dispersed first order of the grism mode share the eponymous "Grism" mask. Finally, though the prism mode operates sans obstruction, its maskless arrangement is termed the "Prism" mask for the sake of consistency.
+
+Please note that these pupil mask category names are not fully backward compatible with those from previous versions of WebbPSF. For example, the `pupil_mask_list` of `['AUTO', 'FULL_MASK', 'RIM_MASK', 'COLD_PUPIL', 'UNMASKED']` in versions 0.9.X is now obsolete.
 
 .. figure:: ./roman_figures/pupil_mask_by_sca.gif
    :alt: Pupil masks at different field points.
 
-   Pupil masks at different field points.
+   Pupil masks at different field points. **[Should be recreated!]**
 
-The pupil is automatically selected when a detector or filter is changed.
-You can override the type of pupil by setting
-the `WFI.pupil_mask` attribute. The following pupils are available:
+The pupil and pupil mask are dynamically selected as needed whenever the detector or filter is changed. To override this behavior for either attribute, see `WFI.lock_pupil()` and `WFI.lock_pupil_mask()`. The following pupils are available:
 
-============   ====================================
+============   ===========================================
 Pupil Mask     pupil_mask setting
-============   ====================================
-Auto Select    'AUTO'
-Rim Mask       'RIM_MASK'  (outdated 'UNMASKED')
-Full Mask      'FULL_MASK' (outdated 'COLD_PUPIL')
-============   ====================================
+============   ===========================================
+Skinny Mask    'SKINNY' (formerly 'RIM_MASK', 'UNMASKED')
+Wide Mask      'WIDE' (formerly 'FULL_MASK', 'COLD_PUPIL')
+Grism Mask     'GRISM'
+Prism Mask     'PRISM' (formerly 'RIM_MASK', 'UNMASKED')
+============   ===========================================
 
 .. _roman_cgi:
 
@@ -152,17 +149,17 @@ We have begun developing a Coronagraph Instrument (CGI) simulation module.
 The goal is to provide
 an open source modeling package for CGI for use by the science centers and
 science teams, to complement the existing in-house optical modeling
-capabilities at JPL. 
+capabilities at JPL.
 
 Currently a prototype implementation is available for the shaped pupil
 coronagraph modes only, for both the CGI imager and IFS. Future releases will incorporate realistic aberrations, both
-static and dynamic, to produce realistic speckle fields.  We also plan to 
+static and dynamic, to produce realistic speckle fields.  We also plan to
 add the hybrid Lyot modes.
 
 .. warning::
     The CGI model has not been actively updated or developed since circa 2017.
     It does not well represent the current PDR-level state of CGI. There are plans
-    to refresh this model in 2020. Interested users should contact Ewan Douglas.
+    to refresh this model. Interested users should contact Ewan Douglas.
 
 .. warning::
     Current functionality is limited to the Shaped Pupil Coronagraph (SPC)
@@ -174,7 +171,7 @@ add the hybrid Lyot modes.
 
 A hands-on tutorial in using the CGI class is available in this
 `Jupyter Notebook <http://nbviewer.ipython.org/github/spacetelescope/webbpsf/blob/stable/notebooks/roman_cgi_demo.ipynb>`_.
-Here we briefly summarize the key points, but see that for more detail. 
+Here we briefly summarize the key points, but see that for more detail.
 
 
 The CGI class has attributes for  ``filter``, etc., like other instrument classes, but since these masks are designed to be
