@@ -424,7 +424,7 @@ def apply_miri_scattering(hdulist_or_filename=None, kernel_amp=None):
     elif isinstance(hdulist_or_filename, fits.HDUList):
         hdu_list = hdulist_or_filename
     else:
-        raise ValueError("input must be a filename or HDUlist")
+        raise ValueError("Input must be a filename or HDUlist")
 
     # Create a copy of the PSF
     psf = copy.deepcopy(hdu_list)
