@@ -1,4 +1,5 @@
 include README.rst
+include requirements.txt
 recursive-include  webbpsf/otelm *.fits *.txt
 recursive-include webbpsf/tests/surs *.xml
 
