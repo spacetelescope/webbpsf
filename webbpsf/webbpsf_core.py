@@ -1466,7 +1466,7 @@ class MIRI(JWInstrument):
             # optsys.add_image(function='fieldstop',size=30)
             container = poppy.CompoundAnalyticOptic(name="MIRI Lyot Occulter",
                                             opticslist=[poppy.CircularOcculter(radius=4.25 / 2, name=self.image_mask, **offsets),
-                                                        poppy.BarOcculter(width=0.722, **offsets),
+                                                        poppy.BarOcculter(width=0.722, height=31, **offsets),
                                                         poppy.SquareFieldStop(size=30, rotation=self._rotation, **offsets)])
             optsys.add_image(container)
             trySAM = False  # FIXME was True - see https://github.com/mperrin/poppy/issues/169
