@@ -65,6 +65,13 @@ jobs:
     - name: Check conda info
       run: conda info
 
+    - name: Copy requirements file to tmp directory
+      if: ${{ contains(matrix.toxenv,'-latest') }}
+      run: |
+        mkdir /tmp
+        cp /home/runner/work/webbpsf/requirements.txt /tmp/
+        tox -e ${{ matrix.toxenv }}
+
     - name: Run tests
       if: matrix.continue-on-error == null
       run: tox -e ${{ matrix.toxenv }}
@@ -79,10 +86,3 @@ jobs:
       uses: codecov/codecov-action@v1
       with:
         file: ./coverage.xml
-
-    - name: Copy requirements file to tmp directory
-      if: ${{ contains(matrix.toxenv,'-latest') }}
-      run: |
-        mkdir /tmp
-        cp /home/runner/work/webbpsf/requirements.txt /tmp/
-        tox -e ${{ matrix.toxenv }}
