@@ -65,8 +65,14 @@ jobs:
     - name: Check conda info
       run: conda info
 
+    - name: Run tests with requirements file
+      if: ${{ contains(matrix.toxenv,'-latest') }}
+      run: |
+        cp $RUNNER_WORKSPACE/webbpsf/requirements.txt /tmp/
+        tox -e ${{ matrix.toxenv }}
+
     - name: Run tests
-      if: matrix.continue-on-error == null
+      if: ${{ matrix.continue-on-error == null && contains(matrix.toxenv,'-latest') != true }}
       run: tox -e ${{ matrix.toxenv }}
 
     - name: Run tests and allow failures
