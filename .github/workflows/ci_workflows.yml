@@ -79,3 +79,9 @@ jobs:
       uses: codecov/codecov-action@v1
       with:
         file: ./coverage.xml
+
+    - name: Copy requirements file to tmp directory
+      if: ${{ contains(matrix.toxenv,'-latest') }}
+      run: |
+        cp /home/runner/work/webbpsf/requirements.txt /tmp/
+        tox -e ${{ matrix.toxenv }}
