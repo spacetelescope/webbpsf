@@ -68,7 +68,6 @@ jobs:
     - name: Copy requirements file to tmp directory
       if: ${{ contains(matrix.toxenv,'-latest') }}
       run: |
-        mkdir /tmp
         cp /home/runner/work/webbpsf/requirements.txt /tmp/
         tox -e ${{ matrix.toxenv }}
 
