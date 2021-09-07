@@ -2747,9 +2747,6 @@ def test2_OPDbender(filename='OPD_RevV_nircam_132.fits'):
 
 #-------------------------------------------------------------------------------
 # Thermal
-from copy import deepcopy
-from . import optics
-from scipy import io
 
 
 class OteThermalModel(object):

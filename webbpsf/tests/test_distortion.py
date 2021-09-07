@@ -36,6 +36,7 @@ def test_apply_distortion_skew():
 
     # Rebin data to get 3rd extension
     fgs.options["output_mode"] = "Both extensions"
+    fgs.options["detector_oversample"] = 1
     webbpsf_core.SpaceTelescopeInstrument._calc_psf_format_output(fgs, result=psf_siaf, options=fgs.options)
 
     # Test the slope of the rectangle
@@ -90,6 +91,7 @@ def test_apply_distortion_pixel_scale():
 
     # Rebin data to get 3rd extension
     fgs.options["output_mode"] = "Both extensions"
+    fgs.options["detector_oversample"] = 1
     webbpsf_core.SpaceTelescopeInstrument._calc_psf_format_output(fgs, result=psf_siaf, options=fgs.options)
 
     # Test that the change caused by the pixel distortion is approximately constant along the row
@@ -181,6 +183,7 @@ def test_apply_miri_scattering():
 
     # Rebin data to get 3rd extension
     mir.options["output_mode"] = "Both extensions"
+    mir.options["detector_oversample"] = 1
     webbpsf_core.SpaceTelescopeInstrument._calc_psf_format_output(mir, result=psf_cross, options=mir.options)
 
     # Test distortion function
@@ -267,6 +270,7 @@ def test_miri_conservation_energy():
 
     # Rebin data to get 3rd extension
     mir.options["output_mode"] = "Both extensions"
+    mir.options["detector_oversample"] = 1
     webbpsf_core.SpaceTelescopeInstrument._calc_psf_format_output(mir, result=psf_cross, options=mir.options)
 
     # Test distortion function
