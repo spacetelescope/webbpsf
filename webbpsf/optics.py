@@ -1698,7 +1698,7 @@ class LookupTableFieldDependentAberration(poppy.OpticalElement):
     """
 
     def __init__(self, instrument, field_points_file=None, phasemap_file=None,
-                 which_exercise='MIMF_KDP',
+                 which_exercise='MIMF_KDP_2',
                  add_niriss_defocus=None, rm_ptt=None, rm_center_ptt=None,
                  add_mimf_defocus=False, add_sm_defocus=False, nwaves=None, **kwargs):
         super().__init__(
@@ -1729,8 +1729,11 @@ class LookupTableFieldDependentAberration(poppy.OpticalElement):
             add_niriss_defocus=False
             rm_ptt = False
             rm_center_ptt = False
-
-
+        elif self.which_exercise == 'MIMF_KDP_2':
+            add_niriss_defocus=False
+            rm_ptt = False
+            rm_center_ptt = False
+ 
 
         if self.instr_name =='NIRCam':
             self.instr_name += " "+self.instrument.module
@@ -1790,6 +1793,22 @@ class LookupTableFieldDependentAberration(poppy.OpticalElement):
             # Phase maps have been pre-zoomed in this case by the import notebook
             resample = False
             self.phasemap_pixelscale = webbpsf.constants.JWST_CIRCUMSCRIBED_DIAMETER / 1024 * units.meter / units.pixel
+        elif self.which_exercise == 'MIMF_KDP_2':
+            fp_path = '/ifs/jwst/tel/MIMF_KDP_Practice_Sept2021/Ball_Phase_Maps/'
+
+            # Convert coordinate table to V2V3 in arcminutes
+            xcoords = fits.getdata(fp_path+"xcor.fits")
+            ycoords = fits.getdata(fp_path+"ycor.fits")
+            V2 = -xcoords.flatten()
+            V3 =  ycoords.flatten() - 468/60
+            self.table = Table([V2,V3], names=['V2','V3'])
+
+            phasemap_file = fp_path + 'complete_wf.fits'
+            self.phasemaps = fits.getdata(phasemap_file)
+            self.phasemaps = self.phasemaps.reshape(7*11*11, 256, 256)
+            self.phasemap_pixelscale = webbpsf.constants.JWST_CIRCUMSCRIBED_DIAMETER / 256 * units.meter / units.pixel
+            resample = True
+ 
         self.phasemap_file = phasemap_file
 
 
