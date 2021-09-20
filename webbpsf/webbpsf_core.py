@@ -1010,8 +1010,8 @@ class JWInstrument(SpaceTelescopeInstrument):
             if (self.pupil.v2v3 is None) or (not (self.pupil.v2v3 == self._tel_coords().to(units.arcsec)).all()):
                 self.pupil.v2v3 = self._tel_coords().to(units.arcsec)
                 self.pupil.update_opd()
-        
-        # Run poppy calc_psf        
+
+        # Run poppy calc_psf
         psf = SpaceTelescopeInstrument.calc_psf(self, outfile=outfile, source=source, nlambda=nlambda,
                                                 monochromatic=monochromatic, fov_arcsec=fov_arcsec,
                                                 fov_pixels=fov_pixels, oversample=oversample,
@@ -1327,9 +1327,9 @@ class MIRI(JWInstrument):
 
     Special Options:
 
-    The 'coron_shift_x' and 'coron_shift_y' options offset a coronagraphic mask in order to 
-    produce PSFs centered in the output image, rather than offsetting the PSF. This is useful 
-    for direct PSF convolutions. Values are in arcsec. 
+    The 'coron_shift_x' and 'coron_shift_y' options offset a coronagraphic mask in order to
+    produce PSFs centered in the output image, rather than offsetting the PSF. This is useful
+    for direct PSF convolutions. Values are in arcsec.
     ```
     miri.options['coron_shift_x'] = 3  # Shifts mask 3" to right; or source 3" to left.
     ```
@@ -1592,9 +1592,9 @@ class NIRCam(JWInstrument):
     ```
 
     Similarly, the 'coron_shift_x' and 'coron_shift_y' options will offset the mask in order
-    to produce PSFs centered in the output image, rather than offsetting the PSF. This is useful 
-    for direct PSF convolutions of an image. Values are in arcsec. These options move the mask 
-    in the opposite sense as nc.options['bar_offset']. 
+    to produce PSFs centered in the output image, rather than offsetting the PSF. This is useful
+    for direct PSF convolutions of an image. Values are in arcsec. These options move the mask
+    in the opposite sense as nc.options['bar_offset'].
     ```
     nc.options['coron_shift_x'] = 3  # Shifts mask 3" to right, equivalent to source 3" to left.
     ```
@@ -1683,7 +1683,7 @@ class NIRCam(JWInstrument):
         elif (self._pupil_mask is not None) and (('LYOT' in self._pupil_mask) or ('MASK' in self._pupil_mask)):
             # Want to use full frame apertures if only Lyot stops defined (no image mask)
             # Unfortunately, no full frame SIAF apertures are defined for Module B w/ Lyot
-            # so we must select the subarray apertures as a special case. 
+            # so we must select the subarray apertures as a special case.
             if 'long' in self.channel:
                 if ('WEDGE' in self._pupil_mask) or ('LWB' in self._pupil_mask):
                     apname = 'NRCA5_FULL_WEDGE_BAR' if self.module=='A' else 'NRCB5_MASKLWB'
@@ -1709,7 +1709,7 @@ class NIRCam(JWInstrument):
 
     @JWInstrument.aperturename.setter
     def aperturename(self, value):
-        # Explicitly update detector reference coordinates, 
+        # Explicitly update detector reference coordinates,
         # otherwise old coordinates can persist under certain circumstances
 
         # Get NIRCam SIAF apertures
@@ -1728,7 +1728,7 @@ class NIRCam(JWInstrument):
                 newval = 'NRCA2_FULL_MASK210R'
             else:
                 newval = None
-                
+
             if newval is not None:
                 # Set altnerative aperture name as bandaid to continue
                 value = newval
