@@ -2,8 +2,8 @@ import os
 import poppy
 import poppy.utils
 import numpy as np
-import scipy
 import matplotlib
+import matplotlib.pyplot as plt
 
 from astropy.table import Table
 import astropy.io.fits as fits
@@ -856,7 +856,7 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
             # Note: 180 deg rotation needed relative to Krist's figures for the flight SCI orientation:
 
             if ((self.module == 'A' and self.name == 'MASKLWB') or
-                    (self.module == 'B' and self.name == 'MASK210R')):
+                (self.module == 'B' and self.name == 'MASK210R')):
                 # left edge:
                 # has one fully in the corner and one half in the other corner, half outside the 10x10 box
                 wnd_5 = np.where(
@@ -908,7 +908,7 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
 
             # Add in the opaque border of the coronagraph mask holder.
             if ((self.module == 'A' and self.name == 'MASKLWB') or
-                    (self.module == 'B' and self.name == 'MASK210R')):
+                (self.module == 'B' and self.name == 'MASK210R')):
                 # left edge
                 woutside = np.where((x > 10) & (y > -11.5))
                 self.transmission[woutside] = 0.0
@@ -994,7 +994,7 @@ def _width_blc(desired_width, approx=None, plot=False):
         return sig_ans
     else:
         # use recursion
-        sig_ans = width_blc(loc, sig_ans)
+        sig_ans = _width_blc(loc, sig_ans)
 
     if plot:
         check = (1 - (np.sin(sig_ans * loc) / sig_ans / loc) ** 2) ** 2
@@ -1018,7 +1018,7 @@ def _calc_blc_wedge(deg=4, wavelength=2.1e-6):
     """
     import scipy
     r = np.linspace(2, 6, 161)
-    difflim = wavelen / 6.5 * 180. * 60 * 60 / np.pi
+    difflim = wavelength / 6.5 * 180. * 60 * 60 / np.pi
     sigs = [_width_blc(difflim * ri) for ri in r]
 
     pcs = scipy.polyfit(r, sigs, deg)
@@ -1668,3 +1668,267 @@ class MIRIFieldDependentAberrationAndObscuration(WebbFieldDependentAberration):
 
         # No need to subclass any of the methods; it's sufficient to set the custom
         # amplitude mask attribute value.
+
+
+# Alternative implementation that just reads OPDs from some file
+class LookupTableFieldDependentAberration(poppy.OpticalElement):
+    """ Retrieve OPDs from a lookup table over many field points.
+    This is pretty much a hack, hard-coded for a specific data delivery from Ball!
+    Intended for OTE team WFR4 and MIMF KDP Practice data prep, not generalized beyond that.
+
+    Parameters
+    -----------
+    add_niriss_defocus: bool
+        add 0.8 microns PTV defocus to NIRISS only (for WFR4 test)
+    rm_ptt: bool
+        Remove piston, tip, tilt
+    rm_center_ptt : bool
+        If rm_ptt, use the center value for each detector rather than per field point
+    nwaves: float
+        Number of waves to defocus SM, if add_sm_defocus_pos or add_sm_defocus_neg is True.
+    add_sm_defocus: bool
+        If True, add "nwaves" of SM defocus, measured at a reference wavelength of 2.0 microns.
+
+
+    Usage:
+    ------
+        inst = webbpsf.NIRCam()  # or any other SI
+        inst._si_wfe_class = LookupTableFieldDependentAberration()
+
+    """
+
+    def __init__(self, instrument, field_points_file=None, phasemap_file=None,
+                 which_exercise='MIMF_KDP_2',
+                 add_niriss_defocus=None, rm_ptt=None, rm_center_ptt=None,
+                 add_mimf_defocus=False, add_sm_defocus=False, nwaves=None, **kwargs):
+        super().__init__(
+            name="Aberrations",
+            **kwargs
+        )
+        import warnings
+
+        self.instrument = instrument
+        self.instr_name = instrument.name
+
+        self.instrument.pupilopd=None  # Do not add in the usual telescope WFE on top of this;
+                                       # This model provided by Ball includes both the telescope and the SI WFE combined.
+
+        self.rm_ptt = rm_ptt
+
+        self.which_exercise = which_exercise
+
+        if self.which_exercise == 'WFR4':
+            add_niriss_defocus=True
+            rm_ptt = True
+            rm_center_ptt = True
+        elif self.which_exercise == 'MIMF_KDP':
+            add_niriss_defocus=False
+            rm_ptt = False
+            rm_center_ptt = False
+        elif self.which_exercise == 'LRE4' or self.which_exercise == 'LRE4-OTE26':
+            add_niriss_defocus=False
+            rm_ptt = False
+            rm_center_ptt = False
+        elif self.which_exercise == 'MIMF_KDP_2':
+            add_niriss_defocus=False
+            rm_ptt = False
+            rm_center_ptt = False
+ 
+
+        if self.instr_name =='NIRCam':
+            self.instr_name += " "+self.instrument.module
+        elif self.instr_name == 'FGS':
+            self.instr_name = self.instrument.detector
+
+        self.tel_coords = instrument._tel_coords()
+
+        # load the OPD lookup map table (datacube) here
+
+        import webbpsf.constants
+        if self.which_exercise == 'WFR4':
+            fp_path = '/ifs/jwst/tel/wfr4_mirage_sims/phase_maps_from_ball/'
+            if field_points_file is None:
+                field_points_file = fp_path + 'The_Field_Coordinates.txt'
+            if phasemap_file is None:
+                phasemap_file = fp_path + 'phase_maps.fits'
+
+            self.phasemap_file = phasemap_file
+
+            self.table = Table.read(field_points_file, format='ascii', names=('V2', 'V3'))
+
+            self.yoffset = -7.8
+
+            self.table['V3'] += self.yoffset # Correct from -YAN to actual V3
+
+            self.phasemaps = fits.getdata(phasemap_file)
+
+            self.phasemap_pixelscale = webbpsf.constants.JWST_CIRCUMSCRIBED_DIAMETER/256 * units.meter / units.pixel
+            resample = True
+
+        elif self.which_exercise == 'MIMF_KDP':
+            fp_path = '/ifs/jwst/tel/MIMF_KDP_Practice/Ball_Phase_Maps/'
+            field_points_file = fp_path + 'coordinates.txt'
+            self.table = Table.read(field_points_file, format='ascii.basic', names=('XWAS', 'YWAS'))
+
+            # Convert coordinate table to V2V3 in arcminutes
+            self.table['V2'] = -self.table['XWAS']
+            self.table['V3'] = self.table['YWAS'] - 468/60
+
+            phasemap_file = fp_path + 'all_26Feb2021.fits'
+            self.phasemaps = fits.getdata(phasemap_file)
+            self.phasemaps = self.phasemaps.reshape(7*11*11, 256, 256)
+            self.phasemap_pixelscale = webbpsf.constants.JWST_CIRCUMSCRIBED_DIAMETER / 256 * units.meter / units.pixel
+            resample = True
+        elif self.which_exercise == 'LRE4' or self.which_exercise == 'LRE4-OTE26':
+            fp_path = '/ifs/jwst/tel/LRE4/from_ball/'
+            if self.which_exercise == 'LRE4':
+                field_points_file = fp_path + 'coordinates.ecsv'
+                phasemap_file = fp_path + 'rescaled_opds_for_OTE-25.2.fits'
+            elif self.which_exercise == 'LRE4-OTE26':
+                field_points_file = fp_path + 'coordinates-ote26.ecsv'
+                phasemap_file = fp_path + 'rescaled_opds_for_OTE-26.fits'
+
+            self.table = Table.read(field_points_file)
+            self.phasemaps = fits.getdata(phasemap_file)
+            # Phase maps have been pre-zoomed in this case by the import notebook
+            resample = False
+            self.phasemap_pixelscale = webbpsf.constants.JWST_CIRCUMSCRIBED_DIAMETER / 1024 * units.meter / units.pixel
+        elif self.which_exercise == 'MIMF_KDP_2':
+            fp_path = '/ifs/jwst/tel/MIMF_KDP_Practice_Sept2021/Ball_Phase_Maps/'
+
+            # Convert coordinate table to V2V3 in arcminutes
+            xcoords = fits.getdata(fp_path+"xcor.fits")
+            ycoords = fits.getdata(fp_path+"ycor.fits")
+            V2 = -xcoords.flatten()
+            V3 =  ycoords.flatten() - 468/60
+            self.table = Table([V2,V3], names=['V2','V3'])
+
+            phasemap_file = fp_path + 'complete_wf.fits'
+            self.phasemaps = fits.getdata(phasemap_file)
+            self.phasemaps = self.phasemaps.reshape(7*11*11, 256, 256)
+            self.phasemap_pixelscale = webbpsf.constants.JWST_CIRCUMSCRIBED_DIAMETER / 256 * units.meter / units.pixel
+            resample = True
+ 
+        self.phasemap_file = phasemap_file
+
+
+        # Determine the pupil sampling of the first aperture in the
+        # instrument's optical system
+        if isinstance(instrument.pupil, poppy.OpticalElement):
+            # This branch needed to handle the OTE Linear Model case
+            self.pixelscale = instrument.pupil.pixelscale
+        else:
+            # these branches to handle FITS files, by name or as an object
+            if isinstance(instrument.pupil, fits.HDUList):
+                pupilheader = instrument.pupil[0].header
+            else:
+                pupilfile = os.path.join(instrument._datapath, "OPD", instrument.pupil)
+                pupilheader = fits.getheader(pupilfile)
+
+            self.pixelscale = pupilheader['PUPLSCAL'] * units.meter / units.pixel
+
+        # Figure out the closest field point
+
+        telcoords_am = self.tel_coords.to(units.arcmin).value
+        print(f"Requested field point has coord {telcoords_am}")
+
+        v2 = self.table['V2']
+        v3 = self.table['V3']
+        r = np.sqrt((telcoords_am[0] - v2) ** 2 + (telcoords_am[1] - v3) ** 2)
+        closest = np.argmin(r)   # if there are two field points with identical coords or equal distance just one is returned
+
+        print(f"Closest field point is row {closest}:\n{self.table[closest]}")
+
+        # Save closest ISIM CV3 WFE measured field point for reference
+        self.row = self.table[closest]
+
+
+        self.name = "{instrument} at V2V3=({v2:.2f},{v3:.2f}) Lookup table WFE from ({v2t:.2f},{v3t:.2f})".format(
+            instrument=self.instr_name,
+            v2=telcoords_am[0], v3=telcoords_am[1],
+            v2t=self.row['V2'], v3t=self.row['V3']
+
+        )
+        self.si_wfe_type = ("Lookup Table",
+                "SI + OTE WFE from supplied lookup table of phase maps.")
+
+        # Retrieve the phase map
+
+        phasemap = self.phasemaps[closest]
+
+        # The phase maps are provided in OTE entrance pupil orientation, however we need it to be
+        # in exit pupil orientation, so flip it vertically here.
+        phasemap = phasemap[::-1]
+        print("Flipped input phase map vertically into exit pupil orientation.")
+
+        if resample:
+            if phasemap.shape[0] != 256:
+                raise NotImplementedError("Hard coded for Ball delivery of 256 pixel phase maps")
+    
+            # Resample to 1024 across, by replicating each pixel into a 4x4 block
+            resample_factor = 4
+            phasemap_big = np.kron(phasemap, np.ones((resample_factor,resample_factor)))
+        else:
+            # no resampling / zooming needed
+            phasemap_big = phasemap
+
+        self.opd = phasemap_big * 1e-6   # Convert from microns to meters
+        self.amplitude = np.ones_like(self.opd)
+
+        if rm_ptt:
+            apmask = self.opd != 0
+            if rm_center_ptt:
+                # Remove the PTT values at the center of each instrument, rather than per field point. This
+                # leaves in the field dependence but takes out the bulk offset
+                # These values are just a precomputed lookup table of the coefficients returned by the
+                # opd_expand_nonorthonormal call just below, for the center field point on each.
+
+               coeffs_per_si = {"NIRCam A": [-3.50046880e-10, -7.29120639e-08, -1.39751567e-08],
+                                "NIRCam B": [-2.45093780e-09, -2.51804001e-07, -2.64821753e-07],
+                                "NIRISS": [-1.49297771e-09, -2.11111038e-06, -3.99881993e-07],
+                                "FGS1": [ 9.86180620e-09, -5.94041500e-07,  1.18953161e-06],
+                                "FGS2": [ 4.84327424e-09, -8.24285481e-07,  5.09791593e-07],
+                                "MIRI": [-8.75766849e-09, -1.27850277e-06, -1.03467567e-06],}
+               coeffs = coeffs_per_si[self.instr_name]
+            else:
+                coeffs = poppy.zernike.opd_expand_nonorthonormal(self.opd, aperture=apmask, nterms=3)
+            ptt_only = poppy.zernike.opd_from_zernikes(coeffs, aperture=apmask, npix=self.opd.shape[0], outside=0)
+            self.opd -= ptt_only
+            print(f"Removing piston, tip, tilt from the input wavefront. Coeffs for  {self.instr_name}: {coeffs},")
+
+        if add_mimf_defocus:
+            self.instrument.options['defocus_waves'] = 0.8
+            self.instrument.options['defocus_wavelength'] = 1e-6  # Add 0.8 microns PTV defocus
+
+        if add_niriss_defocus and self.instr_name=='NIRISS':
+            # The Ball delivery was supposed to have defocused NIRISS for rehearsal purposes, but didn't.
+            # So fix that here.
+            self.instrument.options['defocus_waves'] = 0.8
+            self.instrument.options['defocus_wavelength'] = 1e-6  # Add 0.8 microns PTV defocus
+            warnings.warn("Adding defocus=0.8 waves for NIRISS!")
+
+        if add_sm_defocus:
+            if nwaves:
+                print("ADDING DEFOCUS {:4.1f} WAVES at 2.0 microns".format(nwaves))
+                self.instrument.options['defocus_waves'] = nwaves
+                self.instrument.options['defocus_wavelength'] = 2.0e-6
+            else:
+                print("Not adding any defocus; set nwaves")
+
+
+    def header_keywords(self):
+        """ Return info we would like to save in FITS header of output PSFs
+        """
+        from collections import OrderedDict
+        keywords = OrderedDict()
+        keywords['SIWFETYP'] = self.si_wfe_type
+        keywords['SIWFEFPT'] = ( f"{self.row['V2']:.3f}, {self.row['V3']:.3f}", "Closest lookup table meas. field point")
+        keywords['SIWFEFIL'] = self.phasemap_file
+        return keywords
+
+    # wrapper just to change default vmax
+    def display(self, *args, **kwargs):
+        if 'opd_vmax' not in kwargs:
+            kwargs.update({'opd_vmax': 2.5e-7})
+
+        return super().display(*args, **kwargs)

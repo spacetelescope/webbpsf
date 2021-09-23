@@ -13,9 +13,7 @@ Developed by Marshall Perrin and collaborators at STScI, 2010-2018.
 Documentation can be found online at https://webbpsf.readthedocs.io/
 """
 
-import os
 import sys
-from warnings import warn
 from astropy import config as _config
 
 try:
@@ -28,6 +26,7 @@ __minimum_python_version__ = "3.6"
 
 class UnsupportedPythonError(Exception):
     pass
+
 
 if sys.version_info < tuple((int(val) for val in __minimum_python_version__.split('.'))):
     raise UnsupportedPythonError("webbpsf does not support Python < {}".format(__minimum_python_version__))
@@ -74,44 +73,13 @@ class Conf(_config.ConfigNamespace):
         'Format for lines logged to a file.'
     )
 
+
 conf = Conf()
-
-def _save_config():
-    """ Save package configuration variables using the Astropy.config system
-
-    NOTE: The functionality for saving config was was deprecated as of astropy v0.4
-    See http://astropy.readthedocs.org/en/latest/config/config_0_4_transition.html
-
-    This code is an undocumented workaround as advised by mdboom for the specific
-    purpose of saving webbpsf GUI state, logging state, and related.
-    """
-
-    from astropy.config import configuration
-    configuration._save_config("webbpsf")
-
-# add these here so we only need to cleanup the namespace at the end
-config_dir = os.path.dirname(__file__)
-config_template = os.path.join(config_dir, __package__ + ".cfg")
-if os.path.isfile(config_template):
-    try:
-        _config.configuration.update_default_config(
-            __package__, config_dir, version=__version__)
-    except TypeError as orig_error:
-        try:
-            _config.configuration.update_default_config(
-                __package__, config_dir)
-        except _config.configuration.ConfigurationDefaultMissingError as e:
-            wmsg = (e.args[0] + " Cannot install default profile. If you are "
-                    "importing from source, this is expected.")
-            warn(_config.configuration.ConfigurationDefaultMissingWarning(wmsg))
-            del e
-        except:
-            raise orig_error
 
 from . import utils
 from .utils import setup_logging, restart_logging, system_diagnostic, measure_strehl
 
-from poppy import ( display_psf, display_psf_difference, display_ee, measure_ee, # current names
+from poppy import ( display_psf, display_psf_difference, display_ee, measure_ee,
         display_profiles, radial_profile,
         measure_radial, measure_fwhm, measure_sharpness, measure_centroid,
         specFromSpectralType, fwcentroid)
@@ -121,44 +89,6 @@ from .webbpsf_core import (Instrument, JWInstrument, NIRCam, NIRISS, NIRSpec,
 
 from .opds import enable_adjustable_ote
 
-from .wfirst import WFI, CGI
+from .roman import WFI, CGI
 
 from .jupyter_gui import show_notebook_interface
-
-try:
-    from .wxgui import wxgui
-    _HAVE_WX_GUI = True
-except ImportError:
-    _HAVE_WX_GUI = False
-
-try:
-    from .tkgui import tkgui
-    _HAVE_TK_GUI = True
-except ImportError:
-    _HAVE_TK_GUI = False
-
-
-
-#if (_HAVE_WX_GUI or _HAVE_TK_GUI):
-
-    #import warnings
-    #warnings.warn("Warning: Neither Tk nor wx GUIs could be imported. "
-    #              "Graphical interface disabled")
-#else:
-def gui(preferred='wx'):
-    """ Start the WebbPSF GUI with the selected interface
-
-    Parameters
-    -------------
-    preferred : string
-        either 'wx' or 'ttk' to indicate which GUI toolkit should be started.
-
-
-    """
-    if preferred == 'wx' and _HAVE_WX_GUI:
-        wxgui()
-        pass
-    elif preferred=='ttk' or _HAVE_TK_GUI:
-        tkgui()
-    else:
-        raise NotImplementedError("Neither TK nor WX GUI libraries are available. Cannot start GUI.")

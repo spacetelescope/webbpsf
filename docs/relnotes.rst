@@ -109,7 +109,7 @@ Note, when upgrading to this version you will need to update to the latest data 
 
 **JWST Improvements**
 
-- *Added a new capability to model the impact of thermal variations*, from telescope slews relative to the sun, onto mirror alignments and therefore onto PSFs. This new ``thermal_slew`` method  can be used to create a delta OPD for some elapsed time after the slew at either the maximum slew angle, some specified angle, or with a scaling factor applied to maximum case. Once combined with an input OPD (requirements or predicted), the new shape of the mirrors can be used to simulate predicted PSFs some time after a slew. See this `Jupyter notebook <https://github.com/spacetelescope/webbpsf/blob/master/notebooks/Example Construction of OPDs from Delta Time After Slew.ipynb>`_ for examples. [:pr:`269`, :user:`kjbrooks`]
+- *Added a new capability to model the impact of thermal variations*, from telescope slews relative to the sun, onto mirror alignments and therefore onto PSFs. This new ``thermal_slew`` method  can be used to create a delta OPD for some elapsed time after the slew at either the maximum slew angle, some specified angle, or with a scaling factor applied to maximum case. Once combined with an input OPD (requirements or predicted), the new shape of the mirrors can be used to simulate predicted PSFs some time after a slew. See this `Jupyter notebook <https://github.com/spacetelescope/webbpsf/blob/stable/notebooks/Example%20Construction%20of%20OPDs%20from%20Delta%20Time%20After%20Slew.ipynb>`_ for examples. [:pr:`269`, :user:`kjbrooks`]
 - *Improved wavefront error extrapolation method for field points near FOV corners* that are outside the bounds of Zernike reference table data, in order to provide more seamless extrapolation.  [:pr:`283`, :user:`JarronL`]
 - *Improvements in NIRCam optical model*: Updated polynomial model for NIRCam defocus versus wavelength. Adds Zernike coefficients for the wavefront error at NIRCam coronagraphy field points. [:pr:`283`, :user:`JarronL`]
 - NIRISS NRM mask was flipped along the X axis to match the as-built instrument and measured PSFs [:pr:`275`, :user:`KevinVolkSTScI`, :user:`anand0xff`, :user:`mperrin`]
@@ -128,7 +128,7 @@ Note, when upgrading to this version you will need to update to the latest data 
 
 - *Many improvements in the PSF Grid functionality for generating photutils.GriddedPSFModels*: 
 
-  - New options in ``psf_grid`` to specify both/either the output filename and output directory location. See this `Jupyter notebook <https://github.com/spacetelescope/webbpsf/blob/master/notebooks/Gridded_PSF_Library.ipynb>`_ for examples. [:pr:`294`, :user:`shanosborne`]
+  - New options in ``psf_grid`` to specify both/either the output filename and output directory location. See this `Jupyter notebook <https://github.com/spacetelescope/webbpsf/blob/stable/notebooks/Gridded_PSF_Library.ipynb>`_ for examples. [:pr:`294`, :user:`shanosborne`]
   - sFfilenames when saving out a ``psf_grid`` FITS object which has it’s ``filename`` parameter set will now end with ``_det.fits`` instead of the previous ``_det_filt.fits`` [:pr:`294`, :user:`shanosborne`]
   - Update added to ``utils.to_griddedpsfmodel`` where a 2-dimensional array input with a header containing only 1 ``DET_YX`` keyword can be turned into ``GriddedPSFModel`` object without error as it  implies the case of a PSF grid with num_psfs = 1. [:pr:`294`, :user:`shanosborne`]
   - Remove deletion of ``det_yx`` and ``oversamp`` keywords from ``psf_grid`` output to allow for easier implementation in certain cases. Normal case users will have extra keywords but will not change functionality [:pr:`291`, :user:`shanosborne`]
@@ -166,7 +166,7 @@ This release focused on software engineering improvements, rather than changes i
 
 **New functionality:**
 
-- *Added new capability to create grids of fiducial, distorted PSFs* spanning a chosen instrument/detector. This new ``psf_grid`` method is meant to be used as the first step of using the ``photutils`` package to do PSF-fitting photometry on simulated JWST PSFs. This method will output a list of or single ``photutils`` ``GriddedPSFModel`` object(s) which can then be read into ``photutils`` to apply interpolation to the grid and simulate a spatially dependent PSF anywhere on the instrument. See this `Jupyter notebook <https://github.com/spacetelescope/webbpsf/blob/master/notebooks/Gridded_PSF_Library.ipynb>`_ for examples. This method requires ``photutils`` version 0.6 or higher. [`#241, <https://github.com/spacetelescope/webbpsf/pull/241>` _, @shanosborne with inputs from @mperrin, @larrybradley, @hcferguson, and @eteq]
+- *Added new capability to create grids of fiducial, distorted PSFs* spanning a chosen instrument/detector. This new ``psf_grid`` method is meant to be used as the first step of using the ``photutils`` package to do PSF-fitting photometry on simulated JWST PSFs. This method will output a list of or single ``photutils`` ``GriddedPSFModel`` object(s) which can then be read into ``photutils`` to apply interpolation to the grid and simulate a spatially dependent PSF anywhere on the instrument. See this `Jupyter notebook <https://github.com/spacetelescope/webbpsf/blob/stable/notebooks/Gridded_PSF_Library.ipynb>`_ for examples. This method requires ``photutils`` version 0.6 or higher. [`#241, <https://github.com/spacetelescope/webbpsf/pull/241>` _, @shanosborne with inputs from @mperrin, @larrybradley, @hcferguson, and @eteq]
 
 **Bug fixes and small changes:**
 
@@ -255,7 +255,7 @@ handled automatically if you use `conda`, otherwise you will need to download an
   <http://www.stsci.edu/hst/acs/documents/handbooks/current/c05_imaging7.html#357374>`_
   for examples of what this looks like for Hubble PSFs) For the JWST
   instruments, this effect is largest for FGS, and fairly small but noticeable
-  for the other SIs. See `this Jupyter notebook <https://github.com/mperrin/webbpsf/blob/master/notebooks/Distortion_examples.ipynb>`_ for
+  for the other SIs. See `this Jupyter notebook <https://github.com/mperrin/webbpsf/blob/stable/notebooks/Distortion_examples.ipynb>`_ for
   examples of the effect on JWST PSFs. Note that the distorted PSFs are added as *additional extensions*
   in the output FITS file, so you will need to read from extension 2 or 3 if you want the
   PSF with the distortion included; extensions 0 and 1 remain consistent with prior versions.  The distortion information is taken from the Science
@@ -282,13 +282,13 @@ handled automatically if you use `conda`, otherwise you will need to download an
   acts as a cross-shaped convolution kernel, strongest at the shortest
   wavelengths. See MIRI document MIRI-TN-00076-ATC for details on the relevant
   physics and detector calibration.   This is implemented as part of the distortion framework, though
-  it is different physics. See `this Jupyter notebook <https://github.com/mperrin/webbpsf/blob/master/notebooks/Distortion_examples.ipynb>`_ for
+  it is different physics. See `this Jupyter notebook <https://github.com/mperrin/webbpsf/blob/stable/notebooks/Distortion_examples.ipynb>`_ for
   example output. For F560W through F1000W this is a much more obvious effect than the subtle distortions. [`#209,
   <https://github.com/mperrin/webbpsf/pull/209>`_, @shanosborne]
 - *Added new capabilities for modeling mirror moves of the JWST primary
   segments and secondary mirror*, using a linear optical model to adjust OPDs.
   Added a new `notebook demonstrating these capabilities
-  <https://github.com/mperrin/webbpsf/blob/master/notebooks/Simulated%20OTE%20Mirror%20Move%20Demo.ipynb>`_.
+  <https://github.com/mperrin/webbpsf/blob/stable/notebooks/Simulated%20OTE%20Mirror%20Move%20Demo.ipynb>`_.
   Note this code allows simulation of arbitrary mirror motions within a
   simplified linear range, and relies on user judgement what those mirror
   motions should be; it is not a detailed rigorous optomechanical model of the

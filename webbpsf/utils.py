@@ -4,6 +4,7 @@ import astropy.io.fits as fits
 from astropy.nddata import NDData
 import numpy as np
 import matplotlib.pyplot as plt
+import poppy
 
 import scipy.interpolate as sciint
 
@@ -201,15 +202,13 @@ def get_webbpsf_data_path(data_version_min=None, return_version=False):
     if path_from_config == 'from_environment_variable':
         path = os.getenv('WEBBPSF_PATH')
         if path is None:
-            sys.stderr.write(MISSING_WEBBPSF_DATA_MESSAGE)
-            raise EnvironmentError("Environment variable $WEBBPSF_PATH is not set!")
+            raise EnvironmentError(f"Environment variable $WEBBPSF_PATH is not set!\n{MISSING_WEBBPSF_DATA_MESSAGE}")
     else:
         path = path_from_config
 
     # at minimum, the path must be a valid directory
     if not os.path.isdir(path):
-        sys.stderr.write(MISSING_WEBBPSF_DATA_MESSAGE)
-        raise IOError("WEBBPSF_PATH ({}) is not a valid directory path!".format(path))
+        raise IOError(f"WEBBPSF_PATH ({path}) is not a valid directory path!\n{MISSING_WEBBPSF_DATA_MESSAGE}")
 
     if data_version_min is not None:
         # Check if the data in WEBBPSF_PATH meet the minimum data version
@@ -221,26 +220,24 @@ def get_webbpsf_data_path(data_version_min=None, return_version=False):
                 parts = version_contents.split('.')[:3]
             version_tuple = tuple(map(int, parts))
         except (IOError, ValueError):
-            sys.stderr.write(MISSING_WEBBPSF_DATA_MESSAGE)
             raise EnvironmentError(
-                "Couldn't read the version number from {}. (Do you need to update the WebbPSF "
+                f"Couldn't read the version number from {version_file_path}. (Do you need to update the WebbPSF "
                 "data? See https://webbpsf.readthedocs.io/en/stable/installation.html#data-install "
-                "for a link to the latest version.)".format(version_file_path)
+                "for a link to the latest version.)"
+                f"\n{MISSING_WEBBPSF_DATA_MESSAGE}"
             )
 
         if not version_tuple >= data_version_min:
-            sys.stderr.write(MISSING_WEBBPSF_DATA_MESSAGE)
+            min_ver = '{}.{}.{}'.format(*data_version_min)
             raise EnvironmentError(
-                "WebbPSF data package has version {cur}, but {min} is needed. "
+                f"WebbPSF data package has version {version_contents}, but {min_ver} is needed. "
                 "See https://webbpsf.readthedocs.io/en/stable/installation.html#data-install "
-                "for a link to the latest version.".format(
-                    cur=version_contents,
-                    min='{}.{}.{}'.format(*data_version_min)
+                "for a link to the latest version."
+                f"\n{MISSING_WEBBPSF_DATA_MESSAGE}"
                 )
-            )
 
         if return_version:
-            return (path, version_contents)
+            return path, version_contents
 
     return path
 
@@ -252,6 +249,7 @@ Python version: {python}
 numpy version: {numpy}
 scipy version: {scipy}
 astropy version: {astropy}
+stsynphot version: {stsyn}
 pysynphot version: {pysyn}
 
 numexpr version: {numexpr}
@@ -313,9 +311,19 @@ def system_diagnostic():
 
     try:
         import pyfftw
-        pyfftw_version = pyfftw.version
+        try:
+            pyfftw_version = pyfftw.__version__
+        except AttributeError:
+            # Back compatibility: Handle older versions with nonstandard version attribute name
+            pyfftw_version = pyfftw.version
+
     except ImportError:
         pyfftw_version = 'not found'
+    try:
+        import stsynphot
+        stsynphot_version = stsynphot.__version__
+    except ImportError:
+        stsynphot_version = 'not found'
 
     try:
         import pysynphot
@@ -383,6 +391,7 @@ def system_diagnostic():
         tkinter=ttk_version,
         wxpython=wx_version,
         pyfftw=pyfftw_version,
+        stsyn=stsynphot_version,
         pysyn=pysynphot_version,
         astropy=astropy_version,
         finfo_float=numpy.finfo(numpy.float),
@@ -510,15 +519,27 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, displa
 # use via poppy's display_annotate feature by assigning these to
 # the display_annotate attribute of an OpticalElement class
 
-def annotate_ote_entrance_coords(self, ax):
+def annotate_ote_pupil_coords(self, ax, orientation='entrance_pupil'):
     """ Draw OTE V frame axes on first optical plane """
     color = 'yellow'
-    loc = 3
-    ax.arrow(-loc, -loc, .2, 0, color=color, width=0.005)
-    ax.arrow(-loc, -loc, 0, .2, color=color, width=0.005)
-    ax.text(-loc, -loc + 0.4, '+V3', color=color, size='small',
-            horizontalalignment='center', verticalalignment='bottom')
-    ax.text(-loc + 0.4, -loc, '+V2', color=color, size='small',
+
+    xloc = 3
+    if orientation=='entrance_pupil':
+        yloc = 3
+        v3sign = +1
+        v3verticalalignment = 'bottom'
+    elif orientation=='exit_pupil':
+        yloc = 2.5
+        v3sign = -1
+        v3verticalalignment = 'top'
+    else:
+        raise ValueError(f"Unknown orientation {orientation}. Must be either 'entrance_pupil' or 'exit_pupil'. ")
+
+    ax.arrow(-xloc, -yloc, .2, 0, color=color, width=0.005)
+    ax.arrow(-xloc, -yloc, 0, .2*v3sign, color=color, width=0.005)
+    ax.text(-xloc, -yloc + 0.4*v3sign, '+V3', color=color, size='small',
+            horizontalalignment='center', verticalalignment=v3verticalalignment)
+    ax.text(-xloc + 0.4, -yloc, '+V2', color=color, size='small',
             horizontalalignment='left', verticalalignment='center')
 
 
@@ -752,3 +773,4 @@ def to_griddedpsfmodel(HDUlist_or_filename=None, ext_data=0, ext_header=0):
     model = GriddedPSFModel(ndd)
 
     return model
+

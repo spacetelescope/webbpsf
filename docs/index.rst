@@ -1,7 +1,7 @@
 Documentation for WebbPSF
 ===============================
 
-WebbPSF is a Python package that computes simulated point spread functions (PSFs) for NASA's James Webb Space Telescope (JWST) and Nancy Grace Roman Space Telescope (formerly WFIRST). WebbPSF transforms models of telescope and instrument optical state into PSFs, taking into account detector pixel scales, rotations, filter profiles, and point source spectra. It is *not* a full optical model of JWST, but rather a tool for transforming optical path difference (OPD) maps, created with some other tool, into the resulting PSFs as observed with JWST's or WFIRST's instruments.
+WebbPSF is a Python package that computes simulated point spread functions (PSFs) for NASA's James Webb Space Telescope (JWST) and Nancy Grace Roman Space Telescope (formerly WFIRST). WebbPSF transforms models of telescope and instrument optical state into PSFs, taking into account detector pixel scales, rotations, filter profiles, and point source spectra. It is *not* a full optical model of JWST, but rather a tool for transforming optical path difference (OPD) maps, created with some other tool, into the resulting PSFs as observed with JWST's or Roman's instruments.
 
 .. figure:: ./fig_instrument_comparison.png
    :scale: 45 %
@@ -10,12 +10,12 @@ WebbPSF is a Python package that computes simulated point spread functions (PSFs
 
    Sample PSFs for JWST's instrument suite, all on the same angular scale and display stretch.
 
-.. figure:: ./wfirst_figures/webbpsf-wfirst_page_header.png
+.. figure:: ./roman_figures/webbpsf-roman_page_header.png
    :scale: 70 %
    :align: center
-   :alt: Sample PSFs for the filters in the WFIRST WFI.
+   :alt: Sample PSFs for the filters in the Roman WFI.
 
-   Sample PSFs for the filters in the WFIRST WFI.
+   Sample PSFs for the filters in the Roman WFI.
 
 
 **Contributors:**
@@ -26,10 +26,10 @@ Getting Started with WebbPSF
 
 .. admonition:: Quickstart Jupyter Notebook
 
-   This documentation is complemented by an `Jupyter Notebook format quickstart tutorial <http://nbviewer.jupyter.org/github/spacetelescope/webbpsf/blob/master/notebooks/WebbPSF_tutorial.ipynb>`_. Downloading and running that notebook is a great way to get started using WebbPSF.
+   This documentation is complemented by an `Jupyter Notebook format quickstart tutorial <http://nbviewer.jupyter.org/github/spacetelescope/webbpsf/blob/stable/notebooks/WebbPSF_tutorial.ipynb>`_. Downloading and running that notebook is a great way to get started using WebbPSF.
 
 .. note:: 
-   *Getting help:* For help using or installing webbpsf, you can contact the STScI Help Desk, help@stsci.edu. Note that WebbPSF is included in the Astroconda  python distribution, as well as being installable via :ref:`standard Python packaging tools <installation>`.
+   *Getting help:* For help using or installing webbpsf, you can contact the STScI JWST Help Desk at jwsthelp.stsci.edu. Note that WebbPSF is included in the Astroconda python distribution, as well as being installable via :ref:`standard Python packaging tools <installation>`.
 
 
 :ref:`What's new in the latest release? <whatsnew>`
@@ -45,7 +45,7 @@ Contents
    relnotes.rst
    usage.rst
    jwst.rst
-   wfirst.rst
+   roman.rst
    psf_grids.rst
    more_examples.rst
    poppy.rst
@@ -70,7 +70,6 @@ Appendices and Reference
 
    available_opds.rst
    references.rst
-   gui.rst
    release.rst
 
 

@@ -343,6 +343,16 @@ class CreatePSFLibrary:
             meta["NORMALIZ"] = (psf[ext].header["NORMALIZ"], "PSF normalization method")
             meta["TEL_WFE"] = (psf[ext].header["TEL_WFE"], "[nm] Telescope pupil RMS wavefront error")
 
+            # Copy values for per-segment Zernike {piston, tip, tilt}, if present
+            # (these are only present or used in incoherent segment PSF generation with the
+            # remove_piston_tip_tilt value set to True):
+            if 'S01PISTN' in psf[ext].header:
+                # if we have one such keyword, assume we have them for all segments and all types
+                for i in range(1,19):
+                    for ztype in ('PISTN', 'XTILT', 'YTILT'):
+                        mykey = f"S{i:02d}{ztype}"
+                        meta[mykey] = (psf[ext].header[mykey], psf[ext].header.comments[mykey])
+
             # copy all the jitter-related keys (the exact set of keywords varies based on jitter type)
             for k in psf[ext].header.keys():   # do the rest
                 if k.startswith('JITR'):
@@ -462,8 +472,8 @@ class CreatePSFLibrary:
         hdu.writeto(file, overwrite=self.overwrite)
 
 
-def display_psf_grid(grid, zoom_in=True, figsize=(12, 12)):
-    """ Display a PSF grid in a pair of lpots
+def display_psf_grid(grid, zoom_in=True, figsize=(14, 12), scale_range=1e-4):
+    """ Display a PSF grid in a pair of plots
 
     Shows the NxN grid in NxN subplots, repeated to show
     first the individual PSFs, and then their differences
@@ -478,6 +488,8 @@ def display_psf_grid(grid, zoom_in=True, figsize=(12, 12)):
     -------
     grid : photutils.GriddedPSFModel object
         The grid of PSFs to be displayed.
+    scale_range : float
+        Dynamic range for display scale. vmin will be set to this factor timex vmax.
 
 
     """
@@ -508,19 +520,24 @@ def display_psf_grid(grid, zoom_in=True, figsize=(12, 12)):
         for ix in range(n):
             for iy in range(n):
                 i = ix*n+iy
-                axes[n-1-iy, ix].imshow(data[i], vmax=vmax, vmin=vmin, norm=norm)
+                im = axes[n-1-iy, ix].imshow(data[i], vmax=vmax, vmin=vmin, norm=norm)
                 axes[n-1-iy, ix].xaxis.set_visible(False)
                 axes[n-1-iy, ix].yaxis.set_visible(False)
                 axes[n-1-iy, ix].set_title("{}".format(tuple_to_int(grid.grid_xypos[i])))
                 if zoom_in:
                     axes[n-1-iy,ix].use_sticky_edges = False
                     axes[n-1-iy,ix].margins(x=-0.25, y=-0.25)
-        plt.suptitle("{} for {} in {} ".format(title,
+        plt.suptitle("{} for {} in {} \noversampling: {}x".format(title,
                                                grid.meta['detector'][0],
-                                               grid.meta['filter'][0]), fontsize=16)
+                                               grid.meta['filter'][0], grid.oversampling), fontsize=16)
+
+
+        cbar = fig.colorbar(im, ax=axes.ravel().tolist(), shrink=0.95)
+        cbar.set_label("Intensity, relative to PSF sum = 1.0")
+
 
     vmax = grid.data.max()
-    vmin = vmax/1e4
+    vmin = vmax*scale_range
     show_grid_helper(grid, grid.data, vmax=vmax, vmin=vmin)
 
     meanpsf = np.mean(grid.data, axis=0)

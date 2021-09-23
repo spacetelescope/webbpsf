@@ -1,7 +1,7 @@
 """
-==============================
-WFIRST Instruments (pre-alpha)
-==============================
+=================
+Roman Instruments
+=================
 
 WARNING: This model has not yet been validated against other PSF
          simulations, and uses several approximations (e.g. for
@@ -224,7 +224,7 @@ def _load_wfi_detector_aberrations(filename):
         detector = FieldDependentAberration(
             4096,
             4096,
-            radius=WFIRSTInstrument.PUPIL_RADIUS,
+            radius=RomanInstrument.PUPIL_RADIUS,
             name="Field Dependent Aberration (SCA{:02})".format(number)
         )
         for field_id in field_points:
@@ -263,18 +263,18 @@ def _load_wfi_detector_aberrations(filename):
     return detectors
 
 
-class WFIRSTInstrument(webbpsf_core.SpaceTelescopeInstrument):
+class RomanInstrument(webbpsf_core.SpaceTelescopeInstrument):
     PUPIL_RADIUS = 2.4 / 2.0
     """
-    WFIRSTInstrument contains data and functionality common to WFIRST
+    RomanInstrument contains data and functionality common to Roman
     instruments, such as setting the pupil shape
     """
-    telescope = "WFIRST"
+    telescope = "Roman"
 
     def __init__(self, *args, **kwargs):
-        super(WFIRSTInstrument, self).__init__(*args, **kwargs)
+        super(RomanInstrument, self).__init__(*args, **kwargs)
         self.options['jitter'] = 'gaussian'
-        self.options['jitter_sigma'] = 0.014   # See https://wfirst.ipac.caltech.edu/sims/Param_db.html#telescope
+        self.options['jitter_sigma'] = 0.014   # See https://roman.ipac.caltech.edu/sims/Param_db.html#telescope
 
     # slightly different versions of the following two functions
     # from the parent superclass
@@ -308,7 +308,7 @@ class WFIRSTInstrument(webbpsf_core.SpaceTelescopeInstrument):
 
     def _get_fits_header(self, result, options):
         """Populate FITS Header keywords"""
-        super(WFIRSTInstrument, self)._get_fits_header(result, options)
+        super(RomanInstrument, self)._get_fits_header(result, options)
         result[0].header['DETXPIXL'] = (self.detector_position[0],
                                         'X pixel position (for field dependent aberrations)')
         result[0].header['DETYPIXL'] = (self.detector_position[1],
@@ -482,10 +482,10 @@ class WFIPupilController:
         self.pupil_mask = 'AUTO'
 
 
-class WFI(WFIRSTInstrument):
+class WFI(RomanInstrument):
     """
-    WFI represents the WFIRST wide field imager
-    for the WFIRST mission
+    WFI represents the Roman wide field imager
+    for the Roman mission
 
     WARNING: This model has not yet been validated against other PSF
              simulations, and uses several approximations (e.g. for
@@ -496,8 +496,8 @@ class WFI(WFIRSTInstrument):
         """
         Initiate WFI
         """
-        # pixel scale is from WFIRST-AFTA SDT report final version (p. 91)
-        # https://wfirst.ipac.caltech.edu/sims/Param_db.html
+        # pixel scale is from Roman-AFTA SDT report final version (p. 91)
+        # https://roman.ipac.caltech.edu/sims/Param_db.html
         pixelscale = 110e-3 # arcsec/px
 
         # Initialize the pupil controller
@@ -536,7 +536,7 @@ class WFI(WFIRSTInstrument):
         """
         Helper function that, given a path to a file containing detector aberrations, loads the Zernike values and
         populates the class' dictator list with `FieldDependentAberration` detectors. This function achieves this by
-        calling the `webbpsf.wfirst._load_wfi_detector_aberrations` function.
+        calling the `webbpsf.roman._load_wfi_detector_aberrations` function.
 
         Users should use the `override_aberrations` function to override current aberrations.
 
@@ -560,7 +560,7 @@ class WFI(WFIRSTInstrument):
         self._pupil_controller.validate_pupil(self.filter, **kwargs)
         super(WFI, self)._validate_config(**kwargs)
 
-    @WFIRSTInstrument.detector.setter
+    @RomanInstrument.detector.setter
     def detector(self, value):
         if value.upper() not in self.detector_list:
             raise ValueError("Invalid detector. Valid detector names are: {}".format(', '.join(self.detector_list)))
@@ -683,8 +683,8 @@ class WFI(WFIRSTInstrument):
 
         Please refer to the default aberrations files for examples. If you have the WebbPSF data installed and defined,
         you can get the path to that file by running the following:
-            >>> from webbpsf import wfirst
-            >>> wfi = wfirst.WFI()
+            >>> from webbpsf import roman
+            >>> wfi = roman.WFI()
             >>> print(wfi._aberrations_files["imaging"])
 
         Warning: You should not edit the default files!
@@ -700,7 +700,7 @@ class WFI(WFIRSTInstrument):
          self._aberrations_files['custom'] = None
          self._is_custom_aberrations = False
 
-    @WFIRSTInstrument.filter.setter
+    @RomanInstrument.filter.setter
     def filter(self, value):
 
         # Update Filter
@@ -731,11 +731,11 @@ class WFI(WFIRSTInstrument):
         self._pupil_controller.validate_pupil(self._filter)
 
 
-class CGI(WFIRSTInstrument):
+class CGI(RomanInstrument):
     """
-    WFIRST Coronagraph Instrument
+    Roman Coronagraph Instrument
 
-    Simulates the PSF of the WFIRST coronagraph.
+    Simulates the PSF of the Roman coronagraph.
 
     Current functionality is limited to the Shaped Pupil Coronagraph (SPC)
     observing modes, and these modes are only simulated with static, unaberrated
@@ -941,7 +941,7 @@ class CGI(WFIRSTInstrument):
 
     def print_mode_table(self):
         """Print the table of observing mode options and their associated optical configuration"""
-        _log.info("Printing the table of WFIRST CGI observing modes supported by WebbPSF.")
+        _log.info("Printing the table of Roman CGI observing modes supported by WebbPSF.")
         _log.info("Each is defined by a combo of camera, filter, apodizer, "
                   "focal plane mask (FPM), and Lyot stop settings:")
         _log.info(pprint.pformat(self._mode_table))
@@ -959,7 +959,7 @@ class CGI(WFIRSTInstrument):
         super(CGI, self)._validate_config(**kwargs)
 
     def _addAdditionalOptics(self, optsys, oversample=4):
-        """Add coronagraphic or spectrographic optics for WFIRST CGI."""
+        """Add coronagraphic or spectrographic optics for Roman CGI."""
 
         trySAM = False
 
@@ -992,7 +992,7 @@ class CGI(WFIRSTInstrument):
 
     def _get_fits_header(self, result, options):
         """Populate FITS Header keywords"""
-        super(WFIRSTInstrument, self)._get_fits_header(result, options)
+        super(RomanInstrument, self)._get_fits_header(result, options)
         pupil_hdr = fits.getheader(self.pupil)
         apodizer_hdr = fits.getheader(self._apodizer_fname)
         fpm_hdr = fits.getheader(self._fpm_fname)

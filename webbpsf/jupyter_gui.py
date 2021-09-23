@@ -4,7 +4,9 @@ import astropy.io.fits as fits
 
 import poppy
 from . import webbpsf_core
-from . import wfirst
+from . import roman
+from . import utils
+
 
 _log = logging.getLogger('webbpsf')
 
@@ -22,7 +24,7 @@ def show_notebook_interface(instrumentname):
     """
 
     if instrumentname.upper()=='WFI':
-        instrument = wfirst.WFI()
+        instrument = roman.WFI()
         show_notebook_interface_wfi(instrument)
     else:
         instrument = webbpsf_core.Instrument(instrumentname)
@@ -39,9 +41,9 @@ def show_notebook_interface_wfi(instrument):
     from matplotlib import pyplot as plt
 
     try:
-        import pysynphot
+        import synphot
     except ImportError:
-        raise ImportError("For now, PySynphot must be installed to use the notebook interface")
+        raise ImportError(f"For now, synphot must be installed to use the notebook interface")
 
     # Clean up some warnings we know about so as not to scare the users
     import warnings
@@ -237,9 +239,9 @@ def show_notebook_interface_jwst(instrument):
         instrument = Instrument(instrument)
 
     try:
-        import pysynphot
+        import synphot
     except ImportError:
-        raise ImportError("For now, PySynphot must be installed to use the notebook interface")
+        raise ImportError(f"For now, synphot must be installed to use the notebook interface")
 
     # Clean up some warnings we know about so as not to scare the users
     import warnings
