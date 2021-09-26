@@ -547,7 +547,7 @@ class WFI(RomanInstrument):
         """
         detectors = _load_wfi_detector_aberrations(path)
         assert len(detectors.keys()) > 0
-        
+
         self._detectors = detectors
         self._current_aberrations_file = path
 
