@@ -329,7 +329,7 @@ class CreatePSFLibrary:
                 if self.instr in ["NIRCam", "NIRISS", "FGS"]:
                     meta["ROTATION"] = (psf[ext].header["ROTATION"], "PSF rotated to match detector rotation")
 
-                if self.instr is "MIRI":
+                if self.instr=="MIRI":
                     meta["MIR_DIST"] = (psf[ext].header["MIR_DIST"], "MIRI detector scattering applied")
                     meta["KERN_AMP"] = (psf[ext].header["KERN_AMP"],
                                         "Amplitude(A) in kernel function A * exp(-x / B)")
