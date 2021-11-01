@@ -1,7 +1,7 @@
 astropy==4.3.1
 ipython==7.28.0
 matplotlib==3.4.3
-numpy==1.21.2
+numpy==1.21.3
 photutils==1.2.0
 poppy>=0.9.1
 pysiaf==0.13.0
