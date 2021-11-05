@@ -1172,6 +1172,27 @@ def _fix_zgrid_NaNs(xgrid, ygrid, zgrid, rot_ang=0):
     return zgrid
 
 
+def _get_initial_pupil_sampling(instrument):
+    """Utility function to retrieve the sampling of the first plane in some optical system
+    returns npix, pixelscale"""
+    # Determine the pupil sampling of the first aperture in the
+    # instrument's optical system
+    if isinstance(instrument.pupil, poppy.OpticalElement):
+        # This branch needed to handle the OTE Linear Model case
+        npix = instrument.pupil.shape[0]
+        pixelscale = instrument.pupil.pixelscale
+    else:
+        # these branches to handle FITS files, by name or as an object
+        if isinstance(instrument.pupil, fits.HDUList):
+            pupilheader = instrument.pupil[0].header
+        else:
+            pupilfile = os.path.join(instrument._datapath, "OPD", instrument.pupil)
+            pupilheader = fits.getheader(pupilfile)
+
+        npix = pupilheader['NAXIS1']
+        pixelscale = pupilheader['PUPLSCAL'] * units.meter / units.pixel
+    return npix, pixelscale
+
 # Field dependent aberration class for JWST instruments
 class WebbFieldDependentAberration(poppy.OpticalElement):
     """ Field dependent aberration generated from Zernikes measured in ISIM CV testing
@@ -1226,22 +1247,7 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
         else:
             self.ztable_full = Table.read(zernike_file)
 
-        # Determine the pupil sampling of the first aperture in the
-        # instrument's optical system
-        if isinstance(instrument.pupil, poppy.OpticalElement):
-            # This branch needed to handle the OTE Linear Model case
-            npix = instrument.pupil.shape[0]
-            self.pixelscale = instrument.pupil.pixelscale
-        else:
-            # these branches to handle FITS files, by name or as an object
-            if isinstance(instrument.pupil, fits.HDUList):
-                pupilheader = instrument.pupil[0].header
-            else:
-                pupilfile = os.path.join(instrument._datapath, "OPD", instrument.pupil)
-                pupilheader = fits.getheader(pupilfile)
-
-            npix = pupilheader['NAXIS1']
-            self.pixelscale = pupilheader['PUPLSCAL'] * units.meter / units.pixel
+        npix, self.pixelscale = _get_initial_pupil_sampling(self.instrument)
 
         self.ztable = self.ztable_full[self.ztable_full['instrument'] == lookup_name]
 

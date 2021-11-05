@@ -2388,6 +2388,80 @@ class OTE_Linear_Model_WSS(OPD):
         self._apply_field_dependence_model()
 
 
+    def _get_dynamic_opd(self, delta_time=14*u.day, case='EOL'):
+        """Return ONLY the dynamic portion of the OPD, including thermal slew + frill + IEC
+        Normally these are all folded up as part of the update_opd method, but it can be
+        useful in certain circumstances to extract just this part, e.g. for plotting or analysis
+
+        This is therefore a modified version of the update_opd function.
+        This is a bit of a hack, as internal OPD state gets modified and then reset as a
+        side effect of this.
+
+        """
+        # always start from the input OPD, then apply perturbations
+        # self.opd = self._opd_original.copy()
+        # self.opd_header.add_history('')
+        # self.opd_header.add_history('OTE linear model: updated OPD based on input segment poses')
+        self.opd *= 0  # start from a zero OPD and just add perturbations; we will undo this later!
+
+        # Change a bunch of parameters (we will also undo this later!)
+        thermal_slew_params = (self.delta_time, self.start_angle, self.end_angle, self._thermal_model.case)
+        # default is max slew and 2 weeks
+        self.start_angle= -5
+        self.start_angle=  45
+        self._thermal_model.case = case
+        self.delta_time = delta_time.to_value(u.day)
+
+        # sm = 18
+        # sm_pose_coeffs = self.segment_state[sm].copy()[0:5]  # 6th row is n/a for SM
+        # sm_pose_coeffs.shape = (5, 1)  # to allow broadcasting below
+        sm_pose_coeffs = np.zeros( (5,1) )
+
+        drift_segment_state = self._get_frill_drift_poses() + self._get_iec_drift_poses()
+
+        for iseg, segname in enumerate(self.segnames[0:18]):
+            pose_coeffs = drift_segment_state[iseg].copy()
+            if np.all(pose_coeffs == 0) and np.all(sm_pose_coeffs == 0) and delta_time == 0:
+                continue
+            else:
+
+                sensitivities = self._get_seg_sensitivities(segname)
+                pose_coeffs.shape = (6, 1)  # to allow broadcasting in next line
+
+                hexike_coeffs = sensitivities * pose_coeffs  # this will be a 6,9 array
+                hexike_coeffs = hexike_coeffs.sum(axis=0)  # sum across all controlled modes
+                # to yield a set of 9 overall coeffs
+
+                sm_sensitivities = self._get_seg_sensitivities_from_sm(segname)
+                hexike_coeffs_from_sm = sm_sensitivities * sm_pose_coeffs  # will be 5,9 array
+                hexike_coeffs_from_sm = hexike_coeffs_from_sm.sum(axis=0)  # sum to get 9
+                hexike_coeffs_from_thermal = self._get_thermal_slew_coeffs(segname)
+                hexike_coeffs_combined = hexike_coeffs + hexike_coeffs_from_sm + hexike_coeffs_from_thermal
+
+                self._apply_hexikes_to_seg(segname, hexike_coeffs_combined)
+
+        # The thermal slew model for the SM global defocus is implemented as a global hexike.
+        # So we have to combine that with the _global_hexikes array here
+        global_hexike_coeffs_combined = self._global_hexike_coeffs.copy()
+        if delta_time != 0.0:
+            global_hexike_coeffs_combined[4] += self._get_thermal_slew_coeffs('SM')
+
+        # Apply Global Zernikes, and/or hexikes
+        if not np.all(global_hexike_coeffs_combined == 0):
+            self._apply_global_hexikes(global_hexike_coeffs_combined)
+        # if not np.all(self._global_zernike_coeffs == 0):
+        #    self._apply_global_zernikes()
+
+        #self._apply_field_dependence_model()
+
+        drift_opd = self.opd.copy()  # save this, to return below
+
+        # Important: Undo the overwriting of self.opd we just did
+        self.delta_time, self.start_angle, self.end_angle, self._thermal_model.case = thermal_slew_params
+        self.update_opd()
+
+        return drift_opd
+
     def apply_frill_drift(self, amplitude=None, random=False, case='BOL', delay_update=False):
         """ Apply model of segment PTT motions for the frill-induced drift.
 
