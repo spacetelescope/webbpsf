@@ -1172,6 +1172,30 @@ def _fix_zgrid_NaNs(xgrid, ygrid, zgrid, rot_ang=0):
     return zgrid
 
 
+def _get_initial_pupil_sampling(instrument):
+    """Utility function to retrieve the sampling of the first plane in some optical system.
+
+    Returns: npix, pixelscale
+    """
+    # Determine the pupil sampling of the first aperture in the
+    # instrument's optical system
+    if isinstance(instrument.pupil, poppy.OpticalElement):
+        # This branch needed to handle the OTE Linear Model case
+        npix = instrument.pupil.shape[0]
+        pixelscale = instrument.pupil.pixelscale
+    else:
+        # these branches to handle FITS files, by name or as an object
+        if isinstance(instrument.pupil, fits.HDUList):
+            pupilheader = instrument.pupil[0].header
+        else:
+            pupilfile = os.path.join(instrument._datapath, "OPD", instrument.pupil)
+            pupilheader = fits.getheader(pupilfile)
+
+        npix = pupilheader['NAXIS1']
+        pixelscale = pupilheader['PUPLSCAL'] * units.meter / units.pixel
+    return npix, pixelscale
+
+
 # Field dependent aberration class for JWST instruments
 class WebbFieldDependentAberration(poppy.OpticalElement):
     """ Field dependent aberration generated from Zernikes measured in ISIM CV testing
@@ -1932,3 +1956,107 @@ class LookupTableFieldDependentAberration(poppy.OpticalElement):
             kwargs.update({'opd_vmax': 2.5e-7})
 
         return super().display(*args, **kwargs)
+
+
+class NIRCamFieldDependentWeakLens(poppy.OpticalElement):
+    """Higher-fidelity model of NIRCam weak lens(es), based on calibrated as-built performance
+    and field dependence.
+
+    See R. Telfer, 'NIRCam Weak Lens Characterization and Performance', JWST-REF-046515
+
+
+    """
+
+    def __init__(self, name='WLP8', instrument=None, center_fp_only=False, verbose=False, **kwargs):
+        super().__init__(name=name)
+
+        self.ref_wavelength = 2.12e-6  # reference wavelength for defocus
+
+        self.verbose = verbose
+        if instrument is None:
+            self.module = 'A'
+            self.v2v3_coords = (0, -468 / 60)
+            npix = 1024
+            pixelscale = constants.JWST_CIRCUMSCRIBED_DIAMETER / npix
+        else:
+            self.module = instrument.module
+            self.v2v3_coords = instrument._tel_coords()
+            npix, pixelscale = _get_initial_pupil_sampling(instrument)
+
+        self.ztable_full = None
+
+        ## REFERENCE:
+        # NIRCam weak lenses, values from WSS config file, PRDOPSFLT-027
+        #                  A         B
+        # WLP4_diversity =   8.27309     8.3443         diversity in microns
+        # WLP8_diversity =  16.4554     16.5932
+        # WLM8_diversity = -16.4143    -16.5593
+        # WL_wavelength =    2.12                       Wavelength, in microns
+
+        if center_fp_only or instrument is None:
+            # use the center field point power only. No field dependence
+
+            # Power in P-V waves at center field point in optical model
+            # JWST-REF-046515, table 2      Mod A:    Mod B:
+            power_at_center_fp = {'WLM8': (-8.0188, -7.9521),
+                                  'WLM4': (-4.0285, -3.9766),
+                                  'WLP4': (3.9797, 3.9665),
+                                  'WLP8': (8.0292, 7.9675),
+                                  'WLP12': (12.0010, 11.9275)}
+
+            power_pv = power_at_center_fp[self.name][0 if self.module == 'A' else 1]
+
+        else:
+            closest_fp = self.find_closest_isim_fp_name(instrument)
+            if verbose: print(closest_fp)
+            power_pv = self.lookup_empirical_lens_power(name, closest_fp)
+
+        self.power_pv_waves = power_pv
+        pv2rms_norm = self.ref_wavelength / (2 * np.sqrt(3))  # convert desired PV waves to RMS microns for power
+        # since the below function wants inputs in RMS
+
+        self.power_rms_microns = power_pv * pv2rms_norm
+
+
+        zernike_coefficients = np.asarray([0, 0, 0, self.power_rms_microns])
+
+        self.opd = poppy.zernike.opd_from_zernikes(
+            zernike_coefficients,
+            npix=npix,
+            outside=0
+        )
+        self.amplitude = np.ones_like(self.opd)
+
+    def find_closest_isim_fp_name(self, instr):
+        """Find the closest ISIM CV field point to a given instrument object,
+        i.e. the field point closest to the configured detector and coordinates
+        """
+
+        if self.ztable_full is None:
+            zernike_file = os.path.join(utils.get_webbpsf_data_path(), "si_zernikes_isim_cv3.fits")
+            self.ztable_full = Table.read(zernike_file)
+
+        lookup_name = f"NIRCam{instr.channel.upper()[0]}W{instr.module}"
+        ztable = self.ztable_full[self.ztable_full['instrument'] == lookup_name]
+
+        self._ztable = ztable
+        self._instr = instr
+        telcoords_am = instr._tel_coords().to(units.arcmin).value
+        if self.verbose: print(telcoords_am)
+        r = np.sqrt((telcoords_am[0] - ztable['V2']) ** 2 + (telcoords_am[1] - ztable['V3']) ** 2)
+        # Save closest ISIM CV3 WFE measured field point for reference
+        row = ztable[r == r.min()]
+        return row['field_point_name']
+
+    def lookup_empirical_lens_power(self, lens_name, field_point_name):
+        mypath = os.path.dirname(os.path.abspath(__file__)) + os.sep
+        wl_data_file = os.path.join(mypath, 'otelm', 'NIRCam_WL_Empirical_Power.csv')
+        wl_data = Table.read(wl_data_file, comment='#', header_start=1)
+
+        field_point_row = wl_data[wl_data['Field'] == field_point_name]
+        if self.verbose: print(field_point_row)
+
+        power = field_point_row[lens_name[2:]]
+
+        if self.verbose: print(power)
+        return power.data[0]
