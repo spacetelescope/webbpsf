@@ -297,9 +297,12 @@ def test_defocus(fov_arcsec=1, display=False):
     via either a weak lens, or via the options dict,
     and we get consistent results either way.
 
+    Note this is now an *inexact* comparison, because the weak lenses now include non-ideal effects, in particular field dependent astigmatism
+
     Test for #59 among other things
     """
     nrc = webbpsf_core.NIRCam()
+    nrc.set_position_from_aperture_name('NRCA3_FP1')
     nrc.pupilopd=None
     nrc.include_si_wfe=False
 
@@ -313,7 +316,7 @@ def test_defocus(fov_arcsec=1, display=False):
     nrc.options['defocus_wavelength']=2.12e-6
     psf_2 = nrc.calc_psf(nlambda=1, fov_arcsec=fov_arcsec, oversample=1, display=False, add_distortion=False)
 
-    assert np.allclose(psf[0].data, psf_2[0].data), "Defocused PSFs calculated two ways don't agree"
+    assert np.allclose(psf[0].data, psf_2[0].data, atol=1e-4), "Defocused PSFs calculated two ways don't agree as precisely as expected"
 
     if display:
         import webbpsf

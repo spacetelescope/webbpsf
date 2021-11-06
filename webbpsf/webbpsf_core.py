@@ -2012,7 +2012,7 @@ class NIRCam(JWInstrument):
                                                                  ), index=3)
         elif self.pupil_mask == 'WEAK LENS -4 (=4-8)' or self.pupil_mask == 'WLM4' or (
                 self.pupil_mask == 'WLM8' and self.filter == 'WLP4'):
-            optsys.add_pupil(optics.NIRCamFieldDependentWeakLens(name='WLP12', instrument=self,
+            optsys.add_pupil(optics.NIRCamFieldDependentWeakLens(name='WLM4', instrument=self,
                                                                 shift_x=shift_x, shift_y=shift_y, rotation=rotation,
                                                                  ), index=3)
 
