@@ -1962,12 +1962,30 @@ class NIRCamFieldDependentWeakLens(poppy.OpticalElement):
     """Higher-fidelity model of NIRCam weak lens(es), based on calibrated as-built performance
     and field dependence.
 
+    Includes field-dependent variations in defocus power, and in astigmatism. Includes variation of the
+    +4 lens' effective OPD when used in a pair with either the +8 or -8 lens.
+
+    These are modeled as the specific values from the nearest neighbor ISIM CV calibration point,
+    with no interpolation between them included at this time.
+
     See R. Telfer, 'NIRCam Weak Lens Characterization and Performance', JWST-REF-046515
 
+    Parameters
+    -----------
+    name : str
+        WLP8, WLM8, WLP4, WLM4, WLP12.
+
+    center_fp_only : bool
+        For debugging; override to set no field dependence and just use the average center field point power
+
+    include_power, include_astigmatism : bool
+        Can be used to selectively enable/disable parts of the optical model. Intended for debugging; should no
+        need to be set by users in general.
 
     """
 
-    def __init__(self, name='WLP8', instrument=None, center_fp_only=False, verbose=False, **kwargs):
+    def __init__(self, name='WLP8', instrument=None, center_fp_only=False, verbose=False, include_power=True,
+                 include_astigmatism=True, **kwargs):
         super().__init__(name=name)
 
         self.ref_wavelength = 2.12e-6  # reference wavelength for defocus
@@ -1977,7 +1995,6 @@ class NIRCamFieldDependentWeakLens(poppy.OpticalElement):
             self.module = 'A'
             self.v2v3_coords = (0, -468 / 60)
             npix = 1024
-            pixelscale = constants.JWST_CIRCUMSCRIBED_DIAMETER / npix
         else:
             self.module = instrument.module
             self.v2v3_coords = instrument._tel_coords()
@@ -2005,11 +2022,13 @@ class NIRCamFieldDependentWeakLens(poppy.OpticalElement):
                                   'WLP12': (12.0010, 11.9275)}
 
             power_pv = power_at_center_fp[self.name][0 if self.module == 'A' else 1]
+            astig0 = 0
+            astig45 = 0
 
         else:
             closest_fp = self.find_closest_isim_fp_name(instrument)
             if verbose: print(closest_fp)
-            power_pv = self.lookup_empirical_lens_power(name, closest_fp)
+            power_pv, astig0, astig45 = self.lookup_empirical_lens_power(name, closest_fp)
 
         self.power_pv_waves = power_pv
         pv2rms_norm = self.ref_wavelength / (2 * np.sqrt(3))  # convert desired PV waves to RMS microns for power
@@ -2017,8 +2036,13 @@ class NIRCamFieldDependentWeakLens(poppy.OpticalElement):
 
         self.power_rms_microns = power_pv * pv2rms_norm
 
-
-        zernike_coefficients = np.asarray([0, 0, 0, self.power_rms_microns])
+        zernike_coefficients = np.zeros(6)
+        if include_power:
+            zernike_coefficients[3] = self.power_rms_microns
+        if include_astigmatism:
+            zernike_coefficients[4] = astig0
+            zernike_coefficients[5] = astig45
+        self.zernike_coefficients = zernike_coefficients
 
         self.opd = poppy.zernike.opd_from_zernikes(
             zernike_coefficients,
@@ -2049,6 +2073,9 @@ class NIRCamFieldDependentWeakLens(poppy.OpticalElement):
         return row['field_point_name']
 
     def lookup_empirical_lens_power(self, lens_name, field_point_name):
+        """ Lookup lens power and astigmatism versus field position, from empirical calibrations from ISIM CV testing
+
+        """
         mypath = os.path.dirname(os.path.abspath(__file__)) + os.sep
         wl_data_file = os.path.join(mypath, 'otelm', 'NIRCam_WL_Empirical_Power.csv')
         wl_data = Table.read(wl_data_file, comment='#', header_start=1)
@@ -2056,7 +2083,16 @@ class NIRCamFieldDependentWeakLens(poppy.OpticalElement):
         field_point_row = wl_data[wl_data['Field'] == field_point_name]
         if self.verbose: print(field_point_row)
 
-        power = field_point_row[lens_name[2:]]
+        defocus_name = lens_name[2:]
+
+        power = field_point_row[defocus_name].data[0]
+        # Fringe zernike coefficients, from Telfer's table
+        z5 = field_point_row[defocus_name+"_Z5"].data[0]
+        z6 = field_point_row[defocus_name + "_Z6"].data[0]
+
+       # Have to convert Zernike normalization and order from fringe to noll, and nanometers to meters
+        astig0 = z6 / np.sqrt(6)*1e-9
+        astig45 = z5 / np.sqrt(6)*1e-9
 
         if self.verbose: print(power)
-        return power.data[0]
+        return power, astig0, astig45

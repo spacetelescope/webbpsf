@@ -332,21 +332,21 @@ def test_ways_to_specify_weak_lenses():
     testcases = (
         # FILTER  PUPIL   EXPECTED_DEFOCUS
         # Test methods directly specifying a single element
-        ('F212N', 'WLM8', 'Weak Lens -8'),
-        ('F200W', 'WLP8', 'Weak Lens +8'),
-        ('F187N', 'WLP8', 'Weak Lens +8'),
+        ('F212N', 'WLM8', 'WLM8'),
+        ('F200W', 'WLP8', 'WLP8'),
+        ('F187N', 'WLP8', 'WLP8'),
         # Note WLP4 can be specified as filter or pupil element or both
-        ('WLP4', 'WLP4', 'Weak Lens +4'),
-        (None, 'WLP4', 'Weak Lens +4'),
-        ('WLP4', None, 'Weak Lens +4'),
+        ('WLP4', 'WLP4', 'WLP4'),
+        (None, 'WLP4', 'WLP4'),
+        ('WLP4', None, 'WLP4'),
         # Test methods directly specifying a pair of elements stacked together
-        ('WLP4', 'WLM8', 'Weak Lens Pair -4'),
-        ('WLP4', 'WLP8', 'Weak Lens Pair +12'),
+        ('WLP4', 'WLM8', 'WLM4'),
+        ('WLP4', 'WLP8', 'WLP12'),
         # Test methods using virtual pupil elements WLM4 and WLP12
-        ('WLP4', 'WLM4', 'Weak Lens Pair -4'),
-        ('WLP4', 'WLP12', 'Weak Lens Pair +12'),
-        ('F212N', 'WLM4', 'Weak Lens Pair -4'),
-        ('F212N', 'WLP12', 'Weak Lens Pair +12'),
+        ('WLP4', 'WLM4', 'WLM4'),
+        ('WLP4', 'WLP12', 'WLP12'),
+        ('F212N', 'WLM4', 'WLM4'),
+        ('F212N', 'WLP12', 'WLP12'),
     )
 
     nrc = webbpsf_core.NIRCam()
