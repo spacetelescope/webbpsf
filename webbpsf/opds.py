@@ -1395,6 +1395,7 @@ class OTE_Linear_Model_WSS(OPD):
 
         perturbation = poppy.zernike.opd_from_zernikes(self._global_zernike_coeffs,
                                                        npix=self.npix,
+                                                       outside=0,
                                                        basis=poppy.zernike.zernike_basis_faster)
         # Add perturbation to the opd
         self.opd += perturbation
