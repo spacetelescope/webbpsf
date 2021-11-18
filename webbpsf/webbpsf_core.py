@@ -1047,7 +1047,7 @@ class JWInstrument(SpaceTelescopeInstrument):
         # Add distortion if set in calc_psf
         if add_distortion:
             _log.debug("Adding PSF distortion(s)")
-            if self.image_mask == "LRS slit" and self.pupil_mask == "P750L LRS grating":
+            if self.image_mask == "LRS slit" and self.pupil_mask == "P750L":
                 raise NotImplementedError("Distortion is not implemented yet for MIRI LRS mode.")
 
             # Set up new extensions to add distortion to:
@@ -1347,7 +1347,7 @@ class MIRI(JWInstrument):
         self.options['pupil_shift_y'] = -0.0027
 
         self.image_mask_list = ['FQPM1065', 'FQPM1140', 'FQPM1550', 'LYOT2300', 'LRS slit']
-        self.pupil_mask_list = ['MASKFQPM', 'MASKLYOT', 'P750L LRS grating']
+        self.pupil_mask_list = ['MASKFQPM', 'MASKLYOT', 'P750L']
 
         self._image_mask_apertures = {'FQPM1065': 'MIRIM_CORON1065',
                                       'FQPM1140': 'MIRIM_CORON1140',
@@ -1502,7 +1502,7 @@ class MIRI(JWInstrument):
                              name=self.pupil_mask,
                              flip_y=True, shift_x=shift_x, shift_y=shift_y, rotation=rotation)
             optsys.planes[-1].wavefront_display_hint = 'intensity'
-        elif self.pupil_mask == 'P750L LRS grating' or self.pupil_mask == 'P750L':
+        elif self.pupil_mask == 'P750L':
             optsys.add_pupil(transmission=self._datapath + "/optics/MIRI_LRS_Pupil_Stop.fits.gz",
                              name=self.pupil_mask,
                              flip_y=True, shift_x=shift_x, shift_y=shift_y, rotation=rotation)
