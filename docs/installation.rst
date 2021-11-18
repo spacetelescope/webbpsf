@@ -3,7 +3,7 @@
 Requirements & Installation
 ===========================
 
-.. note:: 
+.. note::
 
    This is entirely optional, but you may wish to sign up to the mailing list ``webbpsf-users@maillist.stsci.edu``. This is a very low-traffic moderated announce-only list, to which we will periodically post announcements of updates to this software.
 
@@ -73,7 +73,7 @@ Stsynphot is an optional dependency, but is highly recommended.  Stsynphot is be
 Installing the Required Data Files
 ----------------------------------
 
-*If you install via pip or manually*, you must install the data files yourself. If you install via Conda, the data files are automatically installed, in which case you can skip this section. 
+*If you install via pip or manually*, you must install the data files yourself. If you install via Conda, the data files are automatically installed, in which case you can skip this section.
 
 Files containing such information as the JWST pupil shape, instrument throughputs, and aperture positions are distributed separately from WebbPSF. To run WebbPSF, you must download these files and tell WebbPSF where to find them using the ``WEBBPSF_PATH`` environment variable.
 
@@ -92,7 +92,7 @@ You should now be able to successfully ``import webbpsf`` in a Python session.
    If you have previously installed the data files for an earlier version of WebbPSF, and then update to a newer version, the
    software may prompt you that you must download and install a new updated version of the data files.
 
-.. Note:: 
+.. Note::
 
    **For STScI Users Only:** Users at STScI may access the required data files from the Central Storage network. Set the following environment variables in your ``bash`` shell. (You will probably want to add this to your ``.bashrc``.) ::
 
@@ -105,7 +105,7 @@ Software Requirements
 
 See `the environment.yml specification file <https://github.com/spacetelescope/webbpsf/blob/develop/environment.yml>`_ for the required package dependencies.
 
-**Required Python version**: WebbPSF 0.9.1 and above require Python 3.6 or higher.
+**Required Python version**: WebbPSF 1.0 and above require Python 3.7 or higher.
 
 The major dependencies are the standard `NumPy, SciPy <http://www.scipy.org/scipylib/download.html>`_, `matplotlib <http://matplotlib.org>`_ stack, and `Astropy <http://astropy.org>`_
 
@@ -119,7 +119,7 @@ The major dependencies are the standard `NumPy, SciPy <http://www.scipy.org/scip
 **Optional Python packages**:
 
 Some calculations with POPPY can benefit from the optional packages `psutil <https://pypi.python.org/pypi/psutil>`_ and `pyFFTW <https://pypi.python.org/pypi/pyFFTW>`_, but these are not needed in general. See `the POPPY installation docs <http://poppy-optics.readthedocs.io/en/stable/installation.html>`_ for more details.
-These optional packages are only worth adding for speed improvements if you are spending substantial time running calculations. 
+These optional packages are only worth adding for speed improvements if you are spending substantial time running calculations.
 
 Additional packages are needed for the optional use of GPUs to accelerate calculations. See the POPPY documentation.
 

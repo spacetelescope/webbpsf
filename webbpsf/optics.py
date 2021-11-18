@@ -1173,8 +1173,10 @@ def _fix_zgrid_NaNs(xgrid, ygrid, zgrid, rot_ang=0):
 
 
 def _get_initial_pupil_sampling(instrument):
-    """Utility function to retrieve the sampling of the first plane in some optical system
-    returns npix, pixelscale"""
+    """Utility function to retrieve the sampling of the first plane in some optical system.
+
+    Returns: npix, pixelscale
+    """
     # Determine the pupil sampling of the first aperture in the
     # instrument's optical system
     if isinstance(instrument.pupil, poppy.OpticalElement):
@@ -1192,6 +1194,7 @@ def _get_initial_pupil_sampling(instrument):
         npix = pupilheader['NAXIS1']
         pixelscale = pupilheader['PUPLSCAL'] * units.meter / units.pixel
     return npix, pixelscale
+
 
 # Field dependent aberration class for JWST instruments
 class WebbFieldDependentAberration(poppy.OpticalElement):
@@ -1704,7 +1707,7 @@ class LookupTableFieldDependentAberration(poppy.OpticalElement):
     """
 
     def __init__(self, instrument, field_points_file=None, phasemap_file=None,
-                 which_exercise='MIMF_KDP',
+                 which_exercise='MIMF_KDP_2',
                  add_niriss_defocus=None, rm_ptt=None, rm_center_ptt=None,
                  add_mimf_defocus=False, add_sm_defocus=False, nwaves=None, **kwargs):
         super().__init__(
@@ -1731,7 +1734,15 @@ class LookupTableFieldDependentAberration(poppy.OpticalElement):
             add_niriss_defocus=False
             rm_ptt = False
             rm_center_ptt = False
-
+        elif self.which_exercise == 'LRE4' or self.which_exercise == 'LRE4-OTE26':
+            add_niriss_defocus=False
+            rm_ptt = False
+            rm_center_ptt = False
+        elif self.which_exercise == 'MIMF_KDP_2':
+            add_niriss_defocus=False
+            rm_ptt = False
+            rm_center_ptt = False
+ 
 
         if self.instr_name =='NIRCam':
             self.instr_name += " "+self.instrument.module
@@ -1742,6 +1753,7 @@ class LookupTableFieldDependentAberration(poppy.OpticalElement):
 
         # load the OPD lookup map table (datacube) here
 
+        import webbpsf.constants
         if self.which_exercise == 'WFR4':
             fp_path = '/ifs/jwst/tel/wfr4_mirage_sims/phase_maps_from_ball/'
             if field_points_file is None:
@@ -1759,8 +1771,8 @@ class LookupTableFieldDependentAberration(poppy.OpticalElement):
 
             self.phasemaps = fits.getdata(phasemap_file)
 
-            import webbpsf.constants
             self.phasemap_pixelscale = webbpsf.constants.JWST_CIRCUMSCRIBED_DIAMETER/256 * units.meter / units.pixel
+            resample = True
 
         elif self.which_exercise == 'MIMF_KDP':
             fp_path = '/ifs/jwst/tel/MIMF_KDP_Practice/Ball_Phase_Maps/'
@@ -1772,11 +1784,42 @@ class LookupTableFieldDependentAberration(poppy.OpticalElement):
             self.table['V3'] = self.table['YWAS'] - 468/60
 
             phasemap_file = fp_path + 'all_26Feb2021.fits'
-            self.phasemap_file = phasemap_file
             self.phasemaps = fits.getdata(phasemap_file)
             self.phasemaps = self.phasemaps.reshape(7*11*11, 256, 256)
-            import webbpsf.constants
             self.phasemap_pixelscale = webbpsf.constants.JWST_CIRCUMSCRIBED_DIAMETER / 256 * units.meter / units.pixel
+            resample = True
+        elif self.which_exercise == 'LRE4' or self.which_exercise == 'LRE4-OTE26':
+            fp_path = '/ifs/jwst/tel/LRE4/from_ball/'
+            if self.which_exercise == 'LRE4':
+                field_points_file = fp_path + 'coordinates.ecsv'
+                phasemap_file = fp_path + 'rescaled_opds_for_OTE-25.2.fits'
+            elif self.which_exercise == 'LRE4-OTE26':
+                field_points_file = fp_path + 'coordinates-ote26.ecsv'
+                phasemap_file = fp_path + 'rescaled_opds_for_OTE-26.fits'
+
+            self.table = Table.read(field_points_file)
+            self.phasemaps = fits.getdata(phasemap_file)
+            # Phase maps have been pre-zoomed in this case by the import notebook
+            resample = False
+            self.phasemap_pixelscale = webbpsf.constants.JWST_CIRCUMSCRIBED_DIAMETER / 1024 * units.meter / units.pixel
+        elif self.which_exercise == 'MIMF_KDP_2':
+            fp_path = '/ifs/jwst/tel/MIMF_KDP_Practice_Sept2021/Ball_Phase_Maps/'
+
+            # Convert coordinate table to V2V3 in arcminutes
+            xcoords = fits.getdata(fp_path+"xcor.fits")
+            ycoords = fits.getdata(fp_path+"ycor.fits")
+            V2 = -xcoords.flatten()
+            V3 =  ycoords.flatten() - 468/60
+            self.table = Table([V2,V3], names=['V2','V3'])
+
+            phasemap_file = fp_path + 'complete_wf.fits'
+            self.phasemaps = fits.getdata(phasemap_file)
+            self.phasemaps = self.phasemaps.reshape(7*11*11, 256, 256)
+            self.phasemap_pixelscale = webbpsf.constants.JWST_CIRCUMSCRIBED_DIAMETER / 256 * units.meter / units.pixel
+            resample = True
+ 
+        self.phasemap_file = phasemap_file
+
 
         # Determine the pupil sampling of the first aperture in the
         # instrument's optical system
@@ -1827,12 +1870,16 @@ class LookupTableFieldDependentAberration(poppy.OpticalElement):
         phasemap = phasemap[::-1]
         print("Flipped input phase map vertically into exit pupil orientation.")
 
-        if phasemap.shape[0] != 256:
-            raise NotImplementedError("Hard coded for Ball delivery of 256 pixel phase maps")
-
-        # Resample to 1024 across, by replicating each pixel into a 4x4 block
-        resample_factor = 4
-        phasemap_big = np.kron(phasemap, np.ones((resample_factor,resample_factor)))
+        if resample:
+            if phasemap.shape[0] != 256:
+                raise NotImplementedError("Hard coded for Ball delivery of 256 pixel phase maps")
+    
+            # Resample to 1024 across, by replicating each pixel into a 4x4 block
+            resample_factor = 4
+            phasemap_big = np.kron(phasemap, np.ones((resample_factor,resample_factor)))
+        else:
+            # no resampling / zooming needed
+            phasemap_big = phasemap
 
         self.opd = phasemap_big * 1e-6   # Convert from microns to meters
         self.amplitude = np.ones_like(self.opd)
@@ -1894,3 +1941,143 @@ class LookupTableFieldDependentAberration(poppy.OpticalElement):
             kwargs.update({'opd_vmax': 2.5e-7})
 
         return super().display(*args, **kwargs)
+
+
+class NIRCamFieldDependentWeakLens(poppy.OpticalElement):
+    """Higher-fidelity model of NIRCam weak lens(es), based on calibrated as-built performance
+    and field dependence.
+
+    Includes field-dependent variations in defocus power, and in astigmatism. Includes variation of the
+    +4 lens' effective OPD when used in a pair with either the +8 or -8 lens.
+
+    These are modeled as the specific values from the nearest neighbor ISIM CV calibration point,
+    with no interpolation between them included at this time.
+
+    See R. Telfer, 'NIRCam Weak Lens Characterization and Performance', JWST-REF-046515
+
+    Parameters
+    -----------
+    name : str
+        WLP8, WLM8, WLP4, WLM4, WLP12.
+
+    center_fp_only : bool
+        For debugging; override to set no field dependence and just use the average center field point power
+
+    include_power, include_astigmatism : bool
+        Can be used to selectively enable/disable parts of the optical model. Intended for debugging; should no
+        need to be set by users in general.
+
+    """
+
+    def __init__(self, name='WLP8', instrument=None, center_fp_only=False, verbose=False, include_power=True,
+                 include_astigmatism=True, **kwargs):
+        super().__init__(name=name)
+
+        self.ref_wavelength = 2.12e-6  # reference wavelength for defocus
+
+        self.verbose = verbose
+        if instrument is None:
+            self.module = 'A'
+            self.v2v3_coords = (0, -468 / 60)
+            npix = 1024
+        else:
+            self.module = instrument.module
+            self.v2v3_coords = instrument._tel_coords()
+            npix, pixelscale = _get_initial_pupil_sampling(instrument)
+
+        self.ztable_full = None
+
+        ## REFERENCE:
+        # NIRCam weak lenses, values from WSS config file, PRDOPSFLT-027
+        #                  A         B
+        # WLP4_diversity =   8.27309     8.3443         diversity in microns
+        # WLP8_diversity =  16.4554     16.5932
+        # WLM8_diversity = -16.4143    -16.5593
+        # WL_wavelength =    2.12                       Wavelength, in microns
+
+        if center_fp_only or instrument is None:
+            # use the center field point power only. No field dependence
+
+            # Power in P-V waves at center field point in optical model
+            # JWST-REF-046515, table 2      Mod A:    Mod B:
+            power_at_center_fp = {'WLM8': (-8.0188, -7.9521),
+                                  'WLM4': (-4.0285, -3.9766),
+                                  'WLP4': (3.9797, 3.9665),
+                                  'WLP8': (8.0292, 7.9675),
+                                  'WLP12': (12.0010, 11.9275)}
+
+            power_pv = power_at_center_fp[self.name][0 if self.module == 'A' else 1]
+            astig0 = 0
+            astig45 = 0
+
+        else:
+            closest_fp = self.find_closest_isim_fp_name(instrument)
+            if verbose: print(closest_fp)
+            power_pv, astig0, astig45 = self.lookup_empirical_lens_power(name, closest_fp)
+
+        self.power_pv_waves = power_pv
+        pv2rms_norm = self.ref_wavelength / (2 * np.sqrt(3))  # convert desired PV waves to RMS microns for power
+        # since the below function wants inputs in RMS
+
+        self.power_rms_microns = power_pv * pv2rms_norm
+
+        zernike_coefficients = np.zeros(6)
+        if include_power:
+            zernike_coefficients[3] = self.power_rms_microns
+        if include_astigmatism:
+            zernike_coefficients[4] = astig0
+            zernike_coefficients[5] = astig45
+        self.zernike_coefficients = zernike_coefficients
+
+        self.opd = poppy.zernike.opd_from_zernikes(
+            zernike_coefficients,
+            npix=npix,
+            outside=0
+        )
+        self.amplitude = np.ones_like(self.opd)
+
+    def find_closest_isim_fp_name(self, instr):
+        """Find the closest ISIM CV field point to a given instrument object,
+        i.e. the field point closest to the configured detector and coordinates
+        """
+
+        if self.ztable_full is None:
+            zernike_file = os.path.join(utils.get_webbpsf_data_path(), "si_zernikes_isim_cv3.fits")
+            self.ztable_full = Table.read(zernike_file)
+
+        lookup_name = f"NIRCam{instr.channel.upper()[0]}W{instr.module}"
+        ztable = self.ztable_full[self.ztable_full['instrument'] == lookup_name]
+
+        self._ztable = ztable
+        self._instr = instr
+        telcoords_am = instr._tel_coords().to(units.arcmin).value
+        if self.verbose: print(telcoords_am)
+        r = np.sqrt((telcoords_am[0] - ztable['V2']) ** 2 + (telcoords_am[1] - ztable['V3']) ** 2)
+        # Save closest ISIM CV3 WFE measured field point for reference
+        row = ztable[r == r.min()]
+        return row['field_point_name']
+
+    def lookup_empirical_lens_power(self, lens_name, field_point_name):
+        """ Lookup lens power and astigmatism versus field position, from empirical calibrations from ISIM CV testing
+
+        """
+        mypath = os.path.dirname(os.path.abspath(__file__)) + os.sep
+        wl_data_file = os.path.join(mypath, 'otelm', 'NIRCam_WL_Empirical_Power.csv')
+        wl_data = Table.read(wl_data_file, comment='#', header_start=1)
+
+        field_point_row = wl_data[wl_data['Field'] == field_point_name]
+        if self.verbose: print(field_point_row)
+
+        defocus_name = lens_name[2:]
+
+        power = field_point_row[defocus_name].data[0]
+        # Fringe zernike coefficients, from Telfer's table
+        z5 = field_point_row[defocus_name+"_Z5"].data[0]
+        z6 = field_point_row[defocus_name + "_Z6"].data[0]
+
+       # Have to convert Zernike normalization and order from fringe to noll, and nanometers to meters
+        astig0 = z6 / np.sqrt(6)*1e-9
+        astig45 = z5 / np.sqrt(6)*1e-9
+
+        if self.verbose: print(power)
+        return power, astig0, astig45
