@@ -73,7 +73,7 @@ The WFI field of view is laid out as shown in the figure. To select a different 
    ['SCA01', 'SCA02', 'SCA03', 'SCA04', 'SCA05', 'SCA06', 'SCA07', 'SCA08', 'SCA09', 'SCA10', 'SCA11', 'SCA12', 'SCA13', 'SCA14', 'SCA15', 'SCA16', 'SCA17', 'SCA18']
    >>> wfi.detector = 'SCA03'
 
-The usable region of the 4096 by 4096 pixel detectors specified for the Wide Field Instrument will range from (4, 4) to (4092, 4092), accounting for the 4 pixel wide bands of reference pixels. **[The preceding may no longer be true.]** To change the position at which to calculate a PSF, simply assign an (X, Y) tuple::
+The usable regions of the Wide Field Instrument's detectors are slightly smaller than their 4096 by 4096 pixel dimensions due to variations in reference pixel coverage at their edges. To change the position at which to calculate a PSF, assign an (X, Y) tuple::
 
    >>> wfi.detector_position = (4, 400)
 
@@ -127,7 +127,7 @@ Please note that these pupil mask category names are not fully backward compatib
 .. figure:: ./roman_figures/pupil_mask_by_sca.gif
    :alt: Pupil masks at different field points.
 
-   Pupil masks at different field points. **[Should be recreated!]**
+   Pupil masks at different field points.
 
 The pupil and pupil mask are dynamically selected as needed whenever the detector or filter is changed. To override this behavior for either attribute, see `WFI.lock_pupil()` and `WFI.lock_pupil_mask()`. The following pupils are available:
 

@@ -439,7 +439,6 @@ class WFIPupilController:
         # figure out proper mask based on filter (or use locked mask if enabled)
         pupil_mask = (self._get_filter_mask(filter) if self._auto_pupil_mask
                       else self.pupil_mask)
-        # log the else case?
 
         path_formatter = self.pupil_file_formatters[pupil_mask]
         pupil = os.path.join(self._pupil_basepath,
@@ -506,8 +505,6 @@ class WFIPupilController:
         Undoes the effects of lock_pupil_mask() and resets
         WFIPupilController to its default state of updating the pupil
         mask whenever filter is changed in the WFI class.
-
-        UNRESOLVED: how do we know which mask to reset to?
         """
         self._auto_pupil_mask = True
 
@@ -526,9 +523,6 @@ class WFI(RomanInstrument):
         # https://roman.ipac.caltech.edu/sims/Param_db.html
         pixelscale = 110e-3 # arcsec/px
 
-        # Initialize the pupil controller
-        self._pupil_controller = WFIPupilController()
-
         # Initialize the aberrations for super().__init__
         self._aberration_files = {}
         self._is_custom_aberration = False
@@ -536,6 +530,8 @@ class WFI(RomanInstrument):
 
         super(WFI, self).__init__("WFI", pixelscale=pixelscale)
 
+        # Initialize the pupil controller
+        self._pupil_controller = WFIPupilController()
         self._pupil_controller.set_base_path(self._datapath)
 
         self.pupil_mask_list = list(self._pupil_controller.pupil_file_formatters.keys())
@@ -589,8 +585,6 @@ class WFI(RomanInstrument):
 
         This mainly consists of selecting the masked or unmasked pupil
         appropriately based on the wavelengths requested.
-
-        UNRESOLVED: better double-checking strategy than assert?
         """
         assert self.filter is not None, 'filter is None'
         assert self.detector is not None, 'detector is None'
@@ -611,7 +605,7 @@ class WFI(RomanInstrument):
         Returns
         -------
         mode : string
-            Returns 'imaging', 'grism' or 'prism' depending on filter.
+            Returns 'imaging', 'grism', or 'prism' depending on filter.
 
         Raises
         ------
@@ -695,13 +689,11 @@ class WFI(RomanInstrument):
 
     @pupil.setter
     def pupil(self, value):
-        # check if we've been through super() in init
-        # UNRESOLVED: the check could be more explicit...
-        if self._aberration_files:
+        # don't allow pupil to be set until the pupil controller is active. (a
+        # parent class tries to set it to None in WFI's preceding super() call)
+        if hasattr(self, '_pupil_controller'):
             raise AttributeError('Pupil cannot be directly specified. '
                                  'Use lock_pupil() instead.')
-
-        # super() tries to set self.pupil = None, which we ignore
 
     @property
     def pupil_mask(self):
@@ -808,12 +800,10 @@ class WFI(RomanInstrument):
 
     def unlock_pupil(self):
         """
-        Undoes the effects of lock_pupil() and resets the class to its
-        default state of updating the pupil whenever a detector or
-        filter is changed.
-
-        # UNRESOLVED: how do we know which pupil to reset to? make it clear in the docstring that you're unlocking *and* resetting to default.
-        # UNRESOLVED: if you unlock_pupil_mask, lock_pupil, unlock_pupil, does the pupil mask also reset?
+        Undoes the effects of lock_pupil() by resetting the class to
+        its default state of updating the pupil whenever a detector or
+        filter is changed. If necessary, it also sets the proper pupil
+        for the current detector/filter combination.
         """
         self._pupil_controller.unlock_pupil()
         self._update_pupil() # reset pupil
@@ -840,8 +830,6 @@ class WFI(RomanInstrument):
         Undoes the effects of lock_pupil_mask() and resets the class to
         its default state of updating the pupil mask whenever the filter
         is changed.
-
-        UNRESOLVED: how do we know which mask to reset to?
         """
         self._pupil_controller.unlock_pupil_mask()
         self._update_pupil() # reset pupil mask
