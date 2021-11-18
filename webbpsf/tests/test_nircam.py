@@ -297,9 +297,12 @@ def test_defocus(fov_arcsec=1, display=False):
     via either a weak lens, or via the options dict,
     and we get consistent results either way.
 
+    Note this is now an *inexact* comparison, because the weak lenses now include non-ideal effects, in particular field dependent astigmatism
+
     Test for #59 among other things
     """
     nrc = webbpsf_core.NIRCam()
+    nrc.set_position_from_aperture_name('NRCA3_FP1')
     nrc.pupilopd=None
     nrc.include_si_wfe=False
 
@@ -313,7 +316,7 @@ def test_defocus(fov_arcsec=1, display=False):
     nrc.options['defocus_wavelength']=2.12e-6
     psf_2 = nrc.calc_psf(nlambda=1, fov_arcsec=fov_arcsec, oversample=1, display=False, add_distortion=False)
 
-    assert np.allclose(psf[0].data, psf_2[0].data), "Defocused PSFs calculated two ways don't agree"
+    assert np.allclose(psf[0].data, psf_2[0].data, atol=1e-4), "Defocused PSFs calculated two ways don't agree as precisely as expected"
 
     if display:
         import webbpsf
@@ -332,21 +335,21 @@ def test_ways_to_specify_weak_lenses():
     testcases = (
         # FILTER  PUPIL   EXPECTED_DEFOCUS
         # Test methods directly specifying a single element
-        ('F212N', 'WLM8', 'Weak Lens -8'),
-        ('F200W', 'WLP8', 'Weak Lens +8'),
-        ('F187N', 'WLP8', 'Weak Lens +8'),
+        ('F212N', 'WLM8', 'WLM8'),
+        ('F200W', 'WLP8', 'WLP8'),
+        ('F187N', 'WLP8', 'WLP8'),
         # Note WLP4 can be specified as filter or pupil element or both
-        ('WLP4', 'WLP4', 'Weak Lens +4'),
-        (None, 'WLP4', 'Weak Lens +4'),
-        ('WLP4', None, 'Weak Lens +4'),
+        ('WLP4', 'WLP4', 'WLP4'),
+        (None, 'WLP4', 'WLP4'),
+        ('WLP4', None, 'WLP4'),
         # Test methods directly specifying a pair of elements stacked together
-        ('WLP4', 'WLM8', 'Weak Lens Pair -4'),
-        ('WLP4', 'WLP8', 'Weak Lens Pair +12'),
+        ('WLP4', 'WLM8', 'WLM4'),
+        ('WLP4', 'WLP8', 'WLP12'),
         # Test methods using virtual pupil elements WLM4 and WLP12
-        ('WLP4', 'WLM4', 'Weak Lens Pair -4'),
-        ('WLP4', 'WLP12', 'Weak Lens Pair +12'),
-        ('F212N', 'WLM4', 'Weak Lens Pair -4'),
-        ('F212N', 'WLP12', 'Weak Lens Pair +12'),
+        ('WLP4', 'WLM4', 'WLM4'),
+        ('WLP4', 'WLP12', 'WLP12'),
+        ('F212N', 'WLM4', 'WLM4'),
+        ('F212N', 'WLP12', 'WLP12'),
     )
 
     nrc = webbpsf_core.NIRCam()
