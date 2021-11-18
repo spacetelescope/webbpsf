@@ -13,8 +13,8 @@ jobs:
 
           - name: Coverage test in Python 3
             os: ubuntu-latest
-            python: 3.8
-            toxenv: py38-poppydev-pysiafdev-cov
+            python: 3.9
+            toxenv: py39-poppydev-pysiafdev-cov
 
           - name: Check for Sphinx doc build errors
             os: ubuntu-latest
@@ -28,13 +28,13 @@ jobs:
 
           - name: Try latest versions of all dependencies
             os: ubuntu-latest
-            python: 3.8
-            toxenv: py38-latest-test
+            python: 3.9
+            toxenv: py39-latest-test
 
           - name: Try minimum supported versions
             os: ubuntu-latest
-            python: 3.6
-            toxenv: py36-legacy36-test
+            python: 3.7
+            toxenv: py37-legacy37-test
 
           - name: Try released POPPY and PySIAF
             os: ubuntu-latest
