@@ -469,7 +469,7 @@ LRS Spectroscopy
 ----------------
 
 WebbPSF includes models for the LRS slit and the subsequent pupil stop on the
-grism in the wheels. Users should select ``miri.image_mask = "LRS slit"`` and ``miri.pupil_mask = 'P750L LRS grating'``.
+grism in the wheels. Users should select ``miri.image_mask = "LRS slit"`` and ``miri.pupil_mask = 'P750L'``.
 That said, the LRS simulations have not been extensively tested yet;
 feedback is appreciated about any issues encountered.
 
