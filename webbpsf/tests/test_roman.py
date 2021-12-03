@@ -2,6 +2,7 @@ import os
 import numpy as np
 import pytest
 from webbpsf import roman, measure_fwhm
+from astropy.table import Table
 from numpy import allclose
 
 
@@ -41,7 +42,7 @@ def test_WFI_filters():
     filter_list = wfi.filter_list
     for filter in filter_list:
         if filter == 'GRISM0':
-            # UNRESOLVED: GRISM0 errors out. poppy's Instrument._get_weights()
+            # GRISM0 should error out. poppy's Instrument._get_weights()
             # drops wavelengths with throughputs <0.4. GRISM0's peak is well
             # below 0.1 and numpy won't take the min/max of an empty array.
             continue
@@ -269,27 +270,33 @@ def test_WFI_limits_interpolation_range():
 
     det.field_position = (2048, 2048)
 
-    # Test the get_aberration_terms function uses approximated wavelength when
-    # called with an out-of-bound wavelength.
-    # IS THERE AN AUTOMATED METHOD OF FETCHING MAX AND MIN WAVELENGTHS??
-    assert allclose(det.get_aberration_terms(2.3e-6), det.get_aberration_terms(2.8e-6)), (
-        "Aberration outside wavelength range did not return closest value."
+    # Get min and max valid wavelengths from aberration file
+    zern = Table.read(wfi._aberration_files[wfi.mode], format='ascii.csv')
+    min_wv = zern['wavelength'][0] * 1e-6 # convert from micron to meter
+    max_wv = zern['wavelength'][-1] * 1e-6
+
+    # Test that get_aberration_terms() uses an approximated wavelength when
+    # called with an out-of-bounds wavelength.
+    too_lo_wv = min_wv * .9; too_hi_wv = max_wv / .9
+    valid_wv = np.mean([min_wv, max_wv])
+
+    assert allclose(det.get_aberration_terms(min_wv),
+                    det.get_aberration_terms(too_lo_wv)), (
+        "Aberration below wavelength range did not return closest value."
     )
 
-    assert allclose(det.get_aberration_terms(0.48e-6), det.get_aberration_terms(0.40e-6)), (
-        "Aberration outside wavelength range did not return closest value."
+    assert allclose(det.get_aberration_terms(max_wv),
+                    det.get_aberration_terms(too_hi_wv)), (
+        "Aberration above wavelength range did not return closest value."
     )
 
-    # Test border pixels that are outside of the ref data
-    # As of cycle 8 and 9, (4, 4) is the first pixel so we
-    # check if (0, 0) is approximated to (4, 4) via nearest point
-    # approximation:
-
+    # Test border pixels outside the ref data. In Cycle 9, (0, 37) is the first
+    # pixel, so we check if (0, 0) is approximated to it as the nearest point.
     det.field_position = (0, 0)
-    coefficients_outlier = det.get_aberration_terms(1e-6)
+    coefficients_outlier = det.get_aberration_terms(valid_wv)
 
-    det.field_position = (4, 4)
-    coefficients_data = det.get_aberration_terms(1e-6)
+    det.field_position = (0, 37)
+    coefficients_data = det.get_aberration_terms(valid_wv)
 
     assert np.allclose(coefficients_outlier, coefficients_data), "nearest point extrapolation " \
                                                                  "failed for outlier field point"
