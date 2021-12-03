@@ -183,7 +183,7 @@ MIRI LRS
 
     miri = webbpsf.MIRI()
     miri.image_mask = 'LRS slit'
-    miri.pupil_mask = 'P750L LRS grating'
+    miri.pupil_mask = 'P750L'
     psf = miri.calc_psf(monochromatic=6.0e-6, display=True)
 
 
