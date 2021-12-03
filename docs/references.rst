@@ -123,7 +123,7 @@ Lyot mask files:                                         Anthony Boccaletti priv
 
 LRS slit size (4.7 x 0.51 arcsec):     MIRI-TR-00001-CEA. And LRS Overview presentation by Silvia Scheithaur to MIRI team meeting May 2013.
 
-LRS P750L grating aperture mask (3.8% oversized tricontagon): MIRI OBA Design Description, MIRI-DD-00001-AEU
+LRS P750L prism aperture mask (3.8% oversized tricontagon): MIRI OBA Design Description, MIRI-DD-00001-AEU
 
 MIRI imager internal pupil stop in regular imaging mode: 4% oversized tricontagon, mounted on each of the imaging filters (with smoothed corners).
 
