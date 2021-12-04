@@ -4,10 +4,7 @@ import astropy.io.fits as fits
 from astropy.nddata import NDData
 import numpy as np
 import matplotlib.pyplot as plt
-import poppy
-
-import scipy.interpolate as sciint
-
+import astropy.units as u
 import logging
 
 _log = logging.getLogger('webbpsf')
@@ -774,3 +771,34 @@ def to_griddedpsfmodel(HDUlist_or_filename=None, ext_data=0, ext_header=0):
 
     return model
 
+
+def determine_inst_name_from_v2v3(v2v3):
+    """Given a (V2,V3) coordinate, look up which JWST SI FOV that point is within.
+
+    In particular this is used as part of lookup for the OTE field dependence model.
+    """
+	# Figure out what instrument the field coordinate correspond to
+    if (v2v3[0] <= 4.7 * u.arcmin) and (v2v3[0] >= -0.9 * u.arcmin) and \
+        (v2v3[1] <= -10.4 * u.arcmin) and (v2v3[1] >= -12.9 * u.arcmin):
+        instrument = 'FGS'
+        _log.debug('Field coordinates determined to be in FGS field')
+    elif (v2v3[0] <= 2.6 * u.arcmin) and (v2v3[0] >= -2.6 * u.arcmin) and \
+        (v2v3[1] <= -6.2 * u.arcmin) and (v2v3[1] >= -9.4 * u.arcmin):
+        instrument = 'NIRCam'
+        _log.debug('Field coordinates determined to be in NIRCam field')
+    elif (v2v3[0] <= 8.95 * u.arcmin) and (v2v3[0] >= 3.7 * u.arcmin) and \
+        (v2v3[1] <= -4.55 * u.arcmin) and (v2v3[1] >= -9.75 * u.arcmin):
+        instrument = 'NIRSpec'
+        _log.debug('Field coordinates determined to be in NIRSpec field')
+    elif (v2v3[0] <= -6.2 * u.arcmin) and (v2v3[0] >= -8.3 * u.arcmin) and \
+        (v2v3[1] <= -5.2 * u.arcmin) and (v2v3[1] >= -7.3 * u.arcmin):
+        instrument = 'MIRI'
+        _log.debug('Field coordinates determined to be in MIRI field')
+    elif (v2v3[0] <= -3.70 * u.arcmin) and (v2v3[0] >= -6.0 * u.arcmin) and \
+        (v2v3[1] <= -10.5 * u.arcmin) and (v2v3[1] >= -12.8 * u.arcmin):
+        instrument = 'NIRISS'
+        _log.debug('Field coordinates determined to be in NIRISS field')
+    else:
+        raise ValueError(f'Given V2V3 coordinates {v2v3} do not fall within an instrument FOV region')
+
+    return instrument

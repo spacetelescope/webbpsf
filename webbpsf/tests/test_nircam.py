@@ -7,8 +7,8 @@ import logging
 _log = logging.getLogger('test_webbpsf')
 _log.addHandler(logging.NullHandler())
 
+import webbpsf
 from .. import webbpsf_core
-import poppy
 from .test_errorhandling import _exception_message_starts_with
 
 import pytest
@@ -109,6 +109,11 @@ def do_test_nircam_blc(clobber=False, kind='circular', angle=0, save=False, disp
 
     nc = webbpsf_core.NIRCam()
     nc.pupilopd = None
+
+    nc,ote = webbpsf.enable_adjustable_ote(nc)
+    ote._include_nominal_field_dep = False  # disable OTE field dependence model for this test
+                                            # for consistency with expected values prepared before that model existed
+
     nc.filter='F210M'
     offsets = [0, 0.25, 0.50]
     if kind =='circular':
