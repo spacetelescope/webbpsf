@@ -1552,7 +1552,7 @@ class OTE_Linear_Model_WSS(OPD):
 
 
     def _get_field_dependence_nominal_ote(self, v2v3, reference='global',
-                                          zern_num=None, legendre_num=None):
+                                          zern_num=78, legendre_num=None):
         """Calculate field dependence model for OTE nominal wavefront error spatial variation,
 
         Returns OPD based on V2V3 coordinates using model(s) for spatial variations.
@@ -1560,18 +1560,21 @@ class OTE_Linear_Model_WSS(OPD):
         zern_num and legendre_num allow for fewer terms to be used in calculating the wavefront at a field angle
         than are specified in the calibration files.  This is to reduce required computation if the increase in
         accuracy isn't needed.
+
+        The precomputed data files support up to 136 Zernikes, but using higher numbers provides diminishing
+        returns for the increased computation time. Tests have shown that using 78 Zernikes yields within
+        7-10 nm of the result of the full model, and 36 Zernikes yields within 15 nm.
         """
 
-        if v2v3 is None:
+        if v2v3 is None:  # pragma: no cover
             return 0
 
         instrument = utils.determine_inst_name_from_v2v3(v2v3)
         if not self._load_ote_field_dep_data(instrument, reference):
             return 0
 
-        field_coeff_order, f_ang_unit, opd_to_meters, zern_num, legendre_num = self._validate_ote_field_dep_data(instrument, 
+        field_coeff_order, f_ang_unit, opd_to_meters, zern_num, legendre_num = self._validate_ote_field_dep_data(instrument,
                 zern_num=zern_num, legendre_num=legendre_num)
-
 
         zernike_coeffs = np.zeros(zern_num)
         #for z_index in range(0, zern_num):
@@ -1609,7 +1612,7 @@ class OTE_Linear_Model_WSS(OPD):
                 #   hdu[2] ==> # global reference point
                 if reference == 'global':
                     ext = 2
-                elif reference == 'local':
+                elif reference == 'local':  # pragma: no cover
                     ext = 1
                     # we don't need both options for this. Simpler to only support one (even though the data files have two)
                     raise ValueError("Local field dependent OTE coordinates discouraged; use global")
@@ -1636,26 +1639,26 @@ class OTE_Linear_Model_WSS(OPD):
         max_y_field = hdr['MAXYFIE'] * u.arcmin
 
         # Check to make sure that we've got the right instrument
-        if hdr['instr'].lower != instrument.lower:
+        if hdr['instr'].lower != instrument.lower:  # pragma: no cover
             ValueError('Instrument inconsistent with field dependence file')
 
         # Check to make sure that the file has the right type of data in it and throw exception if not
-        if hdr['wfbasis'] != 'Noll Zernikes':
+        if hdr['wfbasis'] != 'Noll Zernikes':  # pragma: no cover
             raise ValueError('Data file contains data with unsupported wavefront polynomial expansion')
 
-        if hdr['fiebasis'] != 'Legendre Polynomials':
+        if hdr['fiebasis'] != 'Legendre Polynomials':  # pragma: no cover
             raise ValueError('Data file contains data with unsupported field polynomial expansion')
 
         num_wavefront_coeffs = hdr['ncoefwf']
         if zern_num is None:
             zern_num = num_wavefront_coeffs
-        if (zern_num > num_wavefront_coeffs):
+        if (zern_num > num_wavefront_coeffs):  # pragma: no cover
             raise ValueError('Data file contains fewer wavefront coefficients than specified')
 
         num_field_coeffs = hdr['ncoeffie']
         if legendre_num is None:
             legendre_num = num_field_coeffs
-        if (legendre_num > num_field_coeffs):
+        if (legendre_num > num_field_coeffs):  # pragma: no cover
             raise ValueError('Data file contains fewer field coefficients than specified')
 
         field_coeff_order = hdr['fieorder']
@@ -1671,7 +1674,7 @@ class OTE_Linear_Model_WSS(OPD):
             f_ang_unit = u.arcmin
         elif hdr['fangunit'] == 'arscec':
             f_ang_unit = u.arcsec
-        else:
+        else:  # pragma: no cover
             raise ValueError('Field angle unit specified in file is not supported')
 
         # Check the OPD units in the input file
@@ -1683,7 +1686,7 @@ class OTE_Linear_Model_WSS(OPD):
             opd_to_meters = 1
         elif hdr['opdunit'] == 'pm':
             opd_to_meters = 1e-12
-        else:
+        else:  # pragma: no cover
             ValueError('OPD unit specified in file is not supported')
 
         return field_coeff_order, f_ang_unit, opd_to_meters, zern_num, legendre_num
