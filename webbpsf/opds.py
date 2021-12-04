@@ -1565,23 +1565,20 @@ class OTE_Linear_Model_WSS(OPD):
         returns for the increased computation time. Tests have shown that using 78 Zernikes yields within
         7-10 nm of the result of the full model, and 36 Zernikes yields within 15 nm.
         """
+        # The code for this is now split up into several sub-functions for improved clarity.
 
         if v2v3 is None:  # pragma: no cover
             return 0
 
         instrument = utils.determine_inst_name_from_v2v3(v2v3)
-        if not self._load_ote_field_dep_data(instrument, reference):
+        if not self._load_ote_field_dep_data(instrument, reference):  # pragma: no cover
             return 0
 
         field_coeff_order, f_ang_unit, opd_to_meters, zern_num, legendre_num = self._validate_ote_field_dep_data(instrument,
                 zern_num=zern_num, legendre_num=legendre_num)
 
-        zernike_coeffs = np.zeros(zern_num)
-        #for z_index in range(0, zern_num):
-        #    cur_legendre = self._field_dep_data.field(z_index)
-        #    zernike_coeffs[z_index] = np.einsum('i, i->', cur_legendre[0:legendre_num], poly_vals)
-
-        zernike_coeffs[0:3] = 0  # ignore piston/tip/tilt
+        zernike_coeffs = self._get_zernikes_for_ote_field_dep(v2v3, instrument, field_coeff_order, f_ang_unit,
+                zern_num, legendre_num)
 
         # Apply perturbation to OPD according to Zernike coefficients calculated above.
         perturbation = poppy.zernike.opd_from_zernikes(zernike_coeffs * opd_to_meters,
@@ -1594,7 +1591,7 @@ class OTE_Linear_Model_WSS(OPD):
     def _load_ote_field_dep_data(self, instrument, reference):
         """Load tables of Zernikes vs field position
 
-        Returns True if successful (file loaded, or was already loaded), False for failure.
+        Returns True if successful (file loaded OK, or was already loaded), False for failure.
         """
 
         base_path = utils.get_webbpsf_data_path()
@@ -1616,27 +1613,23 @@ class OTE_Linear_Model_WSS(OPD):
                     ext = 1
                     # we don't need both options for this. Simpler to only support one (even though the data files have two)
                     raise ValueError("Local field dependent OTE coordinates discouraged; use global")
-                else:
+                else:  # pragma: no cover
                     raise ValueError('Invalid wavefront reference')
                 self._field_dep_data = fits.getdata(field_dep_file, ext=ext)
 
-            except FileNotFoundError:
+            except FileNotFoundError:  # pragma: no cover
                 warnings.warn(f"Could not load {self._field_dep_file}; OTE field dependence model disabled")
                 return False
         return True
 
 
     def _validate_ote_field_dep_data(self, instrument, zern_num=None, legendre_num=None):
-        """Sanity check after loading OTE field dep data.
+        """Sanity check inputs after loading OTE field dep data. 
+
+        Returns several parameter values used subsequently in the OTE OPD calculation
         """
         # Pull useful parameters from header
         hdr = self._field_dep_hdr
-
-        # Extent of box in field over which the data is defined
-        min_x_field = hdr['MINXFIE'] * u.arcmin
-        max_x_field = hdr['MAXXFIE'] * u.arcmin
-        min_y_field = hdr['MINYFIE'] * u.arcmin
-        max_y_field = hdr['MAXYFIE'] * u.arcmin
 
         # Check to make sure that we've got the right instrument
         if hdr['instr'].lower != instrument.lower:  # pragma: no cover
@@ -1691,7 +1684,86 @@ class OTE_Linear_Model_WSS(OPD):
 
         return field_coeff_order, f_ang_unit, opd_to_meters, zern_num, legendre_num
 
-        
+    def _get_zernikes_for_ote_field_dep(self, v2v3, instrument, field_coeff_order, f_ang_unit, 
+            zern_num, legendre_num ):
+        """ Calculate the Zernike coeffs from the lookup table data
+
+        This is the main numerical piece of the algorithm.
+        """
+        hdr = self._field_dep_hdr
+        # Extent of box in field over which the data is defined
+        min_x_field = hdr['MINXFIE'] * u.arcmin
+        max_x_field = hdr['MAXXFIE'] * u.arcmin
+        min_y_field = hdr['MINYFIE'] * u.arcmin
+        max_y_field = hdr['MAXYFIE'] * u.arcmin
+
+        # Calculate field angle for our model from the V2/V3 coordinates
+        x_field_pt = hdr['v2sign'] * (v2v3[0] - hdr['v2origin'] * f_ang_unit)
+        y_field_pt = hdr['v3sign'] * (v2v3[1] - hdr['v3origin'] * f_ang_unit)
+
+        _log.info(f'Calculating field-dependent OTE OPD at v2 = {v2v3[0]:.3f}, v3 = {v2v3[1]:.3f}')
+        _log.debug(f'Calculating field-dependent OTE OPD at CodeV X field = {x_field_pt:.3f}, Y field= {y_field_pt:.3f}')
+
+        # Confirm that the calculated field point is within our model's range
+        if ((x_field_pt < min_x_field) or (x_field_pt > max_x_field) or
+                (y_field_pt < min_y_field) or (y_field_pt > max_y_field)):
+            # If not within the valid region, find closest point that is
+            x_field_pt0 = x_field_pt*1
+            y_field_pt0 = y_field_pt*1
+            x_field_pt = np.clip(x_field_pt0, min_x_field, max_x_field)
+            y_field_pt = np.clip(y_field_pt0, min_y_field, max_y_field)
+
+            clip_dist = np.sqrt((x_field_pt-x_field_pt0)**2 + (y_field_pt-y_field_pt0)**2)
+            if clip_dist > 0.1*u.arcsec:
+                # warn the user we're making an adjustment here (but no need to do so if the distance is trivially small)
+                warnings.warn(f'For (V2,V3) = {v2v3}, Field point {x_field_pt}, {y_field_pt} not within valid region for field dependence model: {min_x_field}-{max_x_field}, {min_y_field}-{max_y_field}. Clipping to closest available valid location, {clip_dist} away from the requested coordinates.')
+
+        # Get value of Legendre Polynomials at desired field point.  Need to implement model in G. Brady's prototype
+        # polynomial basis code, independent of that code for now.  Perhaps at some point in the future this model
+        # can become more tightly coupled with WebbPSF/Poppy and we just call it here instead.
+        # Calculate value of Legendre at all orders at our field point of interest.
+
+        field_center_x = (max_x_field + min_x_field) / 2
+        field_center_y = (max_y_field + min_y_field) / 2
+
+        x_field_pt_norm = float((x_field_pt - field_center_x) / ((max_x_field - min_x_field) / 2))
+        y_field_pt_norm = float((y_field_pt - field_center_y) / ((max_y_field - min_y_field) / 2))
+
+        _log.debug(f'{instrument} max_x={max_x_field} min_x={min_x_field} max_y={max_y_field} min_y={min_y_field}')
+        _log.debug(f'Normalized field point {x_field_pt_norm}, {y_field_pt_norm}')
+        poly_x1d = np.zeros(field_coeff_order + 1)
+        poly_y1d = np.zeros(field_coeff_order + 1)
+        for index in range(0, field_coeff_order + 1):
+            leg_poly1d = sp.legendre(index)
+            poly_y1d[index] = leg_poly1d(y_field_pt_norm)
+            poly_x1d[index] = leg_poly1d(x_field_pt_norm)
+
+        #Calculate product of x and y Legendre value for all combinations of orders
+        poly_val_2d = np.einsum('i,j', poly_y1d, poly_x1d)
+
+        #Reorder and rearrange values to correspond to the single index ordering the input coefficients assume
+        map1 = []
+        map2 = []
+        for index_i in range(0, field_coeff_order + 1):
+            map1 += list(range(index_i, -1, -1))
+            map2 += list(range(0, index_i + 1))
+        poly_vals = poly_val_2d[map1, map2]
+        poly_vals = poly_vals[0:legendre_num]
+
+        # poly_vals now has the value of all of the Legendre polynomials at our field point of interest.  So now we
+        # need to multiply each value there with the value of the Legendre coefficients in each column and sum.  That
+        # sum will be the value of a Zernike, so we loop to repeat that for each Zernike coefficient
+
+        zernike_coeffs = np.zeros(zern_num)
+        for z_index in range(0, zern_num):
+            cur_legendre = self._field_dep_data.field(z_index)
+            zernike_coeffs[z_index] = np.einsum('i, i->', cur_legendre[0:legendre_num], poly_vals)
+
+        zernike_coeffs[0:3] = 0  # ignore piston/tip/tilt
+
+        return zernike_coeffs
+
+
     def move_seg_local(self, segment, xtilt=0.0, ytilt=0.0, clocking=0.0, rot_unit='urad',
                        radial=None, xtrans=None, ytrans=None, piston=0.0, roc=0.0, trans_unit='micron', display=False,
                        delay_update=False, absolute=False):
