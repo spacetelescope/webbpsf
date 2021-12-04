@@ -6,3 +6,4 @@ photutils==1.2.0
 poppy>=0.9.1
 pysiaf==0.13.0
 scipy==1.7.3
+synphot==1.1.1
