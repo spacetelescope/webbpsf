@@ -1552,7 +1552,7 @@ class OTE_Linear_Model_WSS(OPD):
 
 
     def _get_field_dependence_nominal_ote(self, v2v3, reference='global',
-                                          zern_num=78, legendre_num=None):
+                                          zern_num=78, legendre_num=None, assume_si_focus=True):
         """Calculate field dependence model for OTE nominal wavefront error spatial variation,
 
         Returns OPD based on V2V3 coordinates using model(s) for spatial variations.
@@ -1564,6 +1564,19 @@ class OTE_Linear_Model_WSS(OPD):
         The precomputed data files support up to 136 Zernikes, but using higher numbers provides diminishing
         returns for the increased computation time. Tests have shown that using 78 Zernikes yields within
         7-10 nm of the result of the full model, and 36 Zernikes yields within 15 nm.
+
+        Parameters
+        ----------
+        v2v3 : tuple
+           (v2,v3) coordinates
+        reference : str
+           should always be "global" in the current implementation.
+        zern_num : int
+            Number of Zernikes to use to represent the WFE at each field point
+        legendre_num : int
+        assume_si_focus : bool
+            Assume that the SIs have been independently refocused, i.e. take out the net average
+            defocus per each SI from the overall focal plane curvature
         """
         # The code for this is now split up into several sub-functions for improved clarity.
 
@@ -1578,7 +1591,7 @@ class OTE_Linear_Model_WSS(OPD):
                 zern_num=zern_num, legendre_num=legendre_num)
 
         zernike_coeffs = self._get_zernikes_for_ote_field_dep(v2v3, instrument, field_coeff_order, f_ang_unit,
-                zern_num, legendre_num)
+                zern_num, legendre_num, assume_si_focus=assume_si_focus)
 
         # Apply perturbation to OPD according to Zernike coefficients calculated above.
         perturbation = poppy.zernike.opd_from_zernikes(zernike_coeffs * opd_to_meters,
@@ -1632,7 +1645,7 @@ class OTE_Linear_Model_WSS(OPD):
         hdr = self._field_dep_hdr
 
         # Check to make sure that we've got the right instrument
-        if hdr['instr'].lower != instrument.lower:  # pragma: no cover
+        if hdr['instr'].lower() != instrument.lower():  # pragma: no cover
             ValueError('Instrument inconsistent with field dependence file')
 
         # Check to make sure that the file has the right type of data in it and throw exception if not
@@ -1685,7 +1698,7 @@ class OTE_Linear_Model_WSS(OPD):
         return field_coeff_order, f_ang_unit, opd_to_meters, zern_num, legendre_num
 
     def _get_zernikes_for_ote_field_dep(self, v2v3, instrument, field_coeff_order, f_ang_unit, 
-            zern_num, legendre_num ):
+            zern_num, legendre_num , assume_si_focus=True):
         """ Calculate the Zernike coeffs from the lookup table data
 
         This is the main numerical piece of the algorithm.
@@ -1716,7 +1729,7 @@ class OTE_Linear_Model_WSS(OPD):
             clip_dist = np.sqrt((x_field_pt-x_field_pt0)**2 + (y_field_pt-y_field_pt0)**2)
             if clip_dist > 0.1*u.arcsec:
                 # warn the user we're making an adjustment here (but no need to do so if the distance is trivially small)
-                warnings.warn(f'For (V2,V3) = {v2v3}, Field point {x_field_pt}, {y_field_pt} not within valid region for field dependence model: {min_x_field}-{max_x_field}, {min_y_field}-{max_y_field}. Clipping to closest available valid location, {clip_dist} away from the requested coordinates.')
+                warnings.warn(f'For (V2,V3) = {v2v3}, Field point {x_field_pt}, {y_field_pt} not within valid region for field dependence model of OTE WFE for {instrument}: {min_x_field}-{max_x_field}, {min_y_field}-{max_y_field}. Clipping to closest available valid location, {clip_dist} away from the requested coordinates.')
 
         # Get value of Legendre Polynomials at desired field point.  Need to implement model in G. Brady's prototype
         # polynomial basis code, independent of that code for now.  Perhaps at some point in the future this model
@@ -1760,6 +1773,19 @@ class OTE_Linear_Model_WSS(OPD):
             zernike_coeffs[z_index] = np.einsum('i, i->', cur_legendre[0:legendre_num], poly_vals)
 
         zernike_coeffs[0:3] = 0  # ignore piston/tip/tilt
+
+        if assume_si_focus:
+            # Assume SIs have been refocused, so there is no net defocus from the OTE field dep.
+            # Take out the average focus per each SI, using precomputed values
+            # These values computed using 'OTE As-Built Field Dependence Test.ipynb'
+            avg_si_defocus_values = {'NIRCam':  -11.399957391866572,
+                'NIRISS':  -31.412664805859624,
+                'MIRI':  -32.074808824153386,
+                'FGS':  -7.271566403275971,
+                'NIRSpec':  -31.469227175636576,}  # these are in nm
+            si_defocus_zern = avg_si_defocus_values[instrument]
+
+            zernike_coeffs[3] -= si_defocus_zern
 
         return zernike_coeffs
 
