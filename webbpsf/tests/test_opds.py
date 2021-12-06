@@ -299,28 +299,60 @@ def test_single_seg_psf(segmentid=1):
 def test_apply_field_dependence_model():
     ''' Test to make sure the field dependence model is giving sensible output
 
-    TODO - this could be substantially improved to more rigorously check some output values
+    Checks cases comparing master chief ray, center of NIRCam, and center of NIRISS.
+
     '''
+    rms = lambda array, mask: np.sqrt((array[mask]**2).mean())
 
     # Get the OPD without any sort of field dependence
     ote = webbpsf.opds.OTE_Linear_Model_WSS(v2v3=None)
-    opd_no_field_model = ote.opd.copy() * ote.get_transmission(0)
+    opd_no_field_model = ote.opd.copy()
+
+    mask = ote.get_transmission(0) != 0
 
     # Get the OPD at the zero field point of v2 = 0, v3 = -468 arcsec
     # Center of NIRCAM fields, but not physically on a detector.
     ote.v2v3 = (0, -468) * u.arcsec
-    ote._apply_field_dependence_model()
+    ote._apply_field_dependence_model(assume_si_focus=False)  # Do this test directly on the OTE OPD, without any implicit focus adjustments
     opd_zero_field = ote.opd.copy() * ote.get_transmission(0)
-    rms1 = np.sqrt(np.mean((opd_no_field_model - opd_zero_field) ** 2))
+    rms1 =  rms(opd_no_field_model - opd_zero_field, mask)
 
-    # Get the OPD at some arbitrary nonzero field point
-    ote.v2v3 = (1.8, -7) * u.arcmin
-    ote._apply_field_dependence_model()
+    assert(rms1 < 7e-9), "OPDs expected to match didn't, at center field (zero field dependence)"
+
+    # Get the OPD at some arbitrary nonzero field point (Center of NRC A)
+    ote.v2v3 = (1.4, -8.2) * u.arcmin
+    ote._apply_field_dependence_model(assume_si_focus=False)
     opd_arb_field = ote.opd.copy() * ote.get_transmission(0)
-    rms2 = np.sqrt(np.mean((opd_no_field_model - opd_arb_field) ** 2))
+    rms2 = rms(opd_no_field_model - opd_arb_field, mask)
 
-    assert(rms1 < 7e-9), "OPDs expected to match didn't, zero field"
     assert(rms2 > 7e-9), "OPDs expected to differ didn't"
+    assert np.isclose(rms2, 26.1e-9, atol=1e-9), "field dep OPD at center of NIRCam A was not the expected value"
+
+    # Now we invoke this via an SI class, to show that works too:
+    # Get the OPD at the center of NIRISS
+    nis = webbpsf.NIRISS()
+    nis.pupilopd = None  # disable any global WFE, so we just look at the field dependent part
+    nis.detector_position = (1024, 1024)
+    nis, ote_nis = webbpsf.enable_adjustable_ote(nis)
+
+    # Test if we directly invoke the OTE model, in this case also disabling SI focus implicit optimization
+    ote_nis._apply_field_dependence_model(assume_si_focus=False)
+    opd_nis_cen = ote_nis.opd.copy()
+    rms3 = rms(opd_nis_cen, mask)
+    # The value used in the following test is derived from this model itself, so it's a bit circular;
+    # but at least this test should suffice to detect any unintended significant change in the
+    # outputs of this model
+    assert np.isclose(rms3, 36.0e-9, atol=1e-9), "Field-dependent OTE WFE at selected field point (NIRISS center) didn't match expected value (test case: explicit call, assume_si_focus=False)"
+
+    # Now test as usd in a webbpsf calculation, implicitly, and with the defocus backout ON
+    # The WFE here is slightly less, due to the focus optimization
+    nis = webbpsf.NIRISS()
+    nis.pupilopd = None  # disable any global WFE, so we just look at the field dependent part
+    nis.detector_position = (1024, 1024)
+    osys = nis.get_optical_system()
+    opd_nis_cen_v2 = osys.planes[0].opd.copy()
+    rms4 = rms(opd_nis_cen_v2, mask)
+    assert np.isclose(rms4, 28.0e-9, atol=1e-9), "Field-dependent OTE WFE at selected field point (NIRISS center) didn't match expected value(test case: implicit call, assume_si_focus=True."
 
 
 def test_get_zernike_coeffs_from_smif():

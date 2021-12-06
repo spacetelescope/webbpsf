@@ -1438,7 +1438,7 @@ class OTE_Linear_Model_WSS(OPD):
         self.opd += perturbation
 
     #---- OTE field dependence is implemented across the next several functions ----
-    def _apply_field_dependence_model(self, reference='global'):
+    def _apply_field_dependence_model(self, reference='global', **kwargs):
         """Apply field dependence model for OTE wavefront error spatial variation.
 
         Includes SM field-dependent model for OTE wavefront error as a function of field angle and SM pose amplitude,
@@ -1454,7 +1454,7 @@ class OTE_Linear_Model_WSS(OPD):
 
         # Model field dependence for the nominal OTE, based on Code V model coefficients
         if self._include_nominal_field_dep:
-            field_dep_nominal = self._get_field_dependence_nominal_ote(self.v2v3, reference=reference)
+            field_dep_nominal = self._get_field_dependence_nominal_ote(self.v2v3, reference=reference, **kwargs)
             self.opd += field_dep_nominal
             self.opd_header['HISTORY'] = 'Applied OTE nominal field-dependent aberrations'
 
