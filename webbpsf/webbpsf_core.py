@@ -1321,7 +1321,7 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         result[0].data = out
 
-    def visual_wfe_budget(self, slew_delta_time=14*units.day, slew_case='EOL', ptt_only=False, verbose=True):
+    def visualize_wfe_budget(self, slew_delta_time=14*units.day, slew_case='EOL', ptt_only=False, verbose=True):
         """Display a visual WFE budget showing the various terms that sum into the overall WFE for a given instrument
 
         Compares a WebbPSF instrument instance with the JWST optical budget for that instrument
@@ -1341,9 +1341,9 @@ class JWInstrument(SpaceTelescopeInstrument):
             Be more verbose
         """
         import webbpsf.optical_budget
-        webbpsf.optical_budget.visual_wfe_budget(self,
-                                                 slew_delta_time=slew_delta_time, slew_case=slew_case,
-                                                 ptt_only=ptt_only, verbose=verbose)
+        webbpsf.optical_budget.visualize_wfe_budget(self,
+                                                    slew_delta_time=slew_delta_time, slew_case=slew_case,
+                                                    ptt_only=ptt_only, verbose=verbose)
 
 
 class MIRI(JWInstrument):

@@ -170,7 +170,7 @@ def get_dynamic_vibe(rms_nm=4):
     ote.update_opd()
     return ote.opd.copy()
 
-def visual_wfe_budget(inst, slew_delta_time=14*u.day, slew_case='EOL', ptt_only=False, verbose=True):
+def visualize_wfe_budget(inst, slew_delta_time=14 * u.day, slew_case='EOL', ptt_only=False, verbose=True):
     """Display a visual WFE budget showing the various terms that sum into the overall WFE for a given instrument
 
     Compares a WebbPSF instrument instance with the JWST optical budget for that instrument
