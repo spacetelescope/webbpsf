@@ -1,0 +1,204 @@
+num ^xfield_angs(21, 21)
+num ^yfield_angs(21, 21)
+str ^instr_names(5)
+num ^instr_boxes(5,4)  ! Row for each instrument composed of (xmin, xmax, ymin, ymax)
+num ^instr_ref(5,2)    ! Row for each instrument with x and y of reference point
+
+^eps == 1e-6
+
+! How many field points are we calculating at.  Please make sure this is an odd number.
+^xfields == 21
+^yfields == 21
+
+! Set up different instruments and their field parameters
+^num_instr == 5  ! number of instruments to consider
+
+! names of the instruments
+^instr_names(1) == 'fgs'
+^instr_names(2) == 'nircam'
+^instr_names(3) == 'nirspec'
+^instr_names(4) == 'miri'
+^instr_names(5) == 'niriss'
+
+! field extent of each instrument
+^instr_boxes(1, 1) == -0.013436066
+^instr_boxes(1, 2) == 0.077758076
+^instr_boxes(1, 3) == 0.044207908
+^instr_boxes(1, 4) == 0.084924168
+^instr_boxes(2, 1) == -0.043043809
+^instr_boxes(2, 2) == 0.043043809
+^instr_boxes(2, 3) == -0.025650181
+^instr_boxes(2, 4) == 0.025650181
+^instr_boxes(3, 1) == 0.062791304
+^instr_boxes(3, 2) == 0.148368688
+^instr_boxes(3, 3) == -0.05347006
+^instr_boxes(3, 4) == 0.032141303
+^instr_boxes(4, 1) == -0.137570006
+^instr_boxes(4, 2) == -0.103622676
+^instr_boxes(4, 3) == -0.042620379
+^instr_boxes(4, 4) == -0.009386767
+^instr_boxes(5, 1) == -0.099683465
+^instr_boxes(5, 2) == -0.062112012
+^instr_boxes(5, 3) == 0.045111539
+^instr_boxes(5, 4) == 0.082766041
+
+!  Reference field point for each instrument
+^instr_ref(1, 1) ==  0.031848472
+^instr_ref(1, 2) ==  0.064091528
+^instr_ref(2, 1) == 0
+^instr_ref(2, 2) == 0
+^instr_ref(3,1) == 0.10558
+^instr_ref(3,2) == -0.01066438
+^instr_ref(4,1) == -0.120596341
+^instr_ref(4,2) == -0.02600357
+^instr_ref(5,1) == -0.080897747
+^instr_ref(5,2) == 0.063938792
+
+! Load the model we want
+in OTE_Segmented_RevH_2020714.seq
+
+!Delete some apertures that vignette at some of the more extreme fields
+DEL APE S31 CLR L"si3"
+DEL APE S31 CLR L"si2"
+DEL APE S31 CLR L"si1"
+DEL APE S31 CLR L"MIR"
+DEL APE S32 OBS L"   "
+
+!Delete all the fields in the model but one that we'll use
+del fa
+
+! Save the wavefront at the on-axis field point
+xan f1 0
+yan f1 0
+^filename == "wavefront_field\wavefront_on_axis.dat"
+wri ^filename
+!Calculate wavefront using pma and save buffer to a text file
+pma; tgr 256; nrd 255; lis no; wbf b1; plo no; go
+if not (buf.emp b1)
+	buf exp b1 ^filename
+	buf del b1
+end if
+
+! Loop over the instruments, calculating variation in OPD at a bunch of field points
+for ^inst_index 1 5
+
+	! Pull the field points out of the array
+	^min_xfield == ^instr_boxes(^inst_index, 1)
+	^max_xfield == ^instr_boxes(^inst_index, 2)
+	^min_yfield == ^instr_boxes(^inst_index, 3)
+	^max_yfield == ^instr_boxes(^inst_index, 4)
+
+!	! If this is NIRCAM, make sure the field region is symmetric about the origin so that we get a field point there.
+!	if ^inst_index = 2
+!		wri "NIRCAM"  
+!		if ^max_xfield > -^min_xfield
+!			^min_xfield == -^max_xfield
+!		else
+!			^max_xfield == -^min_xfield
+!		end if
+!
+!		if ^max_yfield > -^min_yfield
+!			^min_yfield == -^max_yfield
+!		else
+!			^max_yfield == -^min_yfield
+!		end if				
+!		
+!	end if
+
+
+	! Calculate increment between field points in x and y, making sure we get a point
+	! at the reference point.
+	! Check what the increment would be in x and y from the refence point to each
+	! edge of the field, assuming the reference point is the middle field considered
+	^ref_field_index_x == (^xfields - 1)/2 + 1
+	^ref_field_index_y == (^yfields - 1)/2 + 1
+
+	^xfield_step1 == (^instr_ref(^inst_index, 1) - ^min_xfield)/(^ref_field_index_x - 1)
+	^xfield_step2 == (^max_xfield - ^instr_ref(^inst_index, 1))/(^ref_field_index_x - 1)
+	^yfield_step1 == (^instr_ref(^inst_index, 2) - ^min_yfield)/(^ref_field_index_y - 1)
+	^yfield_step2 == (^max_yfield - ^instr_ref(^inst_index, 2))/(^ref_field_index_y - 1)
+
+	! Use the bigger of the increments we just found so that the box will be big enough
+	! to capture the full region of interest.
+	if (^xfield_step1 > ^xfield_step2)
+		^xfield_step == ^xfield_step1
+	else
+		^xfield_step == ^xfield_step2
+	end if
+
+	if (^yfield_step1 > ^yfield_step2)
+		^yfield_step == ^yfield_step1
+	else
+		^yfield_step == ^yfield_step2
+	end if
+
+	^start_xfield == ^instr_ref(^inst_index, 1) -(^ref_field_index_x - 1) * ^xfield_step
+	^start_yfield == ^instr_ref(^inst_index, 2) -(^ref_field_index_y - 1) * ^yfield_step
+	wri "start X "
+	wri ^start_xfield
+	wri "start Y "
+	wri ^start_yfield
+	wri "step X"
+	wri ^xfield_step
+	wri "step Y"
+	wri ^yfield_step
+
+	! Now we have all of the information we need to set up the field, so lets start
+	! Calculating wavefronts
+
+
+	!Get the wavefront at the reference field point
+	^cur_xfield == ^instr_ref(^inst_index,1)
+	^cur_yfield == ^instr_ref(^inst_index,2)
+	xan f1 ^cur_xfield
+	yan f1 ^cur_yfield
+
+	^filename == "wavefront_field\"
+	^filename == concat(^filename, ^instr_names(^inst_index))
+	^filename == concat(^filename, "\wavefront_ref.dat")
+	wri ^filename
+	!Output to some logical file format
+	pma; tgr 256; nrd 255; lis no; wbf b1; plo no; go
+	if not (buf.emp b1)
+		buf exp b1 ^filename
+		buf del b1
+	end if
+
+
+	!Loop over rectangular grid of field points
+	for ^xfield_index 1 ^xfields
+			^cur_xfield == ^start_xfield + ^xfield_step * (^xfield_index - 1)
+			for ^yfield_index 1 ^yfields
+				^cur_yfield == ^start_yfield + ^yfield_step * (^yfield_index - 1)
+				wri "XField"
+				wri ^cur_xfield
+				wri "YField"
+				wri ^cur_yfield
+				^xfield_angs(^xfield_index, ^yfield_index) == ^cur_xfield
+				^yfield_angs(^xfield_index, ^yfield_index) == ^cur_yfield
+		
+				!Set the field angle
+				xan f1 ^cur_xfield
+				yan f1 ^cur_yfield
+
+				^filename == "wavefront_field\"
+				^filename == concat(^filename, ^instr_names(^inst_index))
+				^filename == concat(^filename, "\wavefront_fx")
+				^filename == concat(^filename, num_to_str(^xfield_index))
+				^filename == concat(^filename, "_fy")
+				^filename == concat(^filename, num_to_str(^yfield_index))
+				^filename == concat(^filename, ".dat")
+				wri ^filename
+				!Output to some logical file format
+				pma; tgr 256; nrd 255; lis no; wbf b1; plo no; go
+				if not (buf.emp b1)
+					buf exp b1 ^filename
+					buf del b1
+				end if
+			end for
+	end for
+end for
+
+
+! Restore the original model since we changed the field points.
+in OTE_Segmented_RevH_2020714.seq

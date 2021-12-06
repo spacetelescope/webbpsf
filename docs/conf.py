@@ -69,6 +69,9 @@ numpydoc_show_class_members = False
 
 # -- General configuration ----------------------------------------------------
 
+extensions.append('nbsphinx')
+extensions.append('sphinx.ext.mathjax')
+
 # If your documentation needs a minimal Sphinx version, state it here.
 #needs_sphinx = '1.2'
 

@@ -31,12 +31,14 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
+import scipy.special as sp
 import scipy
 import astropy.table
 import astropy.io.fits as fits
 import astropy.units as u
 import logging
 from collections import OrderedDict
+import warnings
 from packaging.version import Version
 import copy
 
@@ -1185,6 +1187,12 @@ class OTE_Linear_Model_WSS(OPD):
         self._global_zernike_coeffs = np.zeros(self._number_global_zernikes)
         self._global_hexike_coeffs = np.zeros(self._number_global_zernikes)
 
+        # Field dependence model data
+        self._include_nominal_field_dep = True
+        self._field_dep_file = None
+        self._field_dep_hdr = None
+        self._field_dep_data = None
+
         # Thermal OPD parameters
         self.delta_time = 0.0
         self.start_angle = 0.0
@@ -1406,7 +1414,9 @@ class OTE_Linear_Model_WSS(OPD):
         Parameters
         ----------
         coefficients : ndarray. By default this applies the self._global_hexike_coeffs values, but
-            you can overtide that by optionally providing different coefficients to this function
+            you can override that by optionally providing different coefficients to this function.
+            In particular this is used behind the scenes for adding the thermal slew global terms 
+            onto any other global hexikes already present. See update_opd()
         """
 
         if coefficients is None:
@@ -1421,14 +1431,45 @@ class OTE_Linear_Model_WSS(OPD):
         # Use the Hexike basis to reconstruct the global terms
         perturbation = poppy.zernike.opd_from_zernikes(coefficients,
                                                        basis=_get_basis,
-                                                       aperture=aperture > 0.)
+                                                       aperture=aperture > 0.,
+                                                       outside=0)
         perturbation[~np.isfinite(perturbation)] = 0.0
         # Add perturbation to the opd
         self.opd += perturbation
 
-    def _get_zernike_coeffs_from_smif(self, dx=0., dy=0.):
+    #---- OTE field dependence is implemented across the next several functions ----
+    def _apply_field_dependence_model(self, reference='global', **kwargs):
+        """Apply field dependence model for OTE wavefront error spatial variation.
+
+        Includes SM field-dependent model for OTE wavefront error as a function of field angle and SM pose amplitude,
+        and model for field-dependence of a nominal (perfectly aligned) OTE.
+
+        Updates self.opd based on V2V3 coordinates and amplitude of SM pose.
+
+        """
+        if self.v2v3 is None:
+            # if this OTE linear model instance does not have field coordinates set,
+            # we cannot apply field dependence.
+            return
+
+        # Model field dependence for the nominal OTE, based on Code V model coefficients
+        if self._include_nominal_field_dep:
+            field_dep_nominal = self._get_field_dependence_nominal_ote(self.v2v3, reference=reference, **kwargs)
+            self.opd += field_dep_nominal
+            self.opd_header['HISTORY'] = 'Applied OTE nominal field-dependent aberrations'
+
+        # Model field dependence from a misaligned secondary mirror
+        # (only do so if the SM is in fact misaligned)
+        if not np.allclose(self.segment_state[-1], 0):
+            field_dep_sm_perturbation = self._get_field_dependence_secondary_mirror(self.v2v3)
+            self.opd += field_dep_sm_perturbation
+            self.opd_header['HISTORY'] = 'Applied OTE SM alignment field-dependent aberrations (MIMF)'
+
+
+    def _get_hexike_coeffs_from_smif(self, dx=0., dy=0.):
         '''     
-        Apply Secondary Mirror field dependence based on SM pose and field angle.
+        Apply Secondary Mirror field dependence based on SM pose and field angle,
+        using coefficients from the Secondary Mirror Influence Functions
 
         NOTES:
         Wavefront Phi(x,y) = Sum[ m_j * Sum[ (alpha_jk*dx + beta_jk*dy)*Z_k ] ]
@@ -1475,48 +1516,280 @@ class OTE_Linear_Model_WSS(OPD):
         coeffs = np.insert(coeffs, 0, [0., 0., 0.])
     
         return coeffs
-        
-        
-    def _apply_sm_field_dependence_model(self, **kwargs):
-        """
-        Apply SM field-dependent model for OTE wavefront error as a function of field angle and SM pose amplitude.
 
-        Updates self.opd based on V2V3 coordinates and amplitude of SM pose.
-        """
+    def _get_field_dependence_secondary_mirror(self, v2v3):
+        """Calculate field dependence model for OTE with misaligned secondary mirror,
+        as is to be corrected by MIMF (Multi Instrument Multi Field) sensing.
 
-        if self.v2v3 is None:
-            return
+        Returns OPD based on V2V3 coordinates using model for secondary mirror influence functions.
+
+        Parameters
+        ----------
+        v2v3 : tuple
+            JWST focal plane coordinates (V2,V3) as a tuple of astropy Quantities with angular dimension
+        """
+        # Model field dependence from any misalignment of the secondary mirror
+        dx = -(v2v3[0] - self.ote_control_point[0]).to( u.rad).value
+        # NEGATIVE SIGN IN THE ABOVE B/C TELFER'S FIELD ANGLE COORD. SYSTEM IS (X,Y) = (-V2,V3)
+        dy = (v2v3[1] - self.ote_control_point[1]).to(u.rad).value
+        z_coeffs = self._get_hexike_coeffs_from_smif(dx, dy)
+        perturbation = poppy.zernike.opd_from_zernikes(z_coeffs, npix=self.npix,
+                                                       basis=poppy.zernike.hexike_basis_wss, aperture=self.amplitude,
+                                                       outside=0)
+        if Version(poppy.__version__) < Version('1.0'):
+            wfe_sign = -1  # In earlier poppy versions, fix sign convention for consistency with WSS
         else:
-            dx =-(self.v2v3[0] - self.ote_control_point[0]).to(u.rad).value # NEGATIVE SIGN B/C TELFER'S FIELD ANGLE COORD. SYSTEM IS (X,Y) = (-V2,V3)
-            dy = (self.v2v3[1] - self.ote_control_point[1]).to(u.rad).value
+            wfe_sign = 1
 
-            z_coeffs = self._get_zernike_coeffs_from_smif(dx, dy, **kwargs)
+        for i in range(3,9):
+            self.opd_header[f'SMIF_H{i}'] = (z_coeffs[i], f"Hexike coeff from S.M. influence fn model")
+        self.opd_header['HISTORY'] = ('Field point (x,y): ({})'.format(v2v3))
+        self.opd_header['HISTORY'] = (
+            'Control point: {} ({})'.format(self.control_point_fieldpoint.upper(), self.ote_control_point))
+        self.opd_header['HISTORY'] = ('Delta x/y: {} {} (radians))'.format(dx, dy))
 
-            perturbation =  poppy.zernike.opd_from_zernikes(z_coeffs, npix=self.npix,
-                                                            basis=poppy.zernike.hexike_basis_wss,
-                                                            aperture=self.amplitude)
-
-            perturbation[~np.isfinite(perturbation)] = 0.0
-
-            if Version(poppy.__version__) < Version('1.0'):
-                wfe_sign = -1  # In earlier poppy versions, fix sign convention for consistency with WSS
-            else:
-                wfe_sign = 1
-            self.opd += perturbation*(1e-6*wfe_sign)
-            
-            self.opd_header['HISTORY'] = 'Applied SMIF field-dependent aberrations:'
-            self.opd_header['HISTORY'] = ('SMIF_H3: {}'.format(z_coeffs[3]))
-            self.opd_header['HISTORY'] = ('SMIF_H4: {}'.format(z_coeffs[4]))
-            self.opd_header['HISTORY'] = ('SMIF_H5: {}'.format(z_coeffs[5]))
-            self.opd_header['HISTORY'] = ('SMIF_H6: {}'.format(z_coeffs[6]))
-            self.opd_header['HISTORY'] = ('SMIF_H7: {}'.format(z_coeffs[7]))
-            self.opd_header['HISTORY'] = ('SMIF_H8: {}'.format(z_coeffs[8]))
-            self.opd_header['HISTORY'] = ('Field point (x,y): ({})'.format(self.v2v3))
-            self.opd_header['HISTORY'] = ('Control point: {} ({})'.format(self.control_point_fieldpoint.upper(), self.ote_control_point))
-            self.opd_header['HISTORY'] = ('Delta x/y: {} {} (radians))'.format(dx, dy))
+        return perturbation * (1e-6 * wfe_sign)
 
 
-        
+    def _get_field_dependence_nominal_ote(self, v2v3, reference='global',
+                                          zern_num=78, legendre_num=None, assume_si_focus=True):
+        """Calculate field dependence model for OTE nominal wavefront error spatial variation,
+
+        Returns OPD based on V2V3 coordinates using model(s) for spatial variations.
+
+        zern_num and legendre_num allow for fewer terms to be used in calculating the wavefront at a field angle
+        than are specified in the calibration files.  This is to reduce required computation if the increase in
+        accuracy isn't needed.
+
+        The precomputed data files support up to 136 Zernikes, but using higher numbers provides diminishing
+        returns for the increased computation time. Tests have shown that using 78 Zernikes yields within
+        7-10 nm of the result of the full model, and 36 Zernikes yields within 15 nm.
+
+        Parameters
+        ----------
+        v2v3 : tuple
+           (v2,v3) coordinates
+        reference : str
+           should always be "global" in the current implementation.
+        zern_num : int
+            Number of Zernikes to use to represent the WFE at each field point
+        legendre_num : int
+        assume_si_focus : bool
+            Assume that the SIs have been independently refocused, i.e. take out the net average
+            defocus per each SI from the overall focal plane curvature
+        """
+        # The code for this is now split up into several sub-functions for improved clarity.
+
+        if v2v3 is None:  # pragma: no cover
+            return 0
+
+        instrument = utils.determine_inst_name_from_v2v3(v2v3)
+        if not self._load_ote_field_dep_data(instrument, reference):  # pragma: no cover
+            return 0
+
+        field_coeff_order, f_ang_unit, opd_to_meters, zern_num, legendre_num = self._validate_ote_field_dep_data(instrument,
+                zern_num=zern_num, legendre_num=legendre_num)
+
+        zernike_coeffs = self._get_zernikes_for_ote_field_dep(v2v3, instrument, field_coeff_order, f_ang_unit,
+                zern_num, legendre_num, assume_si_focus=assume_si_focus)
+
+        # Apply perturbation to OPD according to Zernike coefficients calculated above.
+        perturbation = poppy.zernike.opd_from_zernikes(zernike_coeffs * opd_to_meters,
+                                                       npix=self.npix,
+                                                       basis=poppy.zernike.zernike_basis_faster,
+                                                       outside=0)
+
+        return perturbation
+
+    def _load_ote_field_dep_data(self, instrument, reference):
+        """Load tables of Zernikes vs field position
+
+        Returns True if successful (file loaded OK, or was already loaded), False for failure.
+        """
+
+        base_path = utils.get_webbpsf_data_path()
+        field_dep_file = os.path.join(base_path, f'{instrument}/OPD/field_dep_table_{instrument.lower()}.fits')
+
+        # For efficiency, load from disk only if needed. And, for back-compatibility, fail gracefully if file not found
+        if self._field_dep_file != field_dep_file:
+            self._field_dep_file = field_dep_file
+            _log.info(f'Loading field dependent model parameters from {self._field_dep_file}')
+
+            try:
+                self._field_dep_hdr = fits.getheader(field_dep_file)
+                # Read in the data table with the coefficients for our model
+                #   hdu[1] ==> local reference point
+                #   hdu[2] ==> # global reference point
+                if reference == 'global':
+                    ext = 2
+                elif reference == 'local':  # pragma: no cover
+                    ext = 1
+                    # we don't need both options for this. Simpler to only support one (even though the data files have two)
+                    raise ValueError("Local field dependent OTE coordinates discouraged; use global")
+                else:  # pragma: no cover
+                    raise ValueError('Invalid wavefront reference')
+                self._field_dep_data = fits.getdata(field_dep_file, ext=ext)
+
+            except FileNotFoundError:  # pragma: no cover
+                warnings.warn(f"Could not load {self._field_dep_file}; OTE field dependence model disabled")
+                return False
+        return True
+
+
+    def _validate_ote_field_dep_data(self, instrument, zern_num=None, legendre_num=None):
+        """Sanity check inputs after loading OTE field dep data. 
+
+        Returns several parameter values used subsequently in the OTE OPD calculation
+        """
+        # Pull useful parameters from header
+        hdr = self._field_dep_hdr
+
+        # Check to make sure that we've got the right instrument
+        if hdr['instr'].lower() != instrument.lower():  # pragma: no cover
+            ValueError('Instrument inconsistent with field dependence file')
+
+        # Check to make sure that the file has the right type of data in it and throw exception if not
+        if hdr['wfbasis'] != 'Noll Zernikes':  # pragma: no cover
+            raise ValueError('Data file contains data with unsupported wavefront polynomial expansion')
+
+        if hdr['fiebasis'] != 'Legendre Polynomials':  # pragma: no cover
+            raise ValueError('Data file contains data with unsupported field polynomial expansion')
+
+        num_wavefront_coeffs = hdr['ncoefwf']
+        if zern_num is None:
+            zern_num = num_wavefront_coeffs
+        if (zern_num > num_wavefront_coeffs):  # pragma: no cover
+            raise ValueError('Data file contains fewer wavefront coefficients than specified')
+
+        num_field_coeffs = hdr['ncoeffie']
+        if legendre_num is None:
+            legendre_num = num_field_coeffs
+        if (legendre_num > num_field_coeffs):  # pragma: no cover
+            raise ValueError('Data file contains fewer field coefficients than specified')
+
+        field_coeff_order = hdr['fieorder']
+        # If we aren't using all the Legendre terms in the table we can update the order of
+        # Legendre polynomial required so we don't have to calculate all of them.
+        if legendre_num is not None:
+            field_coeff_order = int(np.ceil((-3 + np.sqrt(1 + 8 * legendre_num)) / 2))
+
+        # Check the field angle units in the input file
+        if hdr['fangunit'] == 'degrees':
+            f_ang_unit = u.deg
+        elif hdr['fangunit'] == 'arcmin':
+            f_ang_unit = u.arcmin
+        elif hdr['fangunit'] == 'arscec':
+            f_ang_unit = u.arcsec
+        else:  # pragma: no cover
+            raise ValueError('Field angle unit specified in file is not supported')
+
+        # Check the OPD units in the input file
+        if hdr['opdunit'] == 'nm':
+            opd_to_meters = 1e-9
+        elif hdr['opdunit'] == 'um':
+            opd_to_meters = 1e-6
+        elif hdr['opdunit'] == 'm':
+            opd_to_meters = 1
+        elif hdr['opdunit'] == 'pm':
+            opd_to_meters = 1e-12
+        else:  # pragma: no cover
+            ValueError('OPD unit specified in file is not supported')
+
+        return field_coeff_order, f_ang_unit, opd_to_meters, zern_num, legendre_num
+
+    def _get_zernikes_for_ote_field_dep(self, v2v3, instrument, field_coeff_order, f_ang_unit, 
+            zern_num, legendre_num , assume_si_focus=True):
+        """ Calculate the Zernike coeffs from the lookup table data
+
+        This is the main numerical piece of the algorithm.
+        """
+        hdr = self._field_dep_hdr
+        # Extent of box in field over which the data is defined
+        min_x_field = hdr['MINXFIE'] * u.arcmin
+        max_x_field = hdr['MAXXFIE'] * u.arcmin
+        min_y_field = hdr['MINYFIE'] * u.arcmin
+        max_y_field = hdr['MAXYFIE'] * u.arcmin
+
+        # Calculate field angle for our model from the V2/V3 coordinates
+        x_field_pt = hdr['v2sign'] * (v2v3[0] - hdr['v2origin'] * f_ang_unit)
+        y_field_pt = hdr['v3sign'] * (v2v3[1] - hdr['v3origin'] * f_ang_unit)
+
+        _log.info(f'Calculating field-dependent OTE OPD at v2 = {v2v3[0]:.3f}, v3 = {v2v3[1]:.3f}')
+        _log.debug(f'Calculating field-dependent OTE OPD at CodeV X field = {x_field_pt:.3f}, Y field= {y_field_pt:.3f}')
+
+        # Confirm that the calculated field point is within our model's range
+        if ((x_field_pt < min_x_field) or (x_field_pt > max_x_field) or
+                (y_field_pt < min_y_field) or (y_field_pt > max_y_field)):
+            # If not within the valid region, find closest point that is
+            x_field_pt0 = x_field_pt*1
+            y_field_pt0 = y_field_pt*1
+            x_field_pt = np.clip(x_field_pt0, min_x_field, max_x_field)
+            y_field_pt = np.clip(y_field_pt0, min_y_field, max_y_field)
+
+            clip_dist = np.sqrt((x_field_pt-x_field_pt0)**2 + (y_field_pt-y_field_pt0)**2)
+            if clip_dist > 0.1*u.arcsec:
+                # warn the user we're making an adjustment here (but no need to do so if the distance is trivially small)
+                warnings.warn(f'For (V2,V3) = {v2v3}, Field point {x_field_pt}, {y_field_pt} not within valid region for field dependence model of OTE WFE for {instrument}: {min_x_field}-{max_x_field}, {min_y_field}-{max_y_field}. Clipping to closest available valid location, {clip_dist} away from the requested coordinates.')
+
+        # Get value of Legendre Polynomials at desired field point.  Need to implement model in G. Brady's prototype
+        # polynomial basis code, independent of that code for now.  Perhaps at some point in the future this model
+        # can become more tightly coupled with WebbPSF/Poppy and we just call it here instead.
+        # Calculate value of Legendre at all orders at our field point of interest.
+
+        field_center_x = (max_x_field + min_x_field) / 2
+        field_center_y = (max_y_field + min_y_field) / 2
+
+        x_field_pt_norm = float((x_field_pt - field_center_x) / ((max_x_field - min_x_field) / 2))
+        y_field_pt_norm = float((y_field_pt - field_center_y) / ((max_y_field - min_y_field) / 2))
+
+        _log.debug(f'{instrument} max_x={max_x_field} min_x={min_x_field} max_y={max_y_field} min_y={min_y_field}')
+        _log.debug(f'Normalized field point {x_field_pt_norm}, {y_field_pt_norm}')
+        poly_x1d = np.zeros(field_coeff_order + 1)
+        poly_y1d = np.zeros(field_coeff_order + 1)
+        for index in range(0, field_coeff_order + 1):
+            leg_poly1d = sp.legendre(index)
+            poly_y1d[index] = leg_poly1d(y_field_pt_norm)
+            poly_x1d[index] = leg_poly1d(x_field_pt_norm)
+
+        #Calculate product of x and y Legendre value for all combinations of orders
+        poly_val_2d = np.einsum('i,j', poly_y1d, poly_x1d)
+
+        #Reorder and rearrange values to correspond to the single index ordering the input coefficients assume
+        map1 = []
+        map2 = []
+        for index_i in range(0, field_coeff_order + 1):
+            map1 += list(range(index_i, -1, -1))
+            map2 += list(range(0, index_i + 1))
+        poly_vals = poly_val_2d[map1, map2]
+        poly_vals = poly_vals[0:legendre_num]
+
+        # poly_vals now has the value of all of the Legendre polynomials at our field point of interest.  So now we
+        # need to multiply each value there with the value of the Legendre coefficients in each column and sum.  That
+        # sum will be the value of a Zernike, so we loop to repeat that for each Zernike coefficient
+
+        zernike_coeffs = np.zeros(zern_num)
+        for z_index in range(0, zern_num):
+            cur_legendre = self._field_dep_data.field(z_index)
+            zernike_coeffs[z_index] = np.einsum('i, i->', cur_legendre[0:legendre_num], poly_vals)
+
+        zernike_coeffs[0:3] = 0  # ignore piston/tip/tilt
+
+        if assume_si_focus:
+            # Assume SIs have been refocused, so there is no net defocus from the OTE field dep.
+            # Take out the average focus per each SI, using precomputed values
+            # These values computed using 'OTE As-Built Field Dependence Test.ipynb'
+            avg_si_defocus_values = {'NIRCam':  -11.399957391866572,
+                'NIRISS':  -31.412664805859624,
+                'MIRI':  -32.074808824153386,
+                'FGS':  -7.271566403275971,
+                'NIRSpec':  -31.469227175636576,}  # these are in nm
+            si_defocus_zern = avg_si_defocus_values[instrument]
+
+            zernike_coeffs[3] -= si_defocus_zern
+
+        return zernike_coeffs
+
+
     def move_seg_local(self, segment, xtilt=0.0, ytilt=0.0, clocking=0.0, rot_unit='urad',
                        radial=None, xtrans=None, ytrans=None, piston=0.0, roc=0.0, trans_unit='micron', display=False,
                        delay_update=False, absolute=False):
@@ -1990,7 +2263,7 @@ class OTE_Linear_Model_WSS(OPD):
                     raise NotImplementedError("Only moves of type='pose' or 'roc' are supported.")
         self.update_opd()
 
-
+    #---- OPD perturbations from drifts are implemented in the next several functions ----
     def thermal_slew(self, delta_time, start_angle=-5,end_angle=45,
                      scaling=None, display=False, case='EOL', delay_update=False):
         """ Update the OPD based on presence of a pitch angle change between
@@ -2099,6 +2372,8 @@ class OTE_Linear_Model_WSS(OPD):
 
         # always start from the input OPD, then apply perturbations
         self.opd = self._opd_original.copy()
+        self.opd_header.add_history('')
+        self.opd_header.add_history('OTE linear model: updated OPD based on input segment poses')
 
         sm = 18
         sm_pose_coeffs = self.segment_state[sm].copy()[0:5]  # 6th row is n/a for SM
@@ -2134,8 +2409,8 @@ class OTE_Linear_Model_WSS(OPD):
 
                 self._apply_hexikes_to_seg(segname, hexike_coeffs_combined)
 
-       # The thermal slew model for the SM global defocus is implemented as a global hexike.
-       # So we have to combine that with the _global_hexikes array here
+        # The thermal slew model for the SM global defocus is implemented as a global hexike.
+        # So we have to combine that with the _global_hexikes array here
         global_hexike_coeffs_combined = self._global_hexike_coeffs.copy()
         if self.delta_time != 0.0:
             global_hexike_coeffs_combined[4] += self._get_thermal_slew_coeffs('SM')
@@ -2146,11 +2421,84 @@ class OTE_Linear_Model_WSS(OPD):
         if not np.all(self._global_zernike_coeffs == 0):
             self._apply_global_zernikes()
             
-        self._apply_sm_field_dependence_model()
+        self._apply_field_dependence_model()
 
         if display:
             self.display()
 
+    def _get_dynamic_opd(self, delta_time=14*u.day, case='EOL'):
+        """Return ONLY the dynamic portion of the OPD, including thermal slew + frill + IEC
+        Normally these are all folded up as part of the update_opd method, but it can be
+        useful in certain circumstances to extract just this part, e.g. for plotting or analysis
+
+        This is therefore a modified version of the update_opd function.
+        This is a bit of a hack, as internal OPD state gets modified and then reset as a
+        side effect of this.
+
+        """
+        # always start from the input OPD, then apply perturbations
+        # self.opd = self._opd_original.copy()
+        # self.opd_header.add_history('')
+        # self.opd_header.add_history('OTE linear model: updated OPD based on input segment poses')
+        self.opd *= 0  # start from a zero OPD and just add perturbations; we will undo this later!
+
+        # Change a bunch of parameters (we will also undo this later!)
+        thermal_slew_params = (self.delta_time, self.start_angle, self.end_angle, self._thermal_model.case)
+        # default is max slew and 2 weeks
+        self.start_angle= -5
+        self.start_angle=  45
+        self._thermal_model.case = case
+        self.delta_time = delta_time.to_value(u.day)
+
+        # sm = 18
+        # sm_pose_coeffs = self.segment_state[sm].copy()[0:5]  # 6th row is n/a for SM
+        # sm_pose_coeffs.shape = (5, 1)  # to allow broadcasting below
+        sm_pose_coeffs = np.zeros( (5,1) )
+
+        drift_segment_state = self._get_frill_drift_poses() + self._get_iec_drift_poses()
+
+        for iseg, segname in enumerate(self.segnames[0:18]):
+            pose_coeffs = drift_segment_state[iseg].copy()
+            if np.all(pose_coeffs == 0) and np.all(sm_pose_coeffs == 0) and delta_time == 0:
+                continue
+            else:
+
+                sensitivities = self._get_seg_sensitivities(segname)
+                pose_coeffs.shape = (6, 1)  # to allow broadcasting in next line
+
+                hexike_coeffs = sensitivities * pose_coeffs  # this will be a 6,9 array
+                hexike_coeffs = hexike_coeffs.sum(axis=0)  # sum across all controlled modes
+                # to yield a set of 9 overall coeffs
+
+                sm_sensitivities = self._get_seg_sensitivities_from_sm(segname)
+                hexike_coeffs_from_sm = sm_sensitivities * sm_pose_coeffs  # will be 5,9 array
+                hexike_coeffs_from_sm = hexike_coeffs_from_sm.sum(axis=0)  # sum to get 9
+                hexike_coeffs_from_thermal = self._get_thermal_slew_coeffs(segname)
+                hexike_coeffs_combined = hexike_coeffs + hexike_coeffs_from_sm + hexike_coeffs_from_thermal
+
+                self._apply_hexikes_to_seg(segname, hexike_coeffs_combined)
+
+        # The thermal slew model for the SM global defocus is implemented as a global hexike.
+        # So we have to combine that with the _global_hexikes array here
+        global_hexike_coeffs_combined = self._global_hexike_coeffs.copy()
+        if delta_time != 0.0:
+            global_hexike_coeffs_combined[4] += self._get_thermal_slew_coeffs('SM')
+
+        # Apply Global Zernikes, and/or hexikes
+        if not np.all(global_hexike_coeffs_combined == 0):
+            self._apply_global_hexikes(global_hexike_coeffs_combined)
+        # if not np.all(self._global_zernike_coeffs == 0):
+        #    self._apply_global_zernikes()
+
+        #self._apply_field_dependence_model()
+
+        drift_opd = self.opd.copy()  # save this, to return below
+
+        # Important: Undo the overwriting of self.opd we just did
+        self.delta_time, self.start_angle, self.end_angle, self._thermal_model.case = thermal_slew_params
+        self.update_opd()
+
+        return drift_opd
 
     def apply_frill_drift(self, amplitude=None, random=False, case='BOL', delay_update=False):
         """ Apply model of segment PTT motions for the frill-induced drift.
@@ -2358,6 +2706,7 @@ def enable_adjustable_ote(instr):
     opd = OTE_Linear_Model_WSS(name=name,
                                opd=opdpath, transmission=pupilpath)
 
+    opd.v2v3 = instr._tel_coords()  # copy field location, for use in field dependence models.
     instcopy.pupilopd = opd
     instcopy.pupil = opd
 

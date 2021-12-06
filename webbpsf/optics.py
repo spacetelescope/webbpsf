@@ -1250,22 +1250,7 @@ class WebbFieldDependentAberration(poppy.OpticalElement):
         else:
             self.ztable_full = Table.read(zernike_file)
 
-        # Determine the pupil sampling of the first aperture in the
-        # instrument's optical system
-        if isinstance(instrument.pupil, poppy.OpticalElement):
-            # This branch needed to handle the OTE Linear Model case
-            npix = instrument.pupil.shape[0]
-            self.pixelscale = instrument.pupil.pixelscale
-        else:
-            # these branches to handle FITS files, by name or as an object
-            if isinstance(instrument.pupil, fits.HDUList):
-                pupilheader = instrument.pupil[0].header
-            else:
-                pupilfile = os.path.join(instrument._datapath, "OPD", instrument.pupil)
-                pupilheader = fits.getheader(pupilfile)
-
-            npix = pupilheader['NAXIS1']
-            self.pixelscale = pupilheader['PUPLSCAL'] * units.meter / units.pixel
+        npix, self.pixelscale = _get_initial_pupil_sampling(self.instrument)
 
         self.ztable = self.ztable_full[self.ztable_full['instrument'] == lookup_name]
 

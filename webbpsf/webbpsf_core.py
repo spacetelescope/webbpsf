@@ -114,7 +114,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         Type of jitter model to apply. Currently only convolution with a Gaussian kernel of specified
         width `jitter_sigma` is implemented. (default: None)
     jitter_sigma : float
-        Width of the jitter kernel in arcseconds (default: 0.007 arcsec)
+        Width of the jitter kernel in arcseconds (default: 0.006 arcsec, 1 sigma per axis)
     parity : string "even" or "odd"
         You may wish to ensure that the output PSF grid has either an odd or even number of pixels.
         Setting this option will force that to be the case by increasing npix by one if necessary.
@@ -230,7 +230,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
     @image_mask.setter
     def image_mask(self, name):
-        if name=="": name = None
+        if name == "": name = None
         if name is not None:
             if name in self.image_mask_list:
                 pass  # there's a perfect match, this is fine.
@@ -249,7 +249,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
 
     @pupil_mask.setter
     def pupil_mask(self, name):
-        if name=="":
+        if name == "":
             name = None
         if name is not None:
             if name in self.pupil_mask_list:
@@ -797,7 +797,7 @@ class JWInstrument(SpaceTelescopeInstrument):
         self.include_si_wfe = True
         """Should calculations include the Science Instrument internal WFE?"""
         self.options['jitter'] = 'gaussian'
-        self.options['jitter_sigma'] = 0.007
+        self.options['jitter_sigma'] = 0.006   # 6 mas, see https://jwst-docs.stsci.edu/jwst-observatory-hardware/jwst-pointing-performance#JWSTPointingPerformance-Pointing_stabilityPointingstability
 
         # class name to use for SI internal WFE, which can be overridden in subclasses
         self._si_wfe_class = optics.WebbFieldDependentAberration
@@ -960,7 +960,16 @@ class JWInstrument(SpaceTelescopeInstrument):
 
             self.aperturename = aperture_name
 
-            self.detector_position = (ap.XSciRef, ap.YSciRef)
+            if self.name != 'NIRSpec' and ap.AperType != 'SLIT':
+                # Regular imaging apertures, so we can just look up the reference coords directly
+                self.detector_position = (ap.XSciRef, ap.YSciRef)  # set this AFTER the SIAF reload
+            else:
+                # NIRSpec slit apertures need some separate handling, since they don't map directly to detector pixels
+                ref_in_tel = ap.V2Ref, ap.V3Ref
+                nrs_full_aperture = self.siaf[aperture_name.split('_')[0]+"_FULL"]
+                ref_in_sci = nrs_full_aperture.tel_to_sci(*ref_in_tel)
+                self.detector_position = ref_in_sci
+
             _log.debug("From {} set det. pos. to {} {}".format(aperture_name, detname, self.detector_position))
 
         except KeyError:
@@ -1833,7 +1842,7 @@ class NIRCam(JWInstrument):
     # Need to redefine image_mask.setter because _image_mask_apertures has limited aperture definitions
     @JWInstrument.image_mask.setter
     def image_mask(self, name):
-        if name=="": name = None
+        if name == "": name = None
         if name is not None:
             if name in self.image_mask_list:
                 pass  # there's a perfect match, this is fine.
