@@ -31,7 +31,9 @@ def get_budget_info(instname, param_name):
     global wfe_budget_info
     if wfe_budget_info is None:
         # Load information from the formal optical budget
-        wfe_budget_filename = os.path.join(webbpsf.utils.get_webbpsf_data_path(),'jwst_wfe_summary_from_optical_budget.csv' )
+        wfe_budget_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                           'otelm',
+                                           'jwst_wfe_summary_from_optical_budget.csv')
         wfe_budget_info = table.Table.read(wfe_budget_filename, header_start=1)
 
     row = wfe_budget_info[wfe_budget_info['Value']==param_name]
