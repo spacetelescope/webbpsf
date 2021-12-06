@@ -21,13 +21,9 @@ Code by Marshall Perrin <mperrin@stsci.edu>
 """
 import os
 import glob
-import time
-import copy
 from collections import namedtuple, OrderedDict
 import numpy as np
-import matplotlib.pyplot as plt
 import scipy.interpolate, scipy.ndimage
-import matplotlib
 
 import astropy
 import astropy.io.fits as fits
@@ -1324,6 +1320,30 @@ class JWInstrument(SpaceTelescopeInstrument):
         result[0].header['JITRSTRL'] = (strehl, 'Strehl reduction from jitter ')
 
         result[0].data = out
+
+    def visual_wfe_budget(self, slew_delta_time=14*units.day, slew_case='EOL', ptt_only=False, verbose=True):
+        """Display a visual WFE budget showing the various terms that sum into the overall WFE for a given instrument
+
+        Compares a WebbPSF instrument instance with the JWST optical budget for that instrument
+
+        Parameters
+        ----------
+        inst : webbpsf.JWInstrument
+            A JWST instrument instance
+        slew_delta_time : astropy.Quantity time
+            Time duration for thermal slew model
+        slew_case : basestring
+            'BOL' or 'EOL' for beginning of life or end of life thermal slew model. EOL is about 3x higher amplitude
+        ptt_only : bool
+            When decomposing wavefront into controllable modes, use a PTT-only basis? The default is to use all
+            controllable pose modes. (This is mostly a leftover debug option at this point, not likely useful in general)
+        verbose : bool
+            Be more verbose
+        """
+        import webbpsf.optical_budget
+        webbpsf.optical_budget.visual_wfe_budget(self,
+                                                 slew_delta_time=slew_delta_time, slew_case=slew_case,
+                                                 ptt_only=ptt_only, verbose=verbose)
 
 
 class MIRI(JWInstrument):

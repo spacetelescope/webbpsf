@@ -3160,6 +3160,7 @@ class JWST_WAS_Full_Basis(object):
             # Clocking
             self.ote.zero()
             self.ote.move_seg_local(segname, clocking=1, rot_unit='radian')
+            basis[i * ndof + 3][wseg] = self.ote.opd[wseg]
 
             # Radial Translation
             self.ote.zero()
