@@ -30,6 +30,15 @@ Road Map for Future Releases
 Version History and Change Log
 -------------------------------
 
+Version 1.0.0
+=============
+*2021 December 10*
+
+**JWST Improvements**:
+
+* New capability for visualizing the JWST optical budget terms as represented in WebbPSF. See :doc:`jwst_ptical_budgets`.
+
+
 Version 0.9.2
 =============
 *2021 July 23*
