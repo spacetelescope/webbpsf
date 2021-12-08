@@ -17,6 +17,7 @@ from astropy.io import fits
 import astropy.units as u
 import logging
 
+from . import utils
 from . import webbpsf_core
 from .optics import _fix_zgrid_NaNs
 
@@ -263,6 +264,7 @@ def _load_wfi_detector_aberrations(filename):
     return detectors
 
 
+@utils.combine_docstrings
 class RomanInstrument(webbpsf_core.SpaceTelescopeInstrument):
     PUPIL_RADIUS = 2.4 / 2.0
     """
@@ -275,6 +277,40 @@ class RomanInstrument(webbpsf_core.SpaceTelescopeInstrument):
         super(RomanInstrument, self).__init__(*args, **kwargs)
         self.options['jitter'] = 'gaussian'
         self.options['jitter_sigma'] = 0.014   # See https://roman.ipac.caltech.edu/sims/Param_db.html#telescope
+
+    def calc_psf(self, outfile=None, source=None, nlambda=None, monochromatic=None,
+                 fov_arcsec=None, fov_pixels=None, oversample=None, detector_oversample=None, fft_oversample=None,
+                 overwrite=True, display=False, save_intermediates=False, return_intermediates=False,
+                 normalize='first', add_distortion=False, crop_psf=False):
+        """
+        Compute a PSF
+
+        Parameters
+        ----------
+        add_distortion : bool
+            Included for API compatibility with the JWST instrument classes, but has no
+            effect on the results for Roman WFI PSF calculations.
+        crop_psf : bool
+            Included for API compatibility with the JWST instrument classes, but has no
+            effect on the results for Roman WFI PSF calculations.
+
+        """
+
+        if add_distortion is not False or crop_psf is not False:
+            raise AttributeError('`add_distortion` and `crop_psf` still under '
+                                 'development for Roman WFI')
+            # return default values to True once implemented
+
+        # Run poppy calc_psf
+        psf = webbpsf_core.SpaceTelescopeInstrument.calc_psf(self, outfile=outfile, source=source, nlambda=nlambda,
+                                                monochromatic=monochromatic, fov_arcsec=fov_arcsec,
+                                                fov_pixels=fov_pixels, oversample=oversample,
+                                                detector_oversample=detector_oversample, fft_oversample=fft_oversample,
+                                                overwrite=overwrite, display=display,
+                                                save_intermediates=save_intermediates,
+                                                return_intermediates=return_intermediates, normalize=normalize)
+
+        return psf
 
     # slightly different versions of the following two functions
     # from the parent superclass
