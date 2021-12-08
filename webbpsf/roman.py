@@ -288,13 +288,11 @@ class RomanInstrument(webbpsf_core.SpaceTelescopeInstrument):
         Parameters
         ----------
         add_distortion : bool
-            If True, will add 2 new extensions to the PSF HDUlist object. The 2nd extension
-            will be a distorted version of the over-sampled PSF and the 3rd extension will
-            be a distorted version of the detector-sampled PSF.
+            Included for API compatibility with the JWST instrument classes, but has no
+            effect on the results for Roman WFI PSF calculations.
         crop_psf : bool
-            If True, when the PSF is rotated to match the detector's rotation in the focal
-            plane, the PSF will be cropped so the shape of the distorted PSF will match it's
-            undistorted counterpart. This will only be used for NIRCam, NIRISS, and FGS PSFs.
+            Included for API compatibility with the JWST instrument classes, but has no
+            effect on the results for Roman WFI PSF calculations.
 
         """
 
