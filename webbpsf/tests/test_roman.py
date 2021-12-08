@@ -40,13 +40,8 @@ def test_WFI_psf():
 def test_WFI_filters():
     wfi = roman.WFI()
     filter_list = wfi.filter_list
-    for filter in filter_list:
-        if filter == 'GRISM0':
-            # GRISM0 should error out. poppy's Instrument._get_weights()
-            # drops wavelengths with throughputs <0.4. GRISM0's peak is well
-            # below 0.1 and numpy won't take the min/max of an empty array.
-            continue
 
+    for filter in filter_list:
         wfi.filter = filter
         wfi.calc_psf(fov_pixels=4, oversample=1, nlambda=3)
 
