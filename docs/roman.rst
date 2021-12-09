@@ -73,7 +73,7 @@ The WFI field of view is laid out as shown in the figure. To select a different 
    ['SCA01', 'SCA02', 'SCA03', 'SCA04', 'SCA05', 'SCA06', 'SCA07', 'SCA08', 'SCA09', 'SCA10', 'SCA11', 'SCA12', 'SCA13', 'SCA14', 'SCA15', 'SCA16', 'SCA17', 'SCA18']
    >>> wfi.detector = 'SCA03'
 
-The usable regions of the Wide Field Instrument's detectors are slightly smaller than their 4096 by 4096 pixel dimensions due to variations in reference pixel coverage at their edges. To change the position at which to calculate a PSF, assign an (X, Y) tuple::
+The usable, photosensitive regions of the Wide Field Instrument's detectors are slightly smaller than their 4096 by 4096 pixel dimensions because the outermost four rows and columns are reference pixels that are not sensitive to light. To change the position at which to calculate a PSF, assign an (X, Y) tuple::
 
    >>> wfi.detector_position = (4, 400)
 
