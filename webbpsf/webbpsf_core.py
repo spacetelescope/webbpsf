@@ -791,6 +791,7 @@ class JWInstrument(SpaceTelescopeInstrument):
         self.detector_position = (1024, 1024)
 
         self.include_si_wfe = True
+        self.include_ote_field_dependence = True  # Note, this will be implicitly ignored if pupilopd=None
         """Should calculations include the Science Instrument internal WFE?"""
         self.options['jitter'] = 'gaussian'
         self.options['jitter_sigma'] = 0.006   # 6 mas, see https://jwst-docs.stsci.edu/jwst-observatory-hardware/jwst-pointing-performance#JWSTPointingPerformance-Pointing_stabilityPointingstability

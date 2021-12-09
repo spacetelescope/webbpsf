@@ -1117,7 +1117,7 @@ class OTE_Linear_Model_WSS(OPD):
     def __init__(self, name='Unnamed OPD', opd=None, opd_index=0, transmission=None,
                  segment_mask_file=None, zero=False, rm_ptt=False,
                  rm_piston=False, v2v3=None, control_point_fieldpoint='nrca3_full',
-                 npix=1024):
+                 npix=1024, include_nominal_field_dependence=True):
         """
         Parameters
         ----------
@@ -1140,8 +1140,12 @@ class OTE_Linear_Model_WSS(OPD):
         v2v3 : tuple of 2 astropy.Quantities
             Tuple giving V2,v3 coordinates as quantities, typically in arcminutes, or None to default to
             the master chief ray location between the two NIRCam modules.
+        include_nominal_field_dependence : bool
+            Include the Zernike polynomial model for OTE field dependence for the nominal OTE.
+            Note, if OPD is None, then this will be ignored and the nominal field dependence will be disabled.
         control_point_fieldpoint: str
-            Name of the field point where the OTE control point is located, on instrument defined by "control_point_instr".
+            A parameter used in the field dependence model for a misaligned secondary mirror.
+            Name of the field point where the OTE MIMF control point is located, on instrument defined by "control_point_instr".
             Default: 'nrca3_full'.
             The OTE control point is the field point to which the OTE has been aligned and defines the field angles
             for the field-dependent SM pose aberrations.
@@ -1188,7 +1192,9 @@ class OTE_Linear_Model_WSS(OPD):
         self._global_hexike_coeffs = np.zeros(self._number_global_zernikes)
 
         # Field dependence model data
-        self._include_nominal_field_dep = True
+        # Note, if the OTE is set to None, we disable this automatically. This is to enable modeling the ideal case with
+        # truly NO WFE for opd=None.
+        self._include_nominal_field_dep = include_nominal_field_dependence if opd else False
         self._field_dep_file = None
         self._field_dep_hdr = None
         self._field_dep_data = None

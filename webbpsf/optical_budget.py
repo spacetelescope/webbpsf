@@ -214,7 +214,10 @@ def visualize_wfe_budget(inst, slew_delta_time=14 * u.day, slew_case='EOL', ptt_
     wfe_ote = ote.get_opd(wave).copy()
 
     # Figure out the field dependent part and factor that out
-    wfe_ote_field_dep_nominal = ote._get_field_dependence_nominal_ote(ote.v2v3)
+    if ote._include_nominal_field_dep:
+        wfe_ote_field_dep_nominal = ote._get_field_dependence_nominal_ote(ote.v2v3)
+    else:
+        wfe_ote_field_dep_nominal = np.zeros_like(wfe_ote)
     wfe_ote_field_dep_mimf = ote._get_field_dependence_secondary_mirror(ote.v2v3)
     wfe_ote_field_dep = wfe_ote_field_dep_nominal + wfe_ote_field_dep_mimf
 
