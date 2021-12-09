@@ -832,6 +832,27 @@ class JWInstrument(SpaceTelescopeInstrument):
         optic = self._si_wfe_class(self)
         return optic
 
+    def get_opd_file_full_path(self, opdfilename=None):
+        """Return full path to the named OPD file.
+
+        The OPD may be:
+         - a local or absolute path,
+         - or relative implicitly within an SI directory, e.g. $WEBBPSF_PATH/NIRCam/OPD
+         - or relative implicitly within $WEBBPSF_PATH
+
+        This function handles filling in the implicit path in the latter cases.
+        """
+
+        if opdfilename is None:
+            opdfilename = self.pupilopd
+
+        if os.path.exists(opdfilename):
+            return opdfilename
+        elif self.name in opdfilename:
+            return os.path.join(self._datapath, "OPD", opdfilename)
+        else:
+            return os.path.join(self._WebbPSF_basepath, opdfilename)
+
     def _get_telescope_pupil_and_aberrations(self):
         """return OpticalElement modeling wavefront aberrations for the telescope.
 
@@ -845,24 +866,14 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         # ---- set pupil OPD
 
-        def get_opd_file_full_path(opdfilename):
-            # The OPD may be a local or absolute path,
-            # or relative implicitly within an SI directory, e.g. $WEBBPSF_PATH/NIRCam/OPD
-            # or relative implicitly within $WEBBPSF_PATH
-            if os.path.exists(opdfilename):
-                return opdfilename
-            elif self.name in opdfilename:
-                return os.path.join(self._datapath, "OPD", opdfilename)
-            else:
-                return os.path.join(self._WebbPSF_basepath, opdfilename)
 
 
         opd_index = None  # default assumption: OPD file is not a datacube
         if isinstance(self.pupilopd, str):  # simple filename
-            opd_map = get_opd_file_full_path(self.pupilopd)
+            opd_map = self.get_opd_file_full_path(self.pupilopd)
         elif hasattr(self.pupilopd, '__getitem__') and isinstance(self.pupilopd[0], str):
             # tuple with filename and slice, for a datacube
-            opd_map = get_opd_file_full_path(self.pupilopd)
+            opd_map = self.get_opd_file_full_path(self.pupilopd[0])
             opd_index = self.pupilopd[1]
         elif isinstance(self.pupilopd, (fits.HDUList, poppy.OpticalElement)):
             opd_map = self.pupilopd  # not a path per se but this works correctly to pass it to poppy

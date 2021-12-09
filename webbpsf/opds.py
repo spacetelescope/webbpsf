@@ -1153,6 +1153,7 @@ class OTE_Linear_Model_WSS(OPD):
             Size of OPD: npix x npix
 
         """
+
         OPD.__init__(self, name=name, opd=opd, opd_index=opd_index, transmission=transmission,
                      segment_mask_file=segment_mask_file, npix=npix)
         self.v2v3 = v2v3
@@ -2698,13 +2699,7 @@ def enable_adjustable_ote(instr):
     elif isinstance(instr.pupilopd, fits.HDUList):
         opdpath = instr.pupilopd
     else:
-        # assume it is a string and try to use as filename
-        # either an absolute or relative directory path if that works,
-        # or else infer that it's a filename in the WebbPSF data directory.
-        if not os.path.exists(instr.pupilopd):
-            opdpath = os.path.join(instr._datapath, 'OPD', instr.pupilopd)
-        else:
-            opdpath = instr.pupilopd
+        opdpath = instr.get_opd_file_full_path(instr.pupilopd)
 
     pupilpath = instr.pupil
 
