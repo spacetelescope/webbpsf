@@ -841,14 +841,15 @@ class JWInstrument(SpaceTelescopeInstrument):
         """
 
         # ---- set pupil OPD
+        opd_index = None  # default assumption: OPD file is not a datacube
         if isinstance(self.pupilopd, str):  # simple filename
             opd_map = self.pupilopd if os.path.exists(self.pupilopd) else \
                 os.path.join(self._datapath, "OPD", self.pupilopd)
         elif hasattr(self.pupilopd, '__getitem__') and isinstance(self.pupilopd[0], str):
-            # tuple with filename and slice
+            # tuple with filename and slice, for a datacube
             opd_map = (self.pupilopd[0] if os.path.exists(self.pupilopd[0])
-                       else os.path.join(self._datapath, "OPD", self.pupilopd[0]),
-                       self.pupilopd[1])
+                       else os.path.join(self._datapath, "OPD", self.pupilopd[0]))
+            opd_index = self.pupilopd[1]
         elif isinstance(self.pupilopd, (fits.HDUList, poppy.OpticalElement)):
             opd_map = self.pupilopd  # not a path per se but this works correctly to pass it to poppy
         elif self.pupilopd is None:
@@ -889,6 +890,7 @@ class JWInstrument(SpaceTelescopeInstrument):
                 name='{} Entrance Pupil'.format(self.telescope),
                 transmission=pupil_transmission,
                 opd=opd_map,
+                opd_index=opd_index,
                 v2v3=self._tel_coords(), npix=npix
             )
 

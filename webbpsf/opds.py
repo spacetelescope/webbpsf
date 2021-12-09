@@ -111,7 +111,7 @@ class OPD(poppy.FITSOpticalElement):
             if None, will infer based on npix.
         ext : int, optional
             FITS extension to load OPD from
-        slice : int, optional
+        opd_index : int, optional
             slice of a datacube to load OPD from, if the selected extension contains a datacube.
 
         """
@@ -1127,7 +1127,7 @@ class OTE_Linear_Model_WSS(OPD):
             FITS extension to load OPD from
         transmission: str or fits.HDUList
             FITS file to load aperture transmission from.
-        slice : int, optional
+        opd_index : int, optional
             slice of a datacube to load OPD from, if the selected extension contains a datacube.
         segment_mask_file : str
             FITS file for pupil mask, with throughput from 0-1. If not explicitly provided, will
@@ -1149,8 +1149,8 @@ class OTE_Linear_Model_WSS(OPD):
             Size of OPD: npix x npix
 
         """
-
-        OPD.__init__(self, name=name, opd=opd, opd_index=opd_index, transmission=transmission, segment_mask_file=segment_mask_file, npix=npix)
+        OPD.__init__(self, name=name, opd=opd, opd_index=opd_index, transmission=transmission,
+                     segment_mask_file=segment_mask_file, npix=npix)
         self.v2v3 = v2v3
 
         # load influence function table:
