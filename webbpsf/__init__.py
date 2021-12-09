@@ -84,7 +84,7 @@ from poppy import ( display_psf, display_psf_difference, display_ee, measure_ee,
         measure_radial, measure_fwhm, measure_sharpness, measure_centroid,
         specFromSpectralType, fwcentroid)
 
-from .webbpsf_core import (Instrument, JWInstrument, NIRCam, NIRISS, NIRSpec,
+from .webbpsf_core import (instrument, SpaceTelescopeInstrument, JWInstrument, NIRCam, NIRISS, NIRSpec,
     MIRI, FGS)
 
 from .opds import enable_adjustable_ote
