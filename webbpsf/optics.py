@@ -708,32 +708,6 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
     allowable_kinds = ['nircamcircular', 'nircamwedge']
     """ Allowable types of BLC supported by this class"""
 
-    # Offsets along the bar occulters are based on
-    # outputs from John Stansberry's filt_baroffset.pro
-    # See https://github.com/mperrin/webbpsf/issues/63
-    # EDIT: updated on 8 Dec 2021 to grab offsets directly from pySIAF
-    # offset_swb = {"F182M": -1.856,
-    #               "F187N": -1.571,
-    #               "F210M": -0.071,
-    #               "F212N": 0.143,
-    #               "F200W": 0.232,
-    #               'narrow': -8.00}
-    """ Offsets per filter along SWB occulter for module A, in arcsec"""
-
-    # offset_lwb = {"F250M": 6.846,
-    #               "F300M": 5.249,
-    #               "F277W": 5.078,
-    #               "F335M": 4.075,
-    #               "F360M": 3.195,
-    #               "F356W": 2.455,
-    #               "F410M": 1.663,
-    #               "F430M": 1.043,
-    #               "F460M": -0.098,
-    #               "F480M": -0.619,
-    #               "F444W": -0.768,
-    #               'narrow': 8.0}
-    """ Offsets per filter along LWB occulter for module A, in arcsec"""
-
     def __init__(self, name="unnamed BLC", kind='nircamcircular', module='A', nd_squares=True,
                  bar_offset=None, auto_offset=None, **kwargs):
         super(NIRCam_BandLimitedCoron, self).__init__(name=name, kind=kind, **kwargs)
@@ -761,24 +735,11 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
             raise NotImplementedError("invalid name for NIRCam occulter: " + self.name)
 
         # EDIT: updated on 8 Dec 2021 to grab offsets directly from pySIAF
-        self.offset_swb = {"F182M": self.get_baroff_from_siaf("F182M", channel='SW'),
-                           "F187N": self.get_baroff_from_siaf("F187N", channel='SW'),
-                           "F210M": self.get_baroff_from_siaf("F210M", channel='SW'),
-                           "F212N": self.get_baroff_from_siaf("F212N", channel='SW'),
-                           "F200W": self.get_baroff_from_siaf("F200W", channel='SW'),
-                           'narrow': self.get_baroff_from_siaf('narrow', channel='SW')}
-        self.offset_lwb = {"F250M": self.get_baroff_from_siaf("F250M", channel='LW'),
-                           "F300M": self.get_baroff_from_siaf("F300M", channel='LW'),
-                           "F277W": self.get_baroff_from_siaf("F277W", channel='LW'),
-                           "F335M": self.get_baroff_from_siaf("F335M", channel='LW'),
-                           "F360M": self.get_baroff_from_siaf("F360M", channel='LW'),
-                           "F356W": self.get_baroff_from_siaf("F356W", channel='LW'),
-                           "F410M": self.get_baroff_from_siaf("F410M", channel='LW'),
-                           "F430M": self.get_baroff_from_siaf("F430M", channel='LW'),
-                           "F460M": self.get_baroff_from_siaf("F460M", channel='LW'),
-                           "F480M": self.get_baroff_from_siaf("F480M", channel='LW'),
-                           "F444W": self.get_baroff_from_siaf("F444W", channel='LW'),
-                           'narrow': self.get_baroff_from_siaf('narrow', channel='LW')}
+        self.siaf = pysiaf.Siaf('NIRCAM')
+        self.offset_swb = {filt: self.get_bar_offset_from_siaf(filt, channel='SW')
+                           for filt in ["F182M", "F187N", "F210M", "F212N", "F200W", 'narrow']}
+        self.offset_lwb = {filt: self.get_bar_offset_from_siaf(filt, channel='LW')
+                           for filt in ["F250M", "F300M", "F277W", "F335M", "F360M", "F356W", "F410M", "F430M", "F460M", "F480M", "F444W", 'narrow']}
 
         if bar_offset is None and auto_offset is not None:
             offsets = self.offset_swb if self.name.lower() == 'maskswb' else self.offset_lwb
@@ -796,22 +757,21 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
         else:
             self.bar_offset = None
 
-    def get_baroff_from_siaf(self, filt, channel='LW'):
+    def get_bar_offset_from_siaf(self, filt, channel='LW'):
         """ Get bar offset directly from SIAF.
         
         """
         
-        siaf = pysiaf.Siaf('NIRCAM')
-        if (channel == 'SW'):
+        if channel == 'SW':
             refapername = 'NRCA4_MASKSWB'
-            apername = 'NRCA4_MASKSWB_'+filt.upper()
+            apername = 'NRCA4_MASKSWB_' + filt.upper()
         else: # otherwise default to LW
             refapername = 'NRCA5_MASKLWB'
-            apername = 'NRCA5_MASKLWB_'+filt.upper()
-        offset_arcsec = np.sqrt((siaf.apertures[refapername].V2Ref-siaf.apertures[apername].V2Ref)**2+(siaf.apertures[refapername].V3Ref-siaf.apertures[apername].V3Ref)**2)
-        sign = np.sign(siaf.apertures[refapername].V2Ref-siaf.apertures[apername].V2Ref)
+            apername = 'NRCA5_MASKLWB_' + filt.upper()
+        offset_arcsec = np.sqrt((self.siaf.apertures[refapername].V2Ref - self.siaf.apertures[apername].V2Ref)**2 + (self.siaf.apertures[refapername].V3Ref - self.siaf.apertures[apername].V3Ref)**2)
+        sign = np.sign(self.siaf.apertures[refapername].V2Ref - self.siaf.apertures[apername].V2Ref)
         
-        return sign*offset_arcsec
+        return sign * offset_arcsec
 
     def get_transmission(self, wave):
         """ Compute the amplitude transmission appropriate for a BLC for some given pixel spacing
