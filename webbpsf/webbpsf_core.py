@@ -2375,11 +2375,11 @@ class FGS(JWInstrument):
 # Generic utility functions
 
 
-def Instrument(name):
+def instrument(name):
     """This is just a convenience function, allowing one to access instrument objects based on a string.
     For instance,
 
-    >>> t = Instrument('NIRISS')
+    >>> t = instrument('NIRISS')
 
 
 
@@ -2404,7 +2404,7 @@ def Instrument(name):
         raise ValueError("Incorrect instrument name " + name)
 
 
-Instrument.list = ['nircam', 'nirspec', 'niriss', 'miri']  # useful list for iteration
+instrument.list = ['nircam', 'nirspec', 'niriss', 'miri']  # useful list for iteration
 
 
 def calc_or_load_PSF(filename, inst, overwrite=False, **kwargs):

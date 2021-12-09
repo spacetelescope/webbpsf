@@ -24,7 +24,7 @@ def _exception_message_starts_with(excinfo, message_body):
 
 def test_calc_psf_catch_incompatible_oversampling():
     """Test that supplying all three oversampling arguments raises a ValueError"""
-    nc = webbpsf_core.Instrument('NIRCam')
+    nc = webbpsf_core.instrument('NIRCam')
     nc.pupilopd=None
     nc.filter='F212N'
 

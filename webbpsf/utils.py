@@ -447,7 +447,7 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, displa
 
     """
 
-    from .webbpsf_core import Instrument
+    from .webbpsf_core import instrument
     from poppy import display_psf
 
     if isinstance(HDUlist_or_filename, str):
@@ -470,7 +470,7 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, displa
 
     # Compute a comparison image
     _log.info("Now computing image with zero OPD for comparison...")
-    inst = Instrument(header['INSTRUME'])
+    inst = instrument(header['INSTRUME'])
     inst.filter = header['FILTER']
     inst.pupilopd = None  # perfect image
     inst.include_si_wfe = False  # perfect image

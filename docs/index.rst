@@ -19,10 +19,12 @@ WebbPSF is a Python package that computes simulated point spread functions (PSFs
 
 
 **Contributors:**
-WebbPSF has been developed by Marshall Perrin, Joseph Long, Shannon Osborne, Robel Geda, Neil Zimmerman, Marcio Melendez Hernandez, Lauren Chambers, Keira Brooks, and Anand Sivaramakrishnan, with contributions from Jarron Leisenring, Ewan Douglas, Charles Lajoie, Megan Sosey, Kathryn St.Laurent, and the developers of  the astropy-helpers template framework.
+WebbPSF has been developed by Marshall Perrin, Shannon Osborne, Robel Geda, Joseph Long, Justin Otor, Jarron Leisenring, Neil Zimmerman, Keira Brooks, and Anand Sivaramakrishnan, with contributions from Marcio Meléndez Hernandez, Alden Jurling, Lauren Chambers, Ewan Douglas, Charles Lajoie, Megan Sosey, and Kathryn St.Laurent. We also are grateful to the contributors of the astropy-helpers and stsci package templates.
 
 Getting Started with WebbPSF
 ----------------------------
+
+See :ref:`using_api`.
 
 .. admonition:: Quickstart Jupyter Notebook
 
