@@ -20,10 +20,7 @@ See https://github.com/spacetelescope/webbpsf/issues for currently open issues a
 * Coronagraphic masks are assumed to be perfect (i.e. the masks exactly match their design parameters.)
 * Most detector effects, such as intrapixel sensitivity variations or interpixel capacitance. There are currently no plans to include these WebbPSF itself.  Generate a subsampled PSF and use a separate detector model code instead. The one exception is a scattering artifact in the MIRI imager detector substrate.
 
-Road Map for Future Releases
---------------------------------
-* Continued validation and updates as needed based on further analyses of instrument and telescope hardware test data.
-* Support for the NIRSpec and MIRI IFUs may be added in a future release; level of detail is still TBD.
+------------------
 
 .. _whatsnew:
 
@@ -57,9 +54,9 @@ For JWST, this release includes updates to WebbPSF just prior to the launch. For
 * MIRI: Add capability for shifting MIRI coronagraph masks, consistent with NIRCam sim capabilities (:pr:`428` by :user:`JarronL`)
 * NIRCam: Higher fidelity model of NIRCam weak lenses, including field dependence, non-linear interactions between lenses,
   and as-built measured performances. (:pr:`496` by :user:`mperrin`, using results of calibration work by Randal Telfer)
-* All SIs: Substantial performance improvements speeding up the calculation of optical distortion (:pr:`429` by :user:`jarronL`)
+* All SIs: Substantial performance improvements speeding up the calculation of optical distortion (:pr:`429`, :user:`jarronL`)
 
-**Nancy Grace Roman Space Telescope model improvements**:
+**Nancy Grace Roman Space Telescope and instrument model improvements**:
 
 * Use of Cycle 9 optical and integrated modeling results.
 
@@ -73,6 +70,8 @@ For JWST, this release includes updates to WebbPSF just prior to the launch. For
 * Remove deprecated older code including the GUIs (:pr:`439` by :user:`mperrin`)
 * Streamline test suite to keep CI runtimes managable (:pr:`459` by :user:`mperrin`)
 
+------------------
+
 
 Version 0.9.2
 =============
@@ -83,13 +82,17 @@ This release only improves a subset of WFIRST functionality; additional improvem
 **WFIRST Improvements**
 
 - New Grism and Prism filters: [:pr:`416`, :pr:`471`, :user:`robelgeda`]
+
     - `GRISM_FILTER = 'G150'`
     - `PRISM_FILTER = 'P120'`
+
 - Changing filters to `G150` or  `P120` changes the mode of the WFI and the aberrations files (unless there is a user aberrations override) [:pr:`416`, :pr:`471`, :user:`robelgeda`]
 - New `WFI.mode`: Class property that returns the current mode of the WFI instance by passing the current filter to `WFI. _get_filter_mode`. WFI modes are: [:pr:`416`, :pr:`471`, :user:`robelgeda`]
+
     -  Imaging
     -  Grism
     -  Prisim
+
 - New `WFI.override_aberrations(aberrations_path)`: Overrides and locks the current aberrations with aberrations at `aberrations_path`. Lock means changing the filter/mode has no effect on the aberrations. [:pr:`416`, :pr:`471`, :user:`robelgeda`]
 - New `WFI.reset_override_aberrations()`: Releases `WFI.override_aberrations` lock and start using the default aberrations. [:pr:`416`, :pr:`471`, :user:`robelgeda`]
 - New Tests for mode and filter switching. [:pr:`416`, :pr:`471`, :user:`robelgeda`]

@@ -2,9 +2,9 @@
 
 .. _using_api:
 
-********************************
-Using WebbPSF via the Python API
-********************************
+*************
+Using WebbPSF 
+*************
 
 
 WebbPSF provides
@@ -18,7 +18,9 @@ See :ref:`this page <detailed_api>` for the detailed API; for now let's dive int
 Usage and Examples
 ==================
 
-Simple PSFs are easily obtained:
+Simple PSFs are easily obtained. 
+
+Instantiate a model of :py:class:`~webbpsf.NIRCam`, set attributes to configure a particular observing mode, then call :py:meth:`~webbpsf.JWInstrument.calc_psf`:
 
     >>> import webbpsf
     >>> nc = webbpsf.NIRCam()

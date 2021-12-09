@@ -24,6 +24,8 @@ WebbPSF has been developed by Marshall Perrin, Shannon Osborne, Robel Geda, Jose
 Getting Started with WebbPSF
 ----------------------------
 
+See :ref:`using_api`.
+
 .. admonition:: Quickstart Jupyter Notebook
 
    This documentation is complemented by an `Jupyter Notebook format quickstart tutorial <http://nbviewer.jupyter.org/github/spacetelescope/webbpsf/blob/stable/notebooks/WebbPSF_tutorial.ipynb>`_. Downloading and running that notebook is a great way to get started using WebbPSF.
