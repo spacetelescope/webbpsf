@@ -771,12 +771,14 @@ class JWInstrument(SpaceTelescopeInstrument):
         self.opd_list = []
         for filename in glob.glob(os.path.join(opd_path, 'OPD*.fits*')):
             self.opd_list.append(os.path.basename(os.path.abspath(filename)))
+        for filename in glob.glob(os.path.join(self._WebbPSF_basepath, 'JWST_OTE_OPD*.fits*')):
+            self.opd_list.append(os.path.basename(os.path.abspath(filename)))
 
         if not len(self.opd_list) > 0:
             raise RuntimeError("No pupil OPD files found for {name} in {path}".format(name=self.name, path=opd_path))
 
         self.opd_list.sort()
-        self.pupilopd = self.opd_list[-1]
+        self.pupilopd = self.opd_list[0]  # should be JWST_OTE_OPD_RevAA_prelaunch_predicted.fits.gz, or the ungzipped version if present
 
         self.pupil = os.path.abspath(os.path.join(
             self._WebbPSF_basepath,
@@ -842,14 +844,25 @@ class JWInstrument(SpaceTelescopeInstrument):
         """
 
         # ---- set pupil OPD
+
+        def get_opd_file_full_path(opdfilename):
+            # The OPD may be a local or absolute path,
+            # or relative implicitly within an SI directory, e.g. $WEBBPSF_PATH/NIRCam/OPD
+            # or relative implicitly within $WEBBPSF_PATH
+            if os.path.exists(opdfilename):
+                return opdfilename
+            elif self.name in opdfilename:
+                return os.path.join(self._datapath, "OPD", opdfilename)
+            else:
+                return os.path.join(self._WebbPSF_basepath, opdfilename)
+
+
         opd_index = None  # default assumption: OPD file is not a datacube
         if isinstance(self.pupilopd, str):  # simple filename
-            opd_map = self.pupilopd if os.path.exists(self.pupilopd) else \
-                os.path.join(self._datapath, "OPD", self.pupilopd)
+            opd_map = get_opd_file_full_path(self.pupilopd)
         elif hasattr(self.pupilopd, '__getitem__') and isinstance(self.pupilopd[0], str):
             # tuple with filename and slice, for a datacube
-            opd_map = (self.pupilopd[0] if os.path.exists(self.pupilopd[0])
-                       else os.path.join(self._datapath, "OPD", self.pupilopd[0]))
+            opd_map = get_opd_file_full_path(self.pupilopd)
             opd_index = self.pupilopd[1]
         elif isinstance(self.pupilopd, (fits.HDUList, poppy.OpticalElement)):
             opd_map = self.pupilopd  # not a path per se but this works correctly to pass it to poppy
