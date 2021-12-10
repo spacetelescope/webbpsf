@@ -298,7 +298,7 @@ def test_WFI_limits_interpolation_range():
 
 def test_coronagraph_detector_position():
     """ Test existence of the Coronagraph detector position etc, and that you can't set it."""
-    cor = roman.Coronagraph()
+    cor = roman.RomanCoronagraph()
 
     valid_pos = (512,512)
     assert cor.detector_position == valid_pos, "Coronagraph detector position isn't as expected"
@@ -310,10 +310,10 @@ def test_coronagraph_detector_position():
 
 def test_coronagraph_psf(display=False):
     """
-    Just test that instantiating Coronagraph works and can compute a PSF
+    Just test that instantiating RomanCoronagraph works and can compute a PSF
     without raising any exceptions
     """
-    char_spc = roman.Coronagraph()
+    char_spc = roman.RomanCoronagraph()
     char_spc.mode = 'CHARSPC_F660'
 
     #print('Reading instrument data from {:s}'.format(charspc._WebbPSF_basepath)

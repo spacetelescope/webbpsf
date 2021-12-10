@@ -169,14 +169,14 @@ add the hybrid Lyot modes.
     subject to change based on ongoing trades studies and technology development.
 
 
-A hands-on tutorial in using the Coronagraph class is available in this
+A hands-on tutorial in using the RomanCoronagraph class is available in this
 `Jupyter Notebook <http://nbviewer.ipython.org/github/spacetelescope/webbpsf/blob/stable/notebooks/roman_coronagraph_demo.ipynb>`_.
 Here we briefly summarize the key points, but see that for more detail.
 
 
-The Coronagraph class has attributes for  ``filter``, etc., like other instrument classes, but since these masks are designed to be
+The RomanCoronagraph class has attributes for  ``filter``, etc., like other instrument classes, but since these masks are designed to be
 used in specific combinations, a ``mode`` attribute exists that allows easy specification of all those attributes at once. For example, setting ::
-    >>> cor = roman.Coronagraph()
+    >>> cor = roman.RomanCoronagraph()
     >>> cor.mode = "CHARSPC_F770"
 
 is equivalent to::
