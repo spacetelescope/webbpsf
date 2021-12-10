@@ -14,7 +14,7 @@ TMPDIR="/tmp/webbpsf-data"
 
 ./make-data-sdist.sh $VER
 
-./make-minimal-datafiles.py  ${PWD}/webbpsf-data-${VER}.tar.gz
+./make-minimal-datafiles.py  ${PWD}/webbpsf-data-${VER}.tar.gz $VER
 
 
 echo
@@ -22,7 +22,7 @@ echo "================================================="
 echo "OUTPUT FILES:"
 echo
 echo ${PWD}/webbpsf-data-${VER}.tar.gz
-echo ~/tmp/minimal-webbpsf-data/minimal-webbpsf-data.tar.gz
+echo ~/tmp/minimal-webbpsf-data-${VER}/minimal-webbpsf-data-${VER}.tar.gz
 echo
 echo You probably want to test if those look as expected, and if so then copy into the Box folder 'webbpsf_data_public'
 echo "================================================="
