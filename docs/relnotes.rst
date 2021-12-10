@@ -58,7 +58,18 @@ For JWST, this release includes updates to WebbPSF just prior to the launch. For
 
 **Nancy Grace Roman Space Telescope and instrument model improvements**:
 
-* Use of Cycle 9 optical and integrated modeling results.
+* Use of Cycle 9 optical and integrated modeling results, including updated Zernike coefficients, pupil images, and filter throughputs.
+* Updated :py:obj:`~webbpsf.RomanInstrument` pointing stability to 12 milliarcseconds per axis, following new predictions [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
+* :py:obj:`WFI` wavelength range now covers 0.48 - 2.3 µm [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
+* Added ``WFI``'s new F213 filter [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
+* Renamed ``WFI``'s ``'P120'`` filter to ``'PRISM'`` [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
+* Split ``WFI``'s ``'G150'`` filter into ``'GRISM0'`` and ``'GRISM1'`` components to represent the transmission for the grism's  undispersed zeroth order and dispersed first order, respectively [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
+* Renamed WFI pupil masks to ``'SKINNY'`` (formerly ``'RIM_MASK'`` in version 0.9.2), ``'WIDE'`` (formerly ``'FULL_MASK'``), ``'GRISM'``, and ``'PRISM'`` (also formerly captured in ``'RIM_MASK'``) [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
+* Created new :py:meth:`~webbpsf.WFI.lock_pupil()` and :py:meth:`~webbpsf.WFI.lock_pupil_mask()` methods for advanced users who prefer to disable automated selections and instead stick with a specific pupil file or mask, respectively. The corresponding ``WFI.unlock_pupil()`` and ``WFI.unlock_pupil_mask()`` methods return the class to its normal behavior [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
+* Locked ``WFI.pupil`` and ``WFI.pupil_mask`` attributes from direct assignment given the new lock/unlock schema [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
+* Renamed ``WFI.override_aberrations()`` to :py:meth:`~webbpsf.WFI.lock_aberrations()` and ``WFI.reset_override_aberrations()`` to :py:meth:`~webbpsf.WFI.unlock_aberrations()` to reinforce the new lock/unlock schema [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
+* Condensed and refactored existing tests [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
+* New algorithm for field point nearest approximation/extrapolation [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
 
 **Software and Package Infrastructure Updates:**
 
@@ -135,7 +146,7 @@ There are no changes in reference data, so the WebbPSF reference data files for 
 - Improved the reproducibility of the thermal slew model with small updates to the ``update_opd`` and ``move_jsc_acf`` functions. [:pr:`339`, :user:`mperrin`]
 
 **Software and Package Infrastructure Updates:**
- 
+
 - *The minimum Python version is now 3.6.* [:pr:`353`, :user:`mperrin`]
 - Removed dependency on ``astropy-helpers`` sub-package [:pr:`337`, :user:`shanosborne`]
 - Fixed problem that resulted in the ``otelm/`` and ``tests/surs/`` sub-directories not installing correctly. [:pr:`356`, :user:`shanosborne`]
@@ -164,7 +175,7 @@ Note, when upgrading to this version you will need to update to the latest data 
 
 **WFIRST Improvements**
 
-- *The WFI optical model has been updated to use optical data from the Cycle 8 design revision.* These include updated Zernike coefficients for field-dependent wavefront error, and masked and unmasked pupil images for each SCA, and updated filter throughputs (consistent with values used in Pandeia 1.4.2). The correct pupil file will automatically be selected for each calculation based on the chosen detector position and filter.   The pupil files are consistent with those provided in the WFI cycle 8 reference information, but have been resampled onto a common pixel scale.  See :ref:`WFIRST instrument model details <wfirst_wfi>` for more.  [:pr:`309` :user:`robelgeda`] 
+- *The WFI optical model has been updated to use optical data from the Cycle 8 design revision.* These include updated Zernike coefficients for field-dependent wavefront error, and masked and unmasked pupil images for each SCA, and updated filter throughputs (consistent with values used in Pandeia 1.4.2). The correct pupil file will automatically be selected for each calculation based on the chosen detector position and filter.   The pupil files are consistent with those provided in the WFI cycle 8 reference information, but have been resampled onto a common pixel scale.  See :ref:`WFIRST instrument model details <wfirst_wfi>` for more.  [:pr:`309` :user:`robelgeda`]
 - Note, WFI's filters have been renamed so they all begin with “F”; see the table `here <https://github.com/spacetelescope/webbpsf/pull/309>`_ .
 - *The WFI wavelength range has now been extended to cover the 0.48 - 2.0 µm range.* [:pr:`309` :user:`robelgeda`]
 - *Expanded ``psf_grid`` method’s functionality so it can also be used to make grids of WFIRST PSFs.* Note that focal plane distortion is not yet implemented for WFIRST PSFs and so ``add_distortion`` keyword should not be used for this case. [:pr:`294`, :user:`shanosborne`]
@@ -173,7 +184,7 @@ Note, when upgrading to this version you will need to update to the latest data 
 
 **General bug fixes and small changes:**
 
-- *Many improvements in the PSF Grid functionality for generating photutils.GriddedPSFModels*: 
+- *Many improvements in the PSF Grid functionality for generating photutils.GriddedPSFModels*:
 
   - New options in ``psf_grid`` to specify both/either the output filename and output directory location. See this `Jupyter notebook <https://github.com/spacetelescope/webbpsf/blob/stable/notebooks/Gridded_PSF_Library.ipynb>`_ for examples. [:pr:`294`, :user:`shanosborne`]
   - sFfilenames when saving out a ``psf_grid`` FITS object which has it’s ``filename`` parameter set will now end with ``_det.fits`` instead of the previous ``_det_filt.fits`` [:pr:`294`, :user:`shanosborne`]
