@@ -911,7 +911,7 @@ class RomanCoronagraph(RomanInstrument):
         'DISKSPC_F721': ('IMAGER', 'F721', 'DISKSPC', 'DISKSPC_F721_ANNULUS', 'LS30D88')}
 
     def __init__(self, mode=None, pixelscale=None, fov_arcsec=None, apply_static_opd=False):
-        super().__init__("CGI", pixelscale=pixelscale)
+        super().__init__("RomanCoronagraph", pixelscale=pixelscale)
 
         self._detector_npixels = 1024
         self._detectors = {camera: 'placeholder' for camera in self.camera_list}
