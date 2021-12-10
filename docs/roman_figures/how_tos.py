@@ -1,22 +1,20 @@
 import matplotlib.pyplot as plt
-from webbpsf import roman
+from webbpsf import display_psf, roman
 
 #### Create webbpsf-roman_page_header.png
 wfi = roman.WFI()
 
-# UNRESOLVED: GRISM0 errors out. poppy's Instrument._get_weights()
-# drops wavelengths with throughputs <0.4. GRISM0's peak is well
-# below 0.1 and numpy won't take the min/max of an empty array.
-filters_no_grism0 = [f for f in wfi.filter_list if f != 'GRISM0']
+all_filters = [f for f in wfi.filter_list]
 
-long = 5 # should be 6 if GRISM0 is included
+long = 6
 wide = 2
 
 fig, axs = plt.subplots(wide, long, figsize=(12, 6), sharey=True)
 
-for i, filter in enumerate(sorted(filters_no_grism0)):
+for i, filter in enumerate(sorted(all_filters)):
     r = int(np.floor(i / long))
-    c = i % long
+    c = (i % long if i < long
+         else (i % long) + 1) # remove else for left-justified bottom row
     ax = axs[r][c]
 
     wfi.filter = filter
@@ -29,14 +27,13 @@ for i, filter in enumerate(sorted(filters_no_grism0)):
     ax.yaxis.label.set_visible(False)
 
 
-#axs[-1][-1].remove() # uncomment if GRISM0 is included again
+axs[-1][0].remove() # change last index to -1 to justify left
 
 fig.tight_layout(w_pad=.1, h_pad=0)
 fig.tight_layout(w_pad=.1, h_pad=0) # calling twice somehow tightens h_pad
-#fig.savefig('webbpsf-roman_page_header.png', dpi=100, facecolor='w')
+# fig.savefig('webbpsf-roman_page_header.png', dpi=100, facecolor='w')
 
 #### Create compare_wfi_sca09_sca17.png
-
 wfi2 = roman.WFI()
 wfi2.filter = 'F129'
 wfi2.detector = 'SCA09'
@@ -55,4 +52,13 @@ webbpsf.display_psf(psf_sca17, ax=ax_sca17, imagecrop=2.0,
 webbpsf.display_psf_difference(psf_sca09, psf_sca17, ax=ax_diff,
                                vmax=5e-3, title='SCA09 - SCA17', imagecrop=2.0)
 fig2.tight_layout(w_pad=.5)
-#fig2.savefig('compare_wfi_sca09_sca17.png', dpi=100, facecolor='w')
+# fig2.savefig('compare_wfi_sca09_sca17.png', dpi=100, facecolor='w')
+
+
+#### Create fig_coronagraph_spc_f770.png
+cor = roman.RomanCoronagraph()
+cor.mode = "CHARSPC_F770"
+
+fig, ax = plt.subplots(figsize=(8,7))
+mono_char_spc_psf = cor.calc_psf(nlambda=1, fov_arcsec=1.6, display=True)
+# fig.savefig('fig_coronagraph_spc_f770.png', dpi=100, facecolor='w')
