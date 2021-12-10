@@ -621,7 +621,7 @@ class OTE_Linear_Model_Elliott(OPD):
             FITS file to load an OPD from. The OPD must be specified in microns.
         ext : int, optional
             FITS extension to load OPD from
-        slice : int, optional
+        opd_index : int, optional
             slice of a datacube to load OPD from, if the selected extension contains a datacube.
         pupilfile : str
             FITS file for pupil mask, with throughput from 0-1. If not explicitly provided, will be inferred from
