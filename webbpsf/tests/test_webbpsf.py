@@ -24,7 +24,7 @@ def generic_output_test(iname):
     """
 
     _log.info("Testing image output sizes for %s " % iname)
-    inst = webbpsf_core.Instrument(iname)
+    inst = webbpsf_core.instrument(iname)
     pxscale = inst.pixelscale
     fov_arcsec = 5.0
 
@@ -74,7 +74,7 @@ def do_test_source_offset(iname, distance=0.5,  nsteps=1, theta=0.0, tolerance=0
     """
     _log.info("Calculating shifted image PSFs for "+iname)
 
-    si = webbpsf_core.Instrument(iname)
+    si = webbpsf_core.instrument(iname)
     si.pupilopd=None
 
     if iname=='NIRSpec':
@@ -154,7 +154,7 @@ def test_opd_selected_by_default():
 
 def test_calc_psf_rectangular_FOV():
     """ Test that we can create rectangular FOVs """
-    nc = webbpsf_core.Instrument('NIRCam')
+    nc = webbpsf_core.instrument('NIRCam')
     nc.pupilopd = None
     nc.filter = 'F212N'
 
@@ -183,7 +183,7 @@ def test_return_intermediates():
     nc.image_mask='maskswb'
     nc.pupil_mask='wedgelyot'
 
-    osys = nc._get_optical_system()
+    osys = nc.get_optical_system()
 
     psf, intermediates = nc.calc_psf(monochromatic=2e-6, return_intermediates=True)
     assert len(intermediates) == len(osys.planes)
@@ -195,7 +195,7 @@ def do_test_set_position_from_siaf(iname, more_apertures=[]):
     """ Test that we can use the mapping from image mask names to
     aperture names to set detector positions automatically when
     image masks are selected. """
-    inst = webbpsf_core.Instrument(iname)
+    inst = webbpsf_core.instrument(iname)
     for im in inst.image_mask_list:
         inst.image_mask = im
     for apname in more_apertures:
@@ -219,7 +219,7 @@ def test_calc_psf_format_output():
 
 
 def test_instrument():
-    nc = webbpsf_core.Instrument('NIRCam')
+    nc = webbpsf_core.instrument('NIRCam')
 
 
     try:
@@ -229,7 +229,7 @@ def test_instrument():
         return # We can't do this next test if we don't have the pytest.raises function.
 
     with pytest.raises(ValueError) as excinfo:
-        tmp = webbpsf_core.Instrument('ACS')
+        tmp = webbpsf_core.instrument('ACS')
     assert _exception_message_starts_with(excinfo,'Incorrect instrument name')
 
 

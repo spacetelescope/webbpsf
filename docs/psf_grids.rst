@@ -23,7 +23,7 @@ scattered across many megapixels of detector real estate.
 
 .. admonition:: Jupyter Notebook
 
-    See `this Gridded PSF Library tutorial notebook <https://github.com/spacetelescope/webbpsf/blob/master/notebooks/Gridded_PSF_Library.ipynb>`_ 
+    See `this Gridded PSF Library tutorial notebook <https://github.com/spacetelescope/webbpsf/blob/stable/notebooks/Gridded_PSF_Library.ipynb>`_
     for more details and example code.
 
 

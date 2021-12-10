@@ -31,15 +31,24 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
+import scipy.special as sp
 import scipy
 import astropy.table
 import astropy.io.fits as fits
 import astropy.units as u
 import logging
+from collections import OrderedDict
+import warnings
+from packaging.version import Version
+import copy
 
 import poppy
 import poppy.zernike as zernike
+
+import pysiaf
+
 from . import constants
+from . import surs
 from . import utils
 
 _log = logging.getLogger('webbpsf')
@@ -86,8 +95,7 @@ class OPD(poppy.FITSOpticalElement):
     """
 
     def __init__(self, name='unnamed OPD', opd=None, opd_index=0, transmission=None,
-                 segment_mask_file='JWpupil_segments.fits',
-                 **kwargs):
+                 segment_mask_file=None, npix=1024, **kwargs):
         """
         Parameters
         ----------
@@ -96,31 +104,52 @@ class OPD(poppy.FITSOpticalElement):
             compatible with the format expected by poppy.FITSOpticalElement.
         transmission: str
             FITS file for pupil mask, with throughput from 0-1. If not explicitly provided, will be inferred from
-            wherever is nonzero in the OPD file.
-
-
+            wherever is nonzero in the OPD file
+        npix: int
+            Number of pixels per side for the OPD. Can be 1024, 2048, 4096 with current data files.
+        segment_mask_file : string, or None
+            if None, will infer based on npix.
         ext : int, optional
             FITS extension to load OPD from
-        slice : int, optional
+        opd_index : int, optional
             slice of a datacube to load OPD from, if the selected extension contains a datacube.
 
         """
+
+        self.npix = npix
+
         if opd is None and transmission is None:
             _log.debug('Neither a pupil mask nor OPD were specified. Using the default JWST pupil.')
-            transmission = os.path.join(utils.get_webbpsf_data_path(), "jwst_pupil_RevW_npix1024.fits.gz")
+            transmission = os.path.join(utils.get_webbpsf_data_path(), f"jwst_pupil_RevW_npix{self.npix}.fits.gz")
 
-        super(OPD, self).__init__(name='Modified OPD',
+        super(OPD, self).__init__(name=name,
                                   opd=opd, transmission=transmission,
                                   opd_index=opd_index, transmission_index=0,
                                   planetype=poppy.poppy_core.PlaneType.pupil, **kwargs)
+
+        # Check that the shape of the OPD that has been passed, matches the npix parameters
+        if self.opd is not None:
+            if not self.opd.shape == (self.npix, self.npix):
+                raise ValueError(f"npix value of {self.npix} does not match shape of OPD provided: {self.opd.shape}")
 
         if self.opd_header is None:
             self.opd_header = self.amplitude_header.copy()
 
         self.segnames = np.asarray([a[0:2] for a in constants.SEGNAMES_WSS_ORDER])
 
+        if segment_mask_file is None:
+            segment_mask_file = f'JWpupil_segments_RevW_npix{self.npix}.fits.gz'
+
         full_seg_mask_file = os.path.join(utils.get_webbpsf_data_path(), segment_mask_file)
+        if not os.path.exists(full_seg_mask_file):
+            # try without .gz
+            full_seg_mask_file = os.path.join(utils.get_webbpsf_data_path(), f"JWpupil_segments_RevW_npix{npix}.fits")
+
         self._segment_masks = fits.getdata(full_seg_mask_file)
+        if not self._segment_masks.shape[0] == self.npix:
+            raise ValueError(f"The shape of the segment mask file {self._segment_masks.shape} does not match the shape expect: ({self.npix}, {self.npix})")
+
+        self._segment_masks_version = fits.getheader(full_seg_mask_file)['VERSION']
 
         # Where are the centers of each segment?  From OTE design geometry
         self._seg_centers_m = {seg[0:2]: np.asarray(cen)
@@ -240,7 +269,7 @@ class OPD(poppy.FITSOpticalElement):
             y = radius * np.sin(t) + ycen
             plt.plot(x, y, **kwargs)
 
-        cmap = matplotlib.cm.get_cmap(poppy.conf.cmap_diverging)
+        cmap = copy.copy(matplotlib.cm.get_cmap(poppy.conf.cmap_diverging))
         cmap.set_bad('0.3')
 
         plt.clf()
@@ -297,8 +326,9 @@ class OPD(poppy.FITSOpticalElement):
         return np.asarray(components)
 
     def display_opd(self, ax=None, labelsegs=True, vmax=150., colorbar=True, clear=False, title=None, unit='nm',
+                    pupil_orientation='entrance_pupil',
                     cbpad=None, colorbar_orientation='vertical',
-                    show_axes=False, show_rms=True,
+                    show_axes=False, show_rms=True, show_v2v3=False,
                     cmap=None):
         """ Draw on screen the perturbed OPD
 
@@ -308,7 +338,14 @@ class OPD(poppy.FITSOpticalElement):
             axes instance to display into.
         labelsegs : bool
             draw segment name labels on each segment? default True.
-
+        show_axes: bool
+            Draw local control axes per each segment
+        show_rms : bool
+            Annotate the RMS wavefront value
+        show_v2v3:
+            Draw the observatory V2V3 coordinate axes
+        pupil_orientation : string
+            either 'entrance_pupil' or 'exit_pupil', for which orientation we should display the OPD in.
         clear : bool
             Clear plot window before display? default true
         unit : str
@@ -325,12 +362,29 @@ class OPD(poppy.FITSOpticalElement):
         else:
             raise ValueError("unknown unit keyword")
 
+        # The actual OPD data is stored in "entrance pupil" orientation, looking in to JWST,
+        # by convention and for consistency with the JWST WSS.
+        # In the case of JWST it turns out the "exit pupil" orientation is in effect a vertical
+        # flip. This is because of (1) inversion in both X and Y axes from the physical entrance pupil
+        # at the primary to the real image of that pupil on the FSM which is the OTE exit pupil, plus
+        # (2) the change in viewing convention from "in front of OTE looking in" to "at the instruments
+        # looking outward". That results in a flip in the X axis. Thus overall we can just flip the
+        # Y axis to get to the exit pupil orientation. In this display function we can do that using the
+        # origin parameter to matplotlib.imshow. In the actual optical propagation we do that with a
+        # poppy coordinate transform instance.
+        if pupil_orientation=='entrance_pupil':
+            origin='lower'
+        elif pupil_orientation == 'exit_pupil':
+            origin = 'upper'
+        else:
+            raise ValueError("pupil_orientation must be 'entrance_pupil' or 'exit_pupil'.")
+
         if clear:
             if ax is not None:
                 raise RuntimeError("'clear=True' is incompatible with passing in an Axes instance.")
             plt.clf()
         if cmap is None:
-            cmap = matplotlib.cm.get_cmap(poppy.conf.cmap_diverging)
+            cmap = copy.copy(matplotlib.cm.get_cmap(poppy.conf.cmap_diverging))
         cmap.set_bad('0.3')
 
         mask = np.ones_like(self.opd)
@@ -346,7 +400,7 @@ class OPD(poppy.FITSOpticalElement):
         if ax is None:
             ax = plt.gca()
 
-        plot = ax.imshow(self.opd * mask * scalefact, vmin=-vmax, vmax=vmax, cmap=cmap, extent=extent, origin='lower')
+        plot = ax.imshow(self.opd * mask * scalefact, vmin=-vmax, vmax=vmax, cmap=cmap, extent=extent, origin=origin)
 
         _log.debug("Displaying OPD. Vmax is %f, data max is %f " % (vmax, self.opd.max()))
 
@@ -355,10 +409,12 @@ class OPD(poppy.FITSOpticalElement):
         ax.set_title(title)
         if show_rms:
             ax.set_xlabel("RMS WFE = %.1f nm" % self.rms())
+        if show_v2v3:
+            utils.annotate_ote_pupil_coords(None, ax, orientation=pupil_orientation)
 
         if labelsegs:
             for seg in self.segnames[0:18]:
-                self.label_seg(seg, ax=ax, show_axes=show_axes)
+                self.label_seg(seg, ax=ax, show_axes=show_axes, pupil_orientation=pupil_orientation)
         if colorbar:
             if cbpad is None:
                 cbpad = 0.05 if colorbar_orientation == 'vertical' else 0.15
@@ -370,23 +426,24 @@ class OPD(poppy.FITSOpticalElement):
 
         return ax, cb
 
-    def label_seg(self, segment, ax=None, show_axes=False, color='black'):
-        # Y, X = np.indices(self.opd.shape)
-
-        # base = {'A':0, 'B':6,'C':12}
-        # iseg = np.where(self.segnames == segment)[0][0] + 1  # segment index from 1 - 18
-        # iseg = base[segment.upper()[0]]+int(segment[1])
-        # wseg = np.where(self._segment_masks == iseg)
-        # pupilscale = self.opd_header['PUPLSCAL']
+    def label_seg(self, segment, ax=None, show_axes=False, color='black', pupil_orientation='entrance_pupil'):
+        """ Annotate a plot with a text label for a particular segment """
         cx, cy = self._seg_centers_m[segment]
-        # cx = (np.mean([X[wseg].min(), X[wseg].max()])  -512) * pupilscale
-        # cy = (np.mean([Y[wseg].min(), Y[wseg].max()])  -512) * pupilscale
+
+        # See note about pupil orientations in OPD.display_opd() for explanation
+        # of the Y axis signs here
+        if pupil_orientation == 'entrance_pupil':
+            ysign = 1
+        elif pupil_orientation == 'exit_pupil':
+            ysign = -1
+        else:
+            raise ValueError("pupil_orientation must be 'entrance_pupil' or 'exit_pupil'.")
 
         offset = 0.2 if show_axes else 0
 
         if ax is None:
             ax = plt.gca()
-        label = ax.text(cx + offset, cy + offset, segment, color=color, horizontalalignment='center', verticalalignment='center')
+        label = ax.text(cx + offset, (cy + offset)*ysign, segment, color=color, horizontalalignment='center', verticalalignment='center')
 
         if show_axes:
             ax_arrow_len = .3
@@ -399,12 +456,12 @@ class OPD(poppy.FITSOpticalElement):
                     b = self._rot_matrix_local_to_global(segment) * vec
                     b = np.asarray(b).flatten()  # Inelegant but it works
 
-                    ax.arrow(cx, cy, ax_arrow_len * b[0], ax_arrow_len * b[1], color=color,
+                    ax.arrow(cx, cy*ysign, ax_arrow_len * b[0], (ax_arrow_len * b[1])*ysign, color=color,
                              # width=ax,
                              head_width=.050, head_length=.080)  # in units of mm
 
                     xoffset = 0.1 if i == 2 else 0
-                    ax.text(cx + ax_arrow_len * b[0] * 1.5 + xoffset, cy + ax_arrow_len * b[1] * 1.5, label,
+                    ax.text(cx + ax_arrow_len * b[0] * 1.5 + xoffset, (cy + ax_arrow_len * b[1] * 1.5)*ysign, label,
                             color=color, fontsize=8,
                             horizontalalignment='center', verticalalignment='center'
                             )
@@ -464,7 +521,7 @@ class OPD(poppy.FITSOpticalElement):
         npix = 200
         hexap = zernike.hex_aperture(npix)
         hexap[np.where(hexap == 0)] = np.nan
-        cmap = matplotlib.cm.jet
+        cmap = copy.copy(matplotlib.cm.get_cmap('jet'))
         cmap.set_bad('0.5', alpha=0.0)
 
         for j in np.arange(nzerns) + 1:
@@ -556,7 +613,7 @@ class OTE_Linear_Model_Elliott(OPD):
 
     """
 
-    def __init__(self, opd=None, opd_index=0, transmission=None, rm_ptt=False, zero=False):
+    def __init__(self, opd=None, opd_index=0, transmission=None, rm_ptt=False, rm_piston=False, zero=False):
         """
         Parameters
         ----------
@@ -564,13 +621,15 @@ class OTE_Linear_Model_Elliott(OPD):
             FITS file to load an OPD from. The OPD must be specified in microns.
         ext : int, optional
             FITS extension to load OPD from
-        slice : int, optional
+        opd_index : int, optional
             slice of a datacube to load OPD from, if the selected extension contains a datacube.
         pupilfile : str
             FITS file for pupil mask, with throughput from 0-1. If not explicitly provided, will be inferred from
             wherever is nonzero in the OPD file.
         rm_ptt : bool
             Remove piston, tip and tilt from all segments if set. Default is False.
+        rm_piston : bool
+            Remove piston only from all segments if set. Default is False
         zero : bool
             If set, reate an OPD which is precisely zero in all locations. Default is False.
 
@@ -582,6 +641,7 @@ class OTE_Linear_Model_Elliott(OPD):
         self._sensitivities = astropy.table.Table.read(os.path.join(__location__, 'otelm', 'seg_sens.txt'), format='ascii', delimiter='\t')
         self.state = {}
         self.remove_piston_tip_tilt = rm_ptt
+        self.remove_piston_only = rm_piston
 
         self._opd_original = self.opd.copy()
         if zero:
@@ -788,6 +848,9 @@ class OTE_Linear_Model_Elliott(OPD):
 
         if self.remove_piston_tip_tilt:
             zernike_coeffs[0:3] = 0
+        elif self.remove_piston_only:
+            zernike_coeffs[0] = 0
+
         for i in range(len(zernike_coeffs)):
             zern = zernike.zernike1(i + 1, rho=Rw, theta=theta) * zernike_coeffs[i]
             self.opd[wseg] += zern
@@ -1051,8 +1114,10 @@ class OTE_Linear_Model_WSS(OPD):
 
     """
 
-    def __init__(self, name='Unnamed OPD', opd=None, opd_index=0, transmission=None, segment_mask_file='JWpupil_segments.fits',
-                 zero=False, rm_ptt=False):
+    def __init__(self, name='Unnamed OPD', opd=None, opd_index=0, transmission=None,
+                 segment_mask_file=None, zero=False, rm_ptt=False,
+                 rm_piston=False, v2v3=None, control_point_fieldpoint='nrca3_full',
+                 npix=1024, include_nominal_field_dependence=True):
         """
         Parameters
         ----------
@@ -1060,30 +1125,55 @@ class OTE_Linear_Model_WSS(OPD):
             FITS file to load an OPD from. The OPD must be specified in microns.
         opd_index : int, optional
             FITS extension to load OPD from
-        transmission: ??
-            ??
-        slice : int, optional
+        transmission: str or fits.HDUList
+            FITS file to load aperture transmission from.
+        opd_index : int, optional
             slice of a datacube to load OPD from, if the selected extension contains a datacube.
         segment_mask_file : str
             FITS file for pupil mask, with throughput from 0-1. If not explicitly provided, will
-            use JWpupil_segments.fits
-        zero: ??
-            ??
+            use JWpupil_segments_RevW_npix1024.fits, or equivalent for other value of npix
+        zero: bool
+            Load a perfectly zero OPD, overriding anything present in the opdfile parameter.
         rm_ptt : bool
-            Remove piston, tip, and tilt? This is mostly for visualizing the higher order parts of
+            Remove piston, tip, and tilt terms, per segment? This is mostly for visualizing the higher order parts of
             the LOM.
+        v2v3 : tuple of 2 astropy.Quantities
+            Tuple giving V2,v3 coordinates as quantities, typically in arcminutes, or None to default to
+            the master chief ray location between the two NIRCam modules.
+        include_nominal_field_dependence : bool
+            Include the Zernike polynomial model for OTE field dependence for the nominal OTE.
+            Note, if OPD is None, then this will be ignored and the nominal field dependence will be disabled.
+        control_point_fieldpoint: str
+            A parameter used in the field dependence model for a misaligned secondary mirror.
+            Name of the field point where the OTE MIMF control point is located, on instrument defined by "control_point_instr".
+            Default: 'nrca3_full'.
+            The OTE control point is the field point to which the OTE has been aligned and defines the field angles
+            for the field-dependent SM pose aberrations.
+        npix : int
+            Size of OPD: npix x npix
 
         """
 
-        OPD.__init__(self, name=name, opd=opd, opd_index=opd_index, transmission=transmission, segment_mask_file=segment_mask_file)
+        OPD.__init__(self, name=name, opd=opd, opd_index=opd_index, transmission=transmission,
+                     segment_mask_file=segment_mask_file, npix=npix)
+        self.v2v3 = v2v3
 
         # load influence function table:
         self._influence_fns = astropy.table.Table.read(os.path.join(__location__, 'otelm', 'JWST_influence_functions_control_with_sm.fits'))
 
-        #fix IFM sign convention for consistency to WSS
-        cnames = self._influence_fns.colnames
-        for icol in cnames[3:]:
-            self._influence_fns[icol] *= -1
+        # With updated sign convention in poppy 1.0.0, the WSS influence function values can be used in WebbPSF directly,
+        # with no change in sign.
+        if Version(poppy.__version__) < Version('1.0'):
+            # For earlier poppy versions, fix IFM sign convention for consistency to WSS
+            cnames = self._influence_fns.colnames
+            for icol in cnames[3:]:
+                self._influence_fns[icol] *= -1
+
+        # WFTP10 hotfix for RoC sign inconsitency relative to everything else, due to outdated version of WAS IFM used in table construction.
+        # FIXME update the IFM file on disk and then delete the next three lines
+        roc_rows = self._influence_fns['control_mode']=='ROC'
+        for icol in self._influence_fns.colnames[3:]:
+            self._influence_fns[icol][roc_rows] *= -1
 
         self._control_modes = ['Xtilt', 'Ytilt', 'Piston', 'Clocking', 'Radial', 'ROC']
         self._sm_control_modes = ['Xtilt', 'Ytilt', 'Xtrans', 'Ytrans', 'Piston']
@@ -1095,8 +1185,20 @@ class OTE_Linear_Model_WSS(OPD):
 
         self._opd_original = self.opd.copy()  # make a separate copy
         self.remove_piston_tip_tilt = rm_ptt
-        self._global_zernike_coeffs = np.zeros(15)
-        self._global_hexike_coeffs = np.zeros(15)
+        self.remove_piston_only = rm_piston
+        # Arbitrary additional perturbations can be added, ad hoc, as either Zernike or Hexike coefficients over the
+        # whole primary. Use move_global_zernikes for a convenient interface to this.
+        self._number_global_zernikes = 9
+        self._global_zernike_coeffs = np.zeros(self._number_global_zernikes)
+        self._global_hexike_coeffs = np.zeros(self._number_global_zernikes)
+
+        # Field dependence model data
+        # Note, if the OTE is set to None, we disable this automatically. This is to enable modeling the ideal case with
+        # truly NO WFE for opd=None.
+        self._include_nominal_field_dep = include_nominal_field_dependence if opd else False
+        self._field_dep_file = None
+        self._field_dep_hdr = None
+        self._field_dep_data = None
 
         # Thermal OPD parameters
         self.delta_time = 0.0
@@ -1105,11 +1207,32 @@ class OTE_Linear_Model_WSS(OPD):
         self.scaling = None
         self._thermal_model = OteThermalModel() # Initialize thermal model object
 
+        self._thermal_wfe_amplitude = 0.0
         self._frill_wfe_amplitude = 0.0
         self._iec_wfe_amplitude = 0.0
 
+        self.meta = OrderedDict()  # container for arbitrary extra metadata
+
+        # DETERMINE INSTRUMENT BASED ON CONTROL FIELD POINT NAME:
+        self.control_point_fieldpoint = control_point_fieldpoint
+        control_point_detector = self.control_point_fieldpoint.split("_")[0]
+        if 'nrc' in control_point_detector:
+            control_point_instr = 'nircam'
+        elif 'miri' in control_point_detector:
+                control_point_instr = 'miri'
+        elif 'nis' in control_point_detector:
+                control_point_instr = 'niriss'
+        elif 'nrs' in control_point_detector:
+                control_point_instr = 'nirspec'
+
+        self.ote_control_point = pysiaf.Siaf(control_point_instr)[self.control_point_fieldpoint.upper()].reference_point('tel')*u.arcsec
+        
         if zero:
             self.zero()
+        else:
+            if self.v2v3 is not None:
+                # Run an update immediately after initialization, to apply the field dependence model automatically
+                self.update_opd()
 
     # ---- overall state manipulation
 
@@ -1135,6 +1258,7 @@ class OTE_Linear_Model_WSS(OPD):
         """
         self.opd *= 0
         self.segment_state *= 0
+        self._thermal_wfe_amplitude = 0
         self._frill_wfe_amplitude = 0
         self._iec_wfe_amplitude = 0
         if zero_original:
@@ -1231,13 +1355,10 @@ class OTE_Linear_Model_WSS(OPD):
         # so here we can just work in unrotated coordinates.
 
         # determine the X and Y hexike coordinates for each segment
-        # determine the center of each segment, as the mean of the min and max X and Y values
-        # FIXME this should just use the BATC-provided center coordinates; see jwst_ote3d.py
+        # determine the center of each segment using the BATC-provided center coordinates; see constants.py
 
         Y, X = np.indices(self.opd.shape, dtype=float)
         cx, cy = self._seg_centers_pixels[segment]
-        # cx = np.mean([X[wseg].min(), X[wseg].max()])
-        # cy = np.mean([Y[wseg].min(), Y[wseg].max()])
 
         seg_radius = (X[wseg].max() - X[wseg].min()) / 2.0
 
@@ -1254,49 +1375,427 @@ class OTE_Linear_Model_WSS(OPD):
 
         hexikes = zernike.hexike_basis_wss(x=Xc, y=Yc, nterms=len(hexike_coeffs),
                                            aperture=apmask)
+        # returns a list of hexike array values each with the same shape as Xc
 
-        # returns a list of hexikes each with the same shape as Xc
         if self.remove_piston_tip_tilt:
+            # Save the values of the PTT we are removing, for optional reference elsewhere
+            self.meta[f'S{iseg:02d}PISTN'] = (hexike_coeffs[0], f"[m] Hexike piston coeff for segment {segment}")
+            self.meta[f'S{iseg:02d}XTILT'] = (hexike_coeffs[1], f"[m] Hexike X tilt coeff for segment {segment}")
+            self.meta[f'S{iseg:02d}YTILT'] = (hexike_coeffs[2], f"[m] Hexike Y tilt coeff for segment {segment}")
+
             hexike_coeffs[0:3] = 0
+        elif self.remove_piston_only:
+            self.meta[f'S{iseg:02d}PISTN'] = (hexike_coeffs[0], f"[m] Hexike piston coeff for segment {segment}")
+            hexike_coeffs[0] = 0
+        else:
+            # If remove_piston_tip_tilt is off, we shouldn't output those extra keywords, so
+            # delete any prior saved values for those.
+            try:
+                del self.meta[f'S{iseg:02d}PISTN']
+                del self.meta[f'S{iseg:02d}XTILT']
+                del self.meta[f'S{iseg:02d}YTILT']
+            except:
+                pass
 
         for i in range(len(hexike_coeffs)):
             if hexike_coeffs[i] == 0:
                 continue
             self.opd[wseg] += hexikes[i] * hexike_coeffs[i]
 
-        # outtxt="Hs=["+", ".join(['%.1e'%z for z in hexike_coeffs])+"]"
-        # _log.debug("     "+outtxt)
 
     def _apply_global_zernikes(self):
         """ Apply Zernike perturbations to the whole primary
 
         """
 
-        if not self.opd.shape == (1024, 1024):
-            raise NotImplementedError("Code need to be generalized for OPD sizes other than 1024**2")
         perturbation = poppy.zernike.opd_from_zernikes(self._global_zernike_coeffs,
-                                                       npix=1024,
+                                                       npix=self.npix,
+                                                       outside=0,
                                                        basis=poppy.zernike.zernike_basis_faster)
+        # Add perturbation to the opd
+        self.opd += perturbation
 
-    def _apply_global_hexikes(self):
+    def _apply_global_hexikes(self, coefficients=None):
         """ Apply Hexike perturbations to the whole primary
 
+        Parameters
+        ----------
+        coefficients : ndarray. By default this applies the self._global_hexike_coeffs values, but
+            you can override that by optionally providing different coefficients to this function.
+            In particular this is used behind the scenes for adding the thermal slew global terms 
+            onto any other global hexikes already present. See update_opd()
         """
+
+        if coefficients is None:
+            coefficients = self._global_hexike_coeffs
+
         def _get_basis(*args, **kwargs):
-            """ Conveince function to make basis callable """
+            """ Convenience function to make basis callable """
             return basis
         # Define aperture as the full OTE
         aperture = self._segment_masks != 0
-        # Get size of mask (1024)
-        npix = np.shape(aperture)[0]
-        basis = poppy.zernike.hexike_basis_wss(nterms=9, npix=npix, aperture=aperture > 0.)
+        basis = poppy.zernike.hexike_basis_wss(nterms=self._number_global_zernikes, npix=self.npix, aperture=aperture > 0.)
         # Use the Hexike basis to reconstruct the global terms
-        perturbation = poppy.zernike.opd_from_zernikes(self._global_hexike_coeffs,
+        perturbation = poppy.zernike.opd_from_zernikes(coefficients,
                                                        basis=_get_basis,
-                                                       aperture=aperture > 0.)
+                                                       aperture=aperture > 0.,
+                                                       outside=0)
         perturbation[~np.isfinite(perturbation)] = 0.0
         # Add perturbation to the opd
         self.opd += perturbation
+
+    #---- OTE field dependence is implemented across the next several functions ----
+    def _apply_field_dependence_model(self, reference='global', **kwargs):
+        """Apply field dependence model for OTE wavefront error spatial variation.
+
+        Includes SM field-dependent model for OTE wavefront error as a function of field angle and SM pose amplitude,
+        and model for field-dependence of a nominal (perfectly aligned) OTE.
+
+        Updates self.opd based on V2V3 coordinates and amplitude of SM pose.
+
+        """
+        if self.v2v3 is None:
+            # if this OTE linear model instance does not have field coordinates set,
+            # we cannot apply field dependence.
+            return
+
+        # Model field dependence for the nominal OTE, based on Code V model coefficients
+        if self._include_nominal_field_dep:
+            field_dep_nominal = self._get_field_dependence_nominal_ote(self.v2v3, reference=reference, **kwargs)
+            self.opd += field_dep_nominal
+            self.opd_header['HISTORY'] = 'Applied OTE nominal field-dependent aberrations'
+
+        # Model field dependence from a misaligned secondary mirror
+        # (only do so if the SM is in fact misaligned)
+        if not np.allclose(self.segment_state[-1], 0):
+            field_dep_sm_perturbation = self._get_field_dependence_secondary_mirror(self.v2v3)
+            self.opd += field_dep_sm_perturbation
+            self.opd_header['HISTORY'] = 'Applied OTE SM alignment field-dependent aberrations (MIMF)'
+
+
+    def _get_hexike_coeffs_from_smif(self, dx=0., dy=0.):
+        '''     
+        Apply Secondary Mirror field dependence based on SM pose and field angle,
+        using coefficients from the Secondary Mirror Influence Functions
+
+        NOTES:
+        Wavefront Phi(x,y) = Sum[ m_j * Sum[ (alpha_jk*dx + beta_jk*dy)*Z_k ] ]
+        where m_j is the SM mode error (0: X-trans, 1: Y-trans, 2: X-tilt, 3: Y-tilt);
+        dx/dy are the field separation from the control point, in radians;
+        Z_k are the Zernike (3: defocus, 4: 0-Degree Astig, 5: 45-Degree Astig);
+        alpha and beta are taken from the SMIF_Matrix/hexike.csv calculated 
+        by Randal Telfer.
+        
+        See Also Ball SER 2288152 "JWST WFSC MIMF Control Algorithm Design".
+
+        Parameters
+        ----------
+        dx, dy = field angles, in radians, from the OTE control point (nominally, NRCA3_FULL).
+
+        Returns:
+        ----------
+        Hexike coefficients, in microns, for the first nine (9) coefficients, with PTT explicitly set to zero.
+
+        '''
+        
+        # GET SM POSE:
+        # RE-ORDER SUCH THAT (1) X-TRANS, (2) Y-TRANS, (3) X-TILT, (4) Y-TILT.
+        sm_errors = [self.segment_state[-1, 2],    # X-TRANS
+                     self.segment_state[-1, 3],    # Y-TRANS
+                     self.segment_state[-1, 0],    # X-TILT
+                     self.segment_state[-1, 1],    # Y-TILT
+                     self.segment_state[-1, 4]]    # PISTON
+
+        # GET SM INFLUENCE MATRIX:
+        # HEXIKE PROJECTED ONTO ENTRANCE PUPIL (WHAT WEBBPSF NEEDS):
+        smif = astropy.table.Table.read(os.path.join(__location__, 'otelm', "SMIF_hexike.csv"), header_start=5)
+
+        alphas = smif[smif['Type'] == 'alpha']
+        betas  = smif[smif['Type'] == 'beta']
+
+        # NOW, WE SUM UP THE ALPHAS AND BETAS FOR EACH HEXIKE,
+        # AS DESCRIBED IN THE DOC STRING ABOVE.
+        coeffs = np.zeros((6))
+        for i, icol in enumerate(smif.colnames[2:]):
+            coeffs[i] = np.sum( (alphas[icol]*dx + betas[icol]*dy )*sm_errors)
+
+        # PAD IN ZEROS FOR PISTON, TIP, TILT:
+        coeffs = np.insert(coeffs, 0, [0., 0., 0.])
+    
+        return coeffs
+
+    def _get_field_dependence_secondary_mirror(self, v2v3):
+        """Calculate field dependence model for OTE with misaligned secondary mirror,
+        as is to be corrected by MIMF (Multi Instrument Multi Field) sensing.
+
+        Returns OPD based on V2V3 coordinates using model for secondary mirror influence functions.
+
+        Parameters
+        ----------
+        v2v3 : tuple
+            JWST focal plane coordinates (V2,V3) as a tuple of astropy Quantities with angular dimension
+        """
+        # Model field dependence from any misalignment of the secondary mirror
+        dx = -(v2v3[0] - self.ote_control_point[0]).to( u.rad).value
+        # NEGATIVE SIGN IN THE ABOVE B/C TELFER'S FIELD ANGLE COORD. SYSTEM IS (X,Y) = (-V2,V3)
+        dy = (v2v3[1] - self.ote_control_point[1]).to(u.rad).value
+        z_coeffs = self._get_hexike_coeffs_from_smif(dx, dy)
+        perturbation = poppy.zernike.opd_from_zernikes(z_coeffs, npix=self.npix,
+                                                       basis=poppy.zernike.hexike_basis_wss, aperture=self.amplitude,
+                                                       outside=0)
+        if Version(poppy.__version__) < Version('1.0'):
+            wfe_sign = -1  # In earlier poppy versions, fix sign convention for consistency with WSS
+        else:
+            wfe_sign = 1
+
+        for i in range(3,9):
+            self.opd_header[f'SMIF_H{i}'] = (z_coeffs[i], f"Hexike coeff from S.M. influence fn model")
+        self.opd_header['HISTORY'] = ('Field point (x,y): ({})'.format(v2v3))
+        self.opd_header['HISTORY'] = (
+            'Control point: {} ({})'.format(self.control_point_fieldpoint.upper(), self.ote_control_point))
+        self.opd_header['HISTORY'] = ('Delta x/y: {} {} (radians))'.format(dx, dy))
+
+        return perturbation * (1e-6 * wfe_sign)
+
+
+    def _get_field_dependence_nominal_ote(self, v2v3, reference='global',
+                                          zern_num=78, legendre_num=None, assume_si_focus=True):
+        """Calculate field dependence model for OTE nominal wavefront error spatial variation,
+
+        Returns OPD based on V2V3 coordinates using model(s) for spatial variations.
+
+        zern_num and legendre_num allow for fewer terms to be used in calculating the wavefront at a field angle
+        than are specified in the calibration files.  This is to reduce required computation if the increase in
+        accuracy isn't needed.
+
+        The precomputed data files support up to 136 Zernikes, but using higher numbers provides diminishing
+        returns for the increased computation time. Tests have shown that using 78 Zernikes yields within
+        7-10 nm of the result of the full model, and 36 Zernikes yields within 15 nm.
+
+        Parameters
+        ----------
+        v2v3 : tuple
+           (v2,v3) coordinates
+        reference : str
+           should always be "global" in the current implementation.
+        zern_num : int
+            Number of Zernikes to use to represent the WFE at each field point
+        legendre_num : int
+        assume_si_focus : bool
+            Assume that the SIs have been independently refocused, i.e. take out the net average
+            defocus per each SI from the overall focal plane curvature
+        """
+        # The code for this is now split up into several sub-functions for improved clarity.
+
+        if v2v3 is None:  # pragma: no cover
+            return 0
+
+        instrument = utils.determine_inst_name_from_v2v3(v2v3)
+        if not self._load_ote_field_dep_data(instrument, reference):  # pragma: no cover
+            return 0
+
+        field_coeff_order, f_ang_unit, opd_to_meters, zern_num, legendre_num = self._validate_ote_field_dep_data(instrument,
+                zern_num=zern_num, legendre_num=legendre_num)
+
+        zernike_coeffs = self._get_zernikes_for_ote_field_dep(v2v3, instrument, field_coeff_order, f_ang_unit,
+                zern_num, legendre_num, assume_si_focus=assume_si_focus)
+
+        # Apply perturbation to OPD according to Zernike coefficients calculated above.
+        perturbation = poppy.zernike.opd_from_zernikes(zernike_coeffs * opd_to_meters,
+                                                       npix=self.npix,
+                                                       basis=poppy.zernike.zernike_basis_faster,
+                                                       outside=0)
+
+        return perturbation
+
+    def _load_ote_field_dep_data(self, instrument, reference):
+        """Load tables of Zernikes vs field position
+
+        Returns True if successful (file loaded OK, or was already loaded), False for failure.
+        """
+
+        base_path = utils.get_webbpsf_data_path()
+        field_dep_file = os.path.join(base_path, f'{instrument}/OPD/field_dep_table_{instrument.lower()}.fits')
+
+        # For efficiency, load from disk only if needed. And, for back-compatibility, fail gracefully if file not found
+        if self._field_dep_file != field_dep_file:
+            self._field_dep_file = field_dep_file
+            _log.info(f'Loading field dependent model parameters from {self._field_dep_file}')
+
+            try:
+                self._field_dep_hdr = fits.getheader(field_dep_file)
+                # Read in the data table with the coefficients for our model
+                #   hdu[1] ==> local reference point
+                #   hdu[2] ==> # global reference point
+                if reference == 'global':
+                    ext = 2
+                elif reference == 'local':  # pragma: no cover
+                    ext = 1
+                    # we don't need both options for this. Simpler to only support one (even though the data files have two)
+                    raise ValueError("Local field dependent OTE coordinates discouraged; use global")
+                else:  # pragma: no cover
+                    raise ValueError('Invalid wavefront reference')
+                self._field_dep_data = fits.getdata(field_dep_file, ext=ext)
+
+            except FileNotFoundError:  # pragma: no cover
+                warnings.warn(f"Could not load {self._field_dep_file}; OTE field dependence model disabled")
+                return False
+        return True
+
+
+    def _validate_ote_field_dep_data(self, instrument, zern_num=None, legendre_num=None):
+        """Sanity check inputs after loading OTE field dep data. 
+
+        Returns several parameter values used subsequently in the OTE OPD calculation
+        """
+        # Pull useful parameters from header
+        hdr = self._field_dep_hdr
+
+        # Check to make sure that we've got the right instrument
+        if hdr['instr'].lower() != instrument.lower():  # pragma: no cover
+            ValueError('Instrument inconsistent with field dependence file')
+
+        # Check to make sure that the file has the right type of data in it and throw exception if not
+        if hdr['wfbasis'] != 'Noll Zernikes':  # pragma: no cover
+            raise ValueError('Data file contains data with unsupported wavefront polynomial expansion')
+
+        if hdr['fiebasis'] != 'Legendre Polynomials':  # pragma: no cover
+            raise ValueError('Data file contains data with unsupported field polynomial expansion')
+
+        num_wavefront_coeffs = hdr['ncoefwf']
+        if zern_num is None:
+            zern_num = num_wavefront_coeffs
+        if (zern_num > num_wavefront_coeffs):  # pragma: no cover
+            raise ValueError('Data file contains fewer wavefront coefficients than specified')
+
+        num_field_coeffs = hdr['ncoeffie']
+        if legendre_num is None:
+            legendre_num = num_field_coeffs
+        if (legendre_num > num_field_coeffs):  # pragma: no cover
+            raise ValueError('Data file contains fewer field coefficients than specified')
+
+        field_coeff_order = hdr['fieorder']
+        # If we aren't using all the Legendre terms in the table we can update the order of
+        # Legendre polynomial required so we don't have to calculate all of them.
+        if legendre_num is not None:
+            field_coeff_order = int(np.ceil((-3 + np.sqrt(1 + 8 * legendre_num)) / 2))
+
+        # Check the field angle units in the input file
+        if hdr['fangunit'] == 'degrees':
+            f_ang_unit = u.deg
+        elif hdr['fangunit'] == 'arcmin':
+            f_ang_unit = u.arcmin
+        elif hdr['fangunit'] == 'arscec':
+            f_ang_unit = u.arcsec
+        else:  # pragma: no cover
+            raise ValueError('Field angle unit specified in file is not supported')
+
+        # Check the OPD units in the input file
+        if hdr['opdunit'] == 'nm':
+            opd_to_meters = 1e-9
+        elif hdr['opdunit'] == 'um':
+            opd_to_meters = 1e-6
+        elif hdr['opdunit'] == 'm':
+            opd_to_meters = 1
+        elif hdr['opdunit'] == 'pm':
+            opd_to_meters = 1e-12
+        else:  # pragma: no cover
+            ValueError('OPD unit specified in file is not supported')
+
+        return field_coeff_order, f_ang_unit, opd_to_meters, zern_num, legendre_num
+
+    def _get_zernikes_for_ote_field_dep(self, v2v3, instrument, field_coeff_order, f_ang_unit, 
+            zern_num, legendre_num , assume_si_focus=True):
+        """ Calculate the Zernike coeffs from the lookup table data
+
+        This is the main numerical piece of the algorithm.
+        """
+        hdr = self._field_dep_hdr
+        # Extent of box in field over which the data is defined
+        min_x_field = hdr['MINXFIE'] * u.arcmin
+        max_x_field = hdr['MAXXFIE'] * u.arcmin
+        min_y_field = hdr['MINYFIE'] * u.arcmin
+        max_y_field = hdr['MAXYFIE'] * u.arcmin
+
+        # Calculate field angle for our model from the V2/V3 coordinates
+        x_field_pt = hdr['v2sign'] * (v2v3[0] - hdr['v2origin'] * f_ang_unit)
+        y_field_pt = hdr['v3sign'] * (v2v3[1] - hdr['v3origin'] * f_ang_unit)
+
+        _log.info(f'Calculating field-dependent OTE OPD at v2 = {v2v3[0]:.3f}, v3 = {v2v3[1]:.3f}')
+        _log.debug(f'Calculating field-dependent OTE OPD at CodeV X field = {x_field_pt:.3f}, Y field= {y_field_pt:.3f}')
+
+        # Confirm that the calculated field point is within our model's range
+        if ((x_field_pt < min_x_field) or (x_field_pt > max_x_field) or
+                (y_field_pt < min_y_field) or (y_field_pt > max_y_field)):
+            # If not within the valid region, find closest point that is
+            x_field_pt0 = x_field_pt*1
+            y_field_pt0 = y_field_pt*1
+            x_field_pt = np.clip(x_field_pt0, min_x_field, max_x_field)
+            y_field_pt = np.clip(y_field_pt0, min_y_field, max_y_field)
+
+            clip_dist = np.sqrt((x_field_pt-x_field_pt0)**2 + (y_field_pt-y_field_pt0)**2)
+            if clip_dist > 0.1*u.arcsec:
+                # warn the user we're making an adjustment here (but no need to do so if the distance is trivially small)
+                warnings.warn(f'For (V2,V3) = {v2v3}, Field point {x_field_pt}, {y_field_pt} not within valid region for field dependence model of OTE WFE for {instrument}: {min_x_field}-{max_x_field}, {min_y_field}-{max_y_field}. Clipping to closest available valid location, {clip_dist} away from the requested coordinates.')
+
+        # Get value of Legendre Polynomials at desired field point.  Need to implement model in G. Brady's prototype
+        # polynomial basis code, independent of that code for now.  Perhaps at some point in the future this model
+        # can become more tightly coupled with WebbPSF/Poppy and we just call it here instead.
+        # Calculate value of Legendre at all orders at our field point of interest.
+
+        field_center_x = (max_x_field + min_x_field) / 2
+        field_center_y = (max_y_field + min_y_field) / 2
+
+        x_field_pt_norm = float((x_field_pt - field_center_x) / ((max_x_field - min_x_field) / 2))
+        y_field_pt_norm = float((y_field_pt - field_center_y) / ((max_y_field - min_y_field) / 2))
+
+        _log.debug(f'{instrument} max_x={max_x_field} min_x={min_x_field} max_y={max_y_field} min_y={min_y_field}')
+        _log.debug(f'Normalized field point {x_field_pt_norm}, {y_field_pt_norm}')
+        poly_x1d = np.zeros(field_coeff_order + 1)
+        poly_y1d = np.zeros(field_coeff_order + 1)
+        for index in range(0, field_coeff_order + 1):
+            leg_poly1d = sp.legendre(index)
+            poly_y1d[index] = leg_poly1d(y_field_pt_norm)
+            poly_x1d[index] = leg_poly1d(x_field_pt_norm)
+
+        #Calculate product of x and y Legendre value for all combinations of orders
+        poly_val_2d = np.einsum('i,j', poly_y1d, poly_x1d)
+
+        #Reorder and rearrange values to correspond to the single index ordering the input coefficients assume
+        map1 = []
+        map2 = []
+        for index_i in range(0, field_coeff_order + 1):
+            map1 += list(range(index_i, -1, -1))
+            map2 += list(range(0, index_i + 1))
+        poly_vals = poly_val_2d[map1, map2]
+        poly_vals = poly_vals[0:legendre_num]
+
+        # poly_vals now has the value of all of the Legendre polynomials at our field point of interest.  So now we
+        # need to multiply each value there with the value of the Legendre coefficients in each column and sum.  That
+        # sum will be the value of a Zernike, so we loop to repeat that for each Zernike coefficient
+
+        zernike_coeffs = np.zeros(zern_num)
+        for z_index in range(0, zern_num):
+            cur_legendre = self._field_dep_data.field(z_index)
+            zernike_coeffs[z_index] = np.einsum('i, i->', cur_legendre[0:legendre_num], poly_vals)
+
+        zernike_coeffs[0:3] = 0  # ignore piston/tip/tilt
+
+        if assume_si_focus:
+            # Assume SIs have been refocused, so there is no net defocus from the OTE field dep.
+            # Take out the average focus per each SI, using precomputed values
+            # These values computed using 'OTE As-Built Field Dependence Test.ipynb'
+            avg_si_defocus_values = {'NIRCam':  -11.399957391866572,
+                'NIRISS':  -31.412664805859624,
+                'MIRI':  -32.074808824153386,
+                'FGS':  -7.271566403275971,
+                'NIRSpec':  -31.469227175636576,}  # these are in nm
+            si_defocus_zern = avg_si_defocus_values[instrument]
+
+            zernike_coeffs[3] -= si_defocus_zern
+
+        return zernike_coeffs
+
 
     def move_seg_local(self, segment, xtilt=0.0, ytilt=0.0, clocking=0.0, rot_unit='urad',
                        radial=None, xtrans=None, ytrans=None, piston=0.0, roc=0.0, trans_unit='micron', display=False,
@@ -1400,6 +1899,10 @@ class OTE_Linear_Model_WSS(OPD):
 
         # Handle ROC. ROC doesn't support any units conversions
         if np.abs(roc) != 0:
+            if trans_unit == 'micron' or trans_unit == 'um':
+                pass
+            elif trans_unit == 'sag':
+                roc *= 1e6
             self.opd_header.add_history('ROC: %s %s' % (roc, 'micron'))
 
         iseg = np.where(self.segnames == segment)[0][0]
@@ -1703,11 +2206,9 @@ class OTE_Linear_Model_WSS(OPD):
         -------
 
         """
-        import jwxml
-
-        sur = jwxml.SUR(sur_file)
+        sur = surs.SUR(sur_file)
         if group is not None:
-            if group==0:
+            if group == 0:
                 raise ValueError("Group indices start at 1, not 0.")
             groups = [sur.groups[group-1]]
         else:
@@ -1752,6 +2253,7 @@ class OTE_Linear_Model_WSS(OPD):
                                             xtrans=update.moves['X_TRANS']*sign,
                                             ytrans=update.moves['Y_TRANS']*sign,
                                             piston=update.moves['PISTON']*sign,
+                                            clocking=update.moves['CLOCK']*sign,
                                             absolute=update.absolute,
                                             rot_unit=rot_unit,
                                             trans_unit=trans_unit,
@@ -1761,13 +2263,14 @@ class OTE_Linear_Model_WSS(OPD):
                     self.move_seg_local(update.segment[0:2],
                                         roc=update.moves['ROC']*sign,
                                         absolute=update.absolute,
+                                        trans_unit=update.units['ROC'],
                                         delay_update=True)
 
                 else:
                     raise NotImplementedError("Only moves of type='pose' or 'roc' are supported.")
         self.update_opd()
 
-
+    #---- OPD perturbations from drifts are implemented in the next several functions ----
     def thermal_slew(self, delta_time, start_angle=-5,end_angle=45,
                      scaling=None, display=False, case='EOL', delay_update=False):
         """ Update the OPD based on presence of a pitch angle change between
@@ -1855,7 +2358,9 @@ class OTE_Linear_Model_WSS(OPD):
             segment name will fits 9 Hexikes to that segment
         """
         if not self.scaling:
-            scaling = np.sin(np.radians(self.end_angle) - np.radians(self.start_angle)) / np.sin(np.radians(45.) - np.radians(-5.))
+            num = np.sin(np.radians(self.end_angle)) - np.sin(np.radians(self.start_angle))
+            den = np.sin(np.radians(45.)) - np.sin(np.radians(-5.))
+            scaling = num / den
 
         else:
             scaling = self.scaling
@@ -1874,6 +2379,8 @@ class OTE_Linear_Model_WSS(OPD):
 
         # always start from the input OPD, then apply perturbations
         self.opd = self._opd_original.copy()
+        self.opd_header.add_history('')
+        self.opd_header.add_history('OTE linear model: updated OPD based on input segment poses')
 
         sm = 18
         sm_pose_coeffs = self.segment_state[sm].copy()[0:5]  # 6th row is n/a for SM
@@ -1905,29 +2412,100 @@ class OTE_Linear_Model_WSS(OPD):
                     print("Need to move segment {} by {} ".format(segname, pose_coeffs.flatten()))
                     print("plus SM moved by {} ".format(sm_pose_coeffs.flatten()))
                     print("plus segment moved by {} due to thermal contribution".format(hexike_coeffs_from_thermal))
-                    print("   Hexike coeffs: {}".format(hexike_coeffs))
+                    print("   Hexike coeffs for {}: {}".format(segname, hexike_coeffs))
 
                 self._apply_hexikes_to_seg(segname, hexike_coeffs_combined)
 
         # The thermal slew model for the SM global defocus is implemented as a global hexike.
-        # So we have to modify the _global_hexikes array here, and then undo that
-        # modification so the effect isn't cumulative over multiple function calls.
+        # So we have to combine that with the _global_hexikes array here
+        global_hexike_coeffs_combined = self._global_hexike_coeffs.copy()
         if self.delta_time != 0.0:
-            self._global_hexike_coeffs[4] += self._get_thermal_slew_coeffs('SM')
+            global_hexike_coeffs_combined[4] += self._get_thermal_slew_coeffs('SM')
 
         # Apply Global Zernikes, and/or hexikes
-        if not np.all(self._global_hexike_coeffs == 0):
-            self._apply_global_hexikes()
+        if not np.all(global_hexike_coeffs_combined == 0):
+            self._apply_global_hexikes(global_hexike_coeffs_combined)
         if not np.all(self._global_zernike_coeffs == 0):
             self._apply_global_zernikes()
-
-        # Undo any changes made just above to the SM coefficients (avoid persistent side effects)
-        if self.delta_time != 0.0:
-            self._global_hexike_coeffs[4] -= self._get_thermal_slew_coeffs('SM')
+            
+        self._apply_field_dependence_model()
 
         if display:
             self.display()
 
+    def _get_dynamic_opd(self, delta_time=14*u.day, case='EOL'):
+        """Return ONLY the dynamic portion of the OPD, including thermal slew + frill + IEC
+        Normally these are all folded up as part of the update_opd method, but it can be
+        useful in certain circumstances to extract just this part, e.g. for plotting or analysis
+
+        This is therefore a modified version of the update_opd function.
+        This is a bit of a hack, as internal OPD state gets modified and then reset as a
+        side effect of this.
+
+        """
+        # always start from the input OPD, then apply perturbations
+        # self.opd = self._opd_original.copy()
+        # self.opd_header.add_history('')
+        # self.opd_header.add_history('OTE linear model: updated OPD based on input segment poses')
+        self.opd *= 0  # start from a zero OPD and just add perturbations; we will undo this later!
+
+        # Change a bunch of parameters (we will also undo this later!)
+        thermal_slew_params = (self.delta_time, self.start_angle, self.end_angle, self._thermal_model.case)
+        # default is max slew and 2 weeks
+        self.start_angle= -5
+        self.start_angle=  45
+        self._thermal_model.case = case
+        self.delta_time = delta_time.to_value(u.day)
+
+        # sm = 18
+        # sm_pose_coeffs = self.segment_state[sm].copy()[0:5]  # 6th row is n/a for SM
+        # sm_pose_coeffs.shape = (5, 1)  # to allow broadcasting below
+        sm_pose_coeffs = np.zeros( (5,1) )
+
+        drift_segment_state = self._get_frill_drift_poses() + self._get_iec_drift_poses()
+
+        for iseg, segname in enumerate(self.segnames[0:18]):
+            pose_coeffs = drift_segment_state[iseg].copy()
+            if np.all(pose_coeffs == 0) and np.all(sm_pose_coeffs == 0) and delta_time == 0:
+                continue
+            else:
+
+                sensitivities = self._get_seg_sensitivities(segname)
+                pose_coeffs.shape = (6, 1)  # to allow broadcasting in next line
+
+                hexike_coeffs = sensitivities * pose_coeffs  # this will be a 6,9 array
+                hexike_coeffs = hexike_coeffs.sum(axis=0)  # sum across all controlled modes
+                # to yield a set of 9 overall coeffs
+
+                sm_sensitivities = self._get_seg_sensitivities_from_sm(segname)
+                hexike_coeffs_from_sm = sm_sensitivities * sm_pose_coeffs  # will be 5,9 array
+                hexike_coeffs_from_sm = hexike_coeffs_from_sm.sum(axis=0)  # sum to get 9
+                hexike_coeffs_from_thermal = self._get_thermal_slew_coeffs(segname)
+                hexike_coeffs_combined = hexike_coeffs + hexike_coeffs_from_sm + hexike_coeffs_from_thermal
+
+                self._apply_hexikes_to_seg(segname, hexike_coeffs_combined)
+
+        # The thermal slew model for the SM global defocus is implemented as a global hexike.
+        # So we have to combine that with the _global_hexikes array here
+        global_hexike_coeffs_combined = self._global_hexike_coeffs.copy()
+        if delta_time != 0.0:
+            global_hexike_coeffs_combined[4] += self._get_thermal_slew_coeffs('SM')
+
+        # Apply Global Zernikes, and/or hexikes
+        if not np.all(global_hexike_coeffs_combined == 0):
+            self._apply_global_hexikes(global_hexike_coeffs_combined)
+        # if not np.all(self._global_zernike_coeffs == 0):
+        #    self._apply_global_zernikes()
+
+        #self._apply_field_dependence_model()
+
+        drift_opd = self.opd.copy()  # save this, to return below
+
+        # Important: Undo the overwriting of self.opd we just did
+        self.delta_time, self.start_angle, self.end_angle, self._thermal_model.case = thermal_slew_params
+        self.update_opd()
+
+        return drift_opd
 
     def apply_frill_drift(self, amplitude=None, random=False, case='BOL', delay_update=False):
         """ Apply model of segment PTT motions for the frill-induced drift.
@@ -2075,6 +2653,20 @@ class OTE_Linear_Model_WSS(OPD):
                [ 0.    ,  0.    ,  0.    ,  0.    ,  0.    ,  0.    ]])/1000
         return ote_seg_motions_iec * self._iec_wfe_amplitude
 
+    def header_keywords(self):
+        """ Return info we would like to save in FITS header of output PSFs
+        """
+        keywords = OrderedDict()
+        keywords['OTETHMDL'] = (self._thermal_model.case, "OTE Thermal slew model case")
+        keywords['OTETHSTA'] = (self.start_angle, "OTE Starting pitch angle for thermal slew model")
+        keywords['OTETHEND'] = (self.start_angle, "OTE Ending pitch angle for thermal slew model")
+        keywords['OTETHRDT'] = (self.delta_time, "OTE Thermal slew model delta time after slew")
+        keywords['OTETHRWF'] = (self._thermal_wfe_amplitude, "OTE WFE amplitude from 'thermal slew' term")
+        keywords['OTEFRLWF'] = (self._frill_wfe_amplitude, "OTE WFE amplitude from 'frill tension' term")
+        keywords['OTEIECWF'] = (self._iec_wfe_amplitude, "OTE WFE amplitude from 'IEC thermal cycling' term")
+        keywords.update(self.meta)
+        return keywords
+
 
 ################################################################################
 
@@ -2095,6 +2687,11 @@ def enable_adjustable_ote(instr):
     the associated instance of the LOM.
 
     """
+
+    # if the instrument already is set up for an adjustable OTE model, then no op and return that
+    if isinstance(instr.pupilopd, OTE_Linear_Model_WSS):
+        return instr, instr.pupilopd
+
     import copy
     instcopy = copy.copy(instr)
     if instr.pupilopd is None:
@@ -2102,13 +2699,7 @@ def enable_adjustable_ote(instr):
     elif isinstance(instr.pupilopd, fits.HDUList):
         opdpath = instr.pupilopd
     else:
-        # assume it is a string and try to use as filename
-        # either an absolute or relative directory path if that works,
-        # or else infer that it's a filename in the WebbPSF data directory.
-        if not os.path.exists(instr.pupilopd):
-            opdpath = os.path.join(instr._datapath, 'OPD', instr.pupilopd)
-        else:
-            opdpath = instr.pupilopd
+        opdpath = instr.get_opd_file_full_path(instr.pupilopd)
 
     pupilpath = instr.pupil
 
@@ -2116,6 +2707,7 @@ def enable_adjustable_ote(instr):
     opd = OTE_Linear_Model_WSS(name=name,
                                opd=opdpath, transmission=pupilpath)
 
+    opd.v2v3 = instr._tel_coords()  # copy field location, for use in field dependence models.
     instcopy.pupilopd = opd
     instcopy.pupil = opd
 
@@ -2219,98 +2811,6 @@ def random_unstack(ote, radius=1, verbose=False):
 
     ote.update_opd(verbose=verbose)
 
-
-# --------------------------------------------------------------------------------
-
-def segment_primary(infile='JWpupil.fits'):
-    """ Given a FITS file containing the JWST aperture, create an array
-    with the PMSAs numbered from 1 - 18.
-
-    This is used to create the 'JWpupil_segments.fits' file used by the OPDbender code.
-    You should not need to run this routine unless you want to change the model of the
-    JWST pupil.
-
-    The basic algorithm is general, but right now this routine contains
-    a bunch of hard-coded values tuned for the 1024x1024 Rev V pupil,
-    so probably you will need to edit it for any other pupil.
-
-    M. P. 2011-02-15
-
-
-    """
-
-    def renumber_array(array):
-        uniq, inds = np.unique1d(array, return_inverse=True)
-        # res = np.zeros_like(res2.shape)
-        newuniq = range(len(uniq))
-        res = np.array([newuniq[i] for i in inds]).astype(np.int16)
-        res.shape = array.shape
-        return res
-
-    im = fits.getdata(infile)
-    markers = np.zeros_like(im).astype(np.int16)
-    xm, ym = np.ogrid[0:1024:102, 0:1024:100]
-    markers[xm, ym] = np.arange(xm.size * ym.size).reshape((xm.size, ym.size))
-    res2 = scipy.ndimage.watershed_ift(im.astype(np.uint8), markers)
-    res2[xm, ym] = res2[xm - 1, ym - 1]  # remove the isolate seeds
-
-    res = renumber_array(res2)
-
-    # split and merge segments as needed - hard coded for Rev V pupil
-
-    res3 = res.copy()  # np.zeros_like(res2.shape)
-    merge_inds = [[0, 3], [2, 4], [11, 15], [18, 19]]
-    for pair in merge_inds:
-        res3[np.where(res == pair[1])] = pair[0]
-
-    Y, X = np.indices(res.shape)
-    w10h = np.where((res == 10) & (Y >= 512))
-    res3[w10h] = 31
-    w10h = np.where((res == 12) & (Y >= 512))
-    res3[w10h] = 32
-
-    res3 = renumber_array(res3)
-
-    plt.clf()
-    # plt.subplot(121)
-    # plt.imshow(res)
-    plt.subplot(121)
-    plt.imshow(res3)
-
-    for i in range(19):
-        w = np.where(res3 == i)
-        mx = X[w].mean()
-        my = Y[w].mean()
-        plt.text(mx, my, str(i), color='k')
-
-    segs = ['A' + str(i + 1) for i in range(6)]
-    for i in range(6):
-        segs.append('B' + str(i + 1))
-    for i in range(6):
-        segs.append('C' + str(i + 1))
-    seg_inds = [9, 18, 10, 4, 8, 17, 15, 14, 5, 1, 3, 11, 13, 7, 2, 0, 6, 12]
-
-    result = np.zeros_like(res3)
-    mxs = []
-    mys = []
-    for i in range(18):
-        w = np.where(res3 == seg_inds[i])
-        result[w] = i + 1
-        mxs.append(X[w].mean())
-        mys.append(Y[w].mean())
-
-    plt.subplot(122)
-    plt.imshow(result)
-    for i in range(18):
-        plt.text(mxs[i], mys[i], segs[i], color='k', horizontalalignment='center', verticalalignment='center')
-
-    hdu = fits.PrimaryHDU((result * im).astype(np.uint8))
-    for i in range(18):
-        hdu.header.update('PMSA_' + str(i + 1), segs[i])
-
-    # TODO copy relevant keywords and history from input FITS file header
-    hdu.writeto("JWpupil_segments.fits", overwrite=True)
-
 # --------------------------------------------------------------------------------
 
 def test_OPDbender():
@@ -2360,9 +2860,6 @@ def test2_OPDbender(filename='OPD_RevV_nircam_132.fits'):
 
 #-------------------------------------------------------------------------------
 # Thermal
-from copy import deepcopy
-from . import optics
-from scipy import io
 
 
 class OteThermalModel(object):
@@ -2398,6 +2895,7 @@ class OteThermalModel(object):
         # This table is in units of microns
         self._fit_file = os.path.join(mypath, 'otelm', 'thermal_OPD_fitting_parameters_9H_um.fits')
         self._fit_data = fits.getdata(self._fit_file)
+        self.case = case
 
 
     @staticmethod
@@ -2516,9 +3014,12 @@ class JWST_WAS_PTT_Basis(object):
         See poppy.zernike.opd_expand_segments()
         and coeffs_to_seg_state() in this file.
 
+        See also JWST_WAS_Full_Basis, which includes the other three degrees of freedom
+
         """
 
-        # Internally this is implemented as a wrapper on OTE Linear WEE model
+        # Internally this is implemented as a wrapper on an OTE Linear WFE model;
+        # we use the degrees of freedom of that model directly as the basis functions here
 
         self.ote = OTE_Linear_Model_WSS()
         self.nsegments=18
@@ -2542,9 +3043,6 @@ class JWST_WAS_PTT_Basis(object):
             be 0.0 sometimes.
 
         """
-        if npix != 1024:
-            raise ValueError("Only npix=1024 supported for now")
-
         if nterms is None:
             nterms = 3*self.nsegments
         elif nterms > 3*self.nsegments:
@@ -2579,6 +3077,104 @@ class JWST_WAS_PTT_Basis(object):
             basis[i*3+2][wseg] = self.ote.opd[wseg]
 
         return basis[0:nterms]
+
+class JWST_WAS_Full_Basis(object):
+    def __init__(self):
+        """ Segment pose full basis using the same conventions as JWST WAS
+        i.e. local mechanical control coordinates per each segment and its local
+        orientation.
+
+        Similar to JWST_WAS_PTT_Basis, but:
+            - includes clocking, radial translation, and radius of curvature degrees of freedom too
+
+            (Note, azimuthal translation is intentionally not controlled in the JWST
+            alignment schema, but is left as a redundant degree of freedom given the azimuthal
+            rotational symmetry of the observatory.)
+
+        Useful for decomposing WFE maps into segment piston, tip, tilts, translations, RoC.
+        See poppy.zernike.opd_expand_segments()
+        and coeffs_to_seg_state() in this file.
+
+        See also JWST_WAS_PTT_Basis, which includes just the piston, tip, tilt degrees of freedom
+        """
+
+        # Internally this is implemented as a wrapper on an OTE Linear WFE model;
+        # we use the degrees of freedom of that model directly as the basis functions here
+
+        self.ote = OTE_Linear_Model_WSS()
+        self.nsegments=18
+
+    def aperture(self):
+        """ Return the overall aperture across all segments """
+        return self.ote.amplitude
+
+    def __call__(self, nterms=None, npix=1024, outside=np.nan):
+        """ Generate basis ndarray for the specified aperture
+
+        Parameters
+        ----------
+        nterms : int
+            Number of terms. Set to 6x the number of segments.
+        npix : int
+            Size, in pixels, of the aperture array.
+        outside : float
+            Value for pixels outside the specified aperture.
+            Default is `np.nan`, but you may also find it useful for this to
+            be 0.0 sometimes.
+
+        """
+        ndof = 6
+
+        if nterms is None:
+            nterms = ndof*self.nsegments
+        elif nterms > ndof*self.nsegments:
+            raise ValueError("nterms must be <= {} for the specified segment aperture.".format(3*self.nsegments))
+
+        # Re-use the machinery inside the OTE Linear model class class to set up the
+        # arrays defining the segment and zernike geometry.
+
+        # For simplicity we always generate the basis for all the segments
+        # even if for some reason the user has set a smaller nterms.
+        basis = np.zeros((self.nsegments*6, npix, npix))
+        basis[:] = outside
+        for i, segname in enumerate(self.ote.segnames[0:18]):
+            # We do these intentionally with the base units, though those result in unphysically large moves
+
+            iseg = i+1
+            wseg = np.where(self.ote._segment_masks==iseg)
+
+            # Piston
+            self.ote.zero()
+            self.ote.move_seg_local(segname, piston=1, trans_unit='meter')
+            basis[i*ndof][wseg] = self.ote.opd[wseg]
+
+            # Tip
+            self.ote.zero()
+            self.ote.move_seg_local(segname, xtilt=1, rot_unit='radian')
+            basis[i*ndof+1][wseg] = self.ote.opd[wseg]
+
+            # Tilt
+            self.ote.zero()
+            self.ote.move_seg_local(segname, ytilt=1, rot_unit='radian')
+            basis[i*ndof+2][wseg] = self.ote.opd[wseg]
+
+            # Clocking
+            self.ote.zero()
+            self.ote.move_seg_local(segname, clocking=1, rot_unit='radian')
+            basis[i * ndof + 3][wseg] = self.ote.opd[wseg]
+
+            # Radial Translation
+            self.ote.zero()
+            self.ote.move_seg_local(segname, radial=1, trans_unit='meter')
+            basis[i * ndof + 4][wseg] = self.ote.opd[wseg]
+
+            # Radius of Curvature
+            self.ote.zero()
+            self.ote.move_seg_local(segname, roc=1, trans_unit='meter')
+            basis[i * ndof + 5][wseg] = self.ote.opd[wseg]
+        return basis[0:nterms]
+
+
 
 
 def coeffs_to_seg_state(coeffs):

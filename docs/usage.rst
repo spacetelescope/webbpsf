@@ -2,13 +2,13 @@
 
 .. _using_api:
 
-********************************
-Using WebbPSF via the Python API
-********************************
+*************
+Using WebbPSF 
+*************
 
 
 WebbPSF provides
-five classes corresponding to the JWST instruments and two for the WFIRST instruments, with consistent interfaces. It also provides a variety of
+five classes corresponding to the JWST instruments and two for the Roman instruments, with consistent interfaces. It also provides a variety of
 supporting tools for measuring PSF properties and manipulating telescope state models.
 See :ref:`this page <detailed_api>` for the detailed API; for now let's dive into some example code.
 
@@ -18,7 +18,9 @@ See :ref:`this page <detailed_api>` for the detailed API; for now let's dive int
 Usage and Examples
 ==================
 
-Simple PSFs are easily obtained:
+Simple PSFs are easily obtained. 
+
+Instantiate a model of :py:class:`~webbpsf.NIRCam`, set attributes to configure a particular observing mode, then call :py:meth:`~webbpsf.JWInstrument.calc_psf`:
 
     >>> import webbpsf
     >>> nc = webbpsf.NIRCam()
@@ -61,11 +63,11 @@ Input Source Spectra
 
 WebbPSF attempts to calculate realistic weighted broadband PSFs taking into account both the source spectrum and the instrumental spectral response.
 
-The default source spectrum is, if :py:mod:`pysynphot` is installed, a G2V star spectrum from Castelli & Kurucz 2004. Without :py:mod:`pysynphot`, the default is a simple flat spectrum such that the same number of photons are detected at each wavelength.
+The default source spectrum is, if :py:mod:`synphot` is installed, a G2V star spectrum from Castelli & Kurucz 2004. Without :py:mod:`synphot`, the default is a simple flat spectrum such that the same number of photons are detected at each wavelength.
 
 You may choose a different illuminating source spectrum by specifying a ``source`` parameter in the call to ``calc_psf()``. The following are valid sources:
 
-1. A :py:class:`pysynphot.Spectrum` object. This is the best option, providing maximum ease and accuracy, but requires the user to have :py:mod:`pysynphot` installed.  In this case, the :py:class:`Spectrum` object is combined with a :py:class:`pysynphot.ObsBandpass` for the selected instrument and filter to derive the effective stimulus in detected photoelectrons versus wavelength. This is binned to the number of wavelengths set by the ``nlambda`` parameter.
+1. A :py:class:`synphot.SourceSpectrum` object. This is the best option, providing maximum ease and accuracy, but requires the user to have :py:mod:`synphot` installed.  In this case, the :py:class:`SourceSpectrum` object is combined with a :py:class:`synphot.SpectralElement` for the selected instrument and filter to derive the effective stimulus in detected photoelectrons versus wavelength. This is binned to the number of wavelengths set by the ``nlambda`` parameter.
 2. A dictionary with elements ``source["wavelengths"]`` and ``source["weights"]`` giving the wavelengths in meters and the relative weights for each. These should be numpy arrays or lists. In this case, the wavelengths and weights are used exactly as provided, without applying the instrumental filter profile.
 
    >>> src = {'wavelengths': [2.0e-6, 2.1e-6, 2.2e-6], 'weights': [0.3, 0.5, 0.2]}
@@ -74,7 +76,7 @@ You may choose a different illuminating source spectrum by specifying a ``source
 3. A tuple or list containing the numpy arrays ``(wavelength, weights)`` instead.
 
 
-As a convenience, webbpsf includes a function to retrieve an appropriate :py:class:`pysynphot.Spectrum` object for a given stellar spectral type from the PHOENIX or Castelli & Kurucz model libraries.
+As a convenience, webbpsf includes a function to retrieve an appropriate :py:class:`synphot.SourceSpectrum` object for a given stellar spectral type from the PHOENIX or Castelli & Kurucz model libraries.
 
    >>> src = webbpsf.specFromSpectralType('G0V', catalog='phoenix')
    >>> psf = miri.calc_psf(source=src)
@@ -112,7 +114,7 @@ Simulating telescope jitter
 Space-based observatories don't have to contend with the seeing limit, but imprecisions in telescope pointing can have the effect of smearing out the PSF. To simulate this with WebbPSF, the option names are ``jitter`` and ``jitter_sigma``.
 
 >>> instrument.options['jitter'] = 'gaussian'   # jitter model name or None
->>> instrument.options['jitter_sigma'] = 0.009  # in arcsec, default 0.007
+>>> instrument.options['jitter_sigma'] = 0.009  # in arcsec per axis, default 0.007
 
 Array sizes, star positions, and centering
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

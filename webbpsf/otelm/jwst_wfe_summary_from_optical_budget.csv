@@ -1,0 +1,17 @@
+# Values derived from JWST Optical Budget Rev AA
+Value,NIRCam_req,NIRCam_pred,NIRSpec_req,NIRSpec_pred,MIRI_req,MIRI_pred,NIRISS_req,NIRISS_pred,FGS_req,FGS_pred,Optical Budget Source
+System Total including uncertainty reserve,150,127,238,169,421,176,180,140,186,147,"Syst Brief, top summary table"
+System Performance,135,96,233,123,386,134,161,103,155,103,"Syst Brief, system performance"
+OTE Total,122,81,128,82,133,82,131,87,115,77,"Syst, OTE totals"
+OTE total static,81,60,87,61,85,60,92,69,91,66,"Syst, OTE WFC Residual (=static)"
+OTE residual low freq (field dep),33,21,44,24,41,22,53,41,50,35,"Syst, Comp. OTE Resid, Lo freq"
+OTE residual controllable modes (mid freq),56,38,57,36,56,36,57,36,58,38,"RSS (Comp OTE Resid Mid,  WFSC sensing and control resid, less OTE pm figure mid)"
+OTE uncontrollable high freq,49,42,49,41,49,41,49,42,49,42,"RSS(Syst Comp OTE Resid High, OTE PM Figure mid)"
+OTE total dynamic,91,53,94,55,103,56,93,53,71,40,computed from the below 3
+OTE vibe,13,3,13,3,13,3,13,3,13,3,"Syst, OTE Steady State Vibe"
+OTE stability,58,34,58,34,58,34,58,34,58,34,"Syst, OTE stability"
+Image motion (as equiv. WFE),69,41,73,43,84,44,72,40,39,20,"Syst, Image Motion Equ"
+ISIM+SI total,58,52,195,92,363,107,93,55,103,68,"Syst, ISIM total"
+SI internal WFE,56,52,194,92,362,107,91,55,101,68,"Syst,  [SI name] WFC Resid"
+ISIM structural,13,0,14,0,13,0,13,0,18,0,"Syst, ISIM Struct WFC Resid"
+ISIM+SI instability,13,5,13,5,13,5,13,5,13,5,"Syst, ISIM stab"

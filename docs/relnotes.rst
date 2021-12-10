@@ -20,15 +20,68 @@ See https://github.com/spacetelescope/webbpsf/issues for currently open issues a
 * Coronagraphic masks are assumed to be perfect (i.e. the masks exactly match their design parameters.)
 * Most detector effects, such as intrapixel sensitivity variations or interpixel capacitance. There are currently no plans to include these WebbPSF itself.  Generate a subsampled PSF and use a separate detector model code instead. The one exception is a scattering artifact in the MIRI imager detector substrate.
 
-Road Map for Future Releases
---------------------------------
-* Continued validation and updates as needed based on further analyses of instrument and telescope hardware test data.
-* Support for the NIRSpec and MIRI IFUs may be added in a future release; level of detail is still TBD.
+------------------
 
 .. _whatsnew:
 
 Version History and Change Log
 -------------------------------
+
+Version 1.0.0
+=============
+*2021 December 10*
+
+For JWST, this release includes updates to WebbPSF just prior to the launch. For Roman, it includes updates to use the Cycle 9 optical model results.
+
+**James Webb Space Telescope OTE model improvements**:
+
+* Updates in sign conventions for representing WFE, for strict consistency with the JWST WSS and other tools. Much of this was implemented by upstream changes in ``poppy``; see `this page in the poppy docs <https://poppy-optics.readthedocs.io/en/latest/sign_conventions_for_coordinates_and_phase.html>`_ for details.  (:pr:`397`, :pr:`419` by :user:`mperrin`, :pr:`418` by :user:`Skyhawk172`)
+* Significant update to JWST OTE optical models, to reflect more recent 2020 optical modeling of the as-built observatory (the "PSR2020" integrated modeling cycle). These have noticably lower WFE than the prior models (which were intentionally conservative, but ended up being more conservative than intended); typically the WFE is lower by some tens of nanometers in the new "prelaunch_predicted" OPDs. See details in :ref:`jwst_ote_details`. We will all learn together in 2022 how well these models predict the observatory's performance in flight. (:pr:`512`, :user:`mperrin`).
+* Add models of OTE field dependence from the nominal OTE design and as-built optics (:pr:`389` by :user:`grbrady`, :pr:`505` by :user:`mperrin`) and from any misalignment of the secondary mirror, such as would be measured and corrected in MIMF (:pr:`392` by :user:`Skyhawk172`). These additions were enabled by more consistent use of JWST Linear Optical Model framework behind the scenes (:pr:`378` by :user:`mperrin`). This model of field dependence plus the updated OTE OPD files should yield a more comprehensive and precise model of PSF variations across the observatory.
+* Add an option to use a lookup table of field dependent OPDs from Ball's ITM tool (for JWST team internal use in
+  pre-launch wavefront team practices and rehearsals). (:pr:`425` by :user:`Skyhawk172`, :pr:`474` by :user:`mperrin`)
+* Update the JWST OTE Linear Model to allow more flexible pupil sampling, in particular using higher sampling to reduce Fourier aliasing in certain FGS calculations (:pr:`440` by :user:`kjbrooks`)
+* New capability for visualizing the JWST optical budget terms as represented in WebbPSF. See :doc:`jwst_optical_budgets`.
+
+
+**James Webb Space Telescope instrument model improvements**:
+
+* MIRI: Minor updates to pixel scale and rotation (:pr:`456` by :user:`mperrin`),
+  an improved model of the MIRI imager detector cross artifact (:pr:`417` by :user:`mperrin`)
+  and correctly label MIRI's P750L prism for the LRS mode as a prism, not a grating (:pr:`477` by :user:`mperrin` and :user:`skendrew`)
+* MIRI: Add capability for shifting MIRI coronagraph masks, consistent with NIRCam sim capabilities (:pr:`428` by :user:`JarronL`)
+* NIRCam: Higher fidelity model of NIRCam weak lenses, including field dependence, non-linear interactions between lenses,
+  and as-built measured performances. (:pr:`496` by :user:`mperrin`, using results of calibration work by Randal Telfer)
+* All SIs: Substantial performance improvements speeding up the calculation of optical distortion (:pr:`429`, :user:`jarronL`)
+
+**Nancy Grace Roman Space Telescope and instrument model improvements**:
+
+* Use of Cycle 9 optical and integrated modeling results, including updated Zernike coefficients, pupil images, and filter throughputs.
+* Updated :py:obj:`~webbpsf.RomanInstrument` pointing stability to 12 milliarcseconds per axis, following new predictions [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
+* :py:obj:`WFI` wavelength range now covers 0.48 - 2.3 µm [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
+* Added ``WFI``'s new F213 filter [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
+* Renamed ``WFI``'s ``'P120'`` filter to ``'PRISM'`` [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
+* Split ``WFI``'s ``'G150'`` filter into ``'GRISM0'`` and ``'GRISM1'`` components to represent the transmission for the grism's  undispersed zeroth order and dispersed first order, respectively [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
+* Renamed WFI pupil masks to ``'SKINNY'`` (formerly ``'RIM_MASK'`` in version 0.9.2), ``'WIDE'`` (formerly ``'FULL_MASK'``), ``'GRISM'``, and ``'PRISM'`` (also formerly captured in ``'RIM_MASK'``) [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
+* Created new :py:meth:`~webbpsf.WFI.lock_pupil()` and :py:meth:`~webbpsf.WFI.lock_pupil_mask()` methods for advanced users who prefer to disable automated selections and instead stick with a specific pupil file or mask, respectively. The corresponding ``WFI.unlock_pupil()`` and ``WFI.unlock_pupil_mask()`` methods return the class to its normal behavior [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
+* Locked ``WFI.pupil`` and ``WFI.pupil_mask`` attributes from direct assignment given the new lock/unlock schema [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
+* Renamed ``WFI.override_aberrations()`` to :py:meth:`~webbpsf.WFI.lock_aberrations()` and ``WFI.reset_override_aberrations()`` to :py:meth:`~webbpsf.WFI.unlock_aberrations()` to reinforce the new lock/unlock schema [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
+* Condensed and refactored existing tests [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
+* New algorithm for field point nearest approximation/extrapolation [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
+* Renamed ``CGI`` class to :py:obj:`RomanCoronagraph` [:pr:`516`, :pr:`517`, :user:`ojustino` with :user:`mperrin`]
+
+**Software and Package Infrastructure Updates:**
+
+* Software engineering improvements to meet STScI INS-JWST Software Standards (:pr:`404` by :user:`shanosborne`)
+* Migrate optional dependency for synthetic photometry from pysynphot to synphot (:pr:`424` by :user:`shanosborne`)
+* Deprecated the ``jwxml`` package, and moved the SUR (Segment Update Request) parsing code from that package into WebbPSF (:pr:`390` by :user:`shanosborne`)
+* Various minor bug fixes (:pr:`410`, :pr:`422`, :pr:`427`, :pr:`497` by :user:`mperrin`, :pr:`423` by :user:`kjbrooks`, :pr:`493` by :user:`JarronL`)
+* Updates to recommended (not minimum) dependency versions. Drop support for Python 3.6. (various PRs by :user:`shanosborne`)
+* Remove deprecated older code including the GUIs (:pr:`439` by :user:`mperrin`)
+* Streamline test suite to keep CI runtimes managable (:pr:`459` by :user:`mperrin`)
+
+------------------
+
 
 Version 0.9.2
 =============
@@ -39,13 +92,17 @@ This release only improves a subset of WFIRST functionality; additional improvem
 **WFIRST Improvements**
 
 - New Grism and Prism filters: [:pr:`416`, :pr:`471`, :user:`robelgeda`]
+
     - `GRISM_FILTER = 'G150'`
     - `PRISM_FILTER = 'P120'`
+
 - Changing filters to `G150` or  `P120` changes the mode of the WFI and the aberrations files (unless there is a user aberrations override) [:pr:`416`, :pr:`471`, :user:`robelgeda`]
 - New `WFI.mode`: Class property that returns the current mode of the WFI instance by passing the current filter to `WFI. _get_filter_mode`. WFI modes are: [:pr:`416`, :pr:`471`, :user:`robelgeda`]
+
     -  Imaging
     -  Grism
     -  Prisim
+
 - New `WFI.override_aberrations(aberrations_path)`: Overrides and locks the current aberrations with aberrations at `aberrations_path`. Lock means changing the filter/mode has no effect on the aberrations. [:pr:`416`, :pr:`471`, :user:`robelgeda`]
 - New `WFI.reset_override_aberrations()`: Releases `WFI.override_aberrations` lock and start using the default aberrations. [:pr:`416`, :pr:`471`, :user:`robelgeda`]
 - New Tests for mode and filter switching. [:pr:`416`, :pr:`471`, :user:`robelgeda`]
@@ -88,7 +145,7 @@ There are no changes in reference data, so the WebbPSF reference data files for 
 - Improved the reproducibility of the thermal slew model with small updates to the ``update_opd`` and ``move_jsc_acf`` functions. [:pr:`339`, :user:`mperrin`]
 
 **Software and Package Infrastructure Updates:**
- 
+
 - *The minimum Python version is now 3.6.* [:pr:`353`, :user:`mperrin`]
 - Removed dependency on ``astropy-helpers`` sub-package [:pr:`337`, :user:`shanosborne`]
 - Fixed problem that resulted in the ``otelm/`` and ``tests/surs/`` sub-directories not installing correctly. [:pr:`356`, :user:`shanosborne`]
@@ -109,7 +166,7 @@ Note, when upgrading to this version you will need to update to the latest data 
 
 **JWST Improvements**
 
-- *Added a new capability to model the impact of thermal variations*, from telescope slews relative to the sun, onto mirror alignments and therefore onto PSFs. This new ``thermal_slew`` method  can be used to create a delta OPD for some elapsed time after the slew at either the maximum slew angle, some specified angle, or with a scaling factor applied to maximum case. Once combined with an input OPD (requirements or predicted), the new shape of the mirrors can be used to simulate predicted PSFs some time after a slew. See this `Jupyter notebook <https://github.com/spacetelescope/webbpsf/blob/master/notebooks/Example Construction of OPDs from Delta Time After Slew.ipynb>`_ for examples. [:pr:`269`, :user:`kjbrooks`]
+- *Added a new capability to model the impact of thermal variations*, from telescope slews relative to the sun, onto mirror alignments and therefore onto PSFs. This new ``thermal_slew`` method  can be used to create a delta OPD for some elapsed time after the slew at either the maximum slew angle, some specified angle, or with a scaling factor applied to maximum case. Once combined with an input OPD (requirements or predicted), the new shape of the mirrors can be used to simulate predicted PSFs some time after a slew. See this `Jupyter notebook <https://github.com/spacetelescope/webbpsf/blob/stable/notebooks/Example%20Construction%20of%20OPDs%20from%20Delta%20Time%20After%20Slew.ipynb>`_ for examples. [:pr:`269`, :user:`kjbrooks`]
 - *Improved wavefront error extrapolation method for field points near FOV corners* that are outside the bounds of Zernike reference table data, in order to provide more seamless extrapolation.  [:pr:`283`, :user:`JarronL`]
 - *Improvements in NIRCam optical model*: Updated polynomial model for NIRCam defocus versus wavelength. Adds Zernike coefficients for the wavefront error at NIRCam coronagraphy field points. [:pr:`283`, :user:`JarronL`]
 - NIRISS NRM mask was flipped along the X axis to match the as-built instrument and measured PSFs [:pr:`275`, :user:`KevinVolkSTScI`, :user:`anand0xff`, :user:`mperrin`]
@@ -117,7 +174,7 @@ Note, when upgrading to this version you will need to update to the latest data 
 
 **WFIRST Improvements**
 
-- *The WFI optical model has been updated to use optical data from the Cycle 8 design revision.* These include updated Zernike coefficients for field-dependent wavefront error, and masked and unmasked pupil images for each SCA, and updated filter throughputs (consistent with values used in Pandeia 1.4.2). The correct pupil file will automatically be selected for each calculation based on the chosen detector position and filter.   The pupil files are consistent with those provided in the WFI cycle 8 reference information, but have been resampled onto a common pixel scale.  See :ref:`WFIRST instrument model details <wfirst_wfi>` for more.  [:pr:`309` :user:`robelgeda`] 
+- *The WFI optical model has been updated to use optical data from the Cycle 8 design revision.* These include updated Zernike coefficients for field-dependent wavefront error, and masked and unmasked pupil images for each SCA, and updated filter throughputs (consistent with values used in Pandeia 1.4.2). The correct pupil file will automatically be selected for each calculation based on the chosen detector position and filter.   The pupil files are consistent with those provided in the WFI cycle 8 reference information, but have been resampled onto a common pixel scale.  See :ref:`WFIRST instrument model details <wfirst_wfi>` for more.  [:pr:`309` :user:`robelgeda`]
 - Note, WFI's filters have been renamed so they all begin with “F”; see the table `here <https://github.com/spacetelescope/webbpsf/pull/309>`_ .
 - *The WFI wavelength range has now been extended to cover the 0.48 - 2.0 µm range.* [:pr:`309` :user:`robelgeda`]
 - *Expanded ``psf_grid`` method’s functionality so it can also be used to make grids of WFIRST PSFs.* Note that focal plane distortion is not yet implemented for WFIRST PSFs and so ``add_distortion`` keyword should not be used for this case. [:pr:`294`, :user:`shanosborne`]
@@ -126,9 +183,9 @@ Note, when upgrading to this version you will need to update to the latest data 
 
 **General bug fixes and small changes:**
 
-- *Many improvements in the PSF Grid functionality for generating photutils.GriddedPSFModels*: 
+- *Many improvements in the PSF Grid functionality for generating photutils.GriddedPSFModels*:
 
-  - New options in ``psf_grid`` to specify both/either the output filename and output directory location. See this `Jupyter notebook <https://github.com/spacetelescope/webbpsf/blob/master/notebooks/Gridded_PSF_Library.ipynb>`_ for examples. [:pr:`294`, :user:`shanosborne`]
+  - New options in ``psf_grid`` to specify both/either the output filename and output directory location. See this `Jupyter notebook <https://github.com/spacetelescope/webbpsf/blob/stable/notebooks/Gridded_PSF_Library.ipynb>`_ for examples. [:pr:`294`, :user:`shanosborne`]
   - sFfilenames when saving out a ``psf_grid`` FITS object which has it’s ``filename`` parameter set will now end with ``_det.fits`` instead of the previous ``_det_filt.fits`` [:pr:`294`, :user:`shanosborne`]
   - Update added to ``utils.to_griddedpsfmodel`` where a 2-dimensional array input with a header containing only 1 ``DET_YX`` keyword can be turned into ``GriddedPSFModel`` object without error as it  implies the case of a PSF grid with num_psfs = 1. [:pr:`294`, :user:`shanosborne`]
   - Remove deletion of ``det_yx`` and ``oversamp`` keywords from ``psf_grid`` output to allow for easier implementation in certain cases. Normal case users will have extra keywords but will not change functionality [:pr:`291`, :user:`shanosborne`]
@@ -166,7 +223,7 @@ This release focused on software engineering improvements, rather than changes i
 
 **New functionality:**
 
-- *Added new capability to create grids of fiducial, distorted PSFs* spanning a chosen instrument/detector. This new ``psf_grid`` method is meant to be used as the first step of using the ``photutils`` package to do PSF-fitting photometry on simulated JWST PSFs. This method will output a list of or single ``photutils`` ``GriddedPSFModel`` object(s) which can then be read into ``photutils`` to apply interpolation to the grid and simulate a spatially dependent PSF anywhere on the instrument. See this `Jupyter notebook <https://github.com/spacetelescope/webbpsf/blob/master/notebooks/Gridded_PSF_Library.ipynb>`_ for examples. This method requires ``photutils`` version 0.6 or higher. [`#241, <https://github.com/spacetelescope/webbpsf/pull/241>` _, @shanosborne with inputs from @mperrin, @larrybradley, @hcferguson, and @eteq]
+- *Added new capability to create grids of fiducial, distorted PSFs* spanning a chosen instrument/detector. This new ``psf_grid`` method is meant to be used as the first step of using the ``photutils`` package to do PSF-fitting photometry on simulated JWST PSFs. This method will output a list of or single ``photutils`` ``GriddedPSFModel`` object(s) which can then be read into ``photutils`` to apply interpolation to the grid and simulate a spatially dependent PSF anywhere on the instrument. See this `Jupyter notebook <https://github.com/spacetelescope/webbpsf/blob/stable/notebooks/Gridded_PSF_Library.ipynb>`_ for examples. This method requires ``photutils`` version 0.6 or higher. [`#241, <https://github.com/spacetelescope/webbpsf/pull/241>` _, @shanosborne with inputs from @mperrin, @larrybradley, @hcferguson, and @eteq]
 
 **Bug fixes and small changes:**
 
@@ -255,7 +312,7 @@ handled automatically if you use `conda`, otherwise you will need to download an
   <http://www.stsci.edu/hst/acs/documents/handbooks/current/c05_imaging7.html#357374>`_
   for examples of what this looks like for Hubble PSFs) For the JWST
   instruments, this effect is largest for FGS, and fairly small but noticeable
-  for the other SIs. See `this Jupyter notebook <https://github.com/mperrin/webbpsf/blob/master/notebooks/Distortion_examples.ipynb>`_ for
+  for the other SIs. See `this Jupyter notebook <https://github.com/mperrin/webbpsf/blob/stable/notebooks/Distortion_examples.ipynb>`_ for
   examples of the effect on JWST PSFs. Note that the distorted PSFs are added as *additional extensions*
   in the output FITS file, so you will need to read from extension 2 or 3 if you want the
   PSF with the distortion included; extensions 0 and 1 remain consistent with prior versions.  The distortion information is taken from the Science
@@ -282,13 +339,13 @@ handled automatically if you use `conda`, otherwise you will need to download an
   acts as a cross-shaped convolution kernel, strongest at the shortest
   wavelengths. See MIRI document MIRI-TN-00076-ATC for details on the relevant
   physics and detector calibration.   This is implemented as part of the distortion framework, though
-  it is different physics. See `this Jupyter notebook <https://github.com/mperrin/webbpsf/blob/master/notebooks/Distortion_examples.ipynb>`_ for
+  it is different physics. See `this Jupyter notebook <https://github.com/mperrin/webbpsf/blob/stable/notebooks/Distortion_examples.ipynb>`_ for
   example output. For F560W through F1000W this is a much more obvious effect than the subtle distortions. [`#209,
   <https://github.com/mperrin/webbpsf/pull/209>`_, @shanosborne]
 - *Added new capabilities for modeling mirror moves of the JWST primary
   segments and secondary mirror*, using a linear optical model to adjust OPDs.
   Added a new `notebook demonstrating these capabilities
-  <https://github.com/mperrin/webbpsf/blob/master/notebooks/Simulated%20OTE%20Mirror%20Move%20Demo.ipynb>`_.
+  <https://github.com/mperrin/webbpsf/blob/stable/notebooks/Simulated%20OTE%20Mirror%20Move%20Demo.ipynb>`_.
   Note this code allows simulation of arbitrary mirror motions within a
   simplified linear range, and relies on user judgement what those mirror
   motions should be; it is not a detailed rigorous optomechanical model of the

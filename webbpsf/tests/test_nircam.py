@@ -7,8 +7,8 @@ import logging
 _log = logging.getLogger('test_webbpsf')
 _log.addHandler(logging.NullHandler())
 
+import webbpsf
 from .. import webbpsf_core
-import poppy
 from .test_errorhandling import _exception_message_starts_with
 
 import pytest
@@ -27,12 +27,11 @@ test_nircam_blc_circ_45 =  lambda : do_test_nircam_blc(kind='circular', angle=45
 test_nircam_blc_circ_0 =   lambda : do_test_nircam_blc(kind='circular', angle=0)
 
 
-@pytest.mark.xfail
-def test_nircam_blc_wedge_0():
-    return do_test_nircam_blc(kind='linear', angle=0)
+def test_nircam_blc_wedge_0(**kwargs):
+    return do_test_nircam_blc(kind='linear', angle=0, **kwargs)
 
-def test_nircam_blc_wedge_45():
-    return do_test_nircam_blc(kind='linear', angle=-45)
+def test_nircam_blc_wedge_45(**kwargs):
+    return do_test_nircam_blc(kind='linear', angle=-45, **kwargs)
 
 
 # The test setup for this one is not quite right yet
@@ -110,6 +109,11 @@ def do_test_nircam_blc(clobber=False, kind='circular', angle=0, save=False, disp
 
     nc = webbpsf_core.NIRCam()
     nc.pupilopd = None
+
+    nc,ote = webbpsf.enable_adjustable_ote(nc)
+    ote._include_nominal_field_dep = False  # disable OTE field dependence model for this test
+                                            # for consistency with expected values prepared before that model existed
+
     nc.filter='F210M'
     offsets = [0, 0.25, 0.50]
     if kind =='circular':
@@ -145,6 +149,9 @@ def do_test_nircam_blc(clobber=False, kind='circular', angle=0, save=False, disp
         import tempfile
         outputdir = tempfile.gettempdir()
 
+    if display:
+        nc.display()
+        plt.figure()
 
 
     #for offset in [0]:
@@ -169,7 +176,7 @@ def do_test_nircam_blc(clobber=False, kind='circular', angle=0, save=False, disp
 
         # FIXME tolerance temporarily increased to 1% in final flux, to allow for using
         # regular propagation rather than semi-analytic. See poppy issue #169
-        assert( abs(totflux - exp_flux) < 1e-4 )
+        assert abs(totflux - exp_flux) < 1e-4, f"Total flux {totflux} is out of tolerance relative to expectations {exp_flux}, for offset={offset}, angle={angle}"
         #assert( abs(totflux - exp_flux) < 1e-2 )
         _log.info("File {0} has the expected total flux based on prior reference calculation: {1}".format(fnout, totflux))
 
@@ -295,9 +302,12 @@ def test_defocus(fov_arcsec=1, display=False):
     via either a weak lens, or via the options dict,
     and we get consistent results either way.
 
+    Note this is now an *inexact* comparison, because the weak lenses now include non-ideal effects, in particular field dependent astigmatism
+
     Test for #59 among other things
     """
     nrc = webbpsf_core.NIRCam()
+    nrc.set_position_from_aperture_name('NRCA3_FP1')
     nrc.pupilopd=None
     nrc.include_si_wfe=False
 
@@ -311,7 +321,7 @@ def test_defocus(fov_arcsec=1, display=False):
     nrc.options['defocus_wavelength']=2.12e-6
     psf_2 = nrc.calc_psf(nlambda=1, fov_arcsec=fov_arcsec, oversample=1, display=False, add_distortion=False)
 
-    assert np.allclose(psf[0].data, psf_2[0].data), "Defocused PSFs calculated two ways don't agree"
+    assert np.allclose(psf[0].data, psf_2[0].data, atol=1e-4), "Defocused PSFs calculated two ways don't agree as precisely as expected"
 
     if display:
         import webbpsf
@@ -330,21 +340,21 @@ def test_ways_to_specify_weak_lenses():
     testcases = (
         # FILTER  PUPIL   EXPECTED_DEFOCUS
         # Test methods directly specifying a single element
-        ('F212N', 'WLM8', 'Weak Lens -8'),
-        ('F200W', 'WLP8', 'Weak Lens +8'),
-        ('F187N', 'WLP8', 'Weak Lens +8'),
+        ('F212N', 'WLM8', 'WLM8'),
+        ('F200W', 'WLP8', 'WLP8'),
+        ('F187N', 'WLP8', 'WLP8'),
         # Note WLP4 can be specified as filter or pupil element or both
-        ('WLP4', 'WLP4', 'Weak Lens +4'),
-        (None, 'WLP4', 'Weak Lens +4'),
-        ('WLP4', None, 'Weak Lens +4'),
+        ('WLP4', 'WLP4', 'WLP4'),
+        (None, 'WLP4', 'WLP4'),
+        ('WLP4', None, 'WLP4'),
         # Test methods directly specifying a pair of elements stacked together
-        ('WLP4', 'WLM8', 'Weak Lens Pair -4'),
-        ('WLP4', 'WLP8', 'Weak Lens Pair +12'),
+        ('WLP4', 'WLM8', 'WLM4'),
+        ('WLP4', 'WLP8', 'WLP12'),
         # Test methods using virtual pupil elements WLM4 and WLP12
-        ('WLP4', 'WLM4', 'Weak Lens Pair -4'),
-        ('WLP4', 'WLP12', 'Weak Lens Pair +12'),
-        ('F212N', 'WLM4', 'Weak Lens Pair -4'),
-        ('F212N', 'WLP12', 'Weak Lens Pair +12'),
+        ('WLP4', 'WLM4', 'WLM4'),
+        ('WLP4', 'WLP12', 'WLP12'),
+        ('F212N', 'WLM4', 'WLM4'),
+        ('F212N', 'WLP12', 'WLP12'),
     )
 
     nrc = webbpsf_core.NIRCam()
@@ -354,7 +364,7 @@ def test_ways_to_specify_weak_lenses():
         nrc.pupil_mask = pup
         if filt is not None: nrc.filter = filt
 
-        assert expected in [p.name for p in nrc._get_optical_system().planes], "Optical system did not contain expected plane {} for {}, {}".format(expected, filt, pup)
+        assert expected in [p.name for p in nrc.get_optical_system().planes], "Optical system did not contain expected plane {} for {}, {}".format(expected, filt, pup)
 
 
 def test_nircam_coron_wfe_offset(fov_pix=15, oversample=2, fit_gaussian=True):
@@ -464,6 +474,9 @@ def test_nircam_auto_aperturename():
     assert (nc.aperturename == 'NRCA2_FULL_WEDGE_RND') or (nc.aperturename == 'NRCA2_FULL_MASK210R')
     nc.pupil_mask = 'MASKRND'
     assert (nc.aperturename == 'NRCA2_FULL_WEDGE_RND') or (nc.aperturename == 'NRCA2_FULL_MASK210R')
+    # if we switch to LW we should get an aperture on A5
+    nc.detector='NRCA5'
+    assert (nc.aperturename == 'NRCA5_FULL_WEDGE_RND')
 
     # Add in coronagraphic occulter
     nc.image_mask = 'MASK210R'
@@ -494,3 +507,23 @@ def test_nircam_auto_aperturename():
     # but changing the detector explicitly always updates apname
     nc.detector = 'NRCA5'
     assert nc.aperturename == 'NRCA5_FULL'
+
+    # Test the ability to set arbitrary apertures by name, using a representative subset
+    names = ['NRCA1_FULL', 'NRCA3_FP1', 'NRCA2_FP4MIMF', 'NRCB2_FP3MIMF', 'NRCB5_FULL', 'NRCB5_TAMASK430R']
+
+    for apname in names:
+        nc.set_position_from_aperture_name(apname)
+        # CHeck aperture name and detector name
+        assert nc.aperturename == apname, "Aperture name did not match"
+        assert nc.detector == apname.split('_')[0], "Detector name did not match"
+
+        # check the detector positions match (to integer pixel precision)
+        assert nc.detector_position[0] == int(nc.siaf[
+                                                   apname].XSciRef), f"Aperture XSci did not match for {apname}: {nc.detector_position}, {nc.siaf[apname].XSciRef} "
+        assert nc.detector_position[1] == int(nc.siaf[
+                                                   apname].YSciRef), f"Aperture YSci did not match for {apname}: {nc.detector_position}, {nc.siaf[apname].YSciRef} "
+
+    # Test that switching any detector sets to the FULL aperture for that.
+    for det in nc.detector_list:
+        nc.detector = det
+        assert nc.aperturename == f'{det}_FULL'

@@ -7,7 +7,7 @@ import pytest
 
 from .. import gridded_library
 from .. import webbpsf_core
-from .. import wfirst
+from .. import roman
 from .. import utils
 
 
@@ -23,11 +23,12 @@ def test_compare_to_calc_psf_oversampled():
     """
     oversample = 2
     fov_pixels = 10
+    nlambda= 1
 
     # Create PSF grid
     fgs = webbpsf_core.FGS()
     fgs.detector = "FGS1"
-    grid = fgs.psf_grid(all_detectors=False, num_psfs=4, oversample=oversample, fov_pixels=fov_pixels)
+    grid = fgs.psf_grid(all_detectors=False, num_psfs=4, oversample=oversample, fov_pixels=fov_pixels, nlambda=nlambda)
 
     # Pull one of the PSFs out of the grid
     psfnum = 1
@@ -38,7 +39,7 @@ def test_compare_to_calc_psf_oversampled():
 
     # Using meta data, create the expected same PSF via calc_psf
     fgs.detector_position = (locx, locy)
-    calcpsf = fgs.calc_psf(oversample=oversample, fov_pixels=fov_pixels)["OVERDIST"].data
+    calcpsf = fgs.calc_psf(oversample=oversample, fov_pixels=fov_pixels, nlambda=nlambda)["OVERDIST"].data
     kernel = astropy.convolution.Box2DKernel(width=oversample)
     convpsf = astropy.convolution.convolve(calcpsf, kernel)
     scalefactor = oversample**2 # normalization as used internally in GriddedPSFModel; see #302
@@ -55,13 +56,14 @@ def test_compare_to_calc_psf_detsampled():
     """
     oversample = 2
     fov_arcsec = 0.5
+    nlambda = 1
 
     # Create PSF grid
     mir = webbpsf_core.MIRI()
     mir.filter = "F560W"
     mir.detector = "MIRIM"
     grid = mir.psf_grid(all_detectors=False, num_psfs=4, use_detsampled_psf=True, add_distortion=False,
-                        oversample=oversample, fov_arcsec=fov_arcsec)
+                        oversample=oversample, fov_arcsec=fov_arcsec, nlambda=nlambda)
 
     # Pull one of the PSFs out of the grid
     psfnum = 1
@@ -73,7 +75,7 @@ def test_compare_to_calc_psf_detsampled():
     # Using meta data, create the expected same PSF via calc_psf
     mir.detector_position = (locx, locy)
     mir.options['output_mode'] = 'Detector Sampled Image'
-    calcpsf = mir.calc_psf(oversample=oversample, fov_arcsec=fov_arcsec)["DET_SAMP"].data
+    calcpsf = mir.calc_psf(oversample=oversample, fov_arcsec=fov_arcsec, nlambda=nlambda)["DET_SAMP"].data
     kernel = astropy.convolution.Box2DKernel(width=1)
     convpsf = astropy.convolution.convolve(calcpsf, kernel)
 
@@ -191,7 +193,7 @@ def test_saving(tmpdir):
     fgs = webbpsf_core.FGS()
     fgs.filter = "FGS"
     fgs.detector = "FGS2"
-    grid = fgs.psf_grid(all_detectors=False, num_psfs=4, save=True, outdir=directory, outfile=file, overwrite=True)
+    grid = fgs.psf_grid(all_detectors=False, num_psfs=4, nlambda=1, save=True, outdir=directory, outfile=file, overwrite=True)
 
     # Check that the saved file matches the returned file (and thus that the save worked through properly)
     with fits.open(os.path.join(directory, file[:-5]+"_fgs2.fits")) as infile:
@@ -234,10 +236,11 @@ def test_wfi():
     # Check add_distortion not specified defaults to false
     oversample = 2
     fov_pixels = 10
+    nlambda = 1
 
     # Create PSF grid
-    wfi = wfirst.WFI()
-    grid = wfi.psf_grid(all_detectors=False, num_psfs=4, fov_pixels=fov_pixels, oversample=oversample)
+    wfi = roman.WFI()
+    grid = wfi.psf_grid(all_detectors=False, num_psfs=4, fov_pixels=fov_pixels, oversample=oversample, nlambda=nlambda)
 
     # Pull one of the PSFs out of the grid
     psfnum = 1
@@ -248,7 +251,7 @@ def test_wfi():
 
     # Using meta data, create the expected same PSF via calc_psf
     wfi.detector_position = (locx, locy)
-    calcpsf = wfi.calc_psf(oversample=oversample, fov_pixels=fov_pixels)["OVERSAMP"].data
+    calcpsf = wfi.calc_psf(oversample=oversample, fov_pixels=fov_pixels, nlambda=nlambda)["OVERSAMP"].data
     kernel = astropy.convolution.Box2DKernel(width=oversample)
     convpsf = astropy.convolution.convolve(calcpsf, kernel)
     scalefactor = oversample ** 2  # normalization as used internally in GriddedPSFModel; see #302
@@ -262,6 +265,6 @@ def test_wfi_error():
     """Check add_distortion=True raises an error"""
 
     with pytest.raises(NotImplementedError) as excinfo:
-        wfi = wfirst.WFI()
+        wfi = roman.WFI()
         wfi.psf_grid(add_distortion=True, num_psfs=1, fov_pixels=1, detector_oversample=2)
     assert "NotImplementedError" in str(excinfo)

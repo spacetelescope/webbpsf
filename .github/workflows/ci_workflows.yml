@@ -13,8 +13,8 @@ jobs:
 
           - name: Coverage test in Python 3
             os: ubuntu-latest
-            python: 3.8
-            toxenv: py38-poppydev-pysiafdev-cov
+            python: 3.9
+            toxenv: py39-poppydev-pysiafdev-cov
 
           - name: Check for Sphinx doc build errors
             os: ubuntu-latest
@@ -26,10 +26,15 @@ jobs:
             python: 3.8
             toxenv: py38-astropydev-test
 
+          - name: Try latest versions of all dependencies
+            os: ubuntu-latest
+            python: 3.9
+            toxenv: py39-latest-test
+
           - name: Try minimum supported versions
             os: ubuntu-latest
-            python: 3.6
-            toxenv: py36-legacy36-test
+            python: 3.7
+            toxenv: py37-legacy37-test
 
           - name: Try released POPPY and PySIAF
             os: ubuntu-latest
@@ -53,15 +58,21 @@ jobs:
 
     - name: Get WebbPSF Data
       run: | # Get WebbPSF data files (just a subset of the full 250 MB!) and set up environment variable
-           wget https://stsci.box.com/shared/static/r7k2m3ruxb7a7a7t172epr4kq5ibmo78.gz -O /tmp/minimal-webbpsf-data.tar.gz
+           wget https://stsci.box.com/shared/static/ftj8esrt0apzbnff8j6m5kseii2jzy9e.gz -O /tmp/minimal-webbpsf-data.tar.gz
            tar -xzvf /tmp/minimal-webbpsf-data.tar.gz
            echo "WEBBPSF_PATH=${{github.workspace}}/webbpsf-data" >> $GITHUB_ENV
 
     - name: Check conda info
       run: conda info
 
+    - name: Run tests with requirements file
+      if: ${{ contains(matrix.toxenv,'-latest') }}
+      run: |
+        cp $RUNNER_WORKSPACE/webbpsf/requirements.txt /tmp/
+        tox -e ${{ matrix.toxenv }}
+
     - name: Run tests
-      if: matrix.continue-on-error == null
+      if: ${{ matrix.continue-on-error == null && contains(matrix.toxenv,'-latest') != true }}
       run: tox -e ${{ matrix.toxenv }}
 
     - name: Run tests and allow failures
@@ -71,6 +82,6 @@ jobs:
 
     - name: Upload coverage to codecov
       if: ${{ contains(matrix.toxenv,'-cov') }}
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@v2
       with:
         file: ./coverage.xml
