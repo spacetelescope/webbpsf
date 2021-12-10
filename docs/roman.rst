@@ -3,7 +3,7 @@ Roman Instrument Model Details
 *******************************
 
 
-WebbPSF provides a framework for instrument PSF calculations that is easily extensible to other instruments and observatories. The :py:mod:`webbpsf.roman` module was developed to enable simulation of Roman's instruments, the :ref:`Wide Field Instrument (WFI) <roman_wfi>` and :ref:`Coronagraph Instrument (CGI) <roman_cgi>`.
+WebbPSF provides a framework for instrument PSF calculations that is easily extensible to other instruments and observatories. The :py:mod:`webbpsf.roman` module was developed to enable simulation of Roman's instruments, the :ref:`Wide Field Instrument (WFI) <roman_wfi>` and :ref:`Coronagraph Instrument <roman_coronagraph>`.
 
 
 .. _roman_wfi:
@@ -140,25 +140,25 @@ Grism Mask     'GRISM'
 Prism Mask     'PRISM' (formerly 'RIM_MASK', 'UNMASKED')
 ============   ===========================================
 
-.. _roman_cgi:
+.. _roman_coronagraph:
 
-Coronagraph Instrument (CGI)
-============================
+Coronagraph Instrument
+======================
 
-We have begun developing a Coronagraph Instrument (CGI) simulation module.
+We have begun developing a Coronagraph Instrument simulation module.
 The goal is to provide
-an open source modeling package for CGI for use by the science centers and
+an open source modeling package for the Coronagraph Instrument for use by the science centers and
 science teams, to complement the existing in-house optical modeling
 capabilities at JPL.
 
 Currently a prototype implementation is available for the shaped pupil
-coronagraph modes only, for both the CGI imager and IFS. Future releases will incorporate realistic aberrations, both
+coronagraph modes only, for both the Coronagraph imager and IFS. Future releases will incorporate realistic aberrations, both
 static and dynamic, to produce realistic speckle fields.  We also plan to
 add the hybrid Lyot modes.
 
 .. warning::
-    The CGI model has not been actively updated or developed since circa 2017.
-    It does not well represent the current PDR-level state of CGI. There are plans
+    The Coronagraph model has not been actively updated or developed since circa 2017.
+    It does not well represent the current PDR-level state of the instrument. There are plans
     to refresh this model. Interested users should contact Ewan Douglas.
 
 .. warning::
@@ -169,32 +169,32 @@ add the hybrid Lyot modes.
     subject to change based on ongoing trades studies and technology development.
 
 
-A hands-on tutorial in using the CGI class is available in this
-`Jupyter Notebook <http://nbviewer.ipython.org/github/spacetelescope/webbpsf/blob/stable/notebooks/roman_cgi_demo.ipynb>`_.
+A hands-on tutorial in using the RomanCoronagraph class is available in this
+`Jupyter Notebook <http://nbviewer.ipython.org/github/spacetelescope/webbpsf/blob/stable/notebooks/roman_coronagraph_demo.ipynb>`_.
 Here we briefly summarize the key points, but see that for more detail.
 
 
-The CGI class has attributes for  ``filter``, etc., like other instrument classes, but since these masks are designed to be
+The RomanCoronagraph class has attributes for  ``filter``, etc., like other instrument classes, but since these masks are designed to be
 used in specific combinations, a ``mode`` attribute exists that allows easy specification of all those attributes at once. For example, setting ::
-    >>> cgi = roman.CGI()
-    >>> cgi.mode = "CHARSPC_F770"
+    >>> cor = roman.RomanCoronagraph()
+    >>> cor.mode = "CHARSPC_F770"
 
 is equivalent to::
 
-    >>> cgi.camera = 'IFS'
-    >>> cgi.filter = 'F770'
-    >>> cgi.apodizer = 'CHARSPC'
-    >>> cgi.fpm = 'CHARSPC_F770_BOWTIE'
-    >>> cgi.lyotstop = 'LS30D88'
+    >>> cor.camera = 'IFS'
+    >>> cor.filter = 'F770'
+    >>> cor.apodizer = 'CHARSPC'
+    >>> cor.fpm = 'CHARSPC_F770_BOWTIE'
+    >>> cor.lyotstop = 'LS30D88'
 
 There are ``_list`` attributes that tell you the allowed values for each attribute, including a ``mode_list`` for all the available meta-modes.
 
 
 Calculations are invoked similarly to any other instrument class::
 
-    >> mono_char_spc_psf = cgi.calc_psf(nlambda=1, fov_arcsec=1.6, display=True)
+    >> mono_char_spc_psf = cor.calc_psf(nlambda=1, fov_arcsec=1.6, display=True)
 
-.. figure:: ./roman_figures/fig_cgi_spc_f770.png
-   :alt: Example CGI PSF calculation.
+.. figure:: ./roman_figures/fig_coronagraph_spc_f770.png
+   :alt: Example Coronagraph PSF calculation.
 
 

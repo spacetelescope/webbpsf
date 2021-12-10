@@ -105,7 +105,7 @@ class FieldDependentAberration(poppy.ZernikeWFE):
         self.field_position = pixel_width // 2, pixel_height // 2
         self._wavelength_interpolators = {}
         self.pupil_diam = radius * 2.0
-        super(FieldDependentAberration, self).__init__(
+        super().__init__(
             name=name,
             verbose=True,
             radius=radius,
@@ -123,7 +123,7 @@ class FieldDependentAberration(poppy.ZernikeWFE):
         else:
             wavelength = wave.wavelength
         self.coefficients = wavelength * self.get_aberration_terms(wavelength)
-        return super(FieldDependentAberration, self).get_opd(wave)
+        return super().get_opd(wave)
 
     @property
     def field_position(self):
@@ -274,7 +274,7 @@ class RomanInstrument(webbpsf_core.SpaceTelescopeInstrument):
     telescope = "Roman"
 
     def __init__(self, *args, **kwargs):
-        super(RomanInstrument, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.options['jitter'] = 'gaussian'
         self.options['jitter_sigma'] = 0.012 # arcsec/axis, see https://roman.ipac.caltech.edu/sims/Param_db.html#telescope
 
@@ -344,7 +344,7 @@ class RomanInstrument(webbpsf_core.SpaceTelescopeInstrument):
 
     def _get_fits_header(self, result, options):
         """Populate FITS Header keywords"""
-        super(RomanInstrument, self)._get_fits_header(result, options)
+        super()._get_fits_header(result, options)
         result[0].header['DETXPIXL'] = (self.detector_position[0],
                                         'X pixel position (for field dependent aberrations)')
         result[0].header['DETYPIXL'] = (self.detector_position[1],
@@ -564,7 +564,7 @@ class WFI(RomanInstrument):
         self._is_custom_aberration = False
         self._current_aberration_file = ""
 
-        super(WFI, self).__init__("WFI", pixelscale=pixelscale)
+        super().__init__("WFI", pixelscale=pixelscale)
 
         # Initialize the pupil controller
         self._pupil_controller = WFIPupilController()
@@ -627,7 +627,7 @@ class WFI(RomanInstrument):
         self._update_pupil()
 
         assert self.pupil is not None, 'pupil is None'
-        super(WFI, self)._validate_config(**kwargs)
+        super()._validate_config(**kwargs)
 
     def _get_filter_mode(self, wfi_filter):
         """
@@ -871,7 +871,7 @@ class WFI(RomanInstrument):
         self._update_pupil() # reset pupil mask
 
 
-class CGI(RomanInstrument):
+class RomanCoronagraph(RomanInstrument):
     """
     Roman Coronagraph Instrument
 
@@ -886,8 +886,8 @@ class CGI(RomanInstrument):
     Parameters
     ----------
     mode : str
-        CGI observing mode. If not specified, the __init__ function
-        will set this to a default mode 'CHARSPC_F660'
+        Roman Coronagraph Instrument observing mode. If not specified, the
+        __init__ function will set this to a default mode 'CHARSPC_F660'
     pixelscale : float
         Detector pixelscale. If not specified, the pixelscale will default to
         0.02 arcsec for configurations usint the IMAGER camera and 0.025 arcsec
@@ -911,7 +911,7 @@ class CGI(RomanInstrument):
         'DISKSPC_F721': ('IMAGER', 'F721', 'DISKSPC', 'DISKSPC_F721_ANNULUS', 'LS30D88')}
 
     def __init__(self, mode=None, pixelscale=None, fov_arcsec=None, apply_static_opd=False):
-        super(CGI, self).__init__("CGI", pixelscale=pixelscale)
+        super().__init__("RomanCoronagraph", pixelscale=pixelscale)
 
         self._detector_npixels = 1024
         self._detectors = {camera: 'placeholder' for camera in self.camera_list}
@@ -967,14 +967,14 @@ class CGI(RomanInstrument):
             if not hasattr(self, 'pixelscale') or not self._override_pixelscale:
                 self.pixelscale = 0.025  # Nyquist at 600 nm
 
-    # for CGI, there is one detector per camera and it should be set automatically.
+    # for coronagraph, there is one detector per camera and it should be set automatically.
     @property
     def detector(self):
         return self.camera
 
     @detector.setter
     def detector(self, value):
-        raise RuntimeError("Can't set detector directly for CGI; set camera instead.")
+        raise RuntimeError("Can't set detector directly for RomanCoronagraph; set camera instead.")
 
     @property
     def filter(self):
@@ -1081,7 +1081,7 @@ class CGI(RomanInstrument):
 
     def print_mode_table(self):
         """Print the table of observing mode options and their associated optical configuration"""
-        _log.info("Printing the table of Roman CGI observing modes supported by WebbPSF.")
+        _log.info("Printing the table of Roman Coronagraph Instrument observing modes supported by WebbPSF.")
         _log.info("Each is defined by a combo of camera, filter, apodizer, "
                   "focal plane mask (FPM), and Lyot stop settings:")
         _log.info(pprint.pformat(self._mode_table))
@@ -1093,13 +1093,13 @@ class CGI(RomanInstrument):
 
     @detector_position.setter
     def detector_position(self, position):
-        raise RuntimeError("Detector position not adjustable for CGI")
+        raise RuntimeError("Detector position not adjustable for RomanCoronagraph")
 
     def _validate_config(self, **kwargs):
-        super(CGI, self)._validate_config(**kwargs)
+        super()._validate_config(**kwargs)
 
     def _addAdditionalOptics(self, optsys, oversample=4):
-        """Add coronagraphic or spectrographic optics for Roman CGI."""
+        """Add coronagraphic or spectrographic optics for RomanCoronagraph."""
 
         trySAM = False
 
@@ -1132,7 +1132,7 @@ class CGI(RomanInstrument):
 
     def _get_fits_header(self, result, options):
         """Populate FITS Header keywords"""
-        super(RomanInstrument, self)._get_fits_header(result, options)
+        super()._get_fits_header(result, options)
         pupil_hdr = fits.getheader(self.pupil)
         apodizer_hdr = fits.getheader(self._apodizer_fname)
         fpm_hdr = fits.getheader(self._fpm_fname)
