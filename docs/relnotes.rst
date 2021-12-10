@@ -70,7 +70,7 @@ For JWST, this release includes updates to WebbPSF just prior to the launch. For
 * Renamed ``WFI.override_aberrations()`` to :py:meth:`~webbpsf.WFI.lock_aberrations()` and ``WFI.reset_override_aberrations()`` to :py:meth:`~webbpsf.WFI.unlock_aberrations()` to reinforce the new lock/unlock schema [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
 * Condensed and refactored existing tests [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
 * New algorithm for field point nearest approximation/extrapolation [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
-* Renamed ``CGI`` class to :py:obj:`RomanCoronagraph` [:pr:`516`, :user:`ojustino`]
+* Renamed ``CGI`` class to :py:obj:`RomanCoronagraph` [:pr:`516`, :pr:`517`, :user:`ojustino` with :user:`mperrin`]
 
 **Software and Package Infrastructure Updates:**
 
