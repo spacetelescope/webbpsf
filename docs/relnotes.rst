@@ -59,17 +59,17 @@ For JWST, this release includes updates to WebbPSF just prior to the launch. For
 **Nancy Grace Roman Space Telescope and instrument model improvements**:
 
 * Use of Cycle 9 optical and integrated modeling results, including updated Zernike coefficients, pupil images, and filter throughputs.
-* Updated ``RomanInstrument`` pointing stability to 12 milliarcseconds per axis, following new predictions [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
-* ``WFI`` wavelength range now covers 0.48 - 2.3 µm [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
+* Updated :py:obj:`~webbpsf.RomanInstrument` pointing stability to 12 milliarcseconds per axis, following new predictions [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
+* :py:obj:`WFI` wavelength range now covers 0.48 - 2.3 µm [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
 * Added ``WFI``'s new F213 filter [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
 * Renamed ``WFI``'s ``'P120'`` filter to ``'PRISM'`` [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
-* Split ``WFI``'s ``'G150'`` filter into ``'GRISM0'`` and ``'GRISM1'`` components to reflect the grism's respective undispersed and dispersed modes [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
+* Split ``WFI``'s ``'G150'`` filter into ``'GRISM0'`` and ``'GRISM1'`` components to represent the transmission for the grism's  undispersed zeroth order and dispersed first order, respectively [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
 * Renamed WFI pupil masks to ``'SKINNY'`` (formerly ``'RIM_MASK'`` in version 0.9.2), ``'WIDE'`` (formerly ``'FULL_MASK'``), ``'GRISM'``, and ``'PRISM'`` (also formerly captured in ``'RIM_MASK'``) [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
-* Created new ``WFI.lock_pupil()`` and ``WFI.lock_pupil_mask()`` methods for advanced users who prefer to disable automated selections and instead stick with a specific pupil file or mask, respectively. The corresponding ``WFI.unlock_pupil()`` and ``WFI.unlock_pupil_mask()`` methods return the class to its normal behavior [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
+* Created new :py:meth:`~webbpsf.WFI.lock_pupil()` and :py:meth:`~webbpsf.WFI.lock_pupil_mask()` methods for advanced users who prefer to disable automated selections and instead stick with a specific pupil file or mask, respectively. The corresponding ``WFI.unlock_pupil()`` and ``WFI.unlock_pupil_mask()`` methods return the class to its normal behavior [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
 * Locked ``WFI.pupil`` and ``WFI.pupil_mask`` attributes from direct assignment given the new lock/unlock schema [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
-* Renamed ``WFI.override_aberrations()`` to ``WFI.lock_aberrations()`` and ``WFI.reset_override_aberrations()`` to ``WFI.unlock_aberrations()`` to reinforce the new lock/unlock schema [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
+* Renamed ``WFI.override_aberrations()`` to :py:meth:`~webbpsf.WFI.lock_aberrations()` and ``WFI.reset_override_aberrations()`` to :py:meth:`~webbpsf.WFI.unlock_aberrations()` to reinforce the new lock/unlock schema [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
 * Condensed and refactored existing tests [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
-* New field point nearest approximation/extrapolation [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
+* New algorithm for field point nearest approximation/extrapolation [:pr:`466` by :user:`ojustino` with :user:`robelgeda`]
 
 **Software and Package Infrastructure Updates:**
 
