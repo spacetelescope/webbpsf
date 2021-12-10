@@ -35,11 +35,9 @@ For JWST, this release includes updates to WebbPSF just prior to the launch. For
 
 **James Webb Space Telescope OTE model improvements**:
 
-* Updates in sign conventions for representing WFE, for strict consistency with the JWST WSS and other tools. Much of this was implemented by upstream changes in ``poppy``;
-  see `this page in the poppy docs <https://poppy-optics.readthedocs.io/en/latest/sign_conventions_for_coordinates_and_phase.html>`_ for details.  (:pr:`397`, :pr:`419` by :user:`mperrin`, :pr:`418` by :user:`Skyhawk172`)
-* Add models of OTE field dependence from the nominal OTE design and as-built optics (:pr:`389` by :user:`grbrady`, :pr:`505` by :user:`mperrin`) and from
-  any misalignment of the secondary mirror, such as would be measured and corrected in MIMF (:pr:`392` by :user:`Skyhawk172`). These
-  additions were enabled by more consistent use of JWST Linear Optical Model framework behind the scenes (:pr:`378` by :user:`mperrin`).
+* Updates in sign conventions for representing WFE, for strict consistency with the JWST WSS and other tools. Much of this was implemented by upstream changes in ``poppy``; see `this page in the poppy docs <https://poppy-optics.readthedocs.io/en/latest/sign_conventions_for_coordinates_and_phase.html>`_ for details.  (:pr:`397`, :pr:`419` by :user:`mperrin`, :pr:`418` by :user:`Skyhawk172`)
+* Significant update to JWST OTE optical models, to reflect more recent 2020 optical modeling of the as-built observatory (the "PSR2020" integrated modeling cycle). These have noticably lower WFE than the prior models (which were intentionally conservative, but ended up being more conservative than intended); typically the WFE is lower by some tens of nanometers in the new "prelaunch_predicted" OPDs. See details in :ref:`jwst_ote_details`. We will all learn together in 2022 how well these models predict the observatory's performance in flight. (:pr:`512`, :user:`mperrin`).
+* Add models of OTE field dependence from the nominal OTE design and as-built optics (:pr:`389` by :user:`grbrady`, :pr:`505` by :user:`mperrin`) and from any misalignment of the secondary mirror, such as would be measured and corrected in MIMF (:pr:`392` by :user:`Skyhawk172`). These additions were enabled by more consistent use of JWST Linear Optical Model framework behind the scenes (:pr:`378` by :user:`mperrin`). This model of field dependence plus the updated OTE OPD files should yield a more comprehensive and precise model of PSF variations across the observatory.
 * Add an option to use a lookup table of field dependent OPDs from Ball's ITM tool (for JWST team internal use in
   pre-launch wavefront team practices and rehearsals). (:pr:`425` by :user:`Skyhawk172`, :pr:`474` by :user:`mperrin`)
 * Update the JWST OTE Linear Model to allow more flexible pupil sampling, in particular using higher sampling to reduce Fourier aliasing in certain FGS calculations (:pr:`440` by :user:`kjbrooks`)

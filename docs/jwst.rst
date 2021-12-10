@@ -58,6 +58,7 @@ JWST Optical Budgets
 The total system performance for JWST is tracked in optical budgets for OTE and SI WFE. WebbPSF includes representations of many of these component terms.
 These can be visualized as plots of OPDs. See :doc:`jwst_optical_budgets`.
 
+.. _jwst_ote_details:
 
 Optical Telescope Element (OTE)
 ===============================
