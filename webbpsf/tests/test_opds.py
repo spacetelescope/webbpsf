@@ -301,11 +301,19 @@ def test_apply_field_dependence_model():
 
     Checks cases comparing master chief ray, center of NIRCam, and center of NIRISS.
 
+    Note, the steps for performing this test are a little suble. We want to disable the
+    SI and OTE global field dependence terms, and enable ONLY the OTE nominal field
+    dependence. Thus there are several calls to manually set only the nominal field dep to True
+
     '''
     rms = lambda array, mask: np.sqrt((array[mask]**2).mean())
 
     # Get the OPD without any sort of field dependence
     ote = webbpsf.opds.OTE_Linear_Model_WSS(v2v3=None)
+    # By default, an OTE LOM with zero OPD will implicitly also disable the field dependence.
+    # For this test we don't want that so we re-enable it here:
+    ote._include_nominal_field_dep = True
+
     opd_no_field_model = ote.opd.copy()
 
     mask = ote.get_transmission(0) != 0
@@ -334,6 +342,7 @@ def test_apply_field_dependence_model():
     nis.pupilopd = None  # disable any global WFE, so we just look at the field dependent part
     nis.detector_position = (1024, 1024)
     nis, ote_nis = webbpsf.enable_adjustable_ote(nis)
+    ote_nis._include_nominal_field_dep = True  # Same as above, need this for test with pupilopd=None
 
     # Test if we directly invoke the OTE model, in this case also disabling SI focus implicit optimization
     ote_nis._apply_field_dependence_model(assume_si_focus=False)
@@ -350,7 +359,10 @@ def test_apply_field_dependence_model():
     nis.pupilopd = None  # disable any global WFE, so we just look at the field dependent part
     nis.detector_position = (1024, 1024)
     osys = nis.get_optical_system()
-    opd_nis_cen_v2 = osys.planes[0].opd.copy()
+    ote = osys.planes[0]
+    ote._include_nominal_field_dep = True  # Same as above, need this for test with pupilopd=None
+    ote.update_opd()
+    opd_nis_cen_v2 = ote.opd
     rms4 = rms(opd_nis_cen_v2, mask)
     assert np.isclose(rms4, 28.0e-9, atol=1e-9), "Field-dependent OTE WFE at selected field point (NIRISS center) didn't match expected value(test case: implicit call, assume_si_focus=True."
 
@@ -539,3 +551,22 @@ def test_changing_npix():
     # Let's also check a derived property of the whole PSF: the FWHM.
     # The FWHM should be very close to identical for the two PSFs.
     assert np.isclose(webbpsf.measure_fwhm(psf_1024), webbpsf.measure_fwhm(psf_2048), rtol=0.0001), "PSF FWHM should not vary for different npix"
+
+def test_pupilopd_none():
+    """Test that setting pupilopd=None does in fact result in no WFE
+    In particular, this tests that setting opd to None also results in
+    disabling the field-dependent component of the OTE linear model,
+    as well as setting the global WFE component to zero.
+    """
+
+    nrc = webbpsf.NIRCam()
+    nrc.pupilopd = None
+    nrc.include_si_wfe = False
+
+    ote_lom = nrc.get_optical_system().planes[0]
+    assert ote_lom.rms()==0, "RMS WFE should be strictly 0"
+
+    psf_small = nrc.calc_psf(fov_pixels=50, monochromatic=2e-6, add_distortion=False)
+    centroid = webbpsf.measure_centroid(psf_small, relativeto='center')
+    assert np.abs(centroid[0]) < 1e-5, "Centroid should be (0,0)"
+    assert np.abs(centroid[1]) < 1e-5, "Centroid should be (0,0)"

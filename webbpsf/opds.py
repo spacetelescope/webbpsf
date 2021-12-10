@@ -111,7 +111,7 @@ class OPD(poppy.FITSOpticalElement):
             if None, will infer based on npix.
         ext : int, optional
             FITS extension to load OPD from
-        slice : int, optional
+        opd_index : int, optional
             slice of a datacube to load OPD from, if the selected extension contains a datacube.
 
         """
@@ -621,7 +621,7 @@ class OTE_Linear_Model_Elliott(OPD):
             FITS file to load an OPD from. The OPD must be specified in microns.
         ext : int, optional
             FITS extension to load OPD from
-        slice : int, optional
+        opd_index : int, optional
             slice of a datacube to load OPD from, if the selected extension contains a datacube.
         pupilfile : str
             FITS file for pupil mask, with throughput from 0-1. If not explicitly provided, will be inferred from
@@ -1117,7 +1117,7 @@ class OTE_Linear_Model_WSS(OPD):
     def __init__(self, name='Unnamed OPD', opd=None, opd_index=0, transmission=None,
                  segment_mask_file=None, zero=False, rm_ptt=False,
                  rm_piston=False, v2v3=None, control_point_fieldpoint='nrca3_full',
-                 npix=1024):
+                 npix=1024, include_nominal_field_dependence=True):
         """
         Parameters
         ----------
@@ -1127,7 +1127,7 @@ class OTE_Linear_Model_WSS(OPD):
             FITS extension to load OPD from
         transmission: str or fits.HDUList
             FITS file to load aperture transmission from.
-        slice : int, optional
+        opd_index : int, optional
             slice of a datacube to load OPD from, if the selected extension contains a datacube.
         segment_mask_file : str
             FITS file for pupil mask, with throughput from 0-1. If not explicitly provided, will
@@ -1140,8 +1140,12 @@ class OTE_Linear_Model_WSS(OPD):
         v2v3 : tuple of 2 astropy.Quantities
             Tuple giving V2,v3 coordinates as quantities, typically in arcminutes, or None to default to
             the master chief ray location between the two NIRCam modules.
+        include_nominal_field_dependence : bool
+            Include the Zernike polynomial model for OTE field dependence for the nominal OTE.
+            Note, if OPD is None, then this will be ignored and the nominal field dependence will be disabled.
         control_point_fieldpoint: str
-            Name of the field point where the OTE control point is located, on instrument defined by "control_point_instr".
+            A parameter used in the field dependence model for a misaligned secondary mirror.
+            Name of the field point where the OTE MIMF control point is located, on instrument defined by "control_point_instr".
             Default: 'nrca3_full'.
             The OTE control point is the field point to which the OTE has been aligned and defines the field angles
             for the field-dependent SM pose aberrations.
@@ -1150,7 +1154,8 @@ class OTE_Linear_Model_WSS(OPD):
 
         """
 
-        OPD.__init__(self, name=name, opd=opd, opd_index=opd_index, transmission=transmission, segment_mask_file=segment_mask_file, npix=npix)
+        OPD.__init__(self, name=name, opd=opd, opd_index=opd_index, transmission=transmission,
+                     segment_mask_file=segment_mask_file, npix=npix)
         self.v2v3 = v2v3
 
         # load influence function table:
@@ -1188,7 +1193,9 @@ class OTE_Linear_Model_WSS(OPD):
         self._global_hexike_coeffs = np.zeros(self._number_global_zernikes)
 
         # Field dependence model data
-        self._include_nominal_field_dep = True
+        # Note, if the OTE is set to None, we disable this automatically. This is to enable modeling the ideal case with
+        # truly NO WFE for opd=None.
+        self._include_nominal_field_dep = include_nominal_field_dependence if opd else False
         self._field_dep_file = None
         self._field_dep_hdr = None
         self._field_dep_data = None
@@ -2692,13 +2699,7 @@ def enable_adjustable_ote(instr):
     elif isinstance(instr.pupilopd, fits.HDUList):
         opdpath = instr.pupilopd
     else:
-        # assume it is a string and try to use as filename
-        # either an absolute or relative directory path if that works,
-        # or else infer that it's a filename in the WebbPSF data directory.
-        if not os.path.exists(instr.pupilopd):
-            opdpath = os.path.join(instr._datapath, 'OPD', instr.pupilopd)
-        else:
-            opdpath = instr.pupilopd
+        opdpath = instr.get_opd_file_full_path(instr.pupilopd)
 
     pupilpath = instr.pupil
 

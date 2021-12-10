@@ -771,12 +771,14 @@ class JWInstrument(SpaceTelescopeInstrument):
         self.opd_list = []
         for filename in glob.glob(os.path.join(opd_path, 'OPD*.fits*')):
             self.opd_list.append(os.path.basename(os.path.abspath(filename)))
+        for filename in glob.glob(os.path.join(self._WebbPSF_basepath, 'JWST_OTE_OPD*.fits*')):
+            self.opd_list.append(os.path.basename(os.path.abspath(filename)))
 
         if not len(self.opd_list) > 0:
             raise RuntimeError("No pupil OPD files found for {name} in {path}".format(name=self.name, path=opd_path))
 
         self.opd_list.sort()
-        self.pupilopd = self.opd_list[-1]
+        self.pupilopd = self.opd_list[0]  # should be JWST_OTE_OPD_RevAA_prelaunch_predicted.fits.gz, or the ungzipped version if present
 
         self.pupil = os.path.abspath(os.path.join(
             self._WebbPSF_basepath,
@@ -791,6 +793,7 @@ class JWInstrument(SpaceTelescopeInstrument):
         self.detector_position = (1024, 1024)
 
         self.include_si_wfe = True
+        self.include_ote_field_dependence = True  # Note, this will be implicitly ignored if pupilopd=None
         """Should calculations include the Science Instrument internal WFE?"""
         self.options['jitter'] = 'gaussian'
         self.options['jitter_sigma'] = 0.006   # 6 mas, see https://jwst-docs.stsci.edu/jwst-observatory-hardware/jwst-pointing-performance#JWSTPointingPerformance-Pointing_stabilityPointingstability
@@ -829,6 +832,27 @@ class JWInstrument(SpaceTelescopeInstrument):
         optic = self._si_wfe_class(self)
         return optic
 
+    def get_opd_file_full_path(self, opdfilename=None):
+        """Return full path to the named OPD file.
+
+        The OPD may be:
+         - a local or absolute path,
+         - or relative implicitly within an SI directory, e.g. $WEBBPSF_PATH/NIRCam/OPD
+         - or relative implicitly within $WEBBPSF_PATH
+
+        This function handles filling in the implicit path in the latter cases.
+        """
+
+        if opdfilename is None:
+            opdfilename = self.pupilopd
+
+        if os.path.exists(opdfilename):
+            return opdfilename
+        elif self.name in opdfilename:
+            return os.path.join(self._datapath, "OPD", opdfilename)
+        else:
+            return os.path.join(self._WebbPSF_basepath, opdfilename)
+
     def _get_telescope_pupil_and_aberrations(self):
         """return OpticalElement modeling wavefront aberrations for the telescope.
 
@@ -841,14 +865,16 @@ class JWInstrument(SpaceTelescopeInstrument):
         """
 
         # ---- set pupil OPD
+
+
+
+        opd_index = None  # default assumption: OPD file is not a datacube
         if isinstance(self.pupilopd, str):  # simple filename
-            opd_map = self.pupilopd if os.path.exists(self.pupilopd) else \
-                os.path.join(self._datapath, "OPD", self.pupilopd)
+            opd_map = self.get_opd_file_full_path(self.pupilopd)
         elif hasattr(self.pupilopd, '__getitem__') and isinstance(self.pupilopd[0], str):
-            # tuple with filename and slice
-            opd_map = (self.pupilopd[0] if os.path.exists(self.pupilopd[0])
-                       else os.path.join(self._datapath, "OPD", self.pupilopd[0]),
-                       self.pupilopd[1])
+            # tuple with filename and slice, for a datacube
+            opd_map = self.get_opd_file_full_path(self.pupilopd[0])
+            opd_index = self.pupilopd[1]
         elif isinstance(self.pupilopd, (fits.HDUList, poppy.OpticalElement)):
             opd_map = self.pupilopd  # not a path per se but this works correctly to pass it to poppy
         elif self.pupilopd is None:
@@ -889,6 +915,7 @@ class JWInstrument(SpaceTelescopeInstrument):
                 name='{} Entrance Pupil'.format(self.telescope),
                 transmission=pupil_transmission,
                 opd=opd_map,
+                opd_index=opd_index,
                 v2v3=self._tel_coords(), npix=npix
             )
 

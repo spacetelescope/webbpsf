@@ -75,31 +75,35 @@ JWST's optical system has been extremely precisely engineered and assembled. Ind
 
 Further information on JWST's predicted optical performance is available in `"Status of the optical performance for the James Webb Space Telescope" <http://dx.doi.org/10.1117/12.2055502>`_, Lightsey *et al.*, (2014) and `"Predicted JWST imaging performance" <http://dx.doi.org/10.1117/12.926817>`_, Knight *et al.* (2012).
 
-For each science instrument, if you examine ``inst.opd_list`` (where ``inst`` is an instance of an instrument model), you will see the filenames for a "predicted" OPD map and a "requirements" OPD map. For example::
+For each science instrument, if you examine ``inst.opd_list`` (where ``inst`` is an instance of an instrument model), you will see the filenames for two "predicted" OPDs and a "requirements" OPD map. For example::
 
    >>> nc = webbpsf.NIRCam()
    >>> nc.opd_list
-   ['OPD_RevW_ote_for_NIRCam_predicted.fits.gz',
+   ['JWST_OTE_OPD_RevAA_prelaunch_predicted.fits.gz',
+    'OPD_RevW_ote_for_NIRCam_predicted.fits.gz',
     'OPD_RevW_ote_for_NIRCam_requirements.fits.gz']
 
-By default, WebbPSF selects the (slightly more conservative) ``requirements`` OPD map::
+As of WebbPSF 1.0, WebbPSF selects the 'JWST_OTE_OPD_RevAA_prelaunch_predicted.fits.gz' OPD as the default OPD map for all instruments. This is a *significant change* from prior versions::
 
    >>> nc.pupilopd
-   'OPD_RevW_ote_for_NIRCam_requirements.fits.gz'
+  'JWST_OTE_OPD_RevAA_prelaunch_predicted.fits.gz'
 
-Performance predictions for a large active deployable space telescope are inherently probabilistic, and Monte Carlo methods have been used to derive overall probability distributions based on the individual error budget terms. The "predicted" OPD maps provided with WebbPSF correspond to the median values from such simulations, and provide a reasonable approximation of current performance expectations. However, performance at such levels is not guaranteed. The "requirements" OPD maps are more conservative, set to the slightly higher levels of residual wavefront error that we can be confident will be achieved in practice. Both the predicted and required values contain maximal budgeted contributions from OTE temporal drifts and dynamics (roughly 55 nm of low and mid frequency error); i.e. they correspond to times well after a wavefront control and shortly before a next set of control moves might be issued.
+Performance predictions for a large active deployable space telescope are inherently probabilistic, and Monte Carlo methods have been used to derive overall probability distributions based on the individual error budget terms. The "prelaunch_predicted" OPD maps provided with WebbPSF are based on a recent integrated modeling cycle, the so-called PSR2020 ("Predicted Stability Requirements 2020") modeling effort, and provide a reasonable approximation of current performance expectations. However, performance at such levels is not guaranteed.  See :doc:`jwst_optical_budgets` for more details on the contents of this OPD model.
 
-To select the ``predicted`` map, simply assign it to the ``pupilopd`` attribute before calculating the PSF::
+The older "predicted" and "requirements" OPD maps are more conservative, dating to 2016. The Requirements map is set to the slightly higher levels of residual wavefront error that we can be confident will be achieved in practice. Both the predicted and required values contain maximal budgeted contributions from OTE temporal drifts and dynamics (roughly 55 nm of low and mid frequency error); i.e. they correspond to times well after a wavefront control and shortly before a next set of control moves might be issued. Further, they also include very conservative levels of instrument WFE, which is both higher than the as-built instruments *and* is double-booked relative to the SI WFE models elsewhere in webbpsf. These files are kept for consistency with past versions of WebbPSF, but we now know hopefully we may do better in flight.
+
+To select a different OPD map, simply assign it to the ``pupilopd`` attribute before calculating the PSF::
 
    >>> nc.pupilopd = 'OPD_RevW_ote_for_NIRCam_predicted.fits.gz'
 
-For both the required and predicted cases, the OPD files contain 10 Monte Carlo realizations of the telescope. You can select one of these by specifying the plane number in a tuple::
+For all provided WFE cases, the OPD files contain *10 Monte Carlo realizations of the telescope*, representing slight variations or uncertainties in the alignment process. You can select one of these by specifying the plane number in a tuple::
 
    >>> nc.pupilopd = ('OPD_RevW_ote_for_NIRCam_predicted.fits.gz', 7)
 
-Note that these represent 10 distinct, totally independent realizations of JWST and its optical error budget. They do not represent any sort of time series or wavefront drift.
-The average levels of WFE from the telescope itself used in the OPD files are as follows.
+Note that these represent 10 distinct, totally independent realizations of JWST and its optical error budget. They do *not* represent any sort of time series or wavefront drift.
 
+
+The "prelaunch_predicted" OPD file is for the telescope only, and has ~60-65 nm rms WFE (consistent with budget predictions). This is for the global WFE of the telescope on-axis. Additional terms for off-axis telescope WFE and SI WFE are modeled separately and added on top of this. Again, see :doc:`jwst_optical_budgets`. For the older OPD files, the average levels of WFE from the telescope itself used in those "predicted" and "requirements" OPD files are as follows.
 
 ==========  ============  ============
 Instrument  Predicted     Requirements
@@ -111,9 +115,12 @@ MIRI        204 nm rms    258 nm rms
 ==========  ============  ============
 
 
-While different OPD maps are used for each SI, these OPD maps do not include wavefront
-error contributions from optics internal to the science instrument. Additional details
+As noted above, these older files accidentally do also include conservative models for
+wavefront error contributions from optics internal to the science instrument. This is why the models for NIRSpec and MIRI have such higher WFE.
+We recommend the use of the newer "prelaunch_predicted" OPDs instead. Additional details
 on the SI-specific wavefront error models are given under each instrument model section below.
+
+How well will any of these models represent the true in-flight performance that will be achieved by the observatory? We'll all learn together in 2022. Stay tuned for WebbPSF 1.1 and beyond.
 
 Field Dependent Aberrations
 ---------------------------

@@ -36,7 +36,7 @@ if sys.version_info < tuple((int(val) for val in __minimum_python_version__.spli
 # required. If changes to the code and data mean WebbPSF won't work
 # properly with an old data package, increment this version number.
 # (It's checked against $WEBBPSF_DATA/version.txt)
-DATA_VERSION_MIN = (0, 9, 0)
+DATA_VERSION_MIN = (1, 0, 0)
 
 
 class Conf(_config.ConfigNamespace):
