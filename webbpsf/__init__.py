@@ -89,6 +89,6 @@ from .webbpsf_core import (instrument, SpaceTelescopeInstrument, JWInstrument, N
 
 from .opds import enable_adjustable_ote
 
-from .roman import WFI, CGI
+from .roman import WFI, Coronagraph
 
 from .jupyter_gui import show_notebook_interface

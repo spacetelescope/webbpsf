@@ -296,24 +296,24 @@ def test_WFI_limits_interpolation_range():
     assert np.allclose(coefficients_outlier, coefficients_data), "nearest point extrapolation " \
                                                                  "failed for outlier field point"
 
-def test_CGI_detector_position():
-    """ Test existence of the CGI detector position etc, and that you can't set it."""
-    cgi = roman.CGI()
+def test_coronagraph_detector_position():
+    """ Test existence of the Coronagraph detector position etc, and that you can't set it."""
+    cor = roman.Coronagraph()
 
     valid_pos = (512,512)
-    assert cgi.detector_position == valid_pos, "CGI detector position isn't as expected"
+    assert cor.detector_position == valid_pos, "Coronagraph detector position isn't as expected"
 
     with pytest.raises(RuntimeError) as excinfo:
-        cgi.detector_position = valid_pos
+        cor.detector_position = valid_pos
     assert 'not adjustable' in str(excinfo.value), ("Failed to raise exception for"\
-                                                        "trying to change CGI detector position.")
+                                                        "trying to change Coronagraph detector position.")
 
-def test_CGI_psf(display=False):
+def test_coronagraph_psf(display=False):
     """
-    Just test that instantiating CGI works and can compute a PSF without raising
-    any exceptions
+    Just test that instantiating Coronagraph works and can compute a PSF
+    without raising any exceptions
     """
-    char_spc = roman.CGI()
+    char_spc = roman.Coronagraph()
     char_spc.mode = 'CHARSPC_F660'
 
     #print('Reading instrument data from {:s}'.format(charspc._WebbPSF_basepath)

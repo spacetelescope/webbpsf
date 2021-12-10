@@ -871,7 +871,7 @@ class WFI(RomanInstrument):
         self._update_pupil() # reset pupil mask
 
 
-class CGI(RomanInstrument):
+class Coronagraph(RomanInstrument):
     """
     Roman Coronagraph Instrument
 
@@ -886,8 +886,8 @@ class CGI(RomanInstrument):
     Parameters
     ----------
     mode : str
-        CGI observing mode. If not specified, the __init__ function
-        will set this to a default mode 'CHARSPC_F660'
+        Coronagraph Instrument observing mode. If not specified, the __init__
+        function will set this to a default mode 'CHARSPC_F660'
     pixelscale : float
         Detector pixelscale. If not specified, the pixelscale will default to
         0.02 arcsec for configurations usint the IMAGER camera and 0.025 arcsec
@@ -911,7 +911,7 @@ class CGI(RomanInstrument):
         'DISKSPC_F721': ('IMAGER', 'F721', 'DISKSPC', 'DISKSPC_F721_ANNULUS', 'LS30D88')}
 
     def __init__(self, mode=None, pixelscale=None, fov_arcsec=None, apply_static_opd=False):
-        super(CGI, self).__init__("CGI", pixelscale=pixelscale)
+        super(Coronagraph, self).__init__("CGI", pixelscale=pixelscale)
 
         self._detector_npixels = 1024
         self._detectors = {camera: 'placeholder' for camera in self.camera_list}
@@ -967,14 +967,14 @@ class CGI(RomanInstrument):
             if not hasattr(self, 'pixelscale') or not self._override_pixelscale:
                 self.pixelscale = 0.025  # Nyquist at 600 nm
 
-    # for CGI, there is one detector per camera and it should be set automatically.
+    # for Coronagraph, there is one detector per camera and it should be set automatically.
     @property
     def detector(self):
         return self.camera
 
     @detector.setter
     def detector(self, value):
-        raise RuntimeError("Can't set detector directly for CGI; set camera instead.")
+        raise RuntimeError("Can't set detector directly for Coronagraph; set camera instead.")
 
     @property
     def filter(self):
@@ -1081,7 +1081,7 @@ class CGI(RomanInstrument):
 
     def print_mode_table(self):
         """Print the table of observing mode options and their associated optical configuration"""
-        _log.info("Printing the table of Roman CGI observing modes supported by WebbPSF.")
+        _log.info("Printing the table of Roman Coronagraph Instrument observing modes supported by WebbPSF.")
         _log.info("Each is defined by a combo of camera, filter, apodizer, "
                   "focal plane mask (FPM), and Lyot stop settings:")
         _log.info(pprint.pformat(self._mode_table))
@@ -1093,13 +1093,13 @@ class CGI(RomanInstrument):
 
     @detector_position.setter
     def detector_position(self, position):
-        raise RuntimeError("Detector position not adjustable for CGI")
+        raise RuntimeError("Detector position not adjustable for Coronagraph")
 
     def _validate_config(self, **kwargs):
-        super(CGI, self)._validate_config(**kwargs)
+        super(Coronagraph, self)._validate_config(**kwargs)
 
     def _addAdditionalOptics(self, optsys, oversample=4):
-        """Add coronagraphic or spectrographic optics for Roman CGI."""
+        """Add coronagraphic or spectrographic optics for Roman Coronagraph."""
 
         trySAM = False
 
