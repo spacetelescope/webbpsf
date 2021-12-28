@@ -190,7 +190,7 @@ behavior on filter selection can be disabled by setting ``nircam.auto_channel = 
     SW, otherwise for NRCA5 or NRCB5 the pixel scale will be for LW.
     If you set the ``filter`` attribute to a filter in the short wave channel,
     the pixel scale will be set for SW, otherwise for a filter in the long wave
-    challen the scale will be set for LW.
+    channel the scale will be set for LW.
 
     The intent is that the user should in general automatically get a PSF with the
     appropriate pixelscale for whatever instrument config you're trying to simulate,
