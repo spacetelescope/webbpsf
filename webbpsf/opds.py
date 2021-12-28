@@ -2864,7 +2864,7 @@ def test2_OPDbender(filename='OPD_RevV_nircam_132.fits'):
 
 class OteThermalModel(object):
     """
-    Create an object for a delta_time that predictes the WSS Hexike coeffcients
+    Create an object for a delta_time that predictes the WSS Hexike coefficients
     for an OPD that represents the impact of thermal variation caused by a change
     in pitch angle relative to the sun.
 
@@ -2927,7 +2927,7 @@ class OteThermalModel(object):
     def get_coeffs(self, segid, delta_time):
         """ Given the segid name (either 'SM' or any of the segment names under
         constants.SEGNAMES), return the global or local (to each segment) Hexike
-        coefficiets
+        coefficients
 
         Assume that delta_time is a float in units of days.
         """

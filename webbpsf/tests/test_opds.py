@@ -47,12 +47,12 @@ SCALING_FACTOR = 0.5
 #   above file. The below truth values are in units of METERS
 GLOBAL_FOCUS = [-1.8251043541410904e-08]
 GLOBAL_FOCUS2 = [GLOBAL_FOCUS[0] * SCALING_FACTOR]
-# Coeffcients for A1 based on 1 day after maximum slew with no scaling predicted
+# Coefficients for A1 based on 1 day after maximum slew with no scaling predicted
 #   using above file
 COEFFS_A1 = np.array([-3.52633363e-09, -2.90050902e-09, 1.25432196e-09, -7.43319098e-12,
                       -5.82462948e-11, -1.27115922e-10, -1.91541104e-12, 3.64760396e-11,
                       4.97176630e-13])
-# Coeffcients for A4 based on 5 hours after maximum slew with no scaling,
+# Coefficients for A4 based on 5 hours after maximum slew with no scaling,
 #   start_angle=5. and end_angle=15., predicted using above file
 # Updated on 9/18/2020
 COEFFS_A4 = np.array([ 3.89238932e-10,  1.80333109e-10,  1.18632814e-10,  4.42108030e-13,
@@ -95,7 +95,7 @@ def test_get_thermal_slew_coeffs(time, seg, scaling, start_angle, end_angle,
     # Pull out coefficients
     if isinstance(coeffs, float):
         coeffs = [coeffs]
-    # Assert the coefficents
+    # Assert the coefficients
     for coeff, truth in zip(coeffs, coeff_truth):
         #assert np.round(coeff, decimals=4) == np.round(truth, decimals=4)
         coeff /= 1e-9 # Convert to nm so we are not dealing with such small numbers
