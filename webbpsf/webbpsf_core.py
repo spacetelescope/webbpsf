@@ -1786,7 +1786,7 @@ class NIRCam(JWInstrument):
                 newval = None
 
             if newval is not None:
-                # Set altnerative aperture name as bandaid to continue
+                # Set alternative aperture name as bandaid to continue
                 value = newval
                 _log.warning('Possibly running an old version of pysiaf missing some NIRCam apertures. Continuing with old aperture names.')
             else:
