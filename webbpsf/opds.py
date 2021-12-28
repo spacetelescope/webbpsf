@@ -2280,7 +2280,7 @@ class OTE_Linear_Model_WSS(OPD):
         observatory relative to the sun (or the user can define a scaling factor)
         to determine the expected WFE caused by thermal variations.
         Note: The start_angle and end_angle are used together, but will be ignored
-        if the scaling variable is set to somthing other than "None".
+        if the scaling variable is set to something other than "None".
 
         The maximum HOT to COLD pitch angles are -5 to 45 degrees. With regards
         to this, we make some assumptions:
