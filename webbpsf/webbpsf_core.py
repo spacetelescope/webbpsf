@@ -100,7 +100,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         have something at an intermediate pupil plane between the telescope aperture and the detector.
     pupil_rotation : float
         Relative rotation of the intermediate (coronagraphic) pupil relative to
-        the telescope entrace pupil, expressed in degrees counterclockwise.
+        the telescope entrance pupil, expressed in degrees counterclockwise.
         This option only has an effect for optical models that have something at
         an intermediate pupil plane between the telescope aperture and the detector.
     rebin : bool
