@@ -36,7 +36,7 @@ def test_calc_psf_catch_incompatible_oversampling():
 def test_invalid_masks():
     nc = webbpsf_core.NIRCam()
 
-    # first, test case indepedencence. These are all converted to upper case internally & automatically
+    # first, test case independence. These are all converted to upper case internally & automatically
     nc.image_mask = 'maskswb'
     assert nc.image_mask =='MASKSWB'
 
