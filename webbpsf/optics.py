@@ -504,7 +504,7 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
 
         # rpuppix = radius of pupil in pixels
         # rpuppix = self.amplitude_header['DIAM'] / self.amplitude_header['PUPLSCAL'] / 2
-        # Calculate the radius of curvature of the cylinder, bsaed on
+        # Calculate the radius of curvature of the cylinder, based on
         # the chord length and height
 
         # In this case we're assuming the cylinder is precisely as wide as the projected
