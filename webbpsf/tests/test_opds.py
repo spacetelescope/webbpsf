@@ -293,7 +293,7 @@ def test_single_seg_psf(segmentid=1):
     ote.update_opd()
     psf_rm_ptt = nrc.calc_psf(nlambda=1)
     assert not np.allclose(psf[0].data, psf_rm_ptt[0].data), "Piston/Tip/Tip removal should shift the overall PSF"
-    assert np.abs(webbpsf.measure_centroid(psf)[0] - webbpsf.measure_centroid(psf_rm_ptt)[0]) > 40, "centroid should shift susbtantially with/without tip/tilt removal"
+    assert np.abs(webbpsf.measure_centroid(psf)[0] - webbpsf.measure_centroid(psf_rm_ptt)[0]) > 40, "centroid should shift substantially with/without tip/tilt removal"
 
 
 def test_apply_field_dependence_model():
