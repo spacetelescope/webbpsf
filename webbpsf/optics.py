@@ -973,7 +973,7 @@ def _width_blc(desired_width, approx=None, plot=False):
     """ The calculation of sigma parameters for the wedge BLC function is not straightforward.
 
     This function numerically solves the relevant equation to determine the sigma required to
-    acheive a given HWHM.
+    achieve a given HWHM.
 
     It uses recursion to iterate to a higher precision level.
     """

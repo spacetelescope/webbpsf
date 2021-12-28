@@ -274,7 +274,7 @@ than best focus.
 
 Note that the weak lenses are in the short wave channel only; webbpsf won't stop
 you from simulating a LW image with a weak lens, but that's not a real
-configuration that can be acheived with NIRCam.
+configuration that can be achieved with NIRCam.
 
 
 SI WFE
