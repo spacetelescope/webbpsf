@@ -752,7 +752,7 @@ Released May 18, 2012
         * Better packaging in general, with more attention to public/private API consistency
         * Built-in test suite available via `python setup.py test`
 
-* Minor fix to MIRI ND filter transmission curve (Note: MIRI ND data is available on internal STScI data ditribution only)
+* Minor fix to MIRI ND filter transmission curve (Note: MIRI ND data is available on internal STScI data distribution only)
 * Binset now specified when integrating across bandpasses in pysynphoteliminating a previous warning message for that calculation.
 * Stellar spectra are now by default drawn from the PHOENIX models catalog rather than the Castelli & Kurucz 2004 models. This is because the PHOENIX models have better spectral sampling at mid-infrared wavelengths.
 * Default centroid box sizes are now consistent for measure_centroid() and the markcenter option to display_PSF(). (Thanks to Charles Lajoie for noting the discrepancy)
