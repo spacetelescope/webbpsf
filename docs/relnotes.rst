@@ -101,7 +101,7 @@ This release only improves a subset of WFIRST functionality; additional improvem
 
     -  Imaging
     -  Grism
-    -  Prisim
+    -  Prism
 
 - New `WFI.override_aberrations(aberrations_path)`: Overrides and locks the current aberrations with aberrations at `aberrations_path`. Lock means changing the filter/mode has no effect on the aberrations. [:pr:`416`, :pr:`471`, :user:`robelgeda`]
 - New `WFI.reset_override_aberrations()`: Releases `WFI.override_aberrations` lock and start using the default aberrations. [:pr:`416`, :pr:`471`, :user:`robelgeda`]
