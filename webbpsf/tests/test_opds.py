@@ -104,7 +104,7 @@ def test_get_thermal_slew_coeffs(time, seg, scaling, start_angle, end_angle,
 
 
 def test_thermal_slew_partial_angle():
-    """ total slew shoudl give same total amplitude if broken into smaller jumps"""
+    """ total slew should give same total amplitude if broken into smaller jumps"""
 
     otelm = webbpsf.opds.OTE_Linear_Model_WSS()
 
