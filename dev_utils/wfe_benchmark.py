@@ -1,6 +1,6 @@
 # Note: meant to just copy/paste into ipython command line
 
-# Import WebbPSF and setup multliprocessing
+# Import WebbPSF and setup multiprocessing
 import webbpsf
 webbpsf.webbpsf_core.poppy.conf.use_fftw = False
 webbpsf.webbpsf_core.poppy.conf.use_multiprocessing = True
