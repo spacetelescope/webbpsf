@@ -301,7 +301,7 @@ def test_apply_field_dependence_model():
 
     Checks cases comparing master chief ray, center of NIRCam, and center of NIRISS.
 
-    Note, the steps for performing this test are a little suble. We want to disable the
+    Note, the steps for performing this test are a little subtle. We want to disable the
     SI and OTE global field dependence terms, and enable ONLY the OTE nominal field
     dependence. Thus there are several calls to manually set only the nominal field dep to True
 
