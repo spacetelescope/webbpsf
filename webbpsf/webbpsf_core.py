@@ -2481,7 +2481,7 @@ class DetectorGeometry(object):
     aperturename : string
         Name of SIAF aperture
     shortname : basestring
-        Alternate short descriptiv name for this aperture
+        Alternate short descriptive name for this aperture
 
     """
 
