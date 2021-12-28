@@ -1,4 +1,4 @@
-.. _poppy_overiew:
+.. _poppy_overview:
 
 *********************************************************
 Overview of POPPY (Physical Optics Propagation in Python)
