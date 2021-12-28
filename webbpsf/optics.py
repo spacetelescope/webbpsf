@@ -701,7 +701,7 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
         to some arbitrary position.
     shift_x, shift_y : floats or None
         X and Y offset shifts applied to the occulter, via the standard mechanism for
-        poppy.AnalyticOpticalElements. Like bar_offset but allows for 2D offets, and
+        poppy.AnalyticOpticalElements. Like bar_offset but allows for 2D offsets, and
         applies to both bar and wedge coronagraphs.  This is IN ADDITION TO any offset
         from bar_offset.
     """
