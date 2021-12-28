@@ -3,7 +3,7 @@ import scipy.special as sp
 import matplotlib.pyplot as plt
 import math
 
-# This is the start of an experimental protoype object oriented code for representing wavefronts.  The intent is to
+# This is the start of an experimental prototype object oriented code for representing wavefronts.  The intent is to
 # represent a wavefront in such a way that calling code doesn't need to care about the representation and can just ask
 # for the data as an array of OPD values on a regular grid, polynomial coefficients, or other without caring about
 # the internal representation or worrying about fitting or expanding polynomials out, etc.
