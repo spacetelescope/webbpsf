@@ -474,7 +474,7 @@ MIRI detector cross artifact
 -----------------------------
 
 The MIRI imager's Si:As IBC detector exhibits a so-called "cross artifact", particularly at
-short wavelengths (5-8 microns), due to internal diffraction of photons within the detector subtrate
+short wavelengths (5-8 microns), due to internal diffraction of photons within the detector substrate
 itself. See `Gaspar et al. 2021 <https://ui.adsabs.harvard.edu/abs/2021PASP..133a4504G/abstract>`_ for details.
 WebbPSF implements a simplified model for this effect, following the approach described by Glasse et al. in
 MIRI technical report MIRI-TN-00076-ATC_Imager_PSF_Issue_4.pdf. The model coefficients have been adjusted to
