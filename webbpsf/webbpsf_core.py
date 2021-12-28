@@ -1636,7 +1636,7 @@ class NIRCam(JWInstrument):
 
     Similarly, SIAF aperture names are automatically chosen based on detector, filter,
     image mask, and pupil mask settings. The auto-selection can be disabled by
-    setting `.auto_aperturname = False`. SIAF aperture information is mainly used for
+    setting `.auto_aperturename = False`. SIAF aperture information is mainly used for
     coordinate transformations between detector science pixels and telescope V2/V3.
 
     Special Options:
