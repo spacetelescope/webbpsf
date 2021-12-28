@@ -278,7 +278,7 @@ class CreatePSFLibrary:
 
             # Normalize the output PSFs as expected by photutils.GriddedPSFModel:
             #  PSFs should be in surface brightness units, independent of oversampling.
-            #  This is diferent than webbpsf/poppy's default in which PSFs usually sum to 1
+            #  This is different than webbpsf/poppy's default in which PSFs usually sum to 1
             #  so the counts/pixel varies based on sampling. Apply the necessary conversion
             #  factor here. See issue #302.
             psf_arr *= self.oversample**2
