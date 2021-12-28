@@ -377,7 +377,7 @@ def validate_vs_krist_blc(which='spot'):
     nc.image_mask = image_mask
     nc.pupil_mask = pupil_mask
     nc.options['no_sam'] = True
-    nc.pixelscale = 0.065 # match the Krist sims exacly. vs 0.648 official
+    nc.pixelscale = 0.065 # match the Krist sims exactly. vs 0.648 official
 
     cor_vmin = 1e-12
     cor_vmax=1e-5
@@ -447,7 +447,7 @@ def validate_vs_krist_sims(clobber=False, normalize=False, which='spot', no_sam=
     nc.image_mask = image_mask
     nc.pupil_mask = pupil_mask
     nc.options['no_sam'] = no_sam
-    nc.pixelscale = 0.065 # match the Krist sims exacly. vs 0.648 official
+    nc.pixelscale = 0.065 # match the Krist sims exactly. vs 0.648 official
 
     cor_vmin = 1e-12
     cor_vmax=1e-5
