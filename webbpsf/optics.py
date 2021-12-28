@@ -1057,7 +1057,7 @@ def _trim_nan_image(xgrid, ygrid, zgrid):
     ygrid2 = ygrid2[y1:y2]
     zgrid2 = zgrid2[y1:y2,x1:x2]
     
-    # Find a optimal rectangule subsection free of NaN's
+    # Find a optimal rectangle subsection free of NaN's
     # Iterative cropping
     ndiff = 5
     while np.isnan(zgrid2.sum()):
