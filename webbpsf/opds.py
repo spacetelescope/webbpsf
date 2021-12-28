@@ -2864,7 +2864,7 @@ def test2_OPDbender(filename='OPD_RevV_nircam_132.fits'):
 
 class OteThermalModel(object):
     """
-    Create an object for a delta_time that predictes the WSS Hexike coefficients
+    Create an object for a delta_time that predicts the WSS Hexike coefficients
     for an OPD that represents the impact of thermal variation caused by a change
     in pitch angle relative to the sun.
 
