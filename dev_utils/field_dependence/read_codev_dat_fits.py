@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 
 # Script that reads in a set of CodeV Pupil map OPD files across fields and instruments and fits Zernikes to the OPD
-# distribution at each field point and then Lengdres to the variation of each Zernike coefficient across field.  The
+# distribution at each field point and then Legendres to the variation of each Zernike coefficient across field.  The
 # Resulting table of Legendres coefficients for each Zernike term is written to a .fits table which is then used in
 # WebbPSF to model field dependence.
 
