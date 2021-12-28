@@ -165,7 +165,7 @@ add the hybrid Lyot modes.
     Current functionality is limited to the Shaped Pupil Coronagraph (SPC)
     observing modes, and these modes are only simulated with static, unaberrated
     wavefronts, without relay optics and without DM control. The design
-    respresented here is an approximation to a baseline concept, and will be
+    represented here is an approximation to a baseline concept, and will be
     subject to change based on ongoing trades studies and technology development.
 
 
