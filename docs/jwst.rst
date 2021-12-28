@@ -134,7 +134,7 @@ tertiary mirror surface then results in increased field dependent WFE.
 
 In an effort to capture the contribution of these field-dependent aberrations a polynomial model of the field
 dependent aberrations was derived, based on the as-built OTE optical model Revision H, which includes measured
-surface errors of the optical elements.  This optical model was used in the CodeV lens design and anaylsis software
+surface errors of the optical elements.  This optical model was used in the CodeV lens design and analysis software
 package to generate OPD maps capturing the variation of the OTE's aberrations across
 the fields of each of the science instruments.  Each of these OPD maps were fit to a set of Zernike polynomials so
 that the wavefront was represented by a small number of coefficients, varying at each field point.  These variations are captured by fitting
