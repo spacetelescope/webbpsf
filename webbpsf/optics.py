@@ -852,7 +852,7 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
         if self.nd_squares:
             # add in the ND squares. Note the positions are not exactly the same in the two wedges.
             # See the figures  in Krist et al. of how the 6 ND squares are spaced among the 5
-            # corongraph regions
+            # coronagraph regions
             # Note: 180 deg rotation needed relative to Krist's figures for the flight SCI orientation:
 
             if ((self.module == 'A' and self.name == 'MASKLWB') or
