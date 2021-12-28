@@ -680,7 +680,7 @@ class NIRISS_CLEARP(poppy.CompoundAnalyticOptic):
 class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
     """ Band Limited Coronagraph
 
-    Paramaters
+    Parameters
     ----------
     name : string
         Descriptive name. Must be one of the defined NIRCam coronagraphic mask names.
