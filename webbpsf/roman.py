@@ -925,7 +925,7 @@ class RomanCoronagraph(RomanInstrument):
             self.pupilopd = None
         self.aberration_optic = None
         self.options = {'force_coron': True}
-        # Allow the user to pre-emptively override the default instrument FoV and pixel scale
+        # Allow the user to preemptively override the default instrument FoV and pixel scale
         if fov_arcsec is not None:
             self.fov_arcsec = fov_arcsec
             self._override_fov = True
