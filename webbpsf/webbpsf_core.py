@@ -2556,7 +2556,7 @@ def segname(val):
     Parameters
     ------------
     val : string or int
-        Something that can concievably be the name or ID of a JWST PMSA.
+        Something that can conceivably be the name or ID of a JWST PMSA.
     """
 
     try:
