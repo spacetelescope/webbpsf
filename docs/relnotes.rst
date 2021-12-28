@@ -78,7 +78,7 @@ For JWST, this release includes updates to WebbPSF just prior to the launch. For
 * Various minor bug fixes (:pr:`410`, :pr:`422`, :pr:`427`, :pr:`497` by :user:`mperrin`, :pr:`423` by :user:`kjbrooks`, :pr:`493` by :user:`JarronL`)
 * Updates to recommended (not minimum) dependency versions. Drop support for Python 3.6. (various PRs by :user:`shanosborne`)
 * Remove deprecated older code including the GUIs (:pr:`439` by :user:`mperrin`)
-* Streamline test suite to keep CI runtimes managable (:pr:`459` by :user:`mperrin`)
+* Streamline test suite to keep CI runtimes manageable (:pr:`459` by :user:`mperrin`)
 
 ------------------
 
