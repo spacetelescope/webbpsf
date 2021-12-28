@@ -1232,7 +1232,7 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         This adds options to model JWST coarse point ("PCS=Coarse") under
         two sets of assumptions:
-            "PCS=Coarse": 67 mas Gaussian jitter, as advised by Nelan & Maghamni based on
+            "PCS=Coarse": 67 mas Gaussian jitter, as advised by Nelan & Maghami based on
                           detailed sims of observatory performance in coarse point mode.
             "PCS=Coarse_Like_ITM": Attempt to replicate same assumptions as in Ball's ITM tool.
                           This includes 200 mas sigma Gaussian jitter, plus a linear drift of
