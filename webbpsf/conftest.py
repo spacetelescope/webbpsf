@@ -3,11 +3,22 @@
 # no matter how it is invoked within the source tree.
 
 try:
-    from astropy.tests.plugins.display import *
-    from astropy.tests.helper import *
-except ImportError:
-    from astropy.tests.pytest_plugins import *
+    from pytest_astropy_header.display import PYTEST_HEADER_MODULES, TESTED_VERSIONS
+except ImportError:  # In case this plugin is not installed
+    PYTEST_HEADER_MODULES = {}
+    TESTED_VERSIONS = {}
 
-## Uncomment the following line to treat all DeprecationWarnings as
-## exceptions
-# enable_deprecations_as_exceptions()
+# This really depends on how you set up your package version,
+# modify as needed.
+try:
+    from webbpsf import __version__ as version
+except ImportError:
+    version = ''
+
+def pytest_configure():
+    PYTEST_HEADER_MODULES.pop('Pandas', None)
+    PYTEST_HEADER_MODULES.pop('h5py', None)
+    PYTEST_HEADER_MODULES['Astropy'] = 'astropy'
+    PYTEST_HEADER_MODULES['Photutils'] = 'photutils'
+    PYTEST_HEADER_MODULES['Poppy'] = 'poppy'
+    TESTED_VERSIONS['Webbpsf'] = version
