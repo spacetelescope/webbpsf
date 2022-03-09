@@ -98,7 +98,7 @@ class CreatePSFLibrary:
         c = CreatePSFLibrary(instrument, filter_name, detectors, num_psfs, add_distortion,
                              fov_pixels, oversample, save, outdir, filename, overwrite,
                              verbose)
-        grid = c.create_files()
+        grid = c.create_grid()
 
         """
 
@@ -513,14 +513,14 @@ def display_psf_grid(grid, zoom_in=True, figsize=(14, 12), scale_range=1e-4):
             axes.shape = (1, 1)
 
         if scale == 'log':
-            norm = matplotlib.colors.LogNorm()
+            norm = matplotlib.colors.LogNorm(vmax=vmax, vmin=vmin)
         else:
-            norm = matplotlib.colors.Normalize()
+            norm = matplotlib.colors.Normalize(vmax=vmax, vmin=vmin)
 
         for ix in range(n):
             for iy in range(n):
                 i = ix*n+iy
-                im = axes[n-1-iy, ix].imshow(data[i], vmax=vmax, vmin=vmin, norm=norm)
+                im = axes[n-1-iy, ix].imshow(data[i], norm=norm)
                 axes[n-1-iy, ix].xaxis.set_visible(False)
                 axes[n-1-iy, ix].yaxis.set_visible(False)
                 axes[n-1-iy, ix].set_title("{}".format(tuple_to_int(grid.grid_xypos[i])))
