@@ -6,7 +6,7 @@ WebbPSF Core
 An object-oriented modeling system for the JWST instruments.
 
 Classes:
-  * SpaceTelescopeInstrument
+  * SpaceTelescopeInstrument 
     * JWInstrument
       * MIRI
       * NIRCam
