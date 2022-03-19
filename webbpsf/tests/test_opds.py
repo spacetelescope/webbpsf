@@ -13,6 +13,11 @@ import pytest
 import webbpsf
 import matplotlib.pyplot as plt
 
+# Set up a pinned pysiaf version so as not to break tests with any pysiaf value updates
+prd_data_dir = pysiaf.constants.JWST_PRD_DATA_ROOT.rsplit('PRD', 1)[0]
+PRD34_NRC = os.path.join(prd_data_dir, 'PRDOPSSOC-034/SIAFXML/SIAFXML/NIRCam_SIAF.xml')
+PRD34_MIRI = os.path.join(prd_data_dir, 'PRDOPSSOC-034/SIAFXML/SIAFXML/MIRI_SIAF.xml')
+
 def test_enable_adjustable_ote():
     """ Some basic tests of the OTE LOM"""
     nc = webbpsf.NIRCam()
@@ -396,9 +401,9 @@ def test_get_zernike_coeffs_from_smif():
     
     assert (np.allclose(otelm._get_hexike_coeffs_from_smif(1.0, 1.0)[3:], hexikes, rtol=1e-3))
 
-    # Case 4: test at MIRIM_FP1MIMF field point
-    otelm.ote_ctrl_pt = pysiaf.Siaf('NIRCAM')['NRCA3_FP1'].reference_point('tel') *u.arcsec
-    otelm.v2v3 = pysiaf.Siaf('MIRI')['MIRIM_FP1MIMF'].reference_point('tel') *u.arcsec
+    # Case 4: test at MIRIM_FP1MIMF field point, with pinned pysiaf version
+    otelm.ote_ctrl_pt = pysiaf.Siaf('NIRCAM', filename=PRD34_NRC)['NRCA3_FP1'].reference_point('tel') * u.arcsec
+    otelm.v2v3 = pysiaf.Siaf('MIRI', filename=PRD34_MIRI)['MIRIM_FP1MIMF'].reference_point('tel') * u.arcsec
     telfer_zern_mirim_fp1mimf = np.asarray( [-0.25066019, 0.22840080, -0.53545999, -0.024227464, -0.0025191352, 0.00050082553]) # Taken from Telfer's tool
     # Convert Telfer's Zernikes to Hexikes:
     hexikes = hexikes = [-telfer_zern_mirim_fp1mimf[1], 
