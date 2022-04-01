@@ -1,4 +1,4 @@
-.. _poppy_overiew:
+.. _poppy_overview:
 
 *********************************************************
 Overview of POPPY (Physical Optics Propagation in Python)
@@ -39,4 +39,4 @@ POPPY presently assumes that optical propagation can be modeled using Fraunhofer
 
 Two different algorithmic flavors of Fourier transforms are used in POPPY. The familiar FFT algorithm is used for transformations between pupil and image planes in the general case. This algorithm is relatively fast (*O(N log(N))*) but imposes strict constraints on the relative sizes and samplings of pupil and image plane arrays. Obtaining fine sampling in the image plane requires very large oversized pupil plane arrays and vice versa, and image plane pixel sampling becomes wavelength dependent.
 
-To avoid these constraints, for transforms onto the final :py:class:`Detector` plane, instead a Matrix Fourier Transform (MFT) algorithm is used (See `Soummer et al. 2007 Optics Express <http://adsabs.harvard.edu/abs/2007OExpr..1515935S>`_). This allows computation of the PSF directly on the desired detector pixel scale or an arbitrarily finely subsampled version therof. For equivalent array sizes *N*, the MFT is slower than the FFT (*O(N^3)*), but in practice the ability to freely choose a more appropriate *N* (and to avoid the need for post-FFT interpolation onto a common pixel scale) more than makes up for this and the MFT is faster.
+To avoid these constraints, for transforms onto the final :py:class:`Detector` plane, instead a Matrix Fourier Transform (MFT) algorithm is used (See `Soummer et al. 2007 Optics Express <http://adsabs.harvard.edu/abs/2007OExpr..1515935S>`_). This allows computation of the PSF directly on the desired detector pixel scale or an arbitrarily finely subsampled version thereof. For equivalent array sizes *N*, the MFT is slower than the FFT (*O(N^3)*), but in practice the ability to freely choose a more appropriate *N* (and to avoid the need for post-FFT interpolation onto a common pixel scale) more than makes up for this and the MFT is faster.

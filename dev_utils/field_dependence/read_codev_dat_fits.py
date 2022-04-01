@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 
 # Script that reads in a set of CodeV Pupil map OPD files across fields and instruments and fits Zernikes to the OPD
-# distribution at each field point and then Lengdres to the variation of each Zernike coefficient across field.  The
+# distribution at each field point and then Legendres to the variation of each Zernike coefficient across field.  The
 # Resulting table of Legendres coefficients for each Zernike term is written to a .fits table which is then used in
 # WebbPSF to model field dependence.
 
@@ -154,11 +154,11 @@ def main():
                                                              wavelength_nm, basis.units.nm, wf_basis=legendres)
             legendre_var_global = basis.PointByPointWavefront(cur_coeffs_global, np.ones_like(cur_coeffs_global).astype(bool), 4,
                                                              wavelength_nm, basis.units.nm, wf_basis=legendres)
-            # Pull out the Legendre coeffcients from the wavefront object
+            # Pull out the Legendre coefficients from the wavefront object
             legendre_coeffs_local[:, index] = legendre_var_local.coeffs
             legendre_coeffs_global[:, index] = legendre_var_global.coeffs
 
-            # Store the Legendre coeffcients for the current Zernike term as a fits column and store in column list.
+            # Store the Legendre coefficients for the current Zernike term as a fits column and store in column list.
             cur_fits_col_local = fits.Column(name=f'Zernike {index} Legendres', format='D', array=legendre_coeffs_local[:,index])
             fits_column_list_local.append(cur_fits_col_local)
             cur_fits_col_global = fits.Column(name=f'Zernike {index} Legendres', format='D', array=legendre_coeffs_global[:,index])

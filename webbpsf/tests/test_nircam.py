@@ -101,7 +101,7 @@ def do_test_nircam_blc(clobber=False, kind='circular', angle=0, save=False, disp
 
     Compute BLC PSFs on axis and offset and check the values against the expectation.
     Note that the 'correct' values are just prior calculations with WebbPSF; the purpose of
-    this routine is just to check for basic functionaltiy of the code and consistency with
+    this routine is just to check for basic functionality of the code and consistency with
     prior results. See the validate_* tests instead for validation against independent
     models of JWST coronagraphy performance - that is NOT what we're trying to do here.
 

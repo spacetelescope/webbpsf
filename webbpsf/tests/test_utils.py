@@ -83,7 +83,7 @@ def test_measure_strehl(npix=100):
     wfe_rms = opdfile[0].header['WFE_RMS']  # nm
 
     marechal_strehl = np.exp( -((wfe_rms *1e-9)/wave*(2*np.pi))**2)
-    assert np.abs(meas_strehl-marechal_strehl) < 0.06, 'measured Strehl for that OPD file is too discrepant from the expected value from Marechal appoximation.'
+    assert np.abs(meas_strehl-marechal_strehl) < 0.06, 'measured Strehl for that OPD file is too discrepant from the expected value from Marechal approximation.'
 
 
     # and test a perfect PSF too

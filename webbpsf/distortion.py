@@ -363,7 +363,7 @@ def _apply_miri_scattering_kernel(in_psf, kernel_x, oversample):
         PSF array upon which to apply the kernel
     kernel_x : ndarray
         The 1D kernel in the x direction, output from _make_miri_scattering_kernel.
-        This will be transposed to createt the kernel in the y direction.
+        This will be transposed to create the kernel in the y direction.
     oversample : int
         Amount by which the input PSF is oversampled
 

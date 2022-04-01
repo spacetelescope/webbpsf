@@ -100,7 +100,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         have something at an intermediate pupil plane between the telescope aperture and the detector.
     pupil_rotation : float
         Relative rotation of the intermediate (coronagraphic) pupil relative to
-        the telescope entrace pupil, expressed in degrees counterclockwise.
+        the telescope entrance pupil, expressed in degrees counterclockwise.
         This option only has an effect for optical models that have something at
         an intermediate pupil plane between the telescope aperture and the detector.
     rebin : bool
@@ -1232,7 +1232,7 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         This adds options to model JWST coarse point ("PCS=Coarse") under
         two sets of assumptions:
-            "PCS=Coarse": 67 mas Gaussian jitter, as advised by Nelan & Maghamni based on
+            "PCS=Coarse": 67 mas Gaussian jitter, as advised by Nelan & Maghami based on
                           detailed sims of observatory performance in coarse point mode.
             "PCS=Coarse_Like_ITM": Attempt to replicate same assumptions as in Ball's ITM tool.
                           This includes 200 mas sigma Gaussian jitter, plus a linear drift of
@@ -1636,7 +1636,7 @@ class NIRCam(JWInstrument):
 
     Similarly, SIAF aperture names are automatically chosen based on detector, filter,
     image mask, and pupil mask settings. The auto-selection can be disabled by
-    setting `.auto_aperturname = False`. SIAF aperture information is mainly used for
+    setting `.auto_aperturename = False`. SIAF aperture information is mainly used for
     coordinate transformations between detector science pixels and telescope V2/V3.
 
     Special Options:
@@ -1786,7 +1786,7 @@ class NIRCam(JWInstrument):
                 newval = None
 
             if newval is not None:
-                # Set altnerative aperture name as bandaid to continue
+                # Set alternative aperture name as bandaid to continue
                 value = newval
                 _log.warning('Possibly running an old version of pysiaf missing some NIRCam apertures. Continuing with old aperture names.')
             else:
@@ -2481,7 +2481,7 @@ class DetectorGeometry(object):
     aperturename : string
         Name of SIAF aperture
     shortname : basestring
-        Alternate short descriptiv name for this aperture
+        Alternate short descriptive name for this aperture
 
     """
 
@@ -2556,7 +2556,7 @@ def segname(val):
     Parameters
     ------------
     val : string or int
-        Something that can concievably be the name or ID of a JWST PMSA.
+        Something that can conceivably be the name or ID of a JWST PMSA.
     """
 
     try:

@@ -18,7 +18,7 @@ import astropy.units as u
 # however the overall sums are precisely consistent.
 #
 # See Section 7 of the Guide to the Optical Budget which describes the breakdown into
-#  wfe residuals after WFSC + image motion equivalent + stabilty
+#  wfe residuals after WFSC + image motion equivalent + stability
 
 wfe_budget_info = None
 

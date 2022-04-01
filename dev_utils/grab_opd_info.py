@@ -84,7 +84,7 @@ def grab_opd_info(opd_data_str, npix=1024):
         A nested dictionary containing masks (labels) for each JWST segment
     newlabels: array
         A combined label plot with segments properly combined
-    newcentorids: dictionary
+    newcentroids: dictionary
         The center of each segment in pixels(?)
     segradius: float
         The radius of each segment

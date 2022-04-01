@@ -36,7 +36,7 @@ For JWST, this release includes updates to WebbPSF just prior to the launch. For
 **James Webb Space Telescope OTE model improvements**:
 
 * Updates in sign conventions for representing WFE, for strict consistency with the JWST WSS and other tools. Much of this was implemented by upstream changes in ``poppy``; see `this page in the poppy docs <https://poppy-optics.readthedocs.io/en/latest/sign_conventions_for_coordinates_and_phase.html>`_ for details.  (:pr:`397`, :pr:`419` by :user:`mperrin`, :pr:`418` by :user:`Skyhawk172`)
-* Significant update to JWST OTE optical models, to reflect more recent 2020 optical modeling of the as-built observatory (the "PSR2020" integrated modeling cycle). These have noticably lower WFE than the prior models (which were intentionally conservative, but ended up being more conservative than intended); typically the WFE is lower by some tens of nanometers in the new "prelaunch_predicted" OPDs. See details in :ref:`jwst_ote_details`. We will all learn together in 2022 how well these models predict the observatory's performance in flight. (:pr:`512`, :user:`mperrin`).
+* Significant update to JWST OTE optical models, to reflect more recent 2020 optical modeling of the as-built observatory (the "PSR2020" integrated modeling cycle). These have noticeably lower WFE than the prior models (which were intentionally conservative, but ended up being more conservative than intended); typically the WFE is lower by some tens of nanometers in the new "prelaunch_predicted" OPDs. See details in :ref:`jwst_ote_details`. We will all learn together in 2022 how well these models predict the observatory's performance in flight. (:pr:`512`, :user:`mperrin`).
 * Add models of OTE field dependence from the nominal OTE design and as-built optics (:pr:`389` by :user:`grbrady`, :pr:`505` by :user:`mperrin`) and from any misalignment of the secondary mirror, such as would be measured and corrected in MIMF (:pr:`392` by :user:`Skyhawk172`). These additions were enabled by more consistent use of JWST Linear Optical Model framework behind the scenes (:pr:`378` by :user:`mperrin`). This model of field dependence plus the updated OTE OPD files should yield a more comprehensive and precise model of PSF variations across the observatory.
 * Add an option to use a lookup table of field dependent OPDs from Ball's ITM tool (for JWST team internal use in
   pre-launch wavefront team practices and rehearsals). (:pr:`425` by :user:`Skyhawk172`, :pr:`474` by :user:`mperrin`)
@@ -78,7 +78,7 @@ For JWST, this release includes updates to WebbPSF just prior to the launch. For
 * Various minor bug fixes (:pr:`410`, :pr:`422`, :pr:`427`, :pr:`497` by :user:`mperrin`, :pr:`423` by :user:`kjbrooks`, :pr:`493` by :user:`JarronL`)
 * Updates to recommended (not minimum) dependency versions. Drop support for Python 3.6. (various PRs by :user:`shanosborne`)
 * Remove deprecated older code including the GUIs (:pr:`439` by :user:`mperrin`)
-* Streamline test suite to keep CI runtimes managable (:pr:`459` by :user:`mperrin`)
+* Streamline test suite to keep CI runtimes manageable (:pr:`459` by :user:`mperrin`)
 
 ------------------
 
@@ -101,7 +101,7 @@ This release only improves a subset of WFIRST functionality; additional improvem
 
     -  Imaging
     -  Grism
-    -  Prisim
+    -  Prism
 
 - New `WFI.override_aberrations(aberrations_path)`: Overrides and locks the current aberrations with aberrations at `aberrations_path`. Lock means changing the filter/mode has no effect on the aberrations. [:pr:`416`, :pr:`471`, :user:`robelgeda`]
 - New `WFI.reset_override_aberrations()`: Releases `WFI.override_aberrations` lock and start using the default aberrations. [:pr:`416`, :pr:`471`, :user:`robelgeda`]
@@ -131,7 +131,7 @@ There are no changes in reference data, so the WebbPSF reference data files for 
 
 - *Apply wavelength dependent offsets for NIRCam coronagraphic PSFs* due to the dispersion from the optical wedge in the coronagraphic pupil masks. This primarily affects the LW channel with approximately 0.015 mm/um dispersion. The SW channel is almost a factor of 10 smaller and mostly negligible, but has been included for completeness. [:pr:`347`, :user:`JarronL`]
 - *Improved models for OTE wavefront variations over time* by adding utility functions for decomposing WFE models into piston, tip, tilt motions in the JWST control coordinate system, adding a model for frill-induced WFE drift, adding a model for IEC-heater-induced WFE drift, and adding an option to adjust amplitude of OTE backplane thermal drift model for B.O.L. vs E.O.L. expected amplitudes. [:pr:`340`, :user:`mperrin`]
-- *Add new* ``aperturename`` *attribute* for JWST instruments which returns the SIAF aperture name used for transforming between the detector position and instrument field of view on the sky. [:pr:`360`, :user:`mperrin`]. Releatedly, improves setting of detector geometry for NIRCam to automatically set the SIAF aperture name based on detector, filter, and coronagraph image mask and pupil mask settings. This can be turned off by setting ``auto_apname=False``. [:pr:`351`, :user:`JarronL`]
+- *Add new* ``aperturename`` *attribute* for JWST instruments which returns the SIAF aperture name used for transforming between the detector position and instrument field of view on the sky. [:pr:`360`, :user:`mperrin`]. Relatedly, improves setting of detector geometry for NIRCam to automatically set the SIAF aperture name based on detector, filter, and coronagraph image mask and pupil mask settings. This can be turned off by setting ``auto_apname=False``. [:pr:`351`, :user:`JarronL`]
 - Add model for image jitter with JWST in coarse point mode under two different assumptions about LOS stability. This is relevant only for commissioning simulations. [:pr:`345`, :pr:`346`, :user:`mperrin`]
 - Documentation updates, in particular adding :ref:`figures of JWST instrument internal wavefront error models <jwst_instruments>`. [:pr:`369`, :user:`mperrin`]
 
@@ -189,7 +189,7 @@ Note, when upgrading to this version you will need to update to the latest data 
   - sFfilenames when saving out a ``psf_grid`` FITS object which has it’s ``filename`` parameter set will now end with ``_det.fits`` instead of the previous ``_det_filt.fits`` [:pr:`294`, :user:`shanosborne`]
   - Update added to ``utils.to_griddedpsfmodel`` where a 2-dimensional array input with a header containing only 1 ``DET_YX`` keyword can be turned into ``GriddedPSFModel`` object without error as it  implies the case of a PSF grid with num_psfs = 1. [:pr:`294`, :user:`shanosborne`]
   - Remove deletion of ``det_yx`` and ``oversamp`` keywords from ``psf_grid`` output to allow for easier implementation in certain cases. Normal case users will have extra keywords but will not change functionality [:pr:`291`, :user:`shanosborne`]
-  - Updated normalization of PSFs from ``psf_grid`` to be in surface brightness units, independent of oversampling in order to match the expectation of ``photutils.GriddedPSFModel``. This is diferent than webbpsf's default in which PSFs usually sum to 1 so the counts/pixel varies based on sampling. [:pr:`311`, :user:`mperrin`]
+  - Updated normalization of PSFs from ``psf_grid`` to be in surface brightness units, independent of oversampling in order to match the expectation of ``photutils.GriddedPSFModel``. This is different than webbpsf's default in which PSFs usually sum to 1 so the counts/pixel varies based on sampling. [:pr:`311`, :user:`mperrin`]
   - Fix bug in how ``pupilopd`` keyword is saved and include extra keywords ``opd_file``, ``opdslice``, ``coronmsk``, and ``pupil`` in the ``psf_grid`` output, both the GriddedPSFModel meta data and FITS object's header [:pr:`284`, :pr:`293`, :pr:`299`, :user:`shanosborne`]
 
 - The ``set_position_from_aperture_name`` method now correctly sets the detector position parameter in the science frame [:pr:`281`, :user:`shanosborne`, :user:`JarronL`, :user:`mperrin`]
@@ -215,7 +215,7 @@ Version 0.8.0
 
 *2018 Dec 15*
 
-This release focused on software engineering improvements, rather than changes in any of the optical models or reference data. (In particular, there are NO changes in the reference data files; the contents of the WebbPSF version 0.8 data zip file are identical to the reference data as distributed for version 0.7.  This version of WebbPSF will work with either of those interchangably.).
+This release focused on software engineering improvements, rather than changes in any of the optical models or reference data. (In particular, there are NO changes in the reference data files; the contents of the WebbPSF version 0.8 data zip file are identical to the reference data as distributed for version 0.7.  This version of WebbPSF will work with either of those interchangeably.).
 
 .. admonition:: Python version support: Python 3 required
 
@@ -752,7 +752,7 @@ Released May 18, 2012
         * Better packaging in general, with more attention to public/private API consistency
         * Built-in test suite available via `python setup.py test`
 
-* Minor fix to MIRI ND filter transmission curve (Note: MIRI ND data is available on internal STScI data ditribution only)
+* Minor fix to MIRI ND filter transmission curve (Note: MIRI ND data is available on internal STScI data distribution only)
 * Binset now specified when integrating across bandpasses in pysynphoteliminating a previous warning message for that calculation.
 * Stellar spectra are now by default drawn from the PHOENIX models catalog rather than the Castelli & Kurucz 2004 models. This is because the PHOENIX models have better spectral sampling at mid-infrared wavelengths.
 * Default centroid box sizes are now consistent for measure_centroid() and the markcenter option to display_PSF(). (Thanks to Charles Lajoie for noting the discrepancy)

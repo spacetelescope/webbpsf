@@ -134,7 +134,7 @@ tertiary mirror surface then results in increased field dependent WFE.
 
 In an effort to capture the contribution of these field-dependent aberrations a polynomial model of the field
 dependent aberrations was derived, based on the as-built OTE optical model Revision H, which includes measured
-surface errors of the optical elements.  This optical model was used in the CodeV lens design and anaylsis software
+surface errors of the optical elements.  This optical model was used in the CodeV lens design and analysis software
 package to generate OPD maps capturing the variation of the OTE's aberrations across
 the fields of each of the science instruments.  Each of these OPD maps were fit to a set of Zernike polynomials so
 that the wavefront was represented by a small number of coefficients, varying at each field point.  These variations are captured by fitting
@@ -190,7 +190,7 @@ behavior on filter selection can be disabled by setting ``nircam.auto_channel = 
     SW, otherwise for NRCA5 or NRCB5 the pixel scale will be for LW.
     If you set the ``filter`` attribute to a filter in the short wave channel,
     the pixel scale will be set for SW, otherwise for a filter in the long wave
-    challen the scale will be set for LW.
+    channel the scale will be set for LW.
 
     The intent is that the user should in general automatically get a PSF with the
     appropriate pixelscale for whatever instrument config you're trying to simulate,
@@ -274,7 +274,7 @@ than best focus.
 
 Note that the weak lenses are in the short wave channel only; webbpsf won't stop
 you from simulating a LW image with a weak lens, but that's not a real
-configuration that can be acheived with NIRCam.
+configuration that can be achieved with NIRCam.
 
 
 SI WFE
@@ -474,7 +474,7 @@ MIRI detector cross artifact
 -----------------------------
 
 The MIRI imager's Si:As IBC detector exhibits a so-called "cross artifact", particularly at
-short wavelengths (5-8 microns), due to internal diffraction of photons within the detector subtrate
+short wavelengths (5-8 microns), due to internal diffraction of photons within the detector substrate
 itself. See `Gaspar et al. 2021 <https://ui.adsabs.harvard.edu/abs/2021PASP..133a4504G/abstract>`_ for details.
 WebbPSF implements a simplified model for this effect, following the approach described by Glasse et al. in
 MIRI technical report MIRI-TN-00076-ATC_Imager_PSF_Issue_4.pdf. The model coefficients have been adjusted to

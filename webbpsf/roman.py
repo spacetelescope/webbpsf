@@ -880,7 +880,7 @@ class RomanCoronagraph(RomanInstrument):
     Current functionality is limited to the Shaped Pupil Coronagraph (SPC)
     observing modes, and these modes are only simulated with static, unaberrated
     wavefronts, without relay optics and without DM control. The design
-    respresented here is an approximation to a baseline concept, and will be
+    represented here is an approximation to a baseline concept, and will be
     subject to change based on trades studies and technology development.
 
     Parameters
@@ -925,7 +925,7 @@ class RomanCoronagraph(RomanInstrument):
             self.pupilopd = None
         self.aberration_optic = None
         self.options = {'force_coron': True}
-        # Allow the user to pre-emptively override the default instrument FoV and pixel scale
+        # Allow the user to preemptively override the default instrument FoV and pixel scale
         if fov_arcsec is not None:
             self.fov_arcsec = fov_arcsec
             self._override_fov = True

@@ -1169,7 +1169,7 @@ class OTE_Linear_Model_WSS(OPD):
             for icol in cnames[3:]:
                 self._influence_fns[icol] *= -1
 
-        # WFTP10 hotfix for RoC sign inconsitency relative to everything else, due to outdated version of WAS IFM used in table construction.
+        # WFTP10 hotfix for RoC sign inconsistency relative to everything else, due to outdated version of WAS IFM used in table construction.
         # FIXME update the IFM file on disk and then delete the next three lines
         roc_rows = self._influence_fns['control_mode']=='ROC'
         for icol in self._influence_fns.colnames[3:]:
@@ -2280,7 +2280,7 @@ class OTE_Linear_Model_WSS(OPD):
         observatory relative to the sun (or the user can define a scaling factor)
         to determine the expected WFE caused by thermal variations.
         Note: The start_angle and end_angle are used together, but will be ignored
-        if the scaling variable is set to somthing other than "None".
+        if the scaling variable is set to something other than "None".
 
         The maximum HOT to COLD pitch angles are -5 to 45 degrees. With regards
         to this, we make some assumptions:
@@ -2864,7 +2864,7 @@ def test2_OPDbender(filename='OPD_RevV_nircam_132.fits'):
 
 class OteThermalModel(object):
     """
-    Create an object for a delta_time that predictes the WSS Hexike coeffcients
+    Create an object for a delta_time that predicts the WSS Hexike coefficients
     for an OPD that represents the impact of thermal variation caused by a change
     in pitch angle relative to the sun.
 
@@ -2927,7 +2927,7 @@ class OteThermalModel(object):
     def get_coeffs(self, segid, delta_time):
         """ Given the segid name (either 'SM' or any of the segment names under
         constants.SEGNAMES), return the global or local (to each segment) Hexike
-        coefficiets
+        coefficients
 
         Assume that delta_time is a float in units of days.
         """
