@@ -2195,8 +2195,8 @@ class OTE_Linear_Model_WSS(OPD):
 
         Parameters
         ----------
-        sur_file : file name
-            Path to SUR XML file
+        sur_file : file name, or SUR object instance
+            Path to SUR XML file, or a webbpsf.surs.SUR object
         group : one-based int index
             Index to a single group to run. Default is to run all groups. Note,
             this index counts up from 1 (not 0) for consistency with group indexing
@@ -2213,7 +2213,12 @@ class OTE_Linear_Model_WSS(OPD):
         -------
 
         """
-        sur = surs.SUR(sur_file)
+
+        if isinstance(sur_file, surs.SUR):
+            sur = sur_file
+        else:
+            sur = surs.SUR(sur_file)
+
         if group is not None:
             if group == 0:
                 raise ValueError("Group indices start at 1, not 0.")

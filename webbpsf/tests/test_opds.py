@@ -204,6 +204,13 @@ def test_update_opd():
 
     # Todo test random drifts
 
+def test_sur_basics():
+    # test we can create a null SUR
+    sur = webbpsf.surs.SUR()
+    assert sur.ngroups==1
+    assert sur.nmoves==0
+    assert isinstance(sur.describe(), str)
+
 
 def test_move_sur(plot=False):
     """ Test we can move mirrors using Segment Update Requests
@@ -438,7 +445,7 @@ def test_segment_tilt_signs(fov_pix = 50, plot=False, npix=1024):
 
     tilt = 1.0
 
-	# We aim for relatively minimalist PSF calcs, to reduce test runtime
+    # We aim for relatively minimalist PSF calcs, to reduce test runtime
     psf_kwargs = {'monochromatic': 2e-6,
                   'fov_pixels': fov_pix,
                   'oversample': 1,
