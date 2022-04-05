@@ -575,3 +575,15 @@ def test_pupilopd_none():
     centroid = webbpsf.measure_centroid(psf_small, relativeto='center')
     assert np.abs(centroid[0]) < 1e-5, "Centroid should be (0,0)"
     assert np.abs(centroid[1]) < 1e-5, "Centroid should be (0,0)"
+
+def test_get_rms_per_segment():
+    nrc0 = webbpsf.NIRCam()
+    nrc, ote = webbpsf.enable_adjustable_ote(nrc0)
+    rms_per_seg = webbpsf.opds.get_rms_per_segment(ote.opd)
+
+    assert len(rms_per_seg)==18, "Wrong number of elements in result. Must be 18!"
+    for seg in rms_per_seg:
+        assert isinstance(seg, str)
+        assert len(seg)==2
+        assert isinstance(rms_per_seg[seg], float)
+        assert 10 < rms_per_seg[seg] < 100

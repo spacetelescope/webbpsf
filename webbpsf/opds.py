@@ -3372,3 +3372,45 @@ def get_coarse_blur_parameters(t0, duration, pixelscale, plot=False, case=1,):
         plt.ylabel('Delta V3 [pixels]')
 
     return cen, kernel
+
+#--------------------------------------------------------------------------------
+# Wavefront decomposition and related
+
+
+def get_rms_per_segment(opd, plot=False):
+    """ Calculate RMS WFE per segment
+
+    Parameters
+    ----------
+    opd : 2d float ndarray
+        OPD. Assumed to be in units of meters
+    plot : bool
+        Plot images for diagnostics?
+
+    Returns
+    -------
+    rms_per_seg : dict
+        Dict of the form {"A1": 75.2, [etc]} mapping string segment names to
+        RMS in nanometers per each segment.
+
+    """
+
+    npix=opd.shape[0]
+
+    segmap_fn = os.path.join(utils.get_webbpsf_data_path(), f"JWpupil_segments_RevW_npix{npix}.fits.gz")
+    segmap = fits.getdata(segmap_fn)
+
+    rms_per_seg = dict()
+
+    for longsegname in constants.SEGNAMES_WSS:
+        segid, segnum = longsegname.split('-')
+
+        # Calculate RMS per segment. Convert to nanometers
+        rms_per_seg[segid] = opd[segmap==int(segnum)].std() * 1e9
+
+        if plot:
+            plt.figure()
+            plt.imshow(opd * (  segmap == int(segnum)))
+            plt.title(f"{segid}: {rms_per_seg[segid]:.2f} nm rms")
+
+    return rms_per_seg
