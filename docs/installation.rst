@@ -103,7 +103,7 @@ Software Requirements
 ---------------------
 
 
-See `the environment.yml specification file <https://github.com/spacetelescope/webbpsf/blob/develop/requirements.txt>`_ for the required package dependencies.
+See `the requirements.txt specification file <https://github.com/spacetelescope/webbpsf/blob/develop/requirements.txt>`_ for the required package dependencies.
 
 **Required Python version**: WebbPSF 1.0 and above require Python 3.7 or higher.
 
