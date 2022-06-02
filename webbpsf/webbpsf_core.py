@@ -797,7 +797,7 @@ class JWInstrument(SpaceTelescopeInstrument):
         self.include_ote_field_dependence = True  # Note, this will be implicitly ignored if pupilopd=None
         """Should calculations include the Science Instrument internal WFE?"""
         self.options['jitter'] = 'gaussian'
-        self.options['jitter_sigma'] = 0.006   # 6 mas, see https://jwst-docs.stsci.edu/jwst-observatory-hardware/jwst-pointing-performance#JWSTPointingPerformance-Pointing_stabilityPointingstability
+        self.options['jitter_sigma'] = constants.JWST_TYPICAL_LOS_JITTER_PER_AXIS
 
         # class name to use for SI internal WFE, which can be overridden in subclasses
         self._si_wfe_class = optics.WebbFieldDependentAberration
@@ -817,6 +817,8 @@ class JWInstrument(SpaceTelescopeInstrument):
         # If the OTE model in the entrance pupil is a plain FITSOpticalElement, cast it to the linear model class
         if not isinstance(optsys.planes[0], opds.OTE_Linear_Model_WSS):
             lom_ote = opds.OTE_Linear_Model_WSS()
+            # FIXME seems like some code is missing here...? But in practice this code path
+            # never gets executed due to the _get_telescope_pupil_and_aberrations() function doing the right thing.
             lom_ote
 
         optsys.planes[0].display_annotate = utils.annotate_ote_pupil_coords

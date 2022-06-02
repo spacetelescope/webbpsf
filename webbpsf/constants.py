@@ -241,3 +241,5 @@ JWST_PRIMARY_SEGMENT_CENTERS = (
 JWST_SEGMENT_RADIUS = 1.517 / 2
 JWST_CIRCUMSCRIBED_DIAMETER = 6.603464  # meters. Outer corners of B segments
 JWST_INSCRIBED_DIAMETER = 5.47334  # meters. Middle corners of C segments
+
+JWST_TYPICAL_LOS_JITTER_PER_AXIS = 0.0008 # milliarcseconds jitter, 1 sigma per axis. = approx 1 mas rms radial, typically
