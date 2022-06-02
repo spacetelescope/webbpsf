@@ -41,6 +41,8 @@ from . import DATA_VERSION_MIN
 from . import distortion
 from . import gridded_library
 from . import opds
+from . import constants
+import webbpsf.mast_wss
 
 try:
     from .version import version
@@ -1348,6 +1350,57 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         result[0].data = out
 
+    def get_wfe(self, kind='si', wavelength=2e-6):
+        """Extract and return one component plane of the optical model for this instrument
+
+        This is a utility function for convenience, making it easier to access and plot various OPD maps.
+        It doesn't do anything unique which can't be done otherwise, and in particular this isn't used at all
+        as part of the optical propagation calculations.
+
+        Note, all WFE terms are returned in OTE entrance pupil orientation (i.e. as if you were in front
+        of the OTE and looking at it), regardless of pupil flips and orientations in the optical propagation.
+
+        Parameters
+        ----------
+        kind : string
+            A type of WFE. Must be one of "SI", "OTE", "OTE_field_dep", or other values TBD.
+            Case insensitive.
+        """
+        osys = self.get_optical_system()
+        wave = osys.input_wavefront(wavelength)
+
+        if kind.lower() =='total':
+            # recursively get total OPD including SI plus OTE
+            opd = self.get_wfe('ote') + self.get_wfe('si')
+        elif kind.lower()=='si':
+            aberration = self._get_aberrations()
+            opd = aberration.get_opd(wave)
+            # Flip verticall to match OTE entrance pupil orientation
+            opd = np.flipud(opd)
+        elif kind.lower() == 'ote': # OTE *total* WFE including all terms
+            ote = osys.planes[0]
+            opd = ote.get_opd(wave).copy()
+            aperture = ote.get_transmission(wave)
+            opd *= (aperture != 0)  # mask out to zero the global zernikes outside the aperture
+
+        elif kind.lower() == 'ote_global': # OTE *global* WFE only, i.e. WFE common to all field points
+            raise NotImplementedError(f"Not yet implemented: {kind}")
+        elif kind.lower() == 'ote_field_dep':  # OTE field dependent variations
+            ote = osys.planes[0]
+            wfe_ote_field_dep_nominal = ote._get_field_dependence_nominal_ote(ote.v2v3)
+            wfe_ote_field_dep_mimf = ote._get_field_dependence_secondary_mirror(ote.v2v3)
+            wfe_ote_field_dep = wfe_ote_field_dep_nominal + wfe_ote_field_dep_mimf
+            aperture = ote.get_transmission(wave)
+            opd = wfe_ote_field_dep * (aperture != 0)  # mask out to zero the global zernikes outside the aperture
+
+        elif kind.lower() == 'ote_thermal_distortion':  # OTE temporal variations from backplane thermal distortion
+            raise NotImplementedError(f"Not yet implemented: {kind}")
+        else:
+            raise NotImplementedError(f"Not a known kind of WFE: {kind}")
+
+        return opd
+
+
     def visualize_wfe_budget(self, slew_delta_time=14*units.day, slew_case='EOL', ptt_only=False, verbose=True):
         """Display a visual WFE budget showing the various terms that sum into the overall WFE for a given instrument
 
@@ -1371,6 +1424,69 @@ class JWInstrument(SpaceTelescopeInstrument):
         webbpsf.optical_budget.visualize_wfe_budget(self,
                                                     slew_delta_time=slew_delta_time, slew_case=slew_case,
                                                     ptt_only=ptt_only, verbose=verbose)
+
+    def load_wss_opd(self, filename, backout_si_wfe=True, verbose=True, plot=True):
+        """Load an OPD produced by the JWST WSS into this instrument instance
+
+        This includes:
+            - If necessary, downloading that OPD from MAST. Downloaded files are cached in $WEBBPSF_PATH/MAST_JWST_WSS_OPDs
+            - calling `import_wss_opd` to load the OPD from the FITS file and
+               perform some necessary format conversions
+            - Subtract off the instrument WFE for the field point used in wavefront sensing, to get an
+               OTE-only wavefront. WebbPSF will separately add back in the SI WFE for the appropriate
+              field point, as usual.
+
+        """
+
+        # If the provided filename doesn't exist on the local disk, try retrieving it from MAST
+        # Note, this will automatically use cached versions downloaded previously, if present
+        if not os.path.exists(filename):
+            filename = webbpsf.mast_wss.mast_retrieve_opd(filename, verbose=verbose)
+
+        if verbose:
+            print(f"Importing and format-converting OPD from {filename}")
+        opdhdu = webbpsf.mast_wss.import_wss_opd(filename)
+
+        # Mask out any pixels in the OPD array which are outside the OTE pupil.
+        # This is mostly cosmetic, and helps mask out some edge effects from the extrapolation + interpolation in
+        # resizing the OPDs
+        ote_pupil_mask = utils.get_pupil_mask() != 0
+        opdhdu[0].data *= ote_pupil_mask
+
+        if plot:
+            import matplotlib, matplotlib.pyplot as plt
+            fig, axes = plt.subplots(figsize=(16, 9), ncols=3)
+            vm = 2e-7
+            axes[0].imshow(opdhdu[0].data.copy() * ote_pupil_mask, vmin=-vm, vmax=vm, cmap=matplotlib.cm.RdBu_r)
+            axes[0].set_title(f"OPD from {os.path.basename(filename)}")
+
+        if backout_si_wfe:
+            print("Backing out SI WFE from the WF sensing field point")
+
+            # Check which field point was used for sensing
+            sensing_apername = opdhdu[0].header['APERNAME']
+
+            # We have to change the SI field point to that to get the aperture name. Save current vales to back out
+            prior_aperturename, prior_detector, prior_det_pos = self.aperturename, self.detector, self.detector_position
+
+            # Set to the sensing aperture, and retrieve the OPD there
+            self.set_position_from_aperture_name(sensing_apername)
+            sensing_fp_si_wfe = self.get_wfe('si')
+
+            # Reset back to prior selected SI field point
+            self.aperturename, self.detector, self.detector_position = prior_aperturename, prior_detector, prior_det_pos
+
+            # Subtract the SI WFE from the WSS OPD, to obtain an estiamted OTE-only OPD
+            opdhdu[0].data -= sensing_fp_si_wfe * ote_pupil_mask
+
+            if plot:
+                axes[1].imshow(sensing_fp_si_wfe * ote_pupil_mask, vmin=-vm, vmax=vm, cmap=matplotlib.cm.RdBu_r)
+                axes[1].set_title(f"SI OPD at {sensing_apername}")
+
+                axes[2].imshow(opdhdu[0].data, vmin=-vm, vmax=vm, cmap=matplotlib.cm.RdBu_r)
+                axes[2].set_title(f"OTE-only OPD inferred from {os.path.basename(filename)}")
+
+        self.pupilopd = opdhdu
 
 
 class MIRI(JWInstrument):
