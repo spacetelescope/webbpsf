@@ -84,12 +84,12 @@ def mast_wss_opds_around_date_query(date, verbose=True):
 
 
     # Set date range (units of days) for the query
-    # Note: start with a small value (1 day) so the MAST query doesn't start off too large
+    # Note: start with a small value (+-1.5 day) so the MAST query doesn't start off too large
     # This is consistent with expected WFS cadence
-    tdelta = TimeDelta(1.0, format='jd')
+    tdelta = TimeDelta(1.5, format='jd')
 
-    # With a small date range, this initial query may return a "NoResultsWarning"
-    obs_table = wss_date_query(date, tdelta)
+    # With a too-small date range, this initial query may return a "NoResultsWarning"
+    obs_table = mast_wss_date_query(date, tdelta)
 
     # If the initial query:
     # - returns no results OR
@@ -104,46 +104,51 @@ def mast_wss_opds_around_date_query(date, verbose=True):
         if tdelta > 14:
             print("Insufficient JWST OPD data can be found within 1 week of the specified date. This date is likely outside of the valid range")
             raise RuntimeError("Cannot find OPDs in MAST before/after that date. Date is likely outside the range of valid data.")
-        obs_table = wss_date_query(date, tdelta)
+        obs_table = mast_wss_date_query(date, tdelta)
 
     if verbose:
-        print(f'\nGiven datetime UTC: {date}')
-        print(f'               MJD: {date.mjd}')
+        print(f'\nMAST OPD query around UTC: {date}')
+        print(f'                        MJD: {date.mjd}')
 
-        # In case you provide a datetime that exactly matches the datetime of an OPD file
-        if obs_table[date.mjd-obs_table['date_obs_mjd'] == 0]:
+    # In case you provide a datetime that exactly matches the datetime of an OPD file
+    if obs_table[date.mjd-obs_table['date_obs_mjd'] == 0]:
+        current_opd = obs_table[obs_table['date_obs_mjd']-date.mjd == 0] # Get files with date_obs_mjd == provided datetime
+        if verbose:
             print('\nThe given datetime *exactly* matches the datetime of an OPD file:')
-            current_opd = obs_table[obs_table['date_obs_mjd']-date.mjd == 0] # Get files with date_obs_mjd == provided datetime
             print(f'URI -- {current_opd[0]["dataURI"]}')
             print(f'Date (MJD) -- {current_opd[0]["date_obs_mjd"]}')
 
-            return (current_opd[0]["fileName"], current_opd[0]["fileName"])
+        return (current_opd[0]["fileName"], current_opd[0]["fileName"])
 
-        # Otherwise, print some details about the immediately preceding and following OPD files
-        else:
+    # Otherwise, print some details about the immediately preceding and following OPD files
+    else:
+        temp_table = obs_table[ obs_table['date_obs_mjd'] - date.mjd < 0]  # Get files with date_obs_mjd < provided datetime
+        prev_opd = temp_table[[obs['date_obs_mjd'] == max(temp_table['date_obs_mjd']) for obs in temp_table]]
+        temp_table = obs_table[ obs_table['date_obs_mjd'] - date.mjd > 0]  # Get files with date_obs_mjd > provided datetime
+        next_opd = temp_table[[obs['date_obs_mjd'] == min(temp_table['date_obs_mjd']) for obs in temp_table]]
+
+        if verbose:
             print('\nOPD immediately preceding the given datetime:')
-            temp_table = obs_table[obs_table['date_obs_mjd']-date.mjd < 0] # Get files with date_obs_mjd < provided datetime
-            prev_opd = temp_table[[obs['date_obs_mjd'] == max(temp_table['date_obs_mjd']) for obs in temp_table]]
-            print(f'URI:\t {prev_opd[0]["dataURI"]}')
-            print(f'Date (MJD):\t {prev_opd[0]["date_obs_mjd"]:.4f}')
-            print(f'Delta time:\t {prev_opd[0]["date_obs_mjd"]-date.mjd:.4f} days')
+            print(f'\tURI:\t {prev_opd[0]["dataURI"]}')
+            print(f'\tDate (MJD):\t {prev_opd[0]["date_obs_mjd"]:.4f}')
+            print(f'\tDelta time:\t {prev_opd[0]["date_obs_mjd"]-date.mjd:.4f} days')
 
             print('\nOPD immediately following the given datetime:')
-            temp_table = obs_table[obs_table['date_obs_mjd']-date.mjd > 0] # Get files with date_obs_mjd > provided datetime
-            next_opd = temp_table[[obs['date_obs_mjd'] == min(temp_table['date_obs_mjd']) for obs in temp_table]]
-            print(f'URI:\t {next_opd[0]["dataURI"]}')
-            print(f'Date (MJD):\t {next_opd[0]["date_obs_mjd"]:.4f}')
-            print(f'Delta time:\t {next_opd[0]["date_obs_mjd"]-date.mjd:.4f} days')
+            print(f'\tURI:\t {next_opd[0]["dataURI"]}')
+            print(f'\tDate (MJD):\t {next_opd[0]["date_obs_mjd"]:.4f}')
+            print(f'\tDelta time:\t {next_opd[0]["date_obs_mjd"]-date.mjd:.4f} days')
 
-        return (prev_opd[0]["fileName"], next_opd[0]["fileName"])
+    return (prev_opd[0]["fileName"], next_opd[0]["fileName"])
 
 
-def get_opd_at_time(date, method='average', verbose=False):
+def get_opd_at_time(date, choice='before', verbose=False):
     """Get an estimated OPD at a given time based on measured OPDs from JWST wavefront sensing monitoring
 
     Parameters
     ----------
-    method : string
+    date : string or astropy.time.Time instance
+        Datetime, either as a string giving ISO time in UTC, e.g. 2021-12-25T11:20:00, or an astropy Time instance.
+    choice : string
         How to choose which OPD to use. Allowable values include the following:
         - 'before': use OPD measured shortly prior to the specified time
         - 'closest': use OPD measured closest to the specified time
@@ -152,21 +157,29 @@ def get_opd_at_time(date, method='average', verbose=False):
 
     Returns
     --------
-    FITS HDUList instance for the desired OPD
+    Filename for the retrieved OPD, or FITS HDUList instance if an average is to be used (TBC).
     """
+
+    if isinstance(date, str):
+        date = astropy.time.Time(date, format='isot')
+
     prev_opd_fn, post_opd_fn = mast_wss_opds_around_date_query(date, verbose=verbose)
 
-    if method=='before':
+    if choice== 'before':
+        if verbose: print(f"User requested choosing OPD before date {date}, which is {prev_opd_fn}")
         fn = mast_retrieve_opd(prev_opd_fn)
-        return fits.open(fn)
-    elif method=='after':
+        return fn
+    elif choice== 'after':
+        if verbose: print(f"User requested choosing OPD after date {date}, which is {post_opd_fn}")
         fn = mast_retrieve_opd(post_opd_fn)
-        return fits.open(fn)
-    elif method=='average':
+        return fn
+    elif choice== 'average':
+        if verbose: print(f"User requested calculating OPD time averaged around {date}")
         fn_pre = mast_retrieve_opd(pre_opd_fn)
         fn_post = mast_retrieve_opd(post_opd_fn)
         raise NotImplementedError("Not yet implemented")
-    elif method=='closest':
+    elif choice== 'closest':
+        if verbose: print(f"User requested choosing OPD time closest in time to {date}")
         raise NotImplementedError("Not yet implemented")
 
 

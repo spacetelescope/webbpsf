@@ -1152,47 +1152,6 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         return newopd
 
-    def load_was_opd(self, inputWasOpd, size=1024, save=False, filename='new_was_opd.fits'):
-        """ Load and interpolate an OPD from the WAS.
-
-        Ingests a WAS OPD and interpolates it to the proper size for WebbPSF.
-
-
-        Parameters
-        ----------
-        HDUlist_or_filename : string
-            Either a fits.HDUList object or a filename of a FITS file on disk
-        size: int, optional
-            Desired size of the output OPD. Default is 1024.
-        save: bool, optional
-            Save the interpolated OPD if True. Default is False.
-        filename : string, optional
-            Filename of the output OPD, if 'save' is True. Default is 'new_was_opd.fits'.
-
-        Returns
-        ---------
-        HDUlist : string
-           fits.HDUList object of the interpolated OPD
-
-
-        """
-
-        wasopd = fits.open(inputWasOpd)
-        arrayOPD = wasopd[1].data
-        dim = arrayOPD.shape[0]
-        hdr = wasopd[0].header
-        print("Converting {:s} from {:d}x{:d} to 1024x1024".format(inputWasOpd, dim, dim))
-
-        hdr["BUNIT"] = 'micron'
-        newopd = -1. * self.interpolate_was_opd(arrayOPD, size)  # negative sign by convention
-
-        if save:
-            outhdu = fits.HDUList()
-            outhdu.append(fits.ImageHDU(newopd, header=hdr))
-            outhdu.writeto(filename, clobber=True)
-            outhdu.close()
-
-        return fits.HDUList(fits.ImageHDU(newopd, header=hdr))
 
     def _get_pupil_shift(self):
         """ Return a tuple of pupil shifts, for passing to OpticalElement constructors
@@ -1426,7 +1385,7 @@ class JWInstrument(SpaceTelescopeInstrument):
                                                     ptt_only=ptt_only, verbose=verbose)
 
     def load_wss_opd(self, filename, backout_si_wfe=True, verbose=True, plot=True):
-        """Load an OPD produced by the JWST WSS into this instrument instance
+        """Load an OPD produced by the JWST WSS into this instrument instance, specified by filename
 
         This includes:
             - If necessary, downloading that OPD from MAST. Downloaded files are cached in $WEBBPSF_PATH/MAST_JWST_WSS_OPDs
@@ -1487,6 +1446,26 @@ class JWInstrument(SpaceTelescopeInstrument):
                 axes[2].set_title(f"OTE-only OPD inferred from {os.path.basename(filename)}")
 
         self.pupilopd = opdhdu
+
+    def load_wss_opd_by_date(self, date, choice='before', verbose=True, **kwargs):
+        """Load an OPD produced by the JWST WSS into this instrument instance, specified by filename.
+
+        This does a MAST query by date to identify the relevant OPD file, then calls load_wss_opd.
+
+        Parameters
+        ----------
+        date:
+        choice : string
+            Method to choose which OPD file to use, e.g. 'before', 'after'
+
+        Further keyword parameters may be passed via **kwargs to load_wss_opd
+
+
+        """
+        opd_fn = webbpsf.mast_wss.get_opd_at_time(date, verbose=verbose, choice=choice)
+        self.load_wss_opd(opd_fn, verbose=verbose, **kwargs)
+
+
 
 
 class MIRI(JWInstrument):
