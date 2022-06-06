@@ -1429,15 +1429,18 @@ class JWInstrument(SpaceTelescopeInstrument):
             # Check which field point was used for sensing
             sensing_apername = opdhdu[0].header['APERNAME']
 
-            # We have to change the SI field point to that to get the aperture name. Save current vales to back out
-            prior_aperturename, prior_detector, prior_det_pos = self.aperturename, self.detector, self.detector_position
+            # Create a temporary instance of an instrument, for the sensng instrument and field point,
+            # in order to model and extract the SI WFE at the sensing field point.
 
+            sensing_inst = instrument(sensing_apername[0:3])
+            sensing_inst.pupil = self.pupil   # handle the case if the user has selected a different NPIX other than the default 1024
+            if sensing_inst.name == 'NRC':
+                sensing_inst.filter = 'F212N'
+                # TODO: optionally check for the edge case in which the sensing was done in F187N
+                # note that there is a slight focus offset between the two wavelengths, due to NIRCam's refractive design
             # Set to the sensing aperture, and retrieve the OPD there
-            self.set_position_from_aperture_name(sensing_apername)
-            sensing_fp_si_wfe = self.get_wfe('si')
-
-            # Reset back to prior selected SI field point
-            self.aperturename, self.detector, self.detector_position = prior_aperturename, prior_detector, prior_det_pos
+            sensing_inst.set_position_from_aperture_name(sensing_apername)
+            sensing_fp_si_wfe = sensing_inst.get_wfe('si')
 
             # Subtract the SI WFE from the WSS OPD, to obtain an estiamted OTE-only OPD
             opdhdu[0].data -= sensing_fp_si_wfe * ote_pupil_mask
