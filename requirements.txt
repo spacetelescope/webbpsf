@@ -4,6 +4,6 @@ matplotlib==3.5.2
 numpy==1.22.4
 photutils==1.4.0
 poppy>=1.0.0
-pysiaf==0.15.0
+pysiaf==0.16.4
 scipy==1.8.0
 synphot==1.1.1
