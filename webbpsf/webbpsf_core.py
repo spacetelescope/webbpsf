@@ -41,7 +41,6 @@ from . import DATA_VERSION_MIN
 from . import distortion
 from . import gridded_library
 from . import opds
-from . import constants
 import webbpsf.mast_wss
 
 try:
@@ -1309,7 +1308,7 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         result[0].data = out
 
-    def get_wfe(self, kind='si', wavelength=2e-6):
+    def get_wfe(self, kind='si', wavelength=2e-6, plot=False):
         """Extract and return one component plane of the optical model for this instrument
 
         This is a utility function for convenience, making it easier to access and plot various OPD maps.
@@ -1356,6 +1355,10 @@ class JWInstrument(SpaceTelescopeInstrument):
             raise NotImplementedError(f"Not yet implemented: {kind}")
         else:
             raise NotImplementedError(f"Not a known kind of WFE: {kind}")
+
+        if plot:
+            import matplotlib, matplotlib.pyplot as plt
+            plt.imshow(opd, vmin=-5e-7, vmax=5e-7, cmap=matplotlib.cm.RdBu_r)
 
         return opd
 
@@ -1418,6 +1421,7 @@ class JWInstrument(SpaceTelescopeInstrument):
             vm = 2e-7
             axes[0].imshow(opdhdu[0].data.copy() * ote_pupil_mask, vmin=-vm, vmax=vm, cmap=matplotlib.cm.RdBu_r)
             axes[0].set_title(f"OPD from {os.path.basename(filename)}")
+            axes[0].set_xlabel(f"RMS: {utils.rms(opdhdu[0].data*1e9, ote_pupil_mask):.2f} nm rms")
 
         if backout_si_wfe:
             print("Backing out SI WFE from the WF sensing field point")
@@ -1441,9 +1445,11 @@ class JWInstrument(SpaceTelescopeInstrument):
             if plot:
                 axes[1].imshow(sensing_fp_si_wfe * ote_pupil_mask, vmin=-vm, vmax=vm, cmap=matplotlib.cm.RdBu_r)
                 axes[1].set_title(f"SI OPD at {sensing_apername}")
+                axes[1].set_xlabel(f"RMS: {utils.rms(sensing_fp_si_wfe * 1e9, ote_pupil_mask):.2f} nm rms")
 
                 axes[2].imshow(opdhdu[0].data, vmin=-vm, vmax=vm, cmap=matplotlib.cm.RdBu_r)
                 axes[2].set_title(f"OTE-only OPD inferred from {os.path.basename(filename)}")
+                axes[2].set_xlabel(f"RMS: {utils.rms(opdhdu[0].data*1e9, ote_pupil_mask):.2f} nm rms")
 
         self.pupilopd = opdhdu
 
@@ -2503,7 +2509,8 @@ def instrument(name):
 
     >>> t = instrument('NIRISS')
 
-
+    Instruments can be referred to either as their full names or as the common three letter abbreviations,
+    e.g. "NRC" for NIRCam
 
     Parameters
     ----------
@@ -2512,13 +2519,13 @@ def instrument(name):
 
     """
     name = name.lower()
-    if name == 'miri':
+    if name == 'miri' or name == 'mir':
         return MIRI()
-    elif name == 'nircam':
+    elif name == 'nircam' or name == 'nrc':
         return NIRCam()
-    elif name == 'nirspec':
+    elif name == 'nirspec' or name == 'nrs':
         return NIRSpec()
-    elif name == 'niriss':
+    elif name == 'niriss' or name == 'nis':
         return NIRISS()
     elif name == 'fgs':
         return FGS()

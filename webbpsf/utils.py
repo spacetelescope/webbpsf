@@ -431,6 +431,12 @@ def system_diagnostic():
 
 ### Helper routines for image manipulation: ###
 
+def rms(opd, mask):
+    """ Compute RMS of an OPD over some given masked area
+    """
+    return np.sqrt((opd[(mask != 0) & np.isfinite(opd)]**2).mean())
+
+
 def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, display=True, verbose=True, cache_perfect=False):
     """ Estimate the Strehl ratio for a PSF.
 
