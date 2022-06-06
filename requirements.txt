@@ -7,3 +7,4 @@ poppy>=1.0.0
 pysiaf==0.15.0
 scipy==1.8.0
 synphot==1.1.1
+astroquery==0.4.6
