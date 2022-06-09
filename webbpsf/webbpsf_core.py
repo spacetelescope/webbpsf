@@ -1387,7 +1387,7 @@ class JWInstrument(SpaceTelescopeInstrument):
                                                     slew_delta_time=slew_delta_time, slew_case=slew_case,
                                                     ptt_only=ptt_only, verbose=verbose)
 
-    def load_wss_opd(self, filename, backout_si_wfe=True, verbose=True, plot=True):
+    def load_wss_opd(self, filename, backout_si_wfe=True, verbose=True, plot=True, save_ote_wfe=False):
         """Load an OPD produced by the JWST WSS into this instrument instance, specified by filename
 
         This includes:
@@ -1397,6 +1397,20 @@ class JWInstrument(SpaceTelescopeInstrument):
             - Subtract off the instrument WFE for the field point used in wavefront sensing, to get an
                OTE-only wavefront. WebbPSF will separately add back in the SI WFE for the appropriate
               field point, as usual.
+
+        Parameters
+        ----------
+        filename : str
+            Name of OPD file to load
+        backout_si_wfe : bool
+            Subtract model for science instrument WFE at the sensing field point? Generally this should be true
+            which is the default.
+        plot : bool
+            Generate informative plots showing WFE
+        save_ote_wfe : bool
+            Save OTE-only WFE model? This is not needed for calculations in WebbPSF, but can be used to export
+            OTE WFE models for use with other software. The file will be saved in the WEBBPSF_DATA_PATH directory
+            and a message will be printed on screen with the filename.
 
         """
 
@@ -1442,8 +1456,21 @@ class JWInstrument(SpaceTelescopeInstrument):
             sensing_inst.set_position_from_aperture_name(sensing_apername)
             sensing_fp_si_wfe = sensing_inst.get_wfe('si')
 
+            sihdu = fits.ImageHDU(sensing_fp_si_wfe)
+            sihdu.header['EXTNAME'] = 'SENSING_SI_WFE'
+            sihdu.header['CONTENTS'] = 'Model of SI WFE at sensing field point'
+            sihdu.header['BUNIT'] = 'meter'
+            sihdu.header['APERNAME'] = sensing_apername
+            sihdu.header.add_history("This model for SI WFE was subtracted from the measured total WFE")
+            sihdu.header.add_history("to estimate the OTE-only portion of the WFE.")
+            opdhdu.append(sihdu)
+
             # Subtract the SI WFE from the WSS OPD, to obtain an estiamted OTE-only OPD
             opdhdu[0].data -= sensing_fp_si_wfe * ote_pupil_mask
+            opdhdu[0].header['CONTENTS'] = "Estimated OTE WFE from Wavefront Sensing Measurements"
+            opdhdu[0].header.add_history(f"Estimating SI WFE at sensing field point {sensing_apername}.")
+            opdhdu[0].header.add_history('  See FITS extension SENSING_SI_WFE for the SI WFE model used.')
+            opdhdu[0].header.add_history('  Subtracted SI WFE to estimate OTE-only global WFE.')
 
             if plot:
                 axes[1].imshow(sensing_fp_si_wfe * ote_pupil_mask, vmin=-vm, vmax=vm, cmap=matplotlib.cm.RdBu_r)
@@ -1453,6 +1480,11 @@ class JWInstrument(SpaceTelescopeInstrument):
                 axes[2].imshow(opdhdu[0].data, vmin=-vm, vmax=vm, cmap=matplotlib.cm.RdBu_r)
                 axes[2].set_title(f"OTE-only OPD inferred from {os.path.basename(filename)}")
                 axes[2].set_xlabel(f"RMS: {utils.rms(opdhdu[0].data*1e9, ote_pupil_mask):.2f} nm rms")
+
+            if save_ote_wfe:
+                outname = filename.replace(".fits", "-ote-wfe-only.fits")
+                opdhdu.writeto(outname, overwrite=True)
+                print(f"*****\nSaving estimated OTE-only WFE to file:\n\t{outname}\n*****")
 
         self.pupilopd = opdhdu
 

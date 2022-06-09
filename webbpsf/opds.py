@@ -1854,7 +1854,7 @@ class OTE_Linear_Model_WSS(OPD):
             if rot_unit.endswith('s'):
                 rot_unit = rot_unit[:-1]
             rot_unit = rot_unit.lower()
-            if rot_unit == 'urad':
+            if rot_unit == 'urad' or rot_unit == 'microrad' or rot_unit == 'microradian':
                 pass
             elif rot_unit == 'milliarcsec':
                 tilts *= (1e6 * np.pi / (180. * 60 * 60 * 1000))

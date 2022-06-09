@@ -218,9 +218,11 @@ def import_wss_opd(filename, npix_out=1024, verbose=False):
     inputOPD = wasopd["RESULT_PHASE"].data
     npix_in = inputOPD.shape[0]
 
-    wasopd[0].header.add_history("Converted for use with WebbPSF:")
-    wasopd[0].header.add_history(f"  Converting input file {filename:s} ")
-    wasopd[0].header.add_history(f"  from {npix_in:d}x{npix_in:d} to {npix_out:d}x{npix_out:d}.")
+    wasopd[0].header.add_history("OPD file retrieved from MAST for use by WebbPSF.")
+
+    wasopd[0].header.add_history("Converting input for use with WebbPSF:")
+    wasopd[0].header.add_history(f"  Input file is: {filename:s} ")
+    wasopd[0].header.add_history(f"  Need to rescale from {npix_in:d}x{npix_in:d} to {npix_out:d}x{npix_out:d} pixels.")
 
     if verbose:
         print(f"Converting {filename:s} from {npix_in:d}x{npix_in:d} to {npix_out:d}x{npix_out:d}")
@@ -239,7 +241,7 @@ def import_wss_opd(filename, npix_out=1024, verbose=False):
     # Convert units from microns to meters (as expected by poppy)
     # WSS output files are in units of microns, though this is not given in the headers.
     newopd *= 1e-6
-    wasopd[0].header.add_history("Converted units from microns to meters")
+    wasopd[0].header.add_history("  Converted units from microns to meters")
 
     # Update FITS header
     wasopd[0].header["BUNIT"] = 'm'
