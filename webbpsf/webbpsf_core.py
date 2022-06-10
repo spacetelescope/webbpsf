@@ -1438,7 +1438,7 @@ class JWInstrument(SpaceTelescopeInstrument):
             axes[0].set_xlabel(f"RMS: {utils.rms(opdhdu[0].data*1e9, ote_pupil_mask):.2f} nm rms")
 
         if backout_si_wfe:
-            print("Backing out SI WFE from the WF sensing field point")
+            if verbose: print("Backing out SI WFE from the WF sensing field point")
 
             # Check which field point was used for sensing
             sensing_apername = opdhdu[0].header['APERNAME']
@@ -1488,7 +1488,7 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         self.pupilopd = opdhdu
 
-    def load_wss_opd_by_date(self, date, choice='before', verbose=True, **kwargs):
+    def load_wss_opd_by_date(self, date, choice='closest', verbose=True, **kwargs):
         """Load an OPD produced by the JWST WSS into this instrument instance, specified by filename.
 
         This does a MAST query by date to identify the relevant OPD file, then calls load_wss_opd.
