@@ -2,7 +2,6 @@
 
 
 import os
-from astroquery.mast import Mast
 import numpy as np
 from astropy.time import Time, TimeDelta
 import astropy.time
@@ -18,6 +17,7 @@ def mast_wss_login():
     """Login to MAST via API token, for file downloads
 
     """
+    from astroquery.mast import Mast
     global mast_login_ok
 
     if mast_login_ok:
@@ -36,6 +36,7 @@ def mast_retrieve_opd(filename, verbose=False, redownload=False):
     If file is already present locally, the download is skipped and the cached file is used.
     """
 
+    from astroquery.mast import Mast
     output_path = os.path.join(webbpsf.utils.get_webbpsf_data_path(), 'MAST_JWST_WSS_OPDs')
     output_filename = os.path.join(output_path, filename)
 
@@ -63,6 +64,7 @@ def mast_retrieve_opd(filename, verbose=False, redownload=False):
 def mast_wss_date_query(date, tdelta):
     """Search for OPDs within a specified range of a given date"""
 
+    from astroquery.mast import Mast
     t_start, t_stop = date-tdelta,date+tdelta
 
     params = {"columns":"*",
