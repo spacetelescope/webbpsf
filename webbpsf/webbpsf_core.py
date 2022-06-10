@@ -1323,6 +1323,8 @@ class JWInstrument(SpaceTelescopeInstrument):
         kind : string
             A type of WFE. Must be one of "SI", "OTE", "OTE_field_dep", or other values TBD.
             Case insensitive.
+        plot : bool
+            Make a quick plot of this WFE. Not very flexible or scriptable but useful for some interactive checks
         """
         osys = self.get_optical_system()
         wave = osys.input_wavefront(wavelength)
@@ -1359,6 +1361,10 @@ class JWInstrument(SpaceTelescopeInstrument):
         if plot:
             import matplotlib, matplotlib.pyplot as plt
             plt.imshow(opd, vmin=-5e-7, vmax=5e-7, cmap=matplotlib.cm.RdBu_r)
+            plt.title(kind+" WFE")
+            mask = ote.get_transmission(wave) !=0
+            plt.xlabel(f"RMS: {utils.rms(opd, mask)*1e9:.2f} nm")
+            plt.colorbar(label='WFE [m]')
 
         return opd
 
@@ -1387,7 +1393,7 @@ class JWInstrument(SpaceTelescopeInstrument):
                                                     slew_delta_time=slew_delta_time, slew_case=slew_case,
                                                     ptt_only=ptt_only, verbose=verbose)
 
-    def load_wss_opd(self, filename, backout_si_wfe=True, verbose=True, plot=True, save_ote_wfe=False):
+    def load_wss_opd(self, filename, backout_si_wfe=True, verbose=True, plot=False, save_ote_wfe=False):
         """Load an OPD produced by the JWST WSS into this instrument instance, specified by filename
 
         This includes:
@@ -1397,6 +1403,10 @@ class JWInstrument(SpaceTelescopeInstrument):
             - Subtract off the instrument WFE for the field point used in wavefront sensing, to get an
                OTE-only wavefront. WebbPSF will separately add back in the SI WFE for the appropriate
               field point, as usual.
+            - Subtract off the modeled field dependence term in the OTE WFE for the sensing field point, to get
+               an estimate of the OTE wavefront nominally at the master chief ray location (between the NIRCams).
+               WebbPSF will automatically add back on top of this the OTE field dependent WFE for the appropriate
+               field point. as usual.
 
         Parameters
         ----------
@@ -1406,11 +1416,14 @@ class JWInstrument(SpaceTelescopeInstrument):
             Subtract model for science instrument WFE at the sensing field point? Generally this should be true
             which is the default.
         plot : bool
-            Generate informative plots showing WFE
+            Generate informative plots showing WFE, including the backout steps. Only works if backout_si_wfe is True.
         save_ote_wfe : bool
             Save OTE-only WFE model? This is not needed for calculations in WebbPSF, but can be used to export
             OTE WFE models for use with other software. The file will be saved in the WEBBPSF_DATA_PATH directory
             and a message will be printed on screen with the filename.
+            Note that the exported OPD file will give the OTE estimated total WFE at the selected Instrument's field
+            point, not the OTE global at master chief ray, since it is the OTE WFE at the selected field point
+            which is most of use for some other tool.
 
         """
 
@@ -1431,14 +1444,14 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         if plot:
             import matplotlib, matplotlib.pyplot as plt
-            fig, axes = plt.subplots(figsize=(16, 9), ncols=3)
+            fig, axes = plt.subplots(figsize=(16, 9), ncols=3, nrows=2)
             vm = 2e-7
-            axes[0].imshow(opdhdu[0].data.copy() * ote_pupil_mask, vmin=-vm, vmax=vm, cmap=matplotlib.cm.RdBu_r)
-            axes[0].set_title(f"OPD from {os.path.basename(filename)}")
-            axes[0].set_xlabel(f"RMS: {utils.rms(opdhdu[0].data*1e9, ote_pupil_mask):.2f} nm rms")
+            axes[0,0].imshow(opdhdu[0].data.copy() * ote_pupil_mask, vmin=-vm, vmax=vm, cmap=matplotlib.cm.RdBu_r)
+            axes[0,0].set_title(f"OPD from\n{os.path.basename(filename)}")
+            axes[0,0].set_xlabel(f"RMS: {utils.rms(opdhdu[0].data*1e9, ote_pupil_mask):.2f} nm rms")
 
         if backout_si_wfe:
-            if verbose: print("Backing out SI WFE from the WF sensing field point")
+            if verbose: print("Backing out SI WFE and OTE field dependence at the WF sensing field point")
 
             # Check which field point was used for sensing
             sensing_apername = opdhdu[0].header['APERNAME']
@@ -1456,6 +1469,9 @@ class JWInstrument(SpaceTelescopeInstrument):
             sensing_inst.set_position_from_aperture_name(sensing_apername)
             sensing_fp_si_wfe = sensing_inst.get_wfe('si')
 
+            sensing_fp_ote_wfe = sensing_inst.get_wfe('ote_field_dep')
+
+
             sihdu = fits.ImageHDU(sensing_fp_si_wfe)
             sihdu.header['EXTNAME'] = 'SENSING_SI_WFE'
             sihdu.header['CONTENTS'] = 'Model of SI WFE at sensing field point'
@@ -1465,25 +1481,74 @@ class JWInstrument(SpaceTelescopeInstrument):
             sihdu.header.add_history("to estimate the OTE-only portion of the WFE.")
             opdhdu.append(sihdu)
 
-            # Subtract the SI WFE from the WSS OPD, to obtain an estiamted OTE-only OPD
-            opdhdu[0].data -= sensing_fp_si_wfe * ote_pupil_mask
+            otehdu = fits.ImageHDU(sensing_fp_ote_wfe)
+            otehdu.header['EXTNAME'] = 'SENSING_OTE_FD_WFE'
+            otehdu.header['CONTENTS'] = 'Model of OTE field dependent WFE at sensing field point'
+            otehdu.header['BUNIT'] = 'meter'
+            otehdu.header['APERNAME'] = sensing_apername
+            otehdu.header.add_history("This model for OTE field dependence was subtracted from the measured total WFE")
+            otehdu.header.add_history("to estimate the OTE global portion of the WFE, at the master chief ray")
+            opdhdu.append(otehdu)
+
+            # Subtract the SI WFE from the WSS OPD, to obtain an estimated OTE-only OPD
+            opdhdu[0].data -= (sensing_fp_si_wfe + sensing_fp_ote_wfe) * ote_pupil_mask
             opdhdu[0].header['CONTENTS'] = "Estimated OTE WFE from Wavefront Sensing Measurements"
             opdhdu[0].header.add_history(f"Estimating SI WFE at sensing field point {sensing_apername}.")
             opdhdu[0].header.add_history('  See FITS extension SENSING_SI_WFE for the SI WFE model used.')
             opdhdu[0].header.add_history('  Subtracted SI WFE to estimate OTE-only global WFE.')
+            opdhdu[0].header.add_history(f"Estimating OTE field dependence term at {sensing_apername}.")
+            opdhdu[0].header.add_history(f"  Selected instrument field point is at V2,V3 = {sensing_inst._tel_coords()}.")
+            opdhdu[0].header.add_history('  See FITS extension SENSING_OTE_FD_WFE for the WFE model used.')
+            opdhdu[0].header.add_history('  Subtracted OTE field dependence to estimate OTE global WFE.')
+
+            if plot or save_ote_wfe:
+                # Either of these options will need the total OTE WFE.
+                # Under normal circumstances webbpsf will compute this later automatically, but if needed we do it here too
+                selected_fp_ote_wfe = self.get_wfe('ote_field_dep')
+                total_ote_wfe_at_fp = opdhdu[0].data+(selected_fp_ote_wfe*ote_pupil_mask)
 
             if plot:
-                axes[1].imshow(sensing_fp_si_wfe * ote_pupil_mask, vmin=-vm, vmax=vm, cmap=matplotlib.cm.RdBu_r)
-                axes[1].set_title(f"SI OPD at {sensing_apername}")
-                axes[1].set_xlabel(f"RMS: {utils.rms(sensing_fp_si_wfe * 1e9, ote_pupil_mask):.2f} nm rms")
+                axes[0,1].imshow(sensing_fp_si_wfe * ote_pupil_mask, vmin=-vm, vmax=vm, cmap=matplotlib.cm.RdBu_r)
+                axes[0,1].set_title(f"SI OPD\nat {sensing_apername}")
+                axes[0,1].set_xlabel(f"RMS: {utils.rms(sensing_fp_si_wfe * 1e9, ote_pupil_mask):.2f} nm rms")
 
-                axes[2].imshow(opdhdu[0].data, vmin=-vm, vmax=vm, cmap=matplotlib.cm.RdBu_r)
-                axes[2].set_title(f"OTE-only OPD inferred from {os.path.basename(filename)}")
-                axes[2].set_xlabel(f"RMS: {utils.rms(opdhdu[0].data*1e9, ote_pupil_mask):.2f} nm rms")
+                axes[0,2].imshow(opdhdu[0].data + sensing_fp_ote_wfe * ote_pupil_mask , vmin=-vm, vmax=vm, cmap=matplotlib.cm.RdBu_r)
+                axes[0,2].set_title(f"OTE total OPD at sensing FP inferred from\n{os.path.basename(filename)}")
+                axes[0,2].set_xlabel(f"RMS: {utils.rms(opdhdu[0].data*1e9, ote_pupil_mask):.2f} nm rms")
+
+                axes[1,0].imshow(sensing_fp_ote_wfe * ote_pupil_mask, vmin=-vm, vmax=vm, cmap=matplotlib.cm.RdBu_r)
+                axes[1,0].set_title(f"OTE field dependent OPD\nat {sensing_apername}")
+                axes[1,0].set_xlabel(f"RMS: {utils.rms(sensing_fp_ote_wfe * 1e9, ote_pupil_mask):.2f} nm rms")
+
+                axes[1,1].imshow(selected_fp_ote_wfe * ote_pupil_mask, vmin=-vm, vmax=vm, cmap=matplotlib.cm.RdBu_r)
+                axes[1,1].set_title(f"OTE field dependent OPD\nat current field point in {self.name} {self.detector}")
+                axes[1,1].set_xlabel(f"RMS: {utils.rms(selected_fp_ote_wfe * 1e9, ote_pupil_mask):.2f} nm rms")
+
+                axes[1,2].imshow(total_ote_wfe_at_fp, vmin=-vm, vmax=vm, cmap=matplotlib.cm.RdBu_r)
+                axes[1,2].set_title(f"Total OTE OPD at current FP in {self.name} {self.detector}\ninferred from {os.path.basename(filename)}")
+                axes[1,2].set_xlabel(f"RMS: {utils.rms(total_ote_wfe_at_fp*1e9, ote_pupil_mask):.2f} nm rms")
+
+                plt.tight_layout()
 
             if save_ote_wfe:
-                outname = filename.replace(".fits", "-ote-wfe-only.fits")
-                opdhdu.writeto(outname, overwrite=True)
+                # If requested, export the OPD for use in other external calculations.
+                # We save out the total OTE WFE inferred at the selected instrument field point.
+                outname = filename.replace(".fits", f"-ote-wfe-for-{self.name}-{self.detector}.fits")
+                from copy import deepcopy
+                opdhdu_at_si_fp = deepcopy(opdhdu)
+
+                v2v3 = self._tel_coords()
+                opdhdu_at_si_fp[0].header.add_history(f"Estimating OTE field dependence term in {self.name} {self.detector}.")
+                opdhdu_at_si_fp[0].header.add_history(f"  Selected instrument field point is at V2,V3 = {v2v3}.")
+                opdhdu_at_si_fp[0].header.add_history(f"Saving out total estimated OTE WFE (global+field dep) at that field point.")
+                opdhdu_at_si_fp[0].header['INSTRUME'] = self.name
+                opdhdu_at_si_fp[0].header['DETECTOR'] = self.detector
+                opdhdu_at_si_fp[0].header['APERNAME'] = self.aperturename
+                opdhdu_at_si_fp[0].header['V2'] = self.aperturename
+
+                opdhdu_at_si_fp[0].data = total_ote_wfe_at_fp
+
+                opdhdu_at_si_fp.writeto(outname, overwrite=True)
                 print(f"*****\nSaving estimated OTE-only WFE to file:\n\t{outname}\n*****")
 
         self.pupilopd = opdhdu
