@@ -3,6 +3,7 @@
 
 import os
 import numpy as np
+import astropy
 from astropy.time import Time, TimeDelta
 import astropy.time
 import astropy.io.fits as fits
@@ -290,3 +291,146 @@ def import_wss_opd(filename, npix_out=1024, verbose=False):
         del wasopd[2]
 
     return wasopd
+
+## Functions for dealing with time series or entire set of OPDs
+
+
+def infer_pre_or_post_correction(row):
+    """Use the activity label to infer if a given WFS measurement OPD is from pre or post correction"""
+
+    act = row['activity']
+
+
+    # handle some special cases
+    if row['visitId']=='V01163111001':
+        # replacement for obs 10 which couldn't get into Track
+        return 'post'  # WFE was too bad to guide, so we applied correction using WFSC Commissioning in Coarse,
+                       # Then took this weak lens data after.
+    elif row['visitId'].startswith('V01445'):
+        # thermal slew cold attitude WFS is all sensing-only
+        return 'pre'
+
+    # infer based on activity label
+    lookup = {'02101': 'pre',  #  wfsc only, any diversity, pre move (common, early)
+              '02104': 'post', # wfsc only, diversity PM8, post move
+              '02106': 'F187N pre', # wfsc only, diversity ALL+187N, pre move (rare, post MIMF correction)
+              '02107': 'post',  # wfsc only, diversity ALL, post move
+              '02109': 'post',  # wfsc only, diversity ALL+187N, post move
+              '0210E': 'F187N post', # wfsc only, diversity ALL+187N, post move, using F187N
+              # visits with jitter sensing included:
+              '03104': 'pre',  # visit with jitter sensing, any diversity, pre move
+              '03107': 'post',  # visit with jitter sensing, diversity PM8, post move
+              '03109': 'F187N pre', # visit with jitter sensing, diversity ALL+187N, pre move, using F187N?
+              '0310A': 'post', # visit with jitter sensing, diversity ALL, post move
+              '0310C': 'post', # visit with jitter sensing, diversity ALL+187N, post move
+              '0310H': 'F187N post', # visit with jitter sensing, diversity ALL+187N, post move, using F187N
+             }
+    return lookup[act]
+
+def retrieve_mast_opd_table(aperture_list = ['NRCA3_FP1'], verbose=False):
+    """Retrieve table of OPDs from MAST
+
+    """
+    from astroquery.mast import Mast
+    mast_wss_login()
+
+
+
+    # Construct the query and execute the search to retrieve available OPDs in MAST
+    params = {"columns":'*',
+              "filters":[{"paramName":"ap_type","values":["OPD"]},
+                         {"paramName":"apername","values":aperture_list}]}
+    obs_table = Mast.service_request(service, params)
+
+    if verbose:
+        print('\n\nTotal products with apername = {}: {}'.format(aperture_list, len(obs_table)))
+
+    # Now perform some manipulations on the result, to select and add additional columns
+    colnames_we_want = ['date_obs_mjd', 'visitId', 'apername', 'corr_id',
+                        'fileName', 'dataURI']
+    columns_we_want = [obs_table[colname] for colname in colnames_we_want]
+    # insert a column with times as ISO time strings, instead of MJD
+    columns_we_want.insert(0, astropy.table.Column(astropy.time.Time(obs_table['date_obs_mjd'], format='mjd').isot,
+                                           name='date'))
+    # insert a column with just the OSS activity label, e.g. '02101'
+    columns_we_want.insert(3, astropy.table.Column([a[-5:] for a in obs_table['obs_id']], name='activity'))
+
+
+    opdtable = astropy.table.Table(columns_we_want)
+    # Update the visit ID to all start with a prepended initial letter V
+    opdtable['visitId'] = ["V" + vid for vid in opdtable['visitId']]
+    opdtable.sort('date')
+
+    # Add useful columns which help track when there were corrections
+    dates = astropy.time.Time(opdtable['date'], format='isot')
+    pre_or_post = []
+
+    for row in opdtable:
+        pre_or_post.append(infer_pre_or_post_correction(row))
+
+    where_pre = ['pre' in a for a in pre_or_post]
+    where_post = ['post' in a for a in pre_or_post]
+
+    # Add column for is this WFS measurement made immediately after a correction
+    opdtable['wfs_measurement_type'] = pre_or_post
+    opdtable['is_post_correction'] = ['post' in a for a in pre_or_post]
+
+    # add column for is this a WFS measurement made right before a correction,
+    # which has a corresponding 2nd measurement right after
+    has_correction = []
+    for row in opdtable:
+        if row['is_post_correction']:
+            # if this is a measurement after a correction, it itself doesn't have another correction after it
+            has_correction.append(False)
+        else:
+            # Find if there is a row with same visit ID, and which is post correction
+            matching_post_correction = (opdtable['visitId']==row['visitId']) & opdtable['is_post_correction']
+            has_correction.append(matching_post_correction.sum()>0)
+    opdtable['is_pre_correction'] = has_correction
+
+    return opdtable
+
+
+def get_corrections_table():
+    """Retrieve table listing all mirror corrections applied since the initial fine phasing of JWST
+
+    """
+
+
+
+    opdtable = webbpsf.mast_wss.retrieve_mast_opd_table()
+
+    # Iterate over the table to identify which WFS visits included corrections.
+
+    # Match up pairs of WFS measurements on the same visit. These indicate visits with corrections.
+    pre_correction_indices = []
+    post_correction_indices = []
+
+    corr_ids = []
+
+    for i, row in enumerate(opdtable):
+        if not row['is_pre_correction']: continue
+
+        # Check if there is a matching post correction OPD from the same visit?
+        w = (opdtable['visitId'] == row['visitId']) & (opdtable['is_post_correction'])
+        if sum(w) > 0:
+            # If we find something, yes this visit had a correction.
+            pre_correction_indices.append(i)
+            post_correction_indices.append(np.where(w)[0][0])
+
+            # infer the correction ID
+            # based on the assumption that the move probably came from the immediately prior WSS session
+            prior_corr_id = opdtable[i - 1]['corr_id']
+            corr_ids.append(prior_corr_id)
+
+    correction_table = astropy.table.Table([corr_ids,
+                                            opdtable[pre_correction_indices]['visitId'],
+                                            opdtable[pre_correction_indices]['date'],
+                                            opdtable[pre_correction_indices]['fileName'],
+                                            opdtable[post_correction_indices]['date'],
+                                            opdtable[post_correction_indices]['fileName']],
+                                           names=['WFC ID', 'Visit ID',
+                                                  'Pre Move Sensing Time', 'Pre Move Sensing OPD Filename', 'Post Move Sensing Time',
+                                                  'Post Move Sensing OPD Filename'])
+
+    return correction_table
