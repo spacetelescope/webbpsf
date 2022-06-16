@@ -31,13 +31,17 @@ def mast_wss_login():
     mast_login_ok = True
 
 
-def mast_retrieve_opd(filename, verbose=False, redownload=False):
+def mast_retrieve_opd(filename, output_path = None, verbose=False, redownload=False):
     """Download an OPD from MAST. Files are saved in the WebbPSF data folder.
     If file is already present locally, the download is skipped and the cached file is used.
     """
 
     from astroquery.mast import Mast
-    output_path = os.path.join(webbpsf.utils.get_webbpsf_data_path(), 'MAST_JWST_WSS_OPDs')
+    if output_path is None:
+        output_path = os.path.join(webbpsf.utils.get_webbpsf_data_path(), 'MAST_JWST_WSS_OPDs')
+    else:
+        output_path = output_path
+
     output_filename = os.path.join(output_path, filename)
 
     if not os.path.exists(output_path):
@@ -172,7 +176,7 @@ def mast_wss_opds_around_date_query(date, verbose=True):
             prev_opd[0]["date_obs_mjd"]-date.mjd, next_opd[0]["date_obs_mjd"]-date.mjd,)
 
 
-def get_opd_at_time(date, choice='closest', verbose=False):
+def get_opd_at_time(date, choice='closest', verbose=False, output_path = None):
     """Get an estimated OPD at a given time based on measured OPDs from JWST wavefront sensing monitoring
 
     Parameters
@@ -198,14 +202,14 @@ def get_opd_at_time(date, choice='closest', verbose=False):
 
     if choice== 'before':
         if verbose: print(f"User requested choosing OPD before date {date}, which is {prev_opd_fn}, delta time {prev_dtime:.3f} days")
-        return mast_retrieve_opd(prev_opd_fn)
+        return mast_retrieve_opd(prev_opd_fn, output_path = output_path )
     elif choice== 'after':
         if verbose: print(f"User requested choosing OPD after date {date}, which is {post_opd_fn}, delta time {post_dtime:.3f} days")
-        return mast_retrieve_opd(post_opd_fn)
+        return mast_retrieve_opd(post_opd_fn, output_path = output_path )
     elif choice== 'average':
         if verbose: print(f"User requested calculating OPD time averaged around {date}")
-        fn_pre = mast_retrieve_opd(pre_opd_fn)
-        fn_post = mast_retrieve_opd(post_opd_fn)
+        fn_pre = mast_retrieve_opd(pre_opd_fn, output_path = output_path )
+        fn_post = mast_retrieve_opd(post_opd_fn, output_path = output_path )
         raise NotImplementedError("Not yet implemented")
     elif choice== 'closest':
         closest_fn, closest_dt = (post_opd_fn, post_dtime) if abs(post_dtime) < abs(prev_dtime) else (prev_opd_fn, prev_dtime)

@@ -1393,7 +1393,7 @@ class JWInstrument(SpaceTelescopeInstrument):
                                                     slew_delta_time=slew_delta_time, slew_case=slew_case,
                                                     ptt_only=ptt_only, verbose=verbose)
 
-    def load_wss_opd(self, filename, backout_si_wfe=True, verbose=True, plot=False, save_ote_wfe=False):
+    def load_wss_opd(self, filename, output_path = None, backout_si_wfe=True, verbose=True, plot=False, save_ote_wfe=False):
         """Load an OPD produced by the JWST WSS into this instrument instance, specified by filename
 
         This includes:
@@ -1412,6 +1412,9 @@ class JWInstrument(SpaceTelescopeInstrument):
         ----------
         filename : str
             Name of OPD file to load
+        output_path : str
+            Downloaded OPD are saved in this location. This option is convinient for STScI users using /grp/jwst/ote/webbpsf-data/.
+            Default is $WEBBPSF_PATH/MAST_JWST_WSS_OPDs
         backout_si_wfe : bool
             Subtract model for science instrument WFE at the sensing field point? Generally this should be true
             which is the default.
@@ -1430,7 +1433,7 @@ class JWInstrument(SpaceTelescopeInstrument):
         # If the provided filename doesn't exist on the local disk, try retrieving it from MAST
         # Note, this will automatically use cached versions downloaded previously, if present
         if not os.path.exists(filename):
-            filename = webbpsf.mast_wss.mast_retrieve_opd(filename, verbose=verbose)
+            filename = webbpsf.mast_wss.mast_retrieve_opd(filename, output_path = output_path, verbose=verbose)
 
         if verbose:
             print(f"Importing and format-converting OPD from {filename}")
@@ -1568,7 +1571,7 @@ class JWInstrument(SpaceTelescopeInstrument):
 
 
         """
-        opd_fn = webbpsf.mast_wss.get_opd_at_time(date, verbose=verbose, choice=choice)
+        opd_fn = webbpsf.mast_wss.get_opd_at_time(date, verbose=verbose, choice=choice, **kwargs)
         self.load_wss_opd(opd_fn, verbose=verbose, **kwargs)
 
 
