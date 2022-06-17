@@ -241,7 +241,6 @@ def import_wss_opd(filename, npix_out=1024, verbose=False):
         Number of pixels per side in the converted output OPD
 
 
-
     Returns
     -------
     astropy.fits.HDUList instance for the converted OPD.
@@ -328,7 +327,9 @@ def infer_pre_or_post_correction(row):
     return lookup[act]
 
 def retrieve_mast_opd_table(aperture_list = ['NRCA3_FP1'], verbose=False):
-    """Retrieve table of OPDs from MAST
+    """Retrieve table of OPDs from MAST.
+
+    Returns : Astropy table listing available OPDs and metadata such as dates and sensing type.
 
     """
     from astroquery.mast import Mast
@@ -394,9 +395,9 @@ def retrieve_mast_opd_table(aperture_list = ['NRCA3_FP1'], verbose=False):
 def get_corrections_table():
     """Retrieve table listing all mirror corrections applied since the initial fine phasing of JWST
 
+    Returns: Astropy table listing mirror corrections and the associated WFS measurements before/after each
+
     """
-
-
 
     opdtable = webbpsf.mast_wss.retrieve_mast_opd_table()
 

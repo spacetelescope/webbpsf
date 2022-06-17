@@ -1549,21 +1549,26 @@ class JWInstrument(SpaceTelescopeInstrument):
                 opdhdu_at_si_fp[0].header['APERNAME'] = self.aperturename
                 opdhdu_at_si_fp[0].header['V2'] = self.aperturename
 
-                opdhdu_at_si_fp[0].data = total_ote_wfe_at_fp
+                # Save files with output units of microns, for consistency with other OPD files
+                opdhdu_at_si_fp[0].data = total_ote_wfe_at_fp * 1e6
+                opdhdu_at_si_fp[0].header['BUNIT'] = 'micron'
 
                 opdhdu_at_si_fp.writeto(outname, overwrite=True)
                 print(f"*****\nSaving estimated OTE-only WFE to file:\n\t{outname}\n*****")
 
         self.pupilopd = opdhdu
 
-    def load_wss_opd_by_date(self, date, choice='closest', verbose=True, **kwargs):
+    def load_wss_opd_by_date(self, date=None, choice='closest', verbose=True, **kwargs):
         """Load an OPD produced by the JWST WSS into this instrument instance, specified by filename.
 
         This does a MAST query by date to identify the relevant OPD file, then calls load_wss_opd.
 
         Parameters
         ----------
-        date:
+        date: string
+            Date time in UTC as ISO-format string, a la 2021-12-25T07:20:00
+            Note, if date is left unspecified as None, the most recent
+            available measurement will be retrieved.
         choice : string
             Method to choose which OPD file to use, e.g. 'before', 'after'
 
@@ -1571,6 +1576,9 @@ class JWInstrument(SpaceTelescopeInstrument):
 
 
         """
+
+        if date is None:
+            date = astropy.time.Time.now().isot
         opd_fn = webbpsf.mast_wss.get_opd_at_time(date, verbose=verbose, choice=choice, **kwargs)
         self.load_wss_opd(opd_fn, verbose=verbose, **kwargs)
 
