@@ -1335,6 +1335,11 @@ class JWInstrument(SpaceTelescopeInstrument):
         elif kind.lower()=='si':
             aberration = self._get_aberrations()
             opd = aberration.get_opd(wave)
+            if self.name.lower()=='nirspec':
+                # For NIRSpec, the WFE is normally allocated to 1/3 before the MSA and 2/3 after the MSA.
+                # The call to get_aberrations above just returns the foreoptics portion.
+                # Multiply by 3x to get the total instrumental WFE.
+                opd *= 3
             # Flip verticall to match OTE entrance pupil orientation
             opd = np.flipud(opd)
         elif kind.lower() == 'ote': # OTE *total* WFE including all terms
@@ -1460,7 +1465,7 @@ class JWInstrument(SpaceTelescopeInstrument):
             sensing_apername = opdhdu[0].header['APERNAME']
 
             # Create a temporary instance of an instrument, for the sensng instrument and field point,
-            # in order to model and extract the SI WFE at the sensing field point.
+            # in order to model and extract the SI WFE and OTE field dep WFE at the sensing field point.
 
             sensing_inst = instrument(sensing_apername[0:3])
             sensing_inst.pupil = self.pupil   # handle the case if the user has selected a different NPIX other than the default 1024
@@ -1470,7 +1475,13 @@ class JWInstrument(SpaceTelescopeInstrument):
                 # note that there is a slight focus offset between the two wavelengths, due to NIRCam's refractive design
             # Set to the sensing aperture, and retrieve the OPD there
             sensing_inst.set_position_from_aperture_name(sensing_apername)
-            sensing_fp_si_wfe = sensing_inst.get_wfe('si')
+            # special case: for the main sensing point FP1, we use the official WAS target phase map, rather than the
+            # WebbPSF-internal SI WFE model.
+            was_targ_file = os.path.join(utils.get_webbpsf_data_path(), 'NIRCam', 'OPD', 'wss_target_phase.fits')
+            if sensing_apername == 'NRCA3_FP1' and os.path.exists(was_targ_file):
+                sensing_fp_si_wfe = poppy.FITSOpticalElement(opd=was_targ_file).opd
+            else:
+                sensing_fp_si_wfe = sensing_inst.get_wfe('si')
 
             sensing_fp_ote_wfe = sensing_inst.get_wfe('ote_field_dep')
 
@@ -1516,7 +1527,7 @@ class JWInstrument(SpaceTelescopeInstrument):
                 axes[0,1].set_xlabel(f"RMS: {utils.rms(sensing_fp_si_wfe * 1e9, ote_pupil_mask):.2f} nm rms")
 
                 axes[0,2].imshow(opdhdu[0].data + sensing_fp_ote_wfe * ote_pupil_mask , vmin=-vm, vmax=vm, cmap=matplotlib.cm.RdBu_r)
-                axes[0,2].set_title(f"OTE total OPD at sensing FP inferred from\n{os.path.basename(filename)}")
+                axes[0,2].set_title(f"OTE total OPD at master chief ray field point\ninferred from {os.path.basename(filename)}")
                 axes[0,2].set_xlabel(f"RMS: {utils.rms(opdhdu[0].data*1e9, ote_pupil_mask):.2f} nm rms")
 
                 axes[1,0].imshow(sensing_fp_ote_wfe * ote_pupil_mask, vmin=-vm, vmax=vm, cmap=matplotlib.cm.RdBu_r)
@@ -1558,7 +1569,7 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         self.pupilopd = opdhdu
 
-    def load_wss_opd_by_date(self, date=None, choice='closest', verbose=True, **kwargs):
+    def load_wss_opd_by_date(self, date=None, choice='closest', verbose=True, plot=False, **kwargs):
         """Load an OPD produced by the JWST WSS into this instrument instance, specified by filename.
 
         This does a MAST query by date to identify the relevant OPD file, then calls load_wss_opd.
@@ -1580,7 +1591,7 @@ class JWInstrument(SpaceTelescopeInstrument):
         if date is None:
             date = astropy.time.Time.now().isot
         opd_fn = webbpsf.mast_wss.get_opd_at_time(date, verbose=verbose, choice=choice, **kwargs)
-        self.load_wss_opd(opd_fn, verbose=verbose, **kwargs)
+        self.load_wss_opd(opd_fn, verbose=verbose, plot=plot, **kwargs)
 
 
 
