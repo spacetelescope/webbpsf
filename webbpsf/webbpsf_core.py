@@ -1328,6 +1328,7 @@ class JWInstrument(SpaceTelescopeInstrument):
         """
         osys = self.get_optical_system()
         wave = osys.input_wavefront(wavelength)
+        ote = osys.planes[0]
 
         if kind.lower() =='total':
             # recursively get total OPD including SI plus OTE
@@ -1343,7 +1344,6 @@ class JWInstrument(SpaceTelescopeInstrument):
             # Flip verticall to match OTE entrance pupil orientation
             opd = np.flipud(opd)
         elif kind.lower() == 'ote': # OTE *total* WFE including all terms
-            ote = osys.planes[0]
             opd = ote.get_opd(wave).copy()
             aperture = ote.get_transmission(wave)
             opd *= (aperture != 0)  # mask out to zero the global zernikes outside the aperture
@@ -1351,7 +1351,6 @@ class JWInstrument(SpaceTelescopeInstrument):
         elif kind.lower() == 'ote_global': # OTE *global* WFE only, i.e. WFE common to all field points
             raise NotImplementedError(f"Not yet implemented: {kind}")
         elif kind.lower() == 'ote_field_dep':  # OTE field dependent variations
-            ote = osys.planes[0]
             wfe_ote_field_dep_nominal = ote._get_field_dependence_nominal_ote(ote.v2v3)
             wfe_ote_field_dep_mimf = ote._get_field_dependence_secondary_mirror(ote.v2v3)
             wfe_ote_field_dep = wfe_ote_field_dep_nominal + wfe_ote_field_dep_mimf
