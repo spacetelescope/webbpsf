@@ -41,6 +41,7 @@ from . import DATA_VERSION_MIN
 from . import distortion
 from . import gridded_library
 from . import opds
+from . import constants
 import webbpsf.mast_wss
 
 try:
