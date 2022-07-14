@@ -23,11 +23,10 @@ from webbpsf.utils import rms
 
 wfe_budget_info = None
 
-def get_budget_info(instname, param_name):
-    """ Return required and predicted from optical budget for a given quantity
 
-    The optical budget is read from disk in summary form, and cached for reuse on subsequent calls.
-
+def load_wfe_budget_info():
+    """ Load optical budget info, if that hasn't been done already.
+    (THis caches to avoid multiple relaods)
     """
     global wfe_budget_info
     if wfe_budget_info is None:
@@ -36,7 +35,17 @@ def get_budget_info(instname, param_name):
                                            'otelm',
                                            'jwst_wfe_summary_from_optical_budget.csv')
         wfe_budget_info = table.Table.read(wfe_budget_filename, header_start=1)
+    return wfe_budget_info
 
+
+def get_budget_info(instname, param_name):
+    """ Return required and predicted from optical budget for a given quantity
+
+    The optical budget is read from disk in summary form, and cached for reuse on subsequent calls.
+
+    """
+    global wfe_budget_info
+    load_wfe_budget_info()
     row = wfe_budget_info[wfe_budget_info['Value']==param_name]
     return row[f"{instname}_req"].data[0], row[f"{instname}_pred"].data[0]
 

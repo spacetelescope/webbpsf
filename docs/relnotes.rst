@@ -27,6 +27,21 @@ See https://github.com/spacetelescope/webbpsf/issues for currently open issues a
 Version History and Change Log
 -------------------------------
 
+
+Version 1.1.0
+=============
+*2022 July Sometime*
+
+*First release with JWST in flight optical performance!* Preliminary updates and tools added just after completion of commissioning.
+
+**James Webb Space Telescope OTE model improvements**:
+
+* Add feature to use measured OPDs from wavefront sensing in flight. See :doc:`jwst_measured_opds`.
+* Updated default line-of-sight jitter for JWST observations to 1 milliarcsecond instead of 6 (1 sigma per axis).
+
+More updates to come - this is a first pass.
+
+
 Version 1.0.0
 =============
 *2021 December 10*
