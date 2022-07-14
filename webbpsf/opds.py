@@ -1540,9 +1540,15 @@ class OTE_Linear_Model_WSS(OPD):
         # NEGATIVE SIGN IN THE ABOVE B/C TELFER'S FIELD ANGLE COORD. SYSTEM IS (X,Y) = (-V2,V3)
         dy = (v2v3[1] - self.ote_control_point[1]).to(u.rad).value
         z_coeffs = self._get_hexike_coeffs_from_smif(dx, dy)
-        perturbation = poppy.zernike.opd_from_zernikes(z_coeffs, npix=self.npix,
-                                                       basis=poppy.zernike.hexike_basis_wss, aperture=self.amplitude,
-                                                       outside=0)
+
+        if np.any(z_coeffs != 0):
+            perturbation = poppy.zernike.opd_from_zernikes(z_coeffs, npix=self.npix,
+                                                           basis=poppy.zernike.hexike_basis_wss, aperture=self.amplitude,
+                                                           outside=0)
+        else:
+            # shortcut for the typical case where the SM is well aligned
+            perturbation = np.zeros((self.npix, self.npix), float)
+
         if Version(poppy.__version__) < Version('1.0'):
             wfe_sign = -1  # In earlier poppy versions, fix sign convention for consistency with WSS
         else:
@@ -1848,7 +1854,7 @@ class OTE_Linear_Model_WSS(OPD):
             if rot_unit.endswith('s'):
                 rot_unit = rot_unit[:-1]
             rot_unit = rot_unit.lower()
-            if rot_unit == 'urad':
+            if rot_unit == 'urad' or rot_unit == 'microrad' or rot_unit == 'microradian':
                 pass
             elif rot_unit == 'milliarcsec':
                 tilts *= (1e6 * np.pi / (180. * 60 * 60 * 1000))
@@ -3050,6 +3056,11 @@ class JWST_WAS_PTT_Basis(object):
 
         # Re-use the machinery inside the OTE Linear model class class to set up the
         # arrays defining the segment and zernike geometry.
+
+        # If multiple calls to this function use different values for npix, we may have to 
+        # update/reset the OTE LOM instance here.
+        if self.ote.opd.shape[0] != npix:
+            self.ote = OTE_Linear_Model_WSS(npix=npix)
 
         # For simplicity we always generate the basis for all the segments
         # even if for some reason the user has set a smaller nterms.

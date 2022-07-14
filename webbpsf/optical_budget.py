@@ -5,6 +5,7 @@ import webbpsf
 import poppy
 import astropy.table as table
 import astropy.units as u
+from webbpsf.utils import rms
 
 
 ### JWST Optical Budgets Information
@@ -106,11 +107,6 @@ def imagemotion2equiv_wfe(rms_jitter_per_axis, wavelength):
     return result.to(u.nanometer)
 
 
-
-def rms(opd, mask):
-    """ Compute RMS of an OPD over some given masked area
-    """
-    return np.sqrt((opd[(mask != 0) & np.isfinite(opd)]**2).mean())
 
 
 def show_opd(opd, mask = None, ax=None, vmax=200, title=None, annotate_budget=None, instname=None,
