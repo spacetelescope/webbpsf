@@ -215,7 +215,7 @@ def get_opd_at_time(date, choice='closest', verbose=False, output_path = None):
     elif choice== 'closest':
         closest_fn, closest_dt = (post_opd_fn, post_dtime) if abs(post_dtime) < abs(prev_dtime) else (prev_opd_fn, prev_dtime)
         if verbose: print(f"User requested choosing OPD time closest in time to {date}, which is {closest_fn}, delta time {closest_dt:.3f} days")
-        return mast_retrieve_opd(closest_fn)
+        return mast_retrieve_opd(closest_fn, output_path = output_path )
 
 
 
