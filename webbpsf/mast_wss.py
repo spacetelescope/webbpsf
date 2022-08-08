@@ -38,6 +38,7 @@ def mast_retrieve_opd(filename, output_path = None, verbose=False, redownload=Fa
             print(f"Found OPD file previously downloaded: {filename}")
         return output_filename
 
+    mast_wss_login()
     data_uri = f'mast:JWST/product/{filename}'
 
     # Download the file
@@ -307,7 +308,14 @@ def infer_pre_or_post_correction(row):
               '0310C': 'post', # visit with jitter sensing, diversity ALL+187N, post move
               '0310H': 'F187N post', # visit with jitter sensing, diversity ALL+187N, post move, using F187N
              }
-    return lookup[act]
+    if act in lookup:
+        return lookup[act]
+    elif act.startswith('04'):
+            # rare special case which has a genwaitmain, e.g. 1163:206
+            # which increments the group by 1
+            return lookup['03'+act[2:]]
+    else:
+        return "UNKNOWN"
 
 def retrieve_mast_opd_table(aperture_list = ['NRCA3_FP1'], verbose=False):
     """Retrieve table of OPDs from MAST.
