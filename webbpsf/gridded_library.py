@@ -6,6 +6,7 @@ import astropy.convolution
 from astropy.io import fits
 from astropy.nddata import NDData
 import numpy as np
+import poppy
 
 
 class CreatePSFLibrary:
@@ -269,9 +270,14 @@ class CreatePSFLibrary:
 
                 # Create PSF
                 psf = self.webb.calc_psf(**self._kwargs)
+                if self.verbose is True:
+                    cntrd = poppy.measure_centroid(psf)
+                    print("    Position {}/{} centroid: {}".format(i+1, len(self.location_list), cntrd))
+
 
                 # Convolve PSF with a square kernel
                 psf_conv = astropy.convolution.convolve(psf[ext].data, kernel)
+
 
                 # Add PSF to 5D array
                 psf_arr[i, :, :] = psf_conv
@@ -472,7 +478,7 @@ class CreatePSFLibrary:
         hdu.writeto(file, overwrite=self.overwrite)
 
 
-def display_psf_grid(grid, zoom_in=True, figsize=(14, 12), scale_range=1e-4):
+def display_psf_grid(grid, zoom_in=True, figsize=(14, 12), scale_range=1e-4, diff_scale_range=1, cmap=None):
     """ Display a PSF grid in a pair of plots
 
     Shows the NxN grid in NxN subplots, repeated to show
@@ -520,7 +526,7 @@ def display_psf_grid(grid, zoom_in=True, figsize=(14, 12), scale_range=1e-4):
         for ix in range(n):
             for iy in range(n):
                 i = ix*n+iy
-                im = axes[n-1-iy, ix].imshow(data[i], norm=norm)
+                im = axes[n-1-iy, ix].imshow(data[i], norm=norm, cmap=cmap)
                 axes[n-1-iy, ix].xaxis.set_visible(False)
                 axes[n-1-iy, ix].yaxis.set_visible(False)
                 axes[n-1-iy, ix].set_title("{}".format(tuple_to_int(grid.grid_xypos[i])))
@@ -542,6 +548,6 @@ def display_psf_grid(grid, zoom_in=True, figsize=(14, 12), scale_range=1e-4):
 
     meanpsf = np.mean(grid.data, axis=0)
     diffs = grid.data - meanpsf
-    vmax = np.abs(diffs).max()
-    show_grid_helper(grid, diffs, vmax=vmax, vmin=-vmax, scale='linear', title='PSF differences from mean')
+    vmax = np.abs(diffs).max()*diff_scale_range
+    show_grid_helper(grid, -diffs, vmax=vmax, vmin=-vmax, scale='linear', title='PSF differences from mean')
 
