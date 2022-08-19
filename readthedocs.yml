@@ -12,5 +12,5 @@ python:
           extra_requirements:
              - docs
 
-formats:
-    - pdf
+# Don't build any extra formats
+formats: []

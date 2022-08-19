@@ -1,6 +1,11 @@
 Appendix: Available Optical Path Difference (OPD) files
 ================================================================
 
+.. warning::
+
+    This page documents the _pre-flight_ models for JWST wavefronts. These models are now happily obsolete, and can be replaced by 
+    `actual measured in-flight wavefronts <https://webbpsf.readthedocs.io/en/latest/jwst_measured_opds.html>`_.
+
 For each of the five instruments (four SIs plus FGS) there are three provided OPD files. These represent wavefronts as follows:
 
 1. The OTE and ISIM intrinsic WFE
