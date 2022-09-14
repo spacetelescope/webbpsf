@@ -50,6 +50,7 @@ import pysiaf
 from . import constants
 from . import surs
 from . import utils
+import webbpsf
 
 _log = logging.getLogger('webbpsf')
 
@@ -3216,7 +3217,7 @@ def _get_lom(npix):
     return ote_lom, jw_ptt_basis
 
 
-def decompose_opd_segment_PTT(opd, plot=False):
+def decompose_opd_segment_PTT(opd, plot=False, plot_vmax=None):
     """Phase decomposition of an OPD into PMSA piston, tip, tilt modes
 
     Parameters
@@ -3225,6 +3226,8 @@ def decompose_opd_segment_PTT(opd, plot=False):
         OPD array
     plot : bool
         Display diagnostic plots in addition to doing the fit
+    plot_vmax : float
+        If plot is used, this allows you to adjust the vmin/vmax in the plot.
 
 
     Returns
@@ -3242,7 +3245,7 @@ def decompose_opd_segment_PTT(opd, plot=False):
     ote_lom, jw_ptt_basis = _get_lom(npix)
 
     if ote_lom.opd.shape[0] != npix:
-        ote_lom = webbpsf.opds.OTE_Linear_Model_WSS(npix=npix)
+        ote_lom = OTE_Linear_Model_WSS(npix=npix)
 
     combined_mask = ((ote_lom.amplitude != 0) & np.isfinite(opd))
 
@@ -3254,7 +3257,9 @@ def decompose_opd_segment_PTT(opd, plot=False):
     fit[~combined_mask]=np.nan
     if plot:
         fig, ax = plt.subplots(figsize=(16,4), nrows=1, ncols=1)
-        show_opd_image(np.hstack((opd, fit, opd-fit)),ax=ax )
+        if not plot_vmax:
+            plot_vmax = np.abs(opd).max()
+        webbpsf.trending.show_opd_image(np.hstack((opd, fit, opd-fit)), ax=ax, vmax=plot_vmax )
         plt.colorbar(mappable=ax.images[0])
 
     return fit, coeffs
