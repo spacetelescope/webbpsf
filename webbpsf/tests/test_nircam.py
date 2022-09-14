@@ -2,6 +2,7 @@ import sys, os
 import numpy as np
 import matplotlib.pyplot as plt
 import astropy.io.fits as fits
+import copy
 
 import logging
 _log = logging.getLogger('test_webbpsf')
@@ -527,3 +528,58 @@ def test_nircam_auto_aperturename():
     for det in nc.detector_list:
         nc.detector = det
         assert nc.aperturename == f'{det}_FULL'
+
+
+def test_coron_shift(offset_npix_x=4, offset_npix_y=-3, plot=False):
+    """Test that the two different ways of specifying an offset coronagraphic PSF yield consistent results.
+    We can compute an offset PSF either by offsetting the source ('source_offset_{x/y}') or
+    by offsetting the coronagraph mask in the opposite direction ('coron_offset_{x/y}').
+
+    Test this by computing an offset PSF in both ways, and checking that the output results are consistent.
+    """
+
+    # Make two NIRCam instances, identical instrument config
+    nrc1 = webbpsf.NIRCam()
+    nrc1.image_mask = 'MASK335R'
+    nrc1.pupil_mask = 'MASKRND'
+    nrc1.filter='F335M'
+    nrc2 = copy.deepcopy(nrc1)
+
+    # Set one up to use source_offset and the other to use coron_shift
+    offset_x = nrc1.pixelscale*offset_npix_x
+    nrc1.options['source_offset_x'] = offset_x
+    nrc2.options['coron_shift_x'] = -offset_x  # Note opposite sign convention!
+
+    offset_y = nrc1.pixelscale*offset_npix_y
+    nrc1.options['source_offset_y'] = offset_y
+    nrc2.options['coron_shift_y'] = -offset_y  # Note opposite sign convention!
+
+
+    # Compute PSFs
+    psf1, waves1 = nrc1.calc_psf(monochromatic=3.3e-6, fov_pixels=101, add_distortion=False, return_intermediates=True)
+    psf2, waves2 = nrc2.calc_psf(monochromatic=3.3e-6, fov_pixels=101, add_distortion=False, return_intermediates=True)
+
+    # Register the one using coron_shift to align with the one that used source_offset
+    shifted_psf2 = copy.deepcopy(psf2)
+    shifted_psf2[1].data = np.roll(shifted_psf2[1].data, offset_npix_y, axis=0)
+    shifted_psf2[1].data = np.roll(shifted_psf2[1].data, offset_npix_x, axis=1)
+
+    # Cut out the central region of the image
+    #  (we want to discard the edge regions where the np.roll will wrap around)
+    cutout_1 = psf1[1].data[25:75, 25:75]
+    cutout_2 = shifted_psf2[1].data[25:75, 25:75]
+
+    if plot:
+        fig, axes = plt.subplots(figsize=(16,9), ncols=2)
+        webbpsf.display_psf(psf1, ax=axes[0], vmax=1e-4, ext=1, title='Using source_offset', colorbar_orientation='horizontal')
+        webbpsf.display_psf(shifted_psf2, ax=axes[1], vmax=1e-4, ext=1, title='Using coron_shift', colorbar_orientation='horizontal')
+        for ax in axes:
+            ax.axvline(offset_x, ls='--', color='blue')
+            ax.axhline(offset_y, ls='--', color='blue')
+            ax.axvline(0, ls='-', color='cyan')
+            ax.axhline(0, ls='-', color='cyan')
+
+    # Check the two ways of computing this yield consistent results
+    assert np.isclose(cutout_1.sum(), cutout_2.sum()), "PSF cutout sums should be consistent"
+
+    assert np.allclose(cutout_1, cutout_2), "PSF cutouts should be consistent"

@@ -14,22 +14,6 @@ import webbpsf.utils
 service = 'Mast.Jwst.Filtered.Wss'
 mast_login_ok = None
 
-def mast_wss_login():
-    """Login to MAST via API token, for file downloads
-
-    """
-    from astroquery.mast import Mast
-    global mast_login_ok
-
-    if mast_login_ok:
-        return
-
-    mast_api_token = os.environ.get('MAST_API_TOKEN')
-
-    if mast_api_token is None:
-        raise RuntimeError("You must define the MAST_API_TOKEN environment variable to use this function. See https://auth.mast.stsci.edu/info")
-    Mast.login(token=mast_api_token)
-    mast_login_ok = True
 
 
 def mast_retrieve_opd(filename, output_path = None, verbose=False, redownload=False):
@@ -48,7 +32,6 @@ def mast_retrieve_opd(filename, output_path = None, verbose=False, redownload=Fa
     if not os.path.exists(output_path):
         os.mkdir(output_path)
 
-    mast_wss_login()
 
     if os.path.exists(output_filename) and not redownload:
         if verbose:
@@ -215,8 +198,7 @@ def get_opd_at_time(date, choice='closest', verbose=False, output_path = None):
     elif choice== 'closest':
         closest_fn, closest_dt = (post_opd_fn, post_dtime) if abs(post_dtime) < abs(prev_dtime) else (prev_opd_fn, prev_dtime)
         if verbose: print(f"User requested choosing OPD time closest in time to {date}, which is {closest_fn}, delta time {closest_dt:.3f} days")
-        return mast_retrieve_opd(closest_fn, output_path = output_path )
-
+        return mast_retrieve_opd(closest_fn, output_path = output_path)
 
 
 ### Functions for format conversion of OPDs
@@ -333,7 +315,7 @@ def retrieve_mast_opd_table(aperture_list = ['NRCA3_FP1'], verbose=False):
 
     """
     from astroquery.mast import Mast
-    mast_wss_login()
+
 
 
 
