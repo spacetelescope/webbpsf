@@ -6,6 +6,7 @@ import os
 import astropy
 import astropy.io.fits as fits
 import astropy.time
+import astropy.units as u
 import numpy as np
 from astropy.time import Time, TimeDelta
 
@@ -82,12 +83,13 @@ def mast_wss_opds_around_date_query(date, verbose=True):
     """
 
     if not isinstance(date, Time):
-        raise ValueError("Please supply the date as an astropy.time.Time instance")
+        date = Time(date)
+        #raise ValueError("Please supply the date as an astropy.time.Time instance")
 
     # Set date range (units of days) for the query
     # Note: start with a small value (+-1.5 day) so the MAST query doesn't start off too large
     # This is consistent with expected WFS cadence
-    tdelta = TimeDelta(1.5, format='jd')
+    tdelta = TimeDelta(1.5*u.day, format='jd')
 
     # With a too-small date range, this initial query may return a "NoResultsWarning"
     obs_table = mast_wss_date_query(date, tdelta)
@@ -100,7 +102,7 @@ def mast_wss_opds_around_date_query(date, verbose=True):
     # Run the query again with a larger date range
     while len(obs_table) < 1 or min(obs_table['date_obs_mjd']) > date.mjd or max(obs_table['date_obs_mjd']) < date.mjd:
 
-        if tdelta >= 6:
+        if tdelta >= 6*u.day:
             if verbose: print(
                 "Could not find JWST OPDs both before and after the specified date. Date outside of the available range of WFS data.")
 

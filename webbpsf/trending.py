@@ -772,7 +772,7 @@ def get_opdtable_for_month(year, mon):
     return opdtable
 
 
-def monthly_trending_plot(year, month, verbose=True, quiet=False, instrument='NIRCam', filter='F200W', vmax=200):
+def monthly_trending_plot(year, month, verbose=True, instrument='NIRCam', filter='F200W', vmax=200):
     """Make monthly trending plot showing OPDs, mirror moves, RMS WFE, and the resulting PSF EEs
 
     year, month : integers
@@ -902,21 +902,34 @@ def monthly_trending_plot(year, month, verbose=True, quiet=False, instrument='NI
 
     #### Plot 2: Encircled Energies
 
-    for i, ee_npix in enumerate([2.5, 10]):
+    ee_ax_ylim = 0.04
+    ee_measurements = {}
+    for i, ee_npix in enumerate([10, 2.5]):
+        color = f'C{i*2+2}'
         ee_rad = inst.pixelscale * ee_npix
         ees_at_rad = np.asarray([e(ee_rad) for e in ees])
+        ee_measurements[ee_npix] = ees_at_rad  # save for later
 
-        axes[1].plot_date(dates_array.plot_date, ees_at_rad, ls='-', color=f'C{i}',
-                          label=f"EE at {ee_rad:.2f} arcsec ({ee_npix} pix)")
+        median_ee = np.median(ees_at_rad)
+        ee_ax_ylim = np.max([ee_ax_ylim, np.abs(ees_at_rad-median_ee).max()*1.1]) # display tweak: adjust the plot Y scale sensibly to its contents
 
-        axes[1].axhline(np.median(ees_at_rad), color=f'C{i}', ls=':')
-        axes[1].fill_between(dates_array.plot_date, np.median(ees_at_rad * 0.97), np.median(ees_at_rad) * 1.03,
-                             color=f'C{i}',
-                             ls=':', alpha=0.1, label=f"Median EE({ee_rad:.2f}) ± 3%")
+        axes[1].plot_date(dates_array.plot_date, ees_at_rad-median_ee, ls='-', color=color,
+                          label=f"$\Delta$EE within {ee_rad:.2f} arcsec ({ee_npix} pix)")
 
+        #axes[1].axhline(np.median(ees_at_rad), color=f'C{i}', ls=':')
+        #axes[1].fill_between(dates_array.plot_date, np.median(ees_at_rad * 0.97), np.median(ees_at_rad) * 1.03,
+        #                     color=f'C{i}',
+        #                     ls=':', alpha=0.1, label=f"Median EE({ee_rad:.2f}) ± 3%")
+        axes[1].text(0.01, 0.75-i*0.12, f'Median EE within {ee_rad:.2f} arcsec = {median_ee:.3f}', color=color,
+                     fontweight='bold',
+                     transform=axes[1].transAxes)
+
+    axes[1].fill_between(dates_array.plot_date, -0.03, 0.03, color='gray', alpha=0.1)
     axes[1].set_xlabel("Date", fontsize=fs, fontweight='bold')
-    axes[1].set_ylabel(f"Encircled Energy\n{instrument} {filter}", fontsize=fs, fontweight='bold')
+    axes[1].set_ylabel(f"Change in \nEncircled Energy\n{instrument} {filter}", fontsize=fs, fontweight='bold')
     axes[1].set_ylim(0.5, 1.0)
+    axes[1].axhline(0, ls=":", color='gray')
+    axes[1].set_ylim(-ee_ax_ylim, ee_ax_ylim)
     axes[1].legend(loc='upper right')
 
     # Configure Axes for the time series plots
@@ -933,7 +946,7 @@ def monthly_trending_plot(year, month, verbose=True, quiet=False, instrument='NI
     from matplotlib.patches import ConnectionPatch
 
     for i, row in enumerate(opdtable):
-        if not quiet:
+        if verbose:
             print(row['fileName'], row['date'],
                   "Sensing" if row['wfs_measurement_type'] == 'pre' else "Post Mirror Move",
                   f"Obs WFE: {rms_obs[i] * 1e9:.1f} nm\tOTE WFE: {rms_ote[i]*1e9:.1f} nm")
@@ -988,3 +1001,10 @@ def monthly_trending_plot(year, month, verbose=True, quiet=False, instrument='NI
     outname = f'wf_trending_{year}-{month:02d}.pdf'
     plt.savefig(outname, dpi=200)
     vprint(f"Saved to {outname}")
+
+    wfs_type = [("Sensing" if row['wfs_measurement_type'] == 'pre' else "Post Mirror Move") for row in opdtable]
+    result_table = astropy.table.QTable([opdtable['date'], opdtable['fileName'], wfs_type,
+                                        rms_obs*1e9*u.nm, rms_ote*1e9*u.nm, ee_measurements[2.5], ee_measurements[10]],
+                                       names=['Date', 'Filename', 'WFS Type', 'RMS WFE (OTE+SI)', 'RMS WFE (OTE only)',
+                                              'EE(2.5 pix)', 'EE(10pix)'])
+    return result_table
