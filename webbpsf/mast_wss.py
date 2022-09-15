@@ -201,7 +201,6 @@ def get_opd_at_time(date, choice='closest', verbose=False, output_path = None):
         return mast_retrieve_opd(closest_fn, output_path = output_path)
 
 
-
 ### Functions for format conversion of OPDs
 
 def import_wss_opd(filename, npix_out=1024, verbose=False):
