@@ -3259,8 +3259,11 @@ def decompose_opd_segment_PTT(opd, plot=False, plot_vmax=None):
         fig, ax = plt.subplots(figsize=(16,4), nrows=1, ncols=1)
         if not plot_vmax:
             plot_vmax = np.abs(opd).max()
-        webbpsf.trending.show_opd_image(np.hstack((opd, fit, opd-fit)), ax=ax, vmax=plot_vmax )
+        masked_opd = opd.copy()
+        masked_opd[~combined_mask]=np.nan
+        webbpsf.trending.show_opd_image(np.hstack((masked_opd, fit, opd-fit)), ax=ax, vmax=plot_vmax, labelrms=False )
         plt.colorbar(mappable=ax.images[0])
+        plt.title('OPD, fit to segment PTT terms, and residuals')
 
     return fit, coeffs
 
