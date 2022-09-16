@@ -250,10 +250,10 @@ def show_opd_image(array, vmax=0.300, ax=None, title=None, colorbar=False, label
 
     if ax is None:
         plt.figure(figsize=(10, 8))
-        im = plt.imshow(array, cmap=matplotlib.cm.RdBu_r, vmin=-vmax, vmax=vmax, )
+        im = plt.imshow(array, cmap=matplotlib.cm.RdBu_r, vmin=-vmax, vmax=vmax, origin='lower')
         ax = im.axes
     else:
-        im = ax.imshow(array, cmap=matplotlib.cm.RdBu_r, vmin=-vmax, vmax=vmax, )
+        im = ax.imshow(array, cmap=matplotlib.cm.RdBu_r, vmin=-vmax, vmax=vmax, origin='lower')
 
     ax.set_facecolor('gray')
     ax.xaxis.set_visible(False)
@@ -862,7 +862,7 @@ def monthly_trending_plot(year, month, verbose=True, instrument='NIRCam', filter
     cmap.set_bad('0.4')
 
     def basic_show_image(image, ax, vmax=.3, nanmask=1):
-        ax.imshow(image * nanmask, cmap=cmap, vmin=-vmax, vmax=vmax)
+        ax.imshow(image * nanmask, cmap=cmap, vmin=-vmax, vmax=vmax, origin='lower')
         ax.xaxis.set_visible(False)
         ax.yaxis.set_visible(False)
         ax.set_yticks([])

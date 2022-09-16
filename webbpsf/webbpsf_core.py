@@ -1370,7 +1370,7 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         if plot:
             import matplotlib, matplotlib.pyplot as plt
-            plt.imshow(opd, vmin=-5e-7, vmax=5e-7, cmap=matplotlib.cm.RdBu_r)
+            plt.imshow(opd, vmin=-5e-7, vmax=5e-7, cmap=matplotlib.cm.RdBu_r, origin='lower')
             plt.title(kind+" WFE")
             mask = ote.get_transmission(wave) !=0
             plt.xlabel(f"RMS: {utils.rms(opd, mask)*1e9:.2f} nm")
