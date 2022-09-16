@@ -137,7 +137,7 @@ def show_opd(opd, mask = None, ax=None, vmax=200, title=None, annotate_budget=No
     cm.set_bad('0.75', alpha=0)
 
     ax.patch.set_facecolor('0.8')
-    ax.imshow(opd_nm, vmin=-vmax, vmax=vmax, cmap = cm)
+    ax.imshow(opd_nm, vmin=-vmax, vmax=vmax, cmap = cm, origin='lower')
     ax.xaxis.set_visible(False)
     ax.yaxis.set_visible(False)
     if title is not None:

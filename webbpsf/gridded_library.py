@@ -526,7 +526,7 @@ def display_psf_grid(grid, zoom_in=True, figsize=(14, 12), scale_range=1e-4, dif
         for ix in range(n):
             for iy in range(n):
                 i = ix*n+iy
-                im = axes[n-1-iy, ix].imshow(data[i], norm=norm, cmap=cmap)
+                im = axes[n-1-iy, ix].imshow(data[i], norm=norm, cmap=cmap, origin='lower')
                 axes[n-1-iy, ix].xaxis.set_visible(False)
                 axes[n-1-iy, ix].yaxis.set_visible(False)
                 axes[n-1-iy, ix].set_title("{}".format(tuple_to_int(grid.grid_xypos[i])))

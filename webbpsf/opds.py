@@ -285,7 +285,7 @@ class OPD(poppy.FITSOpticalElement):
         extent = [-max_cycles, max_cycles, -max_cycles, max_cycles]
 
         plt.subplot(233)
-        plt.imshow(abstrans, extent=extent)
+        plt.imshow(abstrans, extent=extent, origin='lower')
         plt.title("Power Spectrum of the phase")
         plt.ylabel("cycles/aperture")
         tvcircle(radius=5, color='k', linewidth=1)  # , ls='--')
@@ -317,7 +317,7 @@ class OPD(poppy.FITSOpticalElement):
             inverse = inverse[::-1, ::-1]  # I thought SFT did this but apparently this is necessary to get the high freqs right...
 
             plt.imshow(inverse.real * mask, vmin=(-vmax) / 1000., vmax=vmax / 1000,
-                       cmap=cmap)  # vmax is in nm, but WFE is in microns, so convert
+                       cmap=cmap, origin='lower')  # vmax is in nm, but WFE is in microns, so convert
             plt.title(label + " spatial frequencies")
             rms = (np.sqrt((inverse.real[wgood] ** 2).mean()) * 1000)
 
@@ -530,7 +530,7 @@ class OPD(poppy.FITSOpticalElement):
 
             # n, m = zernike.noll_indices(j)
             Z = zernike.zernike1(j, npix=npix)
-            ax.imshow(Z * zerns[j - 1] * hexap * scalefact, vmin=-1 * vmax, vmax=vmax, cmap=cmap)
+            ax.imshow(Z * zerns[j - 1] * hexap * scalefact, vmin=-1 * vmax, vmax=vmax, cmap=cmap, origin='lower')
             ax.text(npix * 0.95, npix * 0.8, "$Z{:d}$".format(j), fontsize=20, horizontalalignment='right')
             ax.text(npix * 0.95, npix * 0.1, "{:.2e}".format(zerns[j - 1]), fontsize=15, horizontalalignment='right')
 
@@ -840,10 +840,10 @@ class OTE_Linear_Model_Elliott(OPD):
 
         if debug:
             plt.subplot(121)
-            plt.imshow(Xr * (self._segment_masks == iseg))
+            plt.imshow(Xr * (self._segment_masks == iseg), origin='lower')
             plt.title("Local X_Control for " + segment)
             plt.subplot(122)
-            plt.imshow(Yr * (self._segment_masks == iseg))
+            plt.imshow(Yr * (self._segment_masks == iseg), origin='lower')
             plt.title("Local Y_Control for" + segment)
             plt.draw()
 
@@ -3367,7 +3367,7 @@ def get_coarse_blur_parameters(t0, duration, pixelscale, plot=False, case=1,):
 
 
         plt.figure()
-        plt.imshow(kernel, cmap = matplotlib.cm.gray)
+        plt.imshow(kernel, cmap = matplotlib.cm.gray, origin='lower')
         plt.title(f"Convolution kernel at t={t0}, d={duration} s\nOffset={cen} arcsec", fontsize=10)
         plt.ylabel('Delta V3 [pixels]')
 
