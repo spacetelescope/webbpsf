@@ -77,6 +77,7 @@ class Conf(_config.ConfigNamespace):
 conf = Conf()
 
 from . import utils
+from . import trending
 from .utils import setup_logging, restart_logging, system_diagnostic, measure_strehl
 
 from poppy import ( display_psf, display_psf_difference, display_ee, measure_ee,

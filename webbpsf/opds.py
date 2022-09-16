@@ -26,7 +26,7 @@
 #   prescription, as published for instance in Lightsey et al. 2012 Opt. Eng.
 #
 ###############################################################################
-
+import functools
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -50,6 +50,7 @@ import pysiaf
 from . import constants
 from . import surs
 from . import utils
+import webbpsf
 
 _log = logging.getLogger('webbpsf')
 
@@ -3089,6 +3090,7 @@ class JWST_WAS_PTT_Basis(object):
 
         return basis[0:nterms]
 
+
 class JWST_WAS_Full_Basis(object):
     def __init__(self):
         """ Segment pose full basis using the same conventions as JWST WAS
@@ -3186,8 +3188,6 @@ class JWST_WAS_Full_Basis(object):
         return basis[0:nterms]
 
 
-
-
 def coeffs_to_seg_state(coeffs):
     """ Convert coefficients from Zernike fit to OTE linear model segment state
 
@@ -3207,8 +3207,83 @@ def coeffs_to_seg_state(coeffs):
     seg_state[:,1] = coeffs_tab[:,2]  # tilt in 2nd column
     return seg_state*1e6   # convert from meters & radians to micro units
 
+
+@functools.lru_cache
+def _get_lom(npix):
+    """Initialize a few things that are computationally expensive so we cache for multiple reuses"""
+
+    ote_lom = OTE_Linear_Model_WSS(npix=npix)
+    jw_ptt_basis = JWST_WAS_PTT_Basis()
+    return ote_lom, jw_ptt_basis
+
+
+def decompose_opd_segment_PTT(opd, plot=False, plot_vmax=None):
+    """Phase decomposition of an OPD into PMSA piston, tip, tilt modes
+
+    Parameters
+    ----------
+    opd : 2d ndarray
+        OPD array
+    plot : bool
+        Display diagnostic plots in addition to doing the fit
+    plot_vmax : float
+        If plot is used, this allows you to adjust the vmin/vmax in the plot.
+
+
+    Returns
+    -------
+
+    fit_opd : 2d ndarray
+        Projection of the input OPD into JWST PTT modes
+    coeffs : float array
+        Coefficients per mode, in order corresponding to the webbpsf.opds.JWST_WAS_PTT_Basis class,
+        which is {piston, xtilt, ytilt} repeated per segments in order
+
+    """
+    npix = opd.shape[0]
+
+    ote_lom, jw_ptt_basis = _get_lom(npix)
+
+    if ote_lom.opd.shape[0] != npix:
+        ote_lom = OTE_Linear_Model_WSS(npix=npix)
+
+    combined_mask = ((ote_lom.amplitude != 0) & np.isfinite(opd))
+
+
+    coeffs = poppy.zernike.opd_expand_segments(opd, aperture=combined_mask,
+                                               basis=jw_ptt_basis, nterms=54,iterations=4)
+    fit = poppy.zernike.compose_opd_from_basis(coeffs, basis=jw_ptt_basis, npix=npix)
+
+    fit[~combined_mask]=np.nan
+    if plot:
+        fig, ax = plt.subplots(figsize=(16,4), nrows=1, ncols=1)
+        if not plot_vmax:
+            plot_vmax = np.abs(opd).max()
+        masked_opd = opd.copy()
+        masked_opd[~combined_mask]=np.nan
+        webbpsf.trending.show_opd_image(np.hstack((masked_opd, fit, opd-fit)), ax=ax, vmax=plot_vmax, labelrms=False )
+        plt.colorbar(mappable=ax.images[0])
+        plt.title('OPD, fit to segment PTT terms, and residuals')
+
+    return fit, coeffs
+
+
+def sur_to_opd(sur_filename, ignore_missing=False, npix=256):
+    """Utilty function to load a SUR and compute delta OPD"""
+    ote = OTE_Linear_Model_WSS(npix=npix)
+
+    if not os.path.exists(sur_filename):
+        if not ignore_missing:
+            raise FileNotFoundError(f"Missing SUR: {sur_filename}. Download of these should eventually be automated; for now, manually retrieve from WSSTAS at https://wsstas.stsci.edu/wsstas/staticPage/showContent/RecentSURs?primary=master.png")
+        else:
+            return np.zeros((npix,npix), float)
+    ote.move_sur(sur_filename)
+    return ote.opd * 1e6 # convert from meters to microns
+
+
+
 #--------------------------------------------------------------------------------
-# Coarse track pointing (for early commissioning)
+# Coarse track pointing (for early commissioning simulations)
 
 def get_coarse_blur_parameters(t0, duration, pixelscale, plot=False, case=1,):
     """ Extract coarse blur center offset and convolution kernel from the Coarse Point sim time series

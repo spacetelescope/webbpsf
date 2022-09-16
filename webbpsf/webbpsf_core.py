@@ -1344,7 +1344,7 @@ class JWInstrument(SpaceTelescopeInstrument):
                 # The call to get_aberrations above just returns the foreoptics portion.
                 # Multiply by 3x to get the total instrumental WFE.
                 opd *= 3
-            # Flip verticall to match OTE entrance pupil orientation
+            # Flip vertically to match OTE entrance pupil orientation
             opd = np.flipud(opd)
         elif kind.lower() == 'ote': # OTE *total* WFE including all terms
             opd = ote.get_opd(wave).copy()
@@ -1352,7 +1352,10 @@ class JWInstrument(SpaceTelescopeInstrument):
             opd *= (aperture != 0)  # mask out to zero the global zernikes outside the aperture
 
         elif kind.lower() == 'ote_global': # OTE *global* WFE only, i.e. WFE common to all field points
-            raise NotImplementedError(f"Not yet implemented: {kind}")
+            # This is done recursively, since that's a convenient way to code this up
+            opd_ote_total = self.get_wfe('ote')
+            opd_ote_fd = self.get_wfe('ote_field_dep')
+            return opd_ote_total - opd_ote_fd
         elif kind.lower() == 'ote_field_dep':  # OTE field dependent variations
             wfe_ote_field_dep_nominal = ote._get_field_dependence_nominal_ote(ote.v2v3)
             wfe_ote_field_dep_mimf = ote._get_field_dependence_secondary_mirror(ote.v2v3)
@@ -1452,11 +1455,15 @@ class JWInstrument(SpaceTelescopeInstrument):
         ote_pupil_mask = utils.get_pupil_mask() != 0
         opdhdu[0].data *= ote_pupil_mask
 
+        #opdhdu[0].header['RMS_OBS'] = (webbpsf.utils.rms(opdhdu[0].data, mask=ote_pupil_mask)*1e9,
+        #                               "[nm] RMS Observatory WFE (i.e. OTE+SI) at sensing field pt")
+
         if plot:
             import matplotlib, matplotlib.pyplot as plt
             fig, axes = plt.subplots(figsize=(16, 9), ncols=3, nrows=2)
             vm = 2e-7
-            axes[0,0].imshow(opdhdu[0].data.copy() * ote_pupil_mask, vmin=-vm, vmax=vm, cmap=matplotlib.cm.RdBu_r)
+            plot_kwargs = {'vmin':-vm, 'vmax':vm, 'cmap':matplotlib.cm.RdBu_r, 'origin':'lower'}
+            axes[0,0].imshow(opdhdu[0].data.copy() * ote_pupil_mask, **plot_kwargs)
             axes[0,0].set_title(f"OPD from\n{os.path.basename(filename)}")
             axes[0,0].set_xlabel(f"RMS: {utils.rms(opdhdu[0].data*1e9, ote_pupil_mask):.2f} nm rms")
 
@@ -1524,23 +1531,23 @@ class JWInstrument(SpaceTelescopeInstrument):
                 total_ote_wfe_at_fp = opdhdu[0].data+(selected_fp_ote_wfe*ote_pupil_mask)
 
             if plot:
-                axes[0,1].imshow(sensing_fp_si_wfe * ote_pupil_mask, vmin=-vm, vmax=vm, cmap=matplotlib.cm.RdBu_r)
+                axes[0,1].imshow(sensing_fp_si_wfe * ote_pupil_mask, **plot_kwargs)
                 axes[0,1].set_title(f"SI OPD\nat {sensing_apername}")
                 axes[0,1].set_xlabel(f"RMS: {utils.rms(sensing_fp_si_wfe * 1e9, ote_pupil_mask):.2f} nm rms")
 
-                axes[0,2].imshow(opdhdu[0].data + sensing_fp_ote_wfe * ote_pupil_mask , vmin=-vm, vmax=vm, cmap=matplotlib.cm.RdBu_r)
-                axes[0,2].set_title(f"OTE total OPD at master chief ray field point\ninferred from {os.path.basename(filename)}")
+                axes[0,2].imshow(opdhdu[0].data + sensing_fp_ote_wfe * ote_pupil_mask , **plot_kwargs)
+                axes[0,2].set_title(f"OTE total OPD at sensing field point\ninferred from {os.path.basename(filename)}")
                 axes[0,2].set_xlabel(f"RMS: {utils.rms(opdhdu[0].data*1e9, ote_pupil_mask):.2f} nm rms")
 
-                axes[1,0].imshow(sensing_fp_ote_wfe * ote_pupil_mask, vmin=-vm, vmax=vm, cmap=matplotlib.cm.RdBu_r)
+                axes[1,0].imshow(sensing_fp_ote_wfe * ote_pupil_mask, **plot_kwargs)
                 axes[1,0].set_title(f"OTE field dependent OPD\nat {sensing_apername}")
                 axes[1,0].set_xlabel(f"RMS: {utils.rms(sensing_fp_ote_wfe * 1e9, ote_pupil_mask):.2f} nm rms")
 
-                axes[1,1].imshow(selected_fp_ote_wfe * ote_pupil_mask, vmin=-vm, vmax=vm, cmap=matplotlib.cm.RdBu_r)
+                axes[1,1].imshow(selected_fp_ote_wfe * ote_pupil_mask, **plot_kwargs)
                 axes[1,1].set_title(f"OTE field dependent OPD\nat current field point in {self.name} {self.detector}")
                 axes[1,1].set_xlabel(f"RMS: {utils.rms(selected_fp_ote_wfe * 1e9, ote_pupil_mask):.2f} nm rms")
 
-                axes[1,2].imshow(total_ote_wfe_at_fp, vmin=-vm, vmax=vm, cmap=matplotlib.cm.RdBu_r)
+                axes[1,2].imshow(total_ote_wfe_at_fp, **plot_kwargs)
                 axes[1,2].set_title(f"Total OTE OPD at current FP in {self.name} {self.detector}\ninferred from {os.path.basename(filename)}")
                 axes[1,2].set_xlabel(f"RMS: {utils.rms(total_ote_wfe_at_fp*1e9, ote_pupil_mask):.2f} nm rms")
 
