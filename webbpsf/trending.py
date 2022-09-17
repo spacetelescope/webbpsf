@@ -890,11 +890,15 @@ def monthly_trending_plot(year, month, verbose=True, instrument='NIRCam', filter
                       color='C1', ls='-', label='Observatory WFE at NIRCam NRCA3')
     axes[0].plot_date(dates_array.plot_date, rms_ote * 1e9,
                       color='C0', ls='-', label='Telescope WFE')
-    axes[0].legend(loc='lower right')
-
     for ax in axes:
         for corr_date in correction_times:
             ax.axvline(corr_date.plot_date, color='darkgreen', ls='--', alpha=0.5)
+
+    #axes[0].axhline(59, ls=":", color='gray')
+    #axes[0].axhline(80, ls=":", color='gray')
+    axes[0].fill_between( [start_date.plot_date - 0.5, end_date.plot_date + 0.5],
+                          [59,59], [80, 80], color='blue', alpha=0.08, label='Wavefront control target range')
+    axes[0].legend(loc='lower right')
 
     axes[0].set_ylim(0, 150)
     axes[0].set_ylabel("Wavefront Error\n[nm rms]", fontsize=fs, fontweight='bold')
@@ -916,15 +920,11 @@ def monthly_trending_plot(year, month, verbose=True, instrument='NIRCam', filter
         axes[1].plot_date(dates_array.plot_date, ees_at_rad-median_ee, ls='-', color=color,
                           label=f"$\Delta$EE within {ee_rad:.2f} arcsec ({ee_npix} pix)")
 
-        #axes[1].axhline(np.median(ees_at_rad), color=f'C{i}', ls=':')
-        #axes[1].fill_between(dates_array.plot_date, np.median(ees_at_rad * 0.97), np.median(ees_at_rad) * 1.03,
-        #                     color=f'C{i}',
-        #                     ls=':', alpha=0.1, label=f"Median EE({ee_rad:.2f}) ± 3%")
         axes[1].text(0.01, 0.75-i*0.12, f'Median EE within {ee_rad:.2f} arcsec = {median_ee:.3f}', color=color,
                      fontweight='bold',
                      transform=axes[1].transAxes)
 
-    axes[1].fill_between(dates_array.plot_date, -0.03, 0.03, color='gray', alpha=0.1)
+    axes[1].fill_between( [start_date.plot_date - 0.5, end_date.plot_date + 0.5], -0.03, 0.03, color='gray', alpha=0.1, label="±3% change (stability requirement)")
     axes[1].set_xlabel("Date", fontsize=fs, fontweight='bold')
     axes[1].set_ylabel(f"Change in \nEncircled Energy\n{instrument} {filter}", fontsize=fs, fontweight='bold')
     axes[1].set_ylim(0.5, 1.0)

@@ -15,7 +15,6 @@ import webbpsf.utils
 ### Login and authentication
 
 service = 'Mast.Jwst.Filtered.Wss'
-mast_login_ok = None
 
 
 def mast_retrieve_opd(filename, output_path=None, verbose=False, redownload=False):
@@ -39,7 +38,6 @@ def mast_retrieve_opd(filename, output_path=None, verbose=False, redownload=Fals
             print(f"Found OPD file previously downloaded: {filename}")
         return output_filename
 
-    mast_wss_login()
     data_uri = f'mast:JWST/product/{filename}'
 
     # Download the file
