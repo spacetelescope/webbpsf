@@ -30,16 +30,23 @@ Version History and Change Log
 
 Version 1.1.0
 =============
-*2022 July Sometime*
+*2022 September *
 
-*First release with JWST in flight optical performance!* Preliminary updates and tools added just after completion of commissioning.
+*First release with JWST in flight optical performance!*  Updates and tools added after completion of commissioning. Note, this release requires 
 
 **James Webb Space Telescope OTE model improvements**:
 
-* Add feature to use measured OPDs from wavefront sensing in flight. See :doc:`jwst_measured_opds`.
-* Updated default line-of-sight jitter for JWST observations to 1 milliarcsecond instead of 6 (1 sigma per axis).
+ * Add feature to use measured OPDs from wavefront sensing in flight, including retrieval from MAST. See :doc:`jwst_measured_opds`. (:pr:`556`, :pr:`559`, :pr:`560`, :pr:`571` by :user:`mperrin; :pr:`563` by :user:`rcooper295`; :pr:`579` by :user:`obi-wan76`)
+ * Add functions to trend and display wavefronts over time. See :doc:`jwst_measured_opds`.
+ * Updated default line-of-sight jitter for JWST observations to 1 milliarcsecond instead of 6 (1 sigma per axis).
+ * Updated default OPD to be an actual measured on-orbit OPD from early in cycle 1 science operations.
 
-More updates to come - this is a first pass.
+**Software and Package Infrastructure Updates:**
+
+ * Add support for Python 3.10; drop support for Python 3.7 (:pr:`549` by :user:`shanosborne`)
+ * Fixes to a few minor plotting bugs (:pr:`537` by :user:`shanosborne`; :pr:`581`, :pr:`582` by :user:`mperrin`)
+ * Thanks to :user:`jsoref` for contributing :pr:`520` with spelling corrections, and :user:`NaincyKumariKnoldus` for fixing a bad link in the docs.
+ * Add unit test for the coronagraph mask shift option (:pr:`578` by :user:`mperrin`)
 
 
 Version 1.0.0
