@@ -110,7 +110,7 @@ For convenience offsets can also be given in cartesian coordinates:
 >>> instrument.options['source_offset_y'] = -3     # offset is in arsec
 
 
-The option source_offset defines “the location of the point source within the simulated subarray”. It doesn’t affect the WFE, but it does affect the position offset of the source relative to any focal plane elements such as a coronagraph mask or spectrograph slit. For coronagraphic modes, the coronagraph occulter is always assumed to be at the center of the output array. Therefore, these options let you offset the source away from the coronagraph. 
+The option ``source_offset`` defines “the location of the point source within the simulated subarray”. It doesn’t affect the WFE, but it does affect the position offset of the source relative to any focal plane elements such as a coronagraph mask or spectrograph slit. For coronagraphic modes, the coronagraph occulter is always assumed to be at the center of the output array. Therefore, these options let you offset the source away from the coronagraph. 
 
 Note that instead of offsetting the source we could offset the coronagraph mask in the opposite direction. This can be done with the ``coron_shift_x`` and ``coron_shift_y`` options. These options will offset a coronagraphic mask in order to produce PSFs centered in the output image, rather than offsetting the PSF. Both options, ``coron_shift``  and ``source_offset`` give consistent results. Using the same ``source_offset`` values above, we can use offset  a coronagraphic mask:
 
