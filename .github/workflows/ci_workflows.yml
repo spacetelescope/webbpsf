@@ -57,8 +57,8 @@ jobs:
       run: pip install tox tox-conda>=0.2
 
     - name: Get WebbPSF Data
-      run: | # Get WebbPSF data files (just a subset of the full 250 MB!) and set up environment variable
-           wget https://stsci.box.com/shared/static/ftj8esrt0apzbnff8j6m5kseii2jzy9e.gz -O /tmp/minimal-webbpsf-data.tar.gz
+      run: | # Get WebbPSF data files (just a subset of the full dataset!) and set up environment variable
+           wget https://stsci.box.com/shared/static/963l3m4hcrpc29bqxq68ilcsfgfqwiyc.gz  -O /tmp/minimal-webbpsf-data.tar.gz
            tar -xzvf /tmp/minimal-webbpsf-data.tar.gz
            echo "WEBBPSF_PATH=${{github.workspace}}/webbpsf-data" >> $GITHUB_ENV
 

@@ -27,7 +27,7 @@ def show_notebook_interface(instrumentname):
         instrument = roman.WFI()
         show_notebook_interface_wfi(instrument)
     else:
-        instrument = webbpsf_core.Instrument(instrumentname)
+        instrument = webbpsf_core.instrument(instrumentname)
         show_notebook_interface_jwst(instrument)
 
 
@@ -236,7 +236,7 @@ def show_notebook_interface_jwst(instrument):
 
 
     if isinstance(instrument, str):
-        instrument = Instrument(instrument)
+        instrument = instrument(instrument)
 
     try:
         import synphot

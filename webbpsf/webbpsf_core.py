@@ -780,7 +780,7 @@ class JWInstrument(SpaceTelescopeInstrument):
             raise RuntimeError("No pupil OPD files found for {name} in {path}".format(name=self.name, path=opd_path))
 
         self.opd_list.sort()
-        self.pupilopd = self.opd_list[0]  # should be JWST_OTE_OPD_RevAA_prelaunch_predicted.fits.gz, or the ungzipped version if present
+        self.pupilopd = 'JWST_OTE_OPD_cycle1_example_2022-07-30.fits'    # Default is now an on-orbit measured example OPD
 
         self.pupil = os.path.abspath(os.path.join(
             self._WebbPSF_basepath,
