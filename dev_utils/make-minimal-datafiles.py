@@ -29,34 +29,8 @@ print("#### Expanding full tar file into temp directory ####")
 os.chdir(WORKING_DIR)
 subprocess.call("tar xvzf "+inputfile, shell=True)
 
-# No longer needed for >= 1.1.0:
-#  print("#### Trimming to only one OPD file per instrument ####")
-#  for instr in insts:
-#      files = glob.glob(os.path.join(WORKING_DIR, 'webbpsf-data', instr, "OPD", "*.fits.gz"))
-#      files.sort()
-#      print(instr, files)
-#  
-#      # just save the lowest alphabetically of each of them
-#      for file_to_delete in files[1:]:
-#          print("Deleting "+file_to_delete)
-#          os.remove(file_to_delete)
-#  
-#      print("Trimming to only 1 datacube slice: "+files[0])
-#  
-#      f0 = fits.open(files[0])
-#      f0[0].data = f0[0].data[0]
-#      f0.writeto(files[0], overwrite=True)
-#      f0.close()
-
 # Remove this for >= 1.1.0:
 os.remove(os.path.join(WORKING_DIR, 'webbpsf-data','JWST_OTE_OPD_RevAA_prelaunch_predicted.fits.gz'))
-
-# Do the same for the Rev AA OTE OPD
-ote_fn = os.path.join(WORKING_DIR, 'webbpsf-data','JWST_OTE_OPD_RevAA_prelaunch_predicted.fits.gz')
-f0 = fits.open(ote_fn)
-f0[0].data = f0[0].data[0]
-f0.writeto(ote_fn, overwrite=True)
-f0.close()
 
 
 print("#### Removing extra optional pupil files ####")
