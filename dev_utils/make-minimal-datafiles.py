@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Make minimal data files
-# This is used to make a stripped-down version of the data files for use on Travis CI
+# This is used to make a stripped-down version of the data files for use on GitHub Actions
 
 import os, sys
 import astropy.io.fits as fits

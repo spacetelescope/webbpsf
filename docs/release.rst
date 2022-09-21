@@ -66,9 +66,13 @@ When you are ready, proceed with the WebbPSF release as follows:
    #. Specify the version number, title, and brief description of the release.
    #. Press "Publish Release".
 
-#. Release to PyPI. This should now happen automatically on Travis. This will be triggered by a Travis build of a tagged commit on the `stable` branch, so it will happen automatically on the prior step for the PR into stable.
+#. Release to PyPI. This should now happen automatically on GitHub Actions. This will be triggered by a GitHub Actions build of a tagged commit on the `stable` branch, so it will happen automatically on the prior step for the PR into `stable`.
 
-#. Release to AstroConda, via steps below.
+.. note::
+
+  Once conda installation is working again, find this page in the documentation
+  for version 1.0.0 and adapt the steps from the "Releasing a new version
+  through AstroConda" section to the new process.
 
 Releasing a new version through AstroConda
 ==========================================

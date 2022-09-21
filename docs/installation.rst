@@ -10,22 +10,23 @@ Requirements & Installation
    To subscribe, visit  the `maillist.stsci.edu server <https://maillist.stsci.edu/scripts/wa.exe?SUBED1=Webbpsf-users&A=1>`_
 
 
-.. _install-with-conda:
+.. NOTE: installation with conda is unavailable as of v1.1.0. uncomment and edit the following section once it's back.
+  .. _install_with_conda:
 
-Recommended: Installing with conda
-----------------------------------
+  Recommended: Installing with conda
+  ----------------------------------
 
-If you already use ``conda``, but do not want to install the full suite of STScI software, you can simply add the AstroConda *channel* and install WebbPSF as follows (creating a new environment named ``webbpsf-env``)::
+  If you already use ``conda``, but do not want to install the full suite of STScI software, you can simply add the AstroConda *channel* and install WebbPSF as follows (creating a new environment named ``webbpsf-env``)::
 
-   $ conda config --add channels http://ssb.stsci.edu/astroconda
-   $ conda create -n webbpsf-env webbpsf
-   $ conda activate webbpsf-env
+    $ conda config --add channels http://ssb.stsci.edu/astroconda
+    $ conda create -n webbpsf-env webbpsf
+    $ conda activate webbpsf-env
 
-Upgrading to the latest version is done with ``conda update -n webbpsf-env --all``.
+  Upgrading to the latest version is done with ``conda update -n webbpsf-env --all``.
 
-.. warning::
+  .. warning::
 
-   You *must* install WebbPSF into a specific environment (e.g. ``webbpsf-env``); our conda package will not work if installed into the default "root" environment.
+     You *must* install WebbPSF into a specific environment (e.g. ``webbpsf-env``); our conda package will not work if installed into the default "root" environment.
 
 .. _install_pip:
 
@@ -42,27 +43,10 @@ WebbPSF and its underlying optical library POPPY may be installed from the `Pyth
 Note that ``pip install webbpsf`` only installs the program code. **If you install via pip, you must manually download and install the data files, as** :ref:`described <data_install>` **below.**
 To obtain source spectra for calculations, you should also follow :ref:`installation instructions for synphot <synphot_install>`.
 
-
-Installing via AstroConda (legacy)
--------------------------------------
-
-.. warning::
-
-   While WebbPSF version 1.0.0 is installable via this method, **future WebbPSF releases will not be available through AstroConda.** We strongly recommend installing WebbPSF through plain conda or with pip instead.
-
-If you use `AstroConda <http://astroconda.readthedocs.io/en/latest/>`_, an astronomy-optimized software distribution for scientific Python built on Anaconda, activate the environment with::
-
-   $ conda activate astroconda
-
-(Note: if you named your environment something other than ``astroconda``, change the above command appropriately.)
-
-Next, install WebbPSF (along with all its dependencies and required reference data) with::
-
-   (astroconda)$ conda install webbpsf
-
-Updates to the latest version can be done as for any conda package::
-
-   (astroconda)$ conda update webbpsf
+.. note::
+  Installation through conda is not available as of WebbPSF version 1.1.0. Conda
+  users should instead follow the insructions in the preceding section to
+  install via pip.
 
 
 .. _synphot_install:
@@ -70,14 +54,18 @@ Updates to the latest version can be done as for any conda package::
 Installing or updating synphot
 --------------------------------
 
-Stsynphot is an optional dependency, but is highly recommended.  Stsynphot is best installed via AstroConda. Further installation instructions can be found in `the synphot docs <https://synphot.readthedocs.io/en/latest/#installation-and-setup>`_ or `a discussion in the POPPY docs <http://poppy-optics.readthedocs.io/en/stable/installation.html#installing-or-updating-synphot>`_.
+Stsynphot is an optional dependency, but is highly recommended. Its installation instructions can be found in `the synphot docs <https://synphot.readthedocs.io/en/latest/#installation-and-setup>`_ or `a discussion in the POPPY docs <http://poppy-optics.readthedocs.io/en/stable/installation.html#installing-or-updating-synphot>`_.
 
 .. _data_install:
 
 Installing the Required Data Files
 ----------------------------------
 
-*If you install via pip or manually*, you must install the data files yourself. If you install via Conda, the data files are automatically installed, in which case you can skip this section.
+*If you install via pip or manually*, you must install the data files yourself.
+
+.. (If you install via Conda, the data files are automatically installed, in
+    which case you can skip this section.) [uncomment once conda installation is
+    available again]
 
 Files containing such information as the JWST pupil shape, instrument throughputs, and aperture positions are distributed separately from WebbPSF. To run WebbPSF, you must download these files and tell WebbPSF where to find them using the ``WEBBPSF_PATH`` environment variable.
 
