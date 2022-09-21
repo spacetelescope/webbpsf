@@ -30,11 +30,13 @@ Version History and Change Log
 
 Version 1.1.0
 =============
-*2022 September 20*
+*2022 September 21*
 
-*First release with JWST in flight optical performance!*  Updates and tools added after completion of commissioning. 
+*First release with JWST in flight optical performance!*  Updates and tools added after completion of commissioning.
 
 Note, this release requires updating your WebbPSF data files to version 1.1.0. See :ref:`here <data_install>` .
+
+This release's upgraded requirements drop support for Python 3.7, meaning conda installation is temporarily unavailable since the AstroConda channel is not equipped for newer Python versions. Installation with pip works as normal.
 
 **James Webb Space Telescope OTE model improvements**:
 
