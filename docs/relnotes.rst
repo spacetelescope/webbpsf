@@ -30,7 +30,7 @@ Version History and Change Log
 
 Version 1.1.0
 =============
-*2022 September 21*
+*2022 September 23*
 
 *First release with JWST in flight optical performance!*  Updates and tools added after completion of commissioning.
 
