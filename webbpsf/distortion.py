@@ -237,8 +237,8 @@ def apply_distortion(hdulist_or_filename=None, fill_value=0):
     psf[ext].header["DISTORT"] = ("True", "SIAF distortion coefficients applied")
     psf[ext].header["SIAF_VER"] = (pysiaf.JWST_PRD_VERSION, "SIAF PRD version used")
 
-    degree = np.int(getattr(aper, 'Sci2IdlDeg'))
-    number_of_coefficients = np.int((degree + 1) * (degree + 2) / 2)
+    degree = int(getattr(aper, 'Sci2IdlDeg'))
+    number_of_coefficients = int((degree + 1) * (degree + 2) / 2)
     all_keys = aper.__dict__.keys()
     for axis in ['X', 'Y']:
         coeff_keys = np.sort(np.array([c for c in all_keys if 'Idl2Sci' + axis in c]))
@@ -363,7 +363,7 @@ def _apply_miri_scattering_kernel(in_psf, kernel_x, oversample):
         PSF array upon which to apply the kernel
     kernel_x : ndarray
         The 1D kernel in the x direction, output from _make_miri_scattering_kernel.
-        This will be transposed to createt the kernel in the y direction.
+        This will be transposed to create the kernel in the y direction.
     oversample : int
         Amount by which the input PSF is oversampled
 

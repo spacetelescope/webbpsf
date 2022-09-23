@@ -26,7 +26,7 @@
 #   prescription, as published for instance in Lightsey et al. 2012 Opt. Eng.
 #
 ###############################################################################
-
+import functools
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -50,6 +50,7 @@ import pysiaf
 from . import constants
 from . import surs
 from . import utils
+import webbpsf
 
 _log = logging.getLogger('webbpsf')
 
@@ -284,7 +285,7 @@ class OPD(poppy.FITSOpticalElement):
         extent = [-max_cycles, max_cycles, -max_cycles, max_cycles]
 
         plt.subplot(233)
-        plt.imshow(abstrans, extent=extent)
+        plt.imshow(abstrans, extent=extent, origin='lower')
         plt.title("Power Spectrum of the phase")
         plt.ylabel("cycles/aperture")
         tvcircle(radius=5, color='k', linewidth=1)  # , ls='--')
@@ -316,7 +317,7 @@ class OPD(poppy.FITSOpticalElement):
             inverse = inverse[::-1, ::-1]  # I thought SFT did this but apparently this is necessary to get the high freqs right...
 
             plt.imshow(inverse.real * mask, vmin=(-vmax) / 1000., vmax=vmax / 1000,
-                       cmap=cmap)  # vmax is in nm, but WFE is in microns, so convert
+                       cmap=cmap, origin='lower')  # vmax is in nm, but WFE is in microns, so convert
             plt.title(label + " spatial frequencies")
             rms = (np.sqrt((inverse.real[wgood] ** 2).mean()) * 1000)
 
@@ -529,7 +530,7 @@ class OPD(poppy.FITSOpticalElement):
 
             # n, m = zernike.noll_indices(j)
             Z = zernike.zernike1(j, npix=npix)
-            ax.imshow(Z * zerns[j - 1] * hexap * scalefact, vmin=-1 * vmax, vmax=vmax, cmap=cmap)
+            ax.imshow(Z * zerns[j - 1] * hexap * scalefact, vmin=-1 * vmax, vmax=vmax, cmap=cmap, origin='lower')
             ax.text(npix * 0.95, npix * 0.8, "$Z{:d}$".format(j), fontsize=20, horizontalalignment='right')
             ax.text(npix * 0.95, npix * 0.1, "{:.2e}".format(zerns[j - 1]), fontsize=15, horizontalalignment='right')
 
@@ -839,10 +840,10 @@ class OTE_Linear_Model_Elliott(OPD):
 
         if debug:
             plt.subplot(121)
-            plt.imshow(Xr * (self._segment_masks == iseg))
+            plt.imshow(Xr * (self._segment_masks == iseg), origin='lower')
             plt.title("Local X_Control for " + segment)
             plt.subplot(122)
-            plt.imshow(Yr * (self._segment_masks == iseg))
+            plt.imshow(Yr * (self._segment_masks == iseg), origin='lower')
             plt.title("Local Y_Control for" + segment)
             plt.draw()
 
@@ -1169,7 +1170,7 @@ class OTE_Linear_Model_WSS(OPD):
             for icol in cnames[3:]:
                 self._influence_fns[icol] *= -1
 
-        # WFTP10 hotfix for RoC sign inconsitency relative to everything else, due to outdated version of WAS IFM used in table construction.
+        # WFTP10 hotfix for RoC sign inconsistency relative to everything else, due to outdated version of WAS IFM used in table construction.
         # FIXME update the IFM file on disk and then delete the next three lines
         roc_rows = self._influence_fns['control_mode']=='ROC'
         for icol in self._influence_fns.colnames[3:]:
@@ -1540,9 +1541,15 @@ class OTE_Linear_Model_WSS(OPD):
         # NEGATIVE SIGN IN THE ABOVE B/C TELFER'S FIELD ANGLE COORD. SYSTEM IS (X,Y) = (-V2,V3)
         dy = (v2v3[1] - self.ote_control_point[1]).to(u.rad).value
         z_coeffs = self._get_hexike_coeffs_from_smif(dx, dy)
-        perturbation = poppy.zernike.opd_from_zernikes(z_coeffs, npix=self.npix,
-                                                       basis=poppy.zernike.hexike_basis_wss, aperture=self.amplitude,
-                                                       outside=0)
+
+        if np.any(z_coeffs != 0):
+            perturbation = poppy.zernike.opd_from_zernikes(z_coeffs, npix=self.npix,
+                                                           basis=poppy.zernike.hexike_basis_wss, aperture=self.amplitude,
+                                                           outside=0)
+        else:
+            # shortcut for the typical case where the SM is well aligned
+            perturbation = np.zeros((self.npix, self.npix), float)
+
         if Version(poppy.__version__) < Version('1.0'):
             wfe_sign = -1  # In earlier poppy versions, fix sign convention for consistency with WSS
         else:
@@ -1848,7 +1855,7 @@ class OTE_Linear_Model_WSS(OPD):
             if rot_unit.endswith('s'):
                 rot_unit = rot_unit[:-1]
             rot_unit = rot_unit.lower()
-            if rot_unit == 'urad':
+            if rot_unit == 'urad' or rot_unit == 'microrad' or rot_unit == 'microradian':
                 pass
             elif rot_unit == 'milliarcsec':
                 tilts *= (1e6 * np.pi / (180. * 60 * 60 * 1000))
@@ -2280,7 +2287,7 @@ class OTE_Linear_Model_WSS(OPD):
         observatory relative to the sun (or the user can define a scaling factor)
         to determine the expected WFE caused by thermal variations.
         Note: The start_angle and end_angle are used together, but will be ignored
-        if the scaling variable is set to somthing other than "None".
+        if the scaling variable is set to something other than "None".
 
         The maximum HOT to COLD pitch angles are -5 to 45 degrees. With regards
         to this, we make some assumptions:
@@ -2864,7 +2871,7 @@ def test2_OPDbender(filename='OPD_RevV_nircam_132.fits'):
 
 class OteThermalModel(object):
     """
-    Create an object for a delta_time that predictes the WSS Hexike coeffcients
+    Create an object for a delta_time that predicts the WSS Hexike coefficients
     for an OPD that represents the impact of thermal variation caused by a change
     in pitch angle relative to the sun.
 
@@ -2927,7 +2934,7 @@ class OteThermalModel(object):
     def get_coeffs(self, segid, delta_time):
         """ Given the segid name (either 'SM' or any of the segment names under
         constants.SEGNAMES), return the global or local (to each segment) Hexike
-        coefficiets
+        coefficients
 
         Assume that delta_time is a float in units of days.
         """
@@ -3051,6 +3058,11 @@ class JWST_WAS_PTT_Basis(object):
         # Re-use the machinery inside the OTE Linear model class class to set up the
         # arrays defining the segment and zernike geometry.
 
+        # If multiple calls to this function use different values for npix, we may have to 
+        # update/reset the OTE LOM instance here.
+        if self.ote.opd.shape[0] != npix:
+            self.ote = OTE_Linear_Model_WSS(npix=npix)
+
         # For simplicity we always generate the basis for all the segments
         # even if for some reason the user has set a smaller nterms.
         basis = np.zeros((self.nsegments*3, npix, npix))
@@ -3077,6 +3089,7 @@ class JWST_WAS_PTT_Basis(object):
             basis[i*3+2][wseg] = self.ote.opd[wseg]
 
         return basis[0:nterms]
+
 
 class JWST_WAS_Full_Basis(object):
     def __init__(self):
@@ -3175,8 +3188,6 @@ class JWST_WAS_Full_Basis(object):
         return basis[0:nterms]
 
 
-
-
 def coeffs_to_seg_state(coeffs):
     """ Convert coefficients from Zernike fit to OTE linear model segment state
 
@@ -3196,8 +3207,83 @@ def coeffs_to_seg_state(coeffs):
     seg_state[:,1] = coeffs_tab[:,2]  # tilt in 2nd column
     return seg_state*1e6   # convert from meters & radians to micro units
 
+
+@functools.lru_cache
+def _get_lom(npix):
+    """Initialize a few things that are computationally expensive so we cache for multiple reuses"""
+
+    ote_lom = OTE_Linear_Model_WSS(npix=npix)
+    jw_ptt_basis = JWST_WAS_PTT_Basis()
+    return ote_lom, jw_ptt_basis
+
+
+def decompose_opd_segment_PTT(opd, plot=False, plot_vmax=None):
+    """Phase decomposition of an OPD into PMSA piston, tip, tilt modes
+
+    Parameters
+    ----------
+    opd : 2d ndarray
+        OPD array
+    plot : bool
+        Display diagnostic plots in addition to doing the fit
+    plot_vmax : float
+        If plot is used, this allows you to adjust the vmin/vmax in the plot.
+
+
+    Returns
+    -------
+
+    fit_opd : 2d ndarray
+        Projection of the input OPD into JWST PTT modes
+    coeffs : float array
+        Coefficients per mode, in order corresponding to the webbpsf.opds.JWST_WAS_PTT_Basis class,
+        which is {piston, xtilt, ytilt} repeated per segments in order
+
+    """
+    npix = opd.shape[0]
+
+    ote_lom, jw_ptt_basis = _get_lom(npix)
+
+    if ote_lom.opd.shape[0] != npix:
+        ote_lom = OTE_Linear_Model_WSS(npix=npix)
+
+    combined_mask = ((ote_lom.amplitude != 0) & np.isfinite(opd))
+
+
+    coeffs = poppy.zernike.opd_expand_segments(opd, aperture=combined_mask,
+                                               basis=jw_ptt_basis, nterms=54,iterations=4)
+    fit = poppy.zernike.compose_opd_from_basis(coeffs, basis=jw_ptt_basis, npix=npix)
+
+    fit[~combined_mask]=np.nan
+    if plot:
+        fig, ax = plt.subplots(figsize=(16,4), nrows=1, ncols=1)
+        if not plot_vmax:
+            plot_vmax = np.abs(opd).max()
+        masked_opd = opd.copy()
+        masked_opd[~combined_mask]=np.nan
+        webbpsf.trending.show_opd_image(np.hstack((masked_opd, fit, opd-fit)), ax=ax, vmax=plot_vmax, labelrms=False )
+        plt.colorbar(mappable=ax.images[0])
+        plt.title('OPD, fit to segment PTT terms, and residuals')
+
+    return fit, coeffs
+
+
+def sur_to_opd(sur_filename, ignore_missing=False, npix=256):
+    """Utilty function to load a SUR and compute delta OPD"""
+    ote = OTE_Linear_Model_WSS(npix=npix)
+
+    if not os.path.exists(sur_filename):
+        if not ignore_missing:
+            raise FileNotFoundError(f"Missing SUR: {sur_filename}. Download of these should eventually be automated; for now, manually retrieve from WSSTAS at https://wsstas.stsci.edu/wsstas/staticPage/showContent/RecentSURs?primary=master.png")
+        else:
+            return np.zeros((npix,npix), float)
+    ote.move_sur(sur_filename)
+    return ote.opd * 1e6 # convert from meters to microns
+
+
+
 #--------------------------------------------------------------------------------
-# Coarse track pointing (for early commissioning)
+# Coarse track pointing (for early commissioning simulations)
 
 def get_coarse_blur_parameters(t0, duration, pixelscale, plot=False, case=1,):
     """ Extract coarse blur center offset and convolution kernel from the Coarse Point sim time series
@@ -3281,7 +3367,7 @@ def get_coarse_blur_parameters(t0, duration, pixelscale, plot=False, case=1,):
 
 
         plt.figure()
-        plt.imshow(kernel, cmap = matplotlib.cm.gray)
+        plt.imshow(kernel, cmap = matplotlib.cm.gray, origin='lower')
         plt.title(f"Convolution kernel at t={t0}, d={duration} s\nOffset={cen} arcsec", fontsize=10)
         plt.ylabel('Delta V3 [pixels]')
 

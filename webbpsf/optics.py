@@ -504,7 +504,7 @@ class NIRISS_GR700XD_Grism(poppy.AnalyticOpticalElement):
 
         # rpuppix = radius of pupil in pixels
         # rpuppix = self.amplitude_header['DIAM'] / self.amplitude_header['PUPLSCAL'] / 2
-        # Calculate the radius of curvature of the cylinder, bsaed on
+        # Calculate the radius of curvature of the cylinder, based on
         # the chord length and height
 
         # In this case we're assuming the cylinder is precisely as wide as the projected
@@ -680,7 +680,7 @@ class NIRISS_CLEARP(poppy.CompoundAnalyticOptic):
 class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
     """ Band Limited Coronagraph
 
-    Paramaters
+    Parameters
     ----------
     name : string
         Descriptive name. Must be one of the defined NIRCam coronagraphic mask names.
@@ -701,7 +701,7 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
         to some arbitrary position.
     shift_x, shift_y : floats or None
         X and Y offset shifts applied to the occulter, via the standard mechanism for
-        poppy.AnalyticOpticalElements. Like bar_offset but allows for 2D offets, and
+        poppy.AnalyticOpticalElements. Like bar_offset but allows for 2D offsets, and
         applies to both bar and wedge coronagraphs.  This is IN ADDITION TO any offset
         from bar_offset.
     """
@@ -852,7 +852,7 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
         if self.nd_squares:
             # add in the ND squares. Note the positions are not exactly the same in the two wedges.
             # See the figures  in Krist et al. of how the 6 ND squares are spaced among the 5
-            # corongraph regions
+            # coronagraph regions
             # Note: 180 deg rotation needed relative to Krist's figures for the flight SCI orientation:
 
             if ((self.module == 'A' and self.name == 'MASKLWB') or
@@ -973,7 +973,7 @@ def _width_blc(desired_width, approx=None, plot=False):
     """ The calculation of sigma parameters for the wedge BLC function is not straightforward.
 
     This function numerically solves the relevant equation to determine the sigma required to
-    acheive a given HWHM.
+    achieve a given HWHM.
 
     It uses recursion to iterate to a higher precision level.
     """
@@ -1057,7 +1057,7 @@ def _trim_nan_image(xgrid, ygrid, zgrid):
     ygrid2 = ygrid2[y1:y2]
     zgrid2 = zgrid2[y1:y2,x1:x2]
     
-    # Find a optimal rectangule subsection free of NaN's
+    # Find a optimal rectangle subsection free of NaN's
     # Iterative cropping
     ndiff = 5
     while np.isnan(zgrid2.sum()):

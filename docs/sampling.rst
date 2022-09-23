@@ -59,7 +59,7 @@ To evaluate what levels of sampling are needed in practice, for each NIRCam and 
 (For practical purposes, we consider this level of sampling likely to be sufficiently fine that it's a good stand-in for an infinitely sampled PSF, but this is an assumption we have not quantitatively validated. However, since there are >200 subsamples in both pixel and wavelength space, the residuals ought to be <1/200 and thus these are sufficient for our purposes of testing SNR=100.)
 
 
-These tables list the (oversampling, wavelengths) required to achive the
+These tables list the (oversampling, wavelengths) required to achieve the
 specified SNR, in comparison with a 'truth' image based on simulations using
 ``oversampling = 16`` (i.e. 256 subpixels per detector pixel) and
 ``nlambda=200``.

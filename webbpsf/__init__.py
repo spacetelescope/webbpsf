@@ -21,7 +21,7 @@ try:
 except ImportError:
     __version__ = ''
 
-__minimum_python_version__ = "3.7"
+__minimum_python_version__ = "3.8"
 
 
 class UnsupportedPythonError(Exception):
@@ -36,7 +36,7 @@ if sys.version_info < tuple((int(val) for val in __minimum_python_version__.spli
 # required. If changes to the code and data mean WebbPSF won't work
 # properly with an old data package, increment this version number.
 # (It's checked against $WEBBPSF_DATA/version.txt)
-DATA_VERSION_MIN = (1, 0, 0)
+DATA_VERSION_MIN = (1, 1, 0)
 
 
 class Conf(_config.ConfigNamespace):
@@ -77,6 +77,7 @@ class Conf(_config.ConfigNamespace):
 conf = Conf()
 
 from . import utils
+from . import trending
 from .utils import setup_logging, restart_logging, system_diagnostic, measure_strehl
 
 from poppy import ( display_psf, display_psf_difference, display_ee, measure_ee,

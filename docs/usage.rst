@@ -104,9 +104,22 @@ The PSF may be shifted off-center by adjusting the offset of the stellar source.
 >>> instrument.options['source_offset_r'] = 0.3         # offset in arcseconds
 >>> instrument.options['source_offset_theta'] = 45.     # degrees counterclockwise from instrumental +Y in the science frame
 
+For convenience offsets can also be given in cartesian coordinates:
+
+>>> instrument.options['source_offset_x'] = 4        # offset is in arsec
+>>> instrument.options['source_offset_y'] = -3     # offset is in arsec
+
+
+The option ``source_offset`` defines “the location of the point source within the simulated subarray”. It doesn’t affect the WFE, but it does affect the position offset of the source relative to any focal plane elements such as a coronagraph mask or spectrograph slit. For coronagraphic modes, the coronagraph occulter is always assumed to be at the center of the output array. Therefore, these options let you offset the source away from the coronagraph. 
+
+Note that instead of offsetting the source we could offset the coronagraph mask in the opposite direction. This can be done with the ``coron_shift_x`` and ``coron_shift_y`` options. These options will offset a coronagraphic mask in order to produce PSFs centered in the output image, rather than offsetting the PSF. Both options, ``coron_shift``  and ``source_offset`` give consistent results. Using the same ``source_offset`` values above, we can use offset  a coronagraphic mask:
+
+>>> instrument.options['coron_shift_x'] = -4        # offset is in arsec, note opposite sign convention
+>>> instrument.options['coron_shift_y'] = +3     # offset is in arsec, note opposite sign convention
+
+
 If these options are set, the offset is applied relative to the central coordinates as defined by the output array size and parity (described just below).
 
-For coronagraphic modes, the coronagraph occulter is always assumed to be at the center of the output array. Therefore, these options let you offset the source away from the coronagraph.
 
 Simulating telescope jitter
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -13,6 +13,11 @@ import pytest
 import webbpsf
 import matplotlib.pyplot as plt
 
+# Set up a pinned pysiaf version so as not to break tests with any pysiaf value updates
+prd_data_dir = pysiaf.constants.JWST_PRD_DATA_ROOT.rsplit('PRD', 1)[0]
+PRD34_NRC = os.path.join(prd_data_dir, 'PRDOPSSOC-034/SIAFXML/SIAFXML/NIRCam_SIAF.xml')
+PRD34_MIRI = os.path.join(prd_data_dir, 'PRDOPSSOC-034/SIAFXML/SIAFXML/MIRI_SIAF.xml')
+
 def test_enable_adjustable_ote():
     """ Some basic tests of the OTE LOM"""
     nc = webbpsf.NIRCam()
@@ -47,12 +52,12 @@ SCALING_FACTOR = 0.5
 #   above file. The below truth values are in units of METERS
 GLOBAL_FOCUS = [-1.8251043541410904e-08]
 GLOBAL_FOCUS2 = [GLOBAL_FOCUS[0] * SCALING_FACTOR]
-# Coeffcients for A1 based on 1 day after maximum slew with no scaling predicted
+# Coefficients for A1 based on 1 day after maximum slew with no scaling predicted
 #   using above file
 COEFFS_A1 = np.array([-3.52633363e-09, -2.90050902e-09, 1.25432196e-09, -7.43319098e-12,
                       -5.82462948e-11, -1.27115922e-10, -1.91541104e-12, 3.64760396e-11,
                       4.97176630e-13])
-# Coeffcients for A4 based on 5 hours after maximum slew with no scaling,
+# Coefficients for A4 based on 5 hours after maximum slew with no scaling,
 #   start_angle=5. and end_angle=15., predicted using above file
 # Updated on 9/18/2020
 COEFFS_A4 = np.array([ 3.89238932e-10,  1.80333109e-10,  1.18632814e-10,  4.42108030e-13,
@@ -95,7 +100,7 @@ def test_get_thermal_slew_coeffs(time, seg, scaling, start_angle, end_angle,
     # Pull out coefficients
     if isinstance(coeffs, float):
         coeffs = [coeffs]
-    # Assert the coefficents
+    # Assert the coefficients
     for coeff, truth in zip(coeffs, coeff_truth):
         #assert np.round(coeff, decimals=4) == np.round(truth, decimals=4)
         coeff /= 1e-9 # Convert to nm so we are not dealing with such small numbers
@@ -104,7 +109,7 @@ def test_get_thermal_slew_coeffs(time, seg, scaling, start_angle, end_angle,
 
 
 def test_thermal_slew_partial_angle():
-    """ total slew shoudl give same total amplitude if broken into smaller jumps"""
+    """ total slew should give same total amplitude if broken into smaller jumps"""
 
     otelm = webbpsf.opds.OTE_Linear_Model_WSS()
 
@@ -293,7 +298,7 @@ def test_single_seg_psf(segmentid=1):
     ote.update_opd()
     psf_rm_ptt = nrc.calc_psf(nlambda=1)
     assert not np.allclose(psf[0].data, psf_rm_ptt[0].data), "Piston/Tip/Tip removal should shift the overall PSF"
-    assert np.abs(webbpsf.measure_centroid(psf)[0] - webbpsf.measure_centroid(psf_rm_ptt)[0]) > 40, "centroid should shift susbtantially with/without tip/tilt removal"
+    assert np.abs(webbpsf.measure_centroid(psf)[0] - webbpsf.measure_centroid(psf_rm_ptt)[0]) > 40, "centroid should shift substantially with/without tip/tilt removal"
 
 
 def test_apply_field_dependence_model():
@@ -301,7 +306,7 @@ def test_apply_field_dependence_model():
 
     Checks cases comparing master chief ray, center of NIRCam, and center of NIRISS.
 
-    Note, the steps for performing this test are a little suble. We want to disable the
+    Note, the steps for performing this test are a little subtle. We want to disable the
     SI and OTE global field dependence terms, and enable ONLY the OTE nominal field
     dependence. Thus there are several calls to manually set only the nominal field dep to True
 
@@ -396,9 +401,9 @@ def test_get_zernike_coeffs_from_smif():
     
     assert (np.allclose(otelm._get_hexike_coeffs_from_smif(1.0, 1.0)[3:], hexikes, rtol=1e-3))
 
-    # Case 4: test at MIRIM_FP1MIMF field point
-    otelm.ote_ctrl_pt = pysiaf.Siaf('NIRCAM')['NRCA3_FP1'].reference_point('tel') *u.arcsec
-    otelm.v2v3 = pysiaf.Siaf('MIRI')['MIRIM_FP1MIMF'].reference_point('tel') *u.arcsec
+    # Case 4: test at MIRIM_FP1MIMF field point, with pinned pysiaf version
+    otelm.ote_ctrl_pt = pysiaf.Siaf('NIRCAM', filename=PRD34_NRC)['NRCA3_FP1'].reference_point('tel') * u.arcsec
+    otelm.v2v3 = pysiaf.Siaf('MIRI', filename=PRD34_MIRI)['MIRIM_FP1MIMF'].reference_point('tel') * u.arcsec
     telfer_zern_mirim_fp1mimf = np.asarray( [-0.25066019, 0.22840080, -0.53545999, -0.024227464, -0.0025191352, 0.00050082553]) # Taken from Telfer's tool
     # Convert Telfer's Zernikes to Hexikes:
     hexikes = hexikes = [-telfer_zern_mirim_fp1mimf[1], 

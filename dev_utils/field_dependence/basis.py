@@ -3,7 +3,7 @@ import scipy.special as sp
 import matplotlib.pyplot as plt
 import math
 
-# This is the start of an experimental protoype object oriented code for representing wavefronts.  The intent is to
+# This is the start of an experimental prototype object oriented code for representing wavefronts.  The intent is to
 # represent a wavefront in such a way that calling code doesn't need to care about the representation and can just ask
 # for the data as an array of OPD values on a regular grid, polynomial coefficients, or other without caring about
 # the internal representation or worrying about fitting or expanding polynomials out, etc.
@@ -189,7 +189,7 @@ class PolynomialBasis(BaseBasis):
                 'Unit PV normalization is not implemented.  Previous implementation broke orthogonality')
             # TODO:  FIX THIS!!!  An offset like this to force things to run from -1 to 1 will break orthogonality, and
             #  must not be done.  Think about what to do instead.  Check Noll paper.  Possible just make PV truly unity
-            #  and don't care about what the absolute max and min values are.  Also impletment property decorator and
+            #  and don't care about what the absolute max and min values are.  Also implement property decorator and
             #  change decorator for changing the output normalization.
             # scale = [1]
             # offset = [0]

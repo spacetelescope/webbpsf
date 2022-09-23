@@ -47,6 +47,9 @@ Contents
    relnotes.rst
    usage.rst
    jwst.rst
+   jwst_optical_budgets.ipynb
+   jwst_measured_opds.ipynb
+   jwst_wavefront_deltas.ipynb
    roman.rst
    psf_grids.rst
    more_examples.rst

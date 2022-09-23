@@ -1,9 +1,11 @@
 from collections import OrderedDict
 import os, sys
+import warnings
 import astropy.io.fits as fits
 from astropy.nddata import NDData
 import numpy as np
 import matplotlib.pyplot as plt
+import scipy
 import astropy.units as u
 import logging
 
@@ -273,6 +275,31 @@ Numpy compilation and linking:
 
 """
 
+def get_pupil_mask(npix=1024, label_segments=False):
+    """ Utility function to easily retrieve the pupil mask file for a given size.
+
+    Parameters
+    ----------
+    npix : float
+       Number of pixels desired in the pupil array. Must be 256, 512, 1024, 2048, etc.
+    label_segments: bool
+       Return map with segment IDs 1 through 18, rather than just 1 or 0 for in pupil or not.
+
+    """
+    basename = f'JWpupil_segments_RevW_npix{npix}.fits.gz' if label_segments else f'jwst_pupil_RevW_npix{npix}.fits.gz'
+
+    fullname = os.path.join(get_webbpsf_data_path(), basename)
+
+    if not os.path.exists(fullname):
+        fullname = fullname.replace(".fits.gz", '.fits')
+    try:
+        data = fits.getdata(fullname)
+    except FileNotFoundError as e:
+        raise FileNotFoundError(f"No pupil file found for npix={npix}. Check your WebbPSF data directory, "+
+                                "and make sure you're using a value which is a power of 2, at least 256") from e
+    return data
+
+
 
 def system_diagnostic():
     """ return various helpful/informative information about the
@@ -404,6 +431,12 @@ def system_diagnostic():
 
 ### Helper routines for image manipulation: ###
 
+def rms(opd, mask):
+    """ Compute RMS of an OPD over some given masked area
+    """
+    return np.sqrt((opd[(mask != 0) & np.isfinite(opd)]**2).mean())
+
+
 def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, display=True, verbose=True, cache_perfect=False):
     """ Estimate the Strehl ratio for a PSF.
 
@@ -510,6 +543,85 @@ def measure_strehl(HDUlist_or_filename=None, ext=0, slice=0, center=None, displa
         print("  Strehl ratio: {0:.3f}".format(strehl))
 
     return strehl
+
+def rescale_interpolate_opd(array, newdim):
+    """ Interpolates & rescales an input 2D array to any given size.
+    Uses scipy.interpolate.RectBivariateSpline
+
+    Parameters
+    ----------
+    array: float
+         input array to interpolate
+    newdim: int
+         new size of the 2D square array (newdim x newdim)
+
+    Returns
+    ---------
+    newopd: new array interpolated to (newdim x newdim)
+
+    """
+
+    dim = array.shape[0]
+
+    xmax, ymax = dim / 2, dim / 2
+    x = np.arange(-xmax, xmax, 1)
+    y = np.arange(-ymax, ymax, 1)
+    X, Y = np.meshgrid(x, y)
+
+    interp_spline = scipy.interpolate.RectBivariateSpline(y, x, array)
+
+    dx, dy = float(dim) / float(newdim), float(dim) / float(newdim)
+
+    x2 = np.arange(-xmax, xmax, dx)
+    y2 = np.arange(-ymax, ymax, dy)
+    #X2, Y2 = np.meshgrid(x2, y2)
+    newopd = interp_spline(y2, x2)
+    newopd = np.reshape(newopd, (newdim, newdim))
+
+    return newopd
+
+
+def border_extrapolate_pad(image, mask):
+    """ Extrapolate phases on an irregular aperture. Sort of an inelegant hack, but useful
+    in some contexts, in particular to fill in phase values in segment gaps prior to rescaling
+    or interpolation.
+
+    Each invalid pixel adjacent to the aperture is replaced with the mean of the value
+    of the valid pixels it is adjacent to, using square connectivity.
+
+    Parameters
+    ----------
+    image: float ndarray
+        image
+    mask: int ndarray
+        0 for invalid pixels
+    """
+    masked_im = np.copy(image)
+    masked_im[mask == 0] = np.nan
+
+    # 1 pixel wide border region
+    # border = scipy.ndimage.morphology.binary_dilation(mask)^mask
+
+    shifted = np.zeros((8, image.shape[0], image.shape[1]))
+    i = 0
+    for dx in [-1, 0, 1]:
+        for dy in [-1, 0, 1]:
+            if dx == 0 and dy == 0: continue
+            shifted[i] = np.roll(np.roll(masked_im, dy, axis=0), dx, axis=1)
+            i += 1
+
+    # Compress into a new 2D image
+    with warnings.catch_warnings():
+        # this will always produce a warning about taking a mean of an empty slice, which is safe to
+        # ignore, so we do so.
+        warnings.simplefilter("ignore")
+        image_extrapolated = np.nanmean(shifted, axis=0)
+    image_extrapolated = np.nan_to_num(image_extrapolated)
+
+    # retain valid values in input image exactly
+    image_extrapolated[mask] = image[mask]
+
+    return image_extrapolated
 
 
 ### Helper routines for display customization: ###

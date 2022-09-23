@@ -5,6 +5,7 @@ import webbpsf
 import poppy
 import astropy.table as table
 import astropy.units as u
+from webbpsf.utils import rms
 
 
 ### JWST Optical Budgets Information
@@ -18,15 +19,14 @@ import astropy.units as u
 # however the overall sums are precisely consistent.
 #
 # See Section 7 of the Guide to the Optical Budget which describes the breakdown into
-#  wfe residuals after WFSC + image motion equivalent + stabilty
+#  wfe residuals after WFSC + image motion equivalent + stability
 
 wfe_budget_info = None
 
-def get_budget_info(instname, param_name):
-    """ Return required and predicted from optical budget for a given quantity
 
-    The optical budget is read from disk in summary form, and cached for reuse on subsequent calls.
-
+def load_wfe_budget_info():
+    """ Load optical budget info, if that hasn't been done already.
+    (THis caches to avoid multiple relaods)
     """
     global wfe_budget_info
     if wfe_budget_info is None:
@@ -35,7 +35,17 @@ def get_budget_info(instname, param_name):
                                            'otelm',
                                            'jwst_wfe_summary_from_optical_budget.csv')
         wfe_budget_info = table.Table.read(wfe_budget_filename, header_start=1)
+    return wfe_budget_info
 
+
+def get_budget_info(instname, param_name):
+    """ Return required and predicted from optical budget for a given quantity
+
+    The optical budget is read from disk in summary form, and cached for reuse on subsequent calls.
+
+    """
+    global wfe_budget_info
+    load_wfe_budget_info()
     row = wfe_budget_info[wfe_budget_info['Value']==param_name]
     return row[f"{instname}_req"].data[0], row[f"{instname}_pred"].data[0]
 
@@ -107,11 +117,6 @@ def imagemotion2equiv_wfe(rms_jitter_per_axis, wavelength):
 
 
 
-def rms(opd, mask):
-    """ Compute RMS of an OPD over some given masked area
-    """
-    return np.sqrt((opd[(mask != 0) & np.isfinite(opd)]**2).mean())
-
 
 def show_opd(opd, mask = None, ax=None, vmax=200, title=None, annotate_budget=None, instname=None,
             titlebold=False):
@@ -132,7 +137,7 @@ def show_opd(opd, mask = None, ax=None, vmax=200, title=None, annotate_budget=No
     cm.set_bad('0.75', alpha=0)
 
     ax.patch.set_facecolor('0.8')
-    ax.imshow(opd_nm, vmin=-vmax, vmax=vmax, cmap = cm)
+    ax.imshow(opd_nm, vmin=-vmax, vmax=vmax, cmap = cm, origin='lower')
     ax.xaxis.set_visible(False)
     ax.yaxis.set_visible(False)
     if title is not None:

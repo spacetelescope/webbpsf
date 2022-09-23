@@ -53,7 +53,7 @@ PSF grid calculations are useful for visualizing changes in the PSF across instr
 .. figure:: ./fig_psf_grid_diffs_nircam.png
    :scale: 85 %
    :align: center
-   :alt: Example grid of NIRCam PSF differencess: 6x6 grid across NRCA3 
+   :alt: Example grid of NIRCam PSF differences: 6x6 grid across NRCA3 
 
    By subtracting off the average PSF, the subtle differences from point to point become clear. 
    The PSF is sharpest in the upper left corner of this detector.

@@ -10,40 +10,23 @@ Requirements & Installation
    To subscribe, visit  the `maillist.stsci.edu server <https://maillist.stsci.edu/scripts/wa.exe?SUBED1=Webbpsf-users&A=1>`_
 
 
-Recommended: Installing via AstroConda
---------------------------------------------------
+.. NOTE: installation with conda is unavailable as of v1.1.0. uncomment and edit the following section once it's back.
+  .. _install_with_conda:
 
-For ease of installation, we recommend using `AstroConda <http://astroconda.readthedocs.io/en/latest/>`_, an astronomy-optimized software distribution for scientific Python built on Anaconda. Install AstroConda according to `their instructions <http://astroconda.readthedocs.io/en/latest/installation.html>`_, then activate the environment with::
+  Recommended: Installing with conda
+  ----------------------------------
 
-   $ source activate astroconda
+  If you already use ``conda``, but do not want to install the full suite of STScI software, you can simply add the AstroConda *channel* and install WebbPSF as follows (creating a new environment named ``webbpsf-env``)::
 
-(Note: if you named your environment something other than ``astroconda``, change the above command appropriately.)
+    $ conda config --add channels http://ssb.stsci.edu/astroconda
+    $ conda create -n webbpsf-env webbpsf
+    $ conda activate webbpsf-env
 
-Next, install WebbPSF (along with all its dependencies and required reference data) with::
+  Upgrading to the latest version is done with ``conda update -n webbpsf-env --all``.
 
-   (astroconda)$ conda install webbpsf
+  .. warning::
 
-Updates to the latest version can be done as for any conda package::
-
-   (astroconda)$ conda update webbpsf
-
-
-.. _install-with-conda:
-
-Installing with conda (but not AstroConda)
--------------------------------------------
-
-If you already use ``conda``, but do not want to install the full suite of STScI software, you can simply add the AstroConda *channel* and install WebbPSF as follows (creating a new environment named ``webbpsf-env``)::
-
-   $ conda config --add channels http://ssb.stsci.edu/astroconda
-   $ conda create -n webbpsf-env webbpsf
-   $ source activate webbpsf-env
-
-Upgrading to the latest version is done with ``conda update -n webbpsf-env --all``.
-
-.. warning::
-
-   You *must* install WebbPSF into a specific environment (e.g. ``webbpsf-env``); our conda package will not work if installed into the default "root" environment.
+     You *must* install WebbPSF into a specific environment (e.g. ``webbpsf-env``); our conda package will not work if installed into the default "root" environment.
 
 .. _install_pip:
 
@@ -60,25 +43,34 @@ WebbPSF and its underlying optical library POPPY may be installed from the `Pyth
 Note that ``pip install webbpsf`` only installs the program code. **If you install via pip, you must manually download and install the data files, as** :ref:`described <data_install>` **below.**
 To obtain source spectra for calculations, you should also follow :ref:`installation instructions for synphot <synphot_install>`.
 
+.. note::
+  Installation through conda is not available as of WebbPSF version 1.1.0. Conda
+  users should instead follow the insructions in the preceding section to
+  install via pip.
+
 
 .. _synphot_install:
 
 Installing or updating synphot
 --------------------------------
 
-Stsynphot is an optional dependency, but is highly recommended.  Stsynphot is best installed via AstroConda. Further installation instructions can be found in `the synphot docs <https://synphot.readthedocs.io/en/latest/#installation-and-setup>`_ or `a discussion in the POPPY docs <http://poppy-optics.readthedocs.io/en/stable/installation.html#installing-or-updating-synphot>`_.
+Stsynphot is an optional dependency, but is highly recommended. Its installation instructions can be found in `the synphot docs <https://synphot.readthedocs.io/en/latest/#installation-and-setup>`_ or `a discussion in the POPPY docs <http://poppy-optics.readthedocs.io/en/stable/installation.html#installing-or-updating-synphot>`_.
 
 .. _data_install:
 
 Installing the Required Data Files
 ----------------------------------
 
-*If you install via pip or manually*, you must install the data files yourself. If you install via Conda, the data files are automatically installed, in which case you can skip this section.
+*If you install via pip or manually*, you must install the data files yourself.
+
+.. (If you install via Conda, the data files are automatically installed, in
+    which case you can skip this section.) [uncomment once conda installation is
+    available again]
 
 Files containing such information as the JWST pupil shape, instrument throughputs, and aperture positions are distributed separately from WebbPSF. To run WebbPSF, you must download these files and tell WebbPSF where to find them using the ``WEBBPSF_PATH`` environment variable.
 
-1. Download the following file:  `webbpsf-data-1.0.0.tar.gz <https://stsci.box.com/shared/static/34o0keicz2iujyilg4uz617va46ks6u9.gz>`_  [approx. 280 MB]
-2. Untar ``webbpsf-data-1.0.0.tar.gz`` into a directory of your choosing.
+1. Download the following file:  `webbpsf-data-1.1.0.tar.gz <https://stsci.box.com/shared/static/ntb71b3uusf1kzgf9bss0hzbreoja5gg.gz>`_  [approx. 80 MB]
+2. Untar ``webbpsf-data-1.1.0.tar.gz`` into a directory of your choosing.
 3. Set the environment variable ``WEBBPSF_PATH`` to point to that directory. e.g. ::
 
    export WEBBPSF_PATH=$HOME/data/webbpsf-data
@@ -103,11 +95,11 @@ Software Requirements
 ---------------------
 
 
-See `the environment.yml specification file <https://github.com/spacetelescope/webbpsf/blob/develop/environment.yml>`_ for the required package dependencies.
+See `the requirements.txt specification file <https://github.com/spacetelescope/webbpsf/blob/develop/requirements.txt>`_ for the required package dependencies.
 
-**Required Python version**: WebbPSF 1.0 and above require Python 3.7 or higher.
+**Required Python version**: WebbPSF 1.1 and above require Python 3.8 or higher.
 
-The major dependencies are the standard `NumPy, SciPy <http://www.scipy.org/scipylib/download.html>`_, `matplotlib <http://matplotlib.org>`_ stack, and `Astropy <http://astropy.org>`_
+The major dependencies are the standard `NumPy, SciPy <http://www.scipy.org/scipylib/download.html>`_, `matplotlib <http://matplotlib.org>`_ stack, and `Astropy <http://astropy.org>`_.
 
 **Recommended Python packages**:
 
