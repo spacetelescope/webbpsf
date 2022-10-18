@@ -920,7 +920,8 @@ class JWInstrument(SpaceTelescopeInstrument):
                 transmission=pupil_transmission,
                 opd=opd_map,
                 opd_index=opd_index,
-                v2v3=self._tel_coords(), npix=npix
+                v2v3=self._tel_coords(), npix=npix,
+                include_nominal_field_dependence=self.include_ote_field_dependence
             )
 
         return pupil_optic
