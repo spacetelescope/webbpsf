@@ -34,7 +34,7 @@ def get_datetime_utc(opdhdul, return_as='string'):
         raise ValueError(f"Invalid value for return_as={return_as}")
 
 
-def wavefront_time_series_plot(opdtable, start_date=None, end_date=None, label_visits=True, label_events=True):
+def wavefront_time_series_plot(opdtable, start_date=None, end_date=None, label_visits=True, label_events=True, full_path=False):
     """ Make a time series plot of total WFS versus time
 
     Parameters
@@ -56,12 +56,16 @@ def wavefront_time_series_plot(opdtable, start_date=None, end_date=None, label_v
 
     rmses = []
 
+    if full_path is True:
+        rmses = opdtable['rms_wfe']
+
     dates = astropy.time.Time(opdtable['date'], format='isot')
     pre_or_post = []
 
     for row in opdtable:
-        full_file_path = os.path.join(webbpsf.utils.get_webbpsf_data_path(), 'MAST_JWST_WSS_OPDs', row['fileName'])
-        rmses.append(fits.getheader(full_file_path, ext=1)['RMS_WFE'])
+        if full_path is False:
+            full_file_path = os.path.join(webbpsf.utils.get_webbpsf_data_path(), 'MAST_JWST_WSS_OPDs', row['fileName'])
+            rmses.append(fits.getheader(full_file_path, ext=1)['RMS_WFE'])
         pre_or_post.append(webbpsf.mast_wss.infer_pre_or_post_correction(row))
 
     where_pre = ['pre' in a for a in pre_or_post]
