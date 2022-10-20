@@ -45,6 +45,10 @@ def wavefront_time_series_plot(opdtable, start_date=None, end_date=None, label_v
         Start and end dates for the plot time range. Default is March 2022 to present.
     label_visits : bool
         Label program_id:visit_id for each WFS visit.
+    label_events : bool
+        Label events along the x-axis in time defined in the events {}
+    full_path : bool
+        Whether the fileName column already contains a full file path or not
 
     Returns
     -------
