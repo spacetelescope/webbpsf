@@ -60,8 +60,10 @@ def wavefront_time_series_plot(opdtable, start_date=None, end_date=None, label_v
 
     rmses = []
 
-    if full_path is True:
+    try:
         rmses = opdtable['rms_wfe']
+    except KeyError:
+        pass
 
     dates = astropy.time.Time(opdtable['date'], format='isot')
     pre_or_post = []
@@ -171,8 +173,24 @@ def wavefront_time_series_plot(opdtable, start_date=None, end_date=None, label_v
     plt.legend(loc='upper right')
 
 
-def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None):
+def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, download_opds=True):
     """ Plot histogram and cumulative histogram of WFE over some time range.
+
+    Parameters
+    ----------
+    opdtable : astropy.table.Table
+        OPD table, retrieved from MAST. See functons in mast_wss.py
+    start_date, end_date : datetime.datetime objects
+        Start and end dates for the plot time range. Default is March 2022 to present.
+    thresh : int
+        threshold to filter the RMS WFE
+    download_opds : bool
+        toggle downloading of OPDs from MAST
+
+    Returns
+    -------
+    Nothing, but makes a plot
+
     """
 
     if start_date is None:
@@ -185,15 +203,21 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None):
     opdtable0 = webbpsf.mast_wss.deduplicate_opd_table(opdtable)
     opdtable1 = webbpsf.mast_wss.filter_opd_table(opdtable0, start_time=start_date, end_time=end_date)
 
-    webbpsf.mast_wss.download_all_opds(opdtable1)
+    if download_opds:
+        webbpsf.mast_wss.download_all_opds(opdtable1)
 
     # Retrieve all RMSes, from the FITS headers. 
     # These are observatory WFE (OTE + NIRCam), at the WFS sensing field point
     rmses=[]
+
+    if download_opds is False:
+        rmses = opdtable['rms_wfe']
+
     mjds = []
     for row in opdtable1:
-        full_file_path = os.path.join(webbpsf.utils.get_webbpsf_data_path(), 'MAST_JWST_WSS_OPDs', row['fileName'])
-        rmses.append(fits.getheader(full_file_path, ext=1)['RMS_WFE'])
+        if download_opds:
+            full_file_path = os.path.join(webbpsf.utils.get_webbpsf_data_path(), 'MAST_JWST_WSS_OPDs', row['fileName'])
+            rmses.append(fits.getheader(full_file_path, ext=1)['RMS_WFE'])
         mjds = opdtable1['date_obs_mjd']
 
     dates = astropy.time.Time(opdtable1['date'], format='isot')
