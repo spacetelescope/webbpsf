@@ -34,7 +34,7 @@ def get_datetime_utc(opdhdul, return_as='string'):
         raise ValueError(f"Invalid value for return_as={return_as}")
 
 
-def wavefront_time_series_plot(opdtable, start_date=None, end_date=None, label_visits=True, label_events=True, full_path=False):
+def wavefront_time_series_plot(opdtable, start_date=None, end_date=None, label_visits=True, label_events=True):
     """ Make a time series plot of total WFS versus time
 
     Parameters
@@ -47,8 +47,6 @@ def wavefront_time_series_plot(opdtable, start_date=None, end_date=None, label_v
         Label program_id:visit_id for each WFS visit.
     label_events : bool
         Label events along the x-axis in time defined in the events {}
-    full_path : bool
-        Whether the fileName column already contains a full file path or not
 
     Returns
     -------
@@ -60,17 +58,18 @@ def wavefront_time_series_plot(opdtable, start_date=None, end_date=None, label_v
 
     rmses = []
 
-    try:
+    if 'rms_wfe' in opdtable.colnames:
         rmses = opdtable['rms_wfe']
-    except KeyError:
-        pass
 
     dates = astropy.time.Time(opdtable['date'], format='isot')
     pre_or_post = []
 
     for row in opdtable:
-        if full_path is False:
+        if os.path.isfile(row['fileName']) is False:
             full_file_path = os.path.join(webbpsf.utils.get_webbpsf_data_path(), 'MAST_JWST_WSS_OPDs', row['fileName'])
+        else:
+            full_file_path = row['fileName']
+        if len(rmses) == 0:
             rmses.append(fits.getheader(full_file_path, ext=1)['RMS_WFE'])
         pre_or_post.append(webbpsf.mast_wss.infer_pre_or_post_correction(row))
 
@@ -210,13 +209,14 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, do
     # These are observatory WFE (OTE + NIRCam), at the WFS sensing field point
     rmses=[]
 
-    if download_opds is False:
-        rmses = opdtable['rms_wfe']
+    if 'rms_wfe' in opdtable1.colnames:
+        rmses = opdtable1['rms_wfe']
 
     mjds = []
     for row in opdtable1:
         if download_opds:
             full_file_path = os.path.join(webbpsf.utils.get_webbpsf_data_path(), 'MAST_JWST_WSS_OPDs', row['fileName'])
+        if 'rms_wfe' not in opdtable1.colnames:
             rmses.append(fits.getheader(full_file_path, ext=1)['RMS_WFE'])
         mjds = opdtable1['date_obs_mjd']
 
