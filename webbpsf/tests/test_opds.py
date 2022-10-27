@@ -593,4 +593,8 @@ def test_get_rms_per_segment():
         assert isinstance(seg, str)
         assert len(seg)==2
         assert isinstance(rms_per_seg[seg], float)
-        assert 10 < rms_per_seg[seg] < 100
+        if seg != 'C3':
+            assert 10 < rms_per_seg[seg] < 100
+
+
+        assert np.isclose(rms_per_seg[seg], ote.rms(seg))

@@ -3411,11 +3411,12 @@ def get_rms_per_segment(opd, plot=False):
         segid, segnum = longsegname.split('-')
 
         # Calculate RMS per segment. Convert to nanometers
-        rms_per_seg[segid] = opd[segmap==int(segnum)].std() * 1e9
+        segmask = segmap==int(segnum)
+        rms_per_seg[segid] = utils.rms(opd, mask=segmask)*1e9
 
         if plot:
             plt.figure()
-            plt.imshow(opd * (  segmap == int(segnum)))
+            plt.imshow(opd * segmask)
             plt.title(f"{segid}: {rms_per_seg[segid]:.2f} nm rms")
 
     return rms_per_seg
