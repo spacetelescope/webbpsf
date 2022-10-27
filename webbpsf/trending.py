@@ -302,7 +302,7 @@ def _get_mimf2_focus_offset_model(npix=256):
     return mimf2_focus_offset
 
 
-def single_measurement_trending_plot(opdtable, row_index=-1, verbose=True, vmax=0.15, ignore_missing=True):
+def single_measurement_trending_plot(opdtable, row_index=-1, verbose=True, vmax=0.15, ignore_missing=True, subtract_target=True):
     """Wavefront trending plot for a single measurement
 
     Parameters
@@ -353,6 +353,19 @@ def single_measurement_trending_plot(opdtable, row_index=-1, verbose=True, vmax=
 
     prev_opd, prev_opd_hdu = _read_opd(prev_filename)
 
+    if subtract_target:
+        if verbose:
+            print("     Subtracting NIRCam SI WFE target phase map")
+
+        # Get WSS Target Phase Map
+        was_targ_file = os.path.join(webbpsf.utils.get_webbpsf_data_path(), 'NIRCam', 'OPD', 'wss_target_phase.fits')
+        target_1024 = astropy.io.fits.getdata(was_targ_file)
+        target_256 = poppy.utils.krebin(target_1024, (256, 256)) /16   # scale factor for rebinning w/out increasing values
+
+        opd -= target_256
+        prev_opd -= target_256
+
+
     # Compute deltas and decompose
     deltatime = get_datetime_utc(opdhdu, return_as='astropy') - get_datetime_utc(prev_opd_hdu, return_as='astropy')
     deltatime_hrs = deltatime.to_value(u.hour)
@@ -364,8 +377,11 @@ def single_measurement_trending_plot(opdtable, row_index=-1, verbose=True, vmax=
     # And we add in a model for the MIMF2 focus offset, applied just after that.
 
     ref_row = opdtable[opdtable['visitId'] == 'V01163030001']
-    ref_opd_hdu = fits.open(ref_row['fileName'][0], ext=1)
+    _, ref_opd_hdu = _read_opd(ref_row['fileName'][0])
     ref_opd = ref_opd_hdu[1].data + mimf2_focus_offset
+
+    if subtract_target:
+        ref_opd -= target_256
 
     # Read associated post-correction measurment, if present
     if opdtable[row_index]['is_pre_correction']:
@@ -373,6 +389,9 @@ def single_measurement_trending_plot(opdtable, row_index=-1, verbose=True, vmax=
         meas_title = 'Measurement (Pre Move)'
         match = opdtable[(opdtable['visitId'] == opdtable[row_index]['visitId']) & opdtable['is_post_correction']][0]
         post_opd, post_opd_hdu = _read_opd(match['fileName'])
+
+        if subtract_target:
+            post_opd -= target_256
 
         # Compare the post-move sensing to the reference OPD
         diff2_title = "post-move - reference"
@@ -403,7 +422,10 @@ def single_measurement_trending_plot(opdtable, row_index=-1, verbose=True, vmax=
                              )
 
     title = f"{filename}    {visit}     {get_datetime_utc(opdhdu)}"
+    if subtract_target:
+        title += "\nNIRCam FP1 Target Phase Map Subtracted"
     plt.suptitle(title, fontweight='bold', fontsize=18)
+
 
     ####### Row 1: Latest measurement, and correction if present
     fontsize=11
@@ -553,7 +575,7 @@ def series_of_measurement_trending_plots(opdtable, ignore_missing=False, start_d
     return filename
 
 # Some reference data : label which corrections in early cycle 1 had sigificant wing tilts
-cids_with_left_wing_tilts = ['R20220523', 'R20220713', 'R20220715', 'O20220802', 'R20220802']
+cids_with_left_wing_tilts = ['R20220523', 'R20220713', 'R20220715', 'O20220802', 'R20220802', 'R20221019']
 cids_with_right_wing_tilts = ['R20220606', 'R20220627']
 
 
@@ -664,7 +686,7 @@ def wavefront_drift_plots(opdtable, start_time, end_time, verbose=False,
 
     fig, axes = plt.subplots(figsize=(16, 10), nrows=nrows, ncols=n_per_row,
                              gridspec_kw={'hspace': 0.3, 'wspace': 0.01,
-                                          'left': 0.01, 'right': 0.93, 'bottom': 0.01, 'top': 0.91})
+                                          'left': 0.01, 'right': 0.93, 'bottom': 0.01, 'top': 0.92})
     axes_f = axes.flat
 
     is_correction = np.zeros(n, bool)
@@ -713,7 +735,7 @@ def wavefront_drift_plots(opdtable, start_time, end_time, verbose=False,
                        # deltatime_hrs=deltat*24,
                        vmax=vmax / 1e3, fontsize=labelfontsize,
                        )
-        axes_f[i].set_title(title, fontsize=9, fontweight='bold', )
+        axes_f[i].set_title(title, fontsize=9)
 
         last_date_obs = row['date_obs_mjd']
         i += 1  # increment plot counter for next plot
@@ -878,7 +900,7 @@ def monthly_trending_plot(year, month, verbose=True, instrument='NIRCam', filter
                                                'bottom': 0.02,
                                                'top': 0.8})  # , gridspec_kw={'wspace':1.000, 'left': 0})
 
-    axes = subfigs[1].subplots(2, 1, gridspec_kw={'left': 0.06, 'right': 0.98, 'top': 0.97})
+    axes = subfigs[1].subplots(2, 1, gridspec_kw={'left': 0.07, 'right': 0.98, 'top': 0.97})
 
     fs = 14  # Font size for axes labels
 
@@ -898,7 +920,7 @@ def monthly_trending_plot(year, month, verbose=True, instrument='NIRCam', filter
     #axes[0].axhline(80, ls=":", color='gray')
     axes[0].fill_between( [start_date.plot_date - 0.5, end_date.plot_date + 0.5],
                           [59,59], [80, 80], color='blue', alpha=0.08, label='Wavefront control target range')
-    axes[0].legend(loc='lower right')
+    axes[0].legend(loc='lower right', fontsize=9)
 
     axes[0].set_ylim(0, 150)
     axes[0].set_ylabel("Wavefront Error\n[nm rms]", fontsize=fs, fontweight='bold')
@@ -930,7 +952,7 @@ def monthly_trending_plot(year, month, verbose=True, instrument='NIRCam', filter
     axes[1].set_ylim(0.5, 1.0)
     axes[1].axhline(0, ls=":", color='gray')
     axes[1].set_ylim(-ee_ax_ylim, ee_ax_ylim)
-    axes[1].legend(loc='upper right')
+    axes[1].legend(loc='upper right', fontsize=9)
 
     # Configure Axes for the time series plots
     for ax in axes[0:2]:
