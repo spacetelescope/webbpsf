@@ -133,8 +133,9 @@ def wavefront_time_series_plot(opdtable, start_date=None, end_date=None, label_v
     if label_events:
         for timestamp, (event, color) in events.items():
             d = astropy.time.Time(timestamp, format='isot')
-            plt.axvline(d.plot_date, color=color, ls=':', alpha=0.5)
-            ax.text(d.plot_date + 0.25, ymax * 0.95, event, color=color, rotation=90, verticalalignment='top', alpha=0.7)
+            if d >= start_date:
+                plt.axvline(d.plot_date, color=color, ls=':', alpha=0.5)
+                ax.text(d.plot_date + 0.25, ymax * 0.95, event, color=color, rotation=90, verticalalignment='top', alpha=0.7)
 
     # Connect measurements on the same visit
     for row, rms in zip(opdtable[where_post], rms_nm[where_post]):
@@ -183,11 +184,16 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None):
     # These are observatory WFE (OTE + NIRCam), at the WFS sensing field point
     rmses=[]
     mjds = []
+    pre_or_post = []
     for row in opdtable1:
         full_file_path = os.path.join(webbpsf.utils.get_webbpsf_data_path(), 'MAST_JWST_WSS_OPDs', row['fileName'])
         rmses.append(fits.getheader(full_file_path, ext=1)['RMS_WFE'])
         mjds = opdtable1['date_obs_mjd']
+        pre_or_post.append(webbpsf.mast_wss.infer_pre_or_post_correction(row))
 
+    where_pre = ['pre' in a for a in pre_or_post]
+    where_post = ['post' in a for a in pre_or_post]
+    
     dates = astropy.time.Time(opdtable1['date'], format='isot')
 
     # Interpolate those RMSes into an even grid over time
@@ -197,10 +203,23 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None):
     interp_rmses = interp_fn(mjdrange)
 
     # Plot
-    fig, axes = plt.subplots(figsize=(16,12), nrows=3, gridspec_kw = {'hspace':0.3})
+    fig, axes = plt.subplots(figsize=(16,16), nrows=3, gridspec_kw = {'hspace':0.3})
 
-    axes[0].plot_date(dates.plot_date, np.asarray(rmses)*1e3, 'o', ls='-')
+    
+    axes[0].plot_date(dates.plot_date, np.asarray(rmses)*1e3, 'o', ls='-', label='Sensing visit')
 
+    #ax.xaxis.set_major_locator(matplotlib.dates.WeekdayLocator(interval=1))
+    axes[0].xaxis.set_minor_locator(matplotlib.dates.DayLocator())
+    axes[0].tick_params('x', length=10)
+
+    # Add vertical lines for corrections
+    icorr = 0
+    for i, idate in enumerate(where_post):
+        if idate is True:
+            plot = axes[0].axvline(dates[i].plot_date, ymin=0, ymax=500, linestyle='dashed', color='red')
+            if icorr == 0:
+                plot.set_label('Corrections')
+                icorr += 1
 
     #plt.plot(mjdrange, interp_rmses, marker='+')
     axes[0].set_xlabel("Date")
@@ -209,7 +228,10 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None):
                      fontsize=14, fontweight='bold')
 
     if thresh:
-        axes[0].axhline(thresh, color='C2')
+        axes[0].axhline(thresh, color='C2', label='Correction threshold')
+
+    axes[0].legend()
+
 
     nbins=100
 
