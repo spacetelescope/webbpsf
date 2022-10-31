@@ -133,6 +133,7 @@ def wavefront_time_series_plot(opdtable, start_date=None, end_date=None, label_v
     if label_events:
         for timestamp, (event, color) in events.items():
             d = astropy.time.Time(timestamp, format='isot')
+            #Limit events that happened after start_date:
             if d >= start_date:
                 plt.axvline(d.plot_date, color=color, ls=':', alpha=0.5)
                 ax.text(d.plot_date + 0.25, ymax * 0.95, event, color=color, rotation=90, verticalalignment='top', alpha=0.7)
