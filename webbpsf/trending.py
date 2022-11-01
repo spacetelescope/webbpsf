@@ -34,7 +34,7 @@ def get_datetime_utc(opdhdul, return_as='string'):
         raise ValueError(f"Invalid value for return_as={return_as}")
 
 
-def wavefront_time_series_plot(opdtable, start_date=None, end_date=None, label_visits=True, label_events=True):
+def wavefront_time_series_plot(opdtable, start_date=None, end_date=None, ymin=0, ymax=250, threshold=80, label_visits=True, label_events=True):
     """ Make a time series plot of total WFS versus time
 
     Parameters
@@ -110,11 +110,11 @@ def wavefront_time_series_plot(opdtable, start_date=None, end_date=None, label_v
     ax.set_xlabel("Date, UTC", fontweight='bold', fontsize=15)
 
     # ymin, ymax = 40, 200
-    ymin, ymax = 0, 250
+    # ymin, ymax = 0, 250
     ax.set_ylim(ymin, ymax)
-    ax.axhline(70, ls=":", color='gray')
-    ax.axhline(80, ls=":", color='orange')
-    ax.axhline(100, ls=":", color='gray')
+    ax.axhline(threshold-10, ls=":", color='gray')
+    ax.axhline(threshold, ls=":", color='orange')
+    ax.axhline(threshold+20, ls=":", color='gray')
 
     if start_date is None:
         start_date = datetime.datetime(2022, 3, 20, 0)
