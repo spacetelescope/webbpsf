@@ -229,7 +229,7 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None):
                      fontsize=14, fontweight='bold')
 
     if thresh:
-        axes[0].axhline(thresh, color='C2', label='Correction threshold')
+        axes[0].axhline(thresh, color='C2', label='Correction threshold', linestyle='dashed')
 
     axes[0].legend()
 
@@ -249,13 +249,15 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None):
 
     axes[2].set_xlabel("RMS Wavefront Error [nm]")
     axes[2].set_ylim(0,1)
-    axes[2].set_xlim(60, interp_rmses.max()*1e3)
+    xmax =  interp_rmses.max()*1e3
+    axes[2].set_xlim(60, xmax)
 
     if thresh: 
         for i in [1,2]:
-            axes[i].axvline(thresh, color='C2')    
-        fractime = (interp_rmses*1e3 < thresh).sum()/len(interp_rmses)
-        axes[2].text(thresh+0.5, 0.1, 
+            if thresh <= xmax:
+                axes[i].axvline(thresh, color='C2', linestyle='dashed')    
+            fractime = (interp_rmses*1e3 < thresh).sum()/len(interp_rmses)
+            axes[2].text(0.75*xmax, 0.1, 
                      f"{fractime*100:.1f}% of the time has WFE < {thresh}", color='C2',
                     fontweight='bold', fontsize=14)    
 
