@@ -354,8 +354,7 @@ def retrieve_mast_opd_table(aperture_list=['NRCA3_FP1'], verbose=False):
         print('\n\nTotal products with apername = {}: {}'.format(aperture_list, len(obs_table)))
 
     # Now perform some manipulations on the result, to select and add additional columns
-    colnames_we_want = ['date_obs_mjd', 'visitId', 'apername', 'corr_id',
-                        'fileName', 'dataURI']
+    colnames_we_want = get_colnames()
     columns_we_want = [obs_table[colname] for colname in colnames_we_want]
     # insert a column with times as ISO time strings, instead of MJD
     columns_we_want.insert(0, astropy.table.Column(astropy.time.Time(obs_table['date_obs_mjd'], format='mjd').isot,
@@ -368,7 +367,44 @@ def retrieve_mast_opd_table(aperture_list=['NRCA3_FP1'], verbose=False):
     opdtable['visitId'] = ["V" + vid for vid in opdtable['visitId']]
     opdtable.sort('date')
 
-    # Add useful columns which help track when there were corrections
+    opdtable = add_columns_to_track_corrections(opdtable)
+
+    return opdtable
+
+def get_colnames(updated=False):
+    """Get list of column names from MAST that are desired to populate the OPD Astropy table
+    Parameters
+    ----------
+    updated : boolean
+        toggle whether or not to include the full colnames list with columns to track corrections
+        these columns are added via add_columns_to_track_corrections
+    Returns : list of colnames from MAST that will be used in the opdtable
+    """
+    colnames = ['date_obs_mjd', 'visitId', 'apername', 'corr_id',
+            'fileName', 'dataURI']
+    if updated:
+        colnames.append('wfs_measurement_type')
+        colnames.append('is_post_correction')
+        colnames.append('is_pre_correction')
+
+    return colnames
+
+def add_columns_to_track_corrections(opdtable):
+    """Add useful columns which help track when there were corrections
+
+    Parameters
+    ----------
+    opdtable : astropy.table.Table
+        Table of available OPDs, Default None: as returned by retrieve_mast_opd_table()
+    Returns : Updated Astropy table listing available OPDs and metadata such as dates and sensing type.
+
+    Additional columns:
+    wfs_measurement_type : pre | post  (mirror moves)
+    is_post_correction : whether it is after a correction has been applied
+    is_pre_correction : whether it is prior to a correction
+
+    """
+    #
     dates = astropy.time.Time(opdtable['date'], format='isot')
     pre_or_post = []
 
