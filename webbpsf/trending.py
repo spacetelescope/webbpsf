@@ -69,7 +69,7 @@ def wavefront_time_series_plot(opdtable, start_date=None, end_date=None, label_v
             full_file_path = os.path.join(webbpsf.utils.get_webbpsf_data_path(), 'MAST_JWST_WSS_OPDs', row['fileName'])
         else:
             full_file_path = row['fileName']
-        if len(rmses) == 0:
+        if 'rms_wfe' not in opdtable.colnames:
             rmses.append(fits.getheader(full_file_path, ext=1)['RMS_WFE'])
         pre_or_post.append(webbpsf.mast_wss.infer_pre_or_post_correction(row))
 
