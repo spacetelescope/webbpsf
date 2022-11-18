@@ -165,7 +165,7 @@ def wavefront_time_series_plot(opdtable, start_date=None, end_date=None, ymin=0,
     plt.legend(loc='upper right')
 
 
-def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None):
+def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, mark_corrections='lines'):
     """ Plot histogram and cumulative histogram of WFE over some time range.
     """
 
@@ -204,7 +204,7 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None):
     interp_rmses = interp_fn(mjdrange)
 
     # Plot
-    fig, axes = plt.subplots(figsize=(16,16), nrows=3, gridspec_kw = {'hspace':0.3})
+    fig, axes = plt.subplots(figsize=(16,16), nrows=2, gridspec_kw = {'hspace':0.3})
 
     
     axes[0].plot_date(dates.plot_date, np.asarray(rmses)*1e3, 'o', ls='-', label='Sensing visit')
@@ -213,14 +213,28 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None):
     axes[0].xaxis.set_minor_locator(matplotlib.dates.DayLocator())
     axes[0].tick_params('x', length=10)
 
-    # Add vertical lines for corrections
-    icorr = 0
-    for i, idate in enumerate(where_post):
-        if idate is True:
-            plot = axes[0].axvline(dates[i].plot_date, ymin=0, ymax=500, linestyle='dashed', color='red')
-            if icorr == 0:
-                plot.set_label('Corrections')
-                icorr += 1
+    
+    if mark_corrections=='lines':
+        # Add vertical lines for corrections
+        icorr = 0
+        for i, idate in enumerate(where_post):
+            if idate is True:
+                plot = axes[0].axvline(dates[i].plot_date, ymin=0, ymax=500, linestyle='dashed', color='red')
+                if icorr == 0:
+                    plot.set_label('Corrections')
+                    icorr += 1
+    elif mark_corrections=='triangles':
+        yval = (np.asarray(rmses)*1e3).max()*0.95
+        axes[0].scatter(dates[where_post].plot_date, np.ones(np.sum(where_post))*yval, 
+                        marker='v', s=100, color='limegreen', label='Corrections')
+    elif mark_corrections=='arrows':
+        rms_nm =  np.asarray(rmses)*1e3
+        axes[0].scatter(dates[where_post].plot_date, rms_nm[where_post]+1, 
+                        marker='v', s=100, color='limegreen', label='Corrections')
+        for i, idate in enumerate(where_post):
+            plot_offsets = np.array([-1, 2])
+            if idate:
+                axes[0].plot(dates[i-1:i+1].plot_date, rms_nm[i-1:i+1]+plot_offsets, color='limegreen', lw=3, ls='-', alpha=0.5)
 
     #plt.plot(mjdrange, interp_rmses, marker='+')
     axes[0].set_xlabel("Date")
@@ -239,25 +253,24 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None):
     axes[1].set_title(f"Observatory WFE Histogram from {start_date.isot[0:10]} to {end_date.isot[0:10]}",
                      fontsize=14, fontweight='bold')
 
-    axes[1].hist(interp_rmses*1e3, density=True, bins=nbins)
-    axes[1].set_ylabel("Fraction of time with this WFE", fontweight='bold')
+    axes[1].hist(interp_rmses*1e3, density=True, bins=nbins, color='#1f77b4')
+    axes[1].set_ylabel("Fraction of time with this WFE", fontweight='bold', color='#1f77b4')
+    axes[1].set_xlabel("RMS Wavefront Error [nm]")
 
-    axes[2].hist(interp_rmses*1e3, density=True, bins=nbins, cumulative=1, histtype='step', lw=3, color='C1');
-    axes[2].set_ylabel("Cumulative fraction of time\nwith this WFE or better", fontweight='bold')
-    axes[2].set_title(f"Observatory WFE Cumulative Histogram from {start_date.isot[0:10]} to {end_date.isot[0:10]}",
-                     fontsize=14, fontweight='bold')
+    ax_right = axes[1].twinx()
+    ax_right.hist(interp_rmses*1e3, density=True, bins=nbins, cumulative=1, histtype='step', lw=3, color='C1');
+    ax_right.set_ylabel("Cumulative fraction of time\nwith this WFE or better", color='C1', fontweight='bold')
 
-    axes[2].set_xlabel("RMS Wavefront Error [nm]")
-    axes[2].set_ylim(0,1)
+    ax_right.set_ylim(0,1)
     xmax =  interp_rmses.max()*1e3
-    axes[2].set_xlim(60, xmax)
+    ax_right.set_xlim(60, xmax)
 
     if thresh: 
-        for i in [1,2]:
+        for i in [1]:
             if thresh <= xmax:
                 axes[i].axvline(thresh, color='C2', linestyle='dashed')    
             fractime = (interp_rmses*1e3 < thresh).sum()/len(interp_rmses)
-            axes[2].text(0.75*xmax, 0.1, 
+            axes[i].text(0.75*xmax, 0.1, 
                      f"{fractime*100:.1f}% of the time has WFE < {thresh}", color='C2',
                     fontweight='bold', fontsize=14)    
 
