@@ -353,14 +353,14 @@ def single_measurement_trending_plot(opdtable, row_index=-1, reference=None, ver
     opdtable : astropy.table.Table
         Table of available OPDs, as returned by retrieve_mast_opd_table()
     row_index : int
-        Index into that table. Which row to make a plot for?
+        Index into that table. Which row to make a plot for? Default: latest OPD.
     verbose: bool
         be more verbose in output?
     vmax : float
         Image display scale max for OPD, in microns. Defaults to 0.15 microns = 150 nanometers
     reference: str, or None
         Reference OPD to use for comparison, where the string is the date format (e.g. 2022-10-31). 
-        Will select closest match from the opdtable. Default is the MIMF2 measurement.
+        Will select closest match from the opdtable. Default: MIMF2 meas. + focus offset.
 
 
     """
@@ -737,7 +737,7 @@ def wavefront_drift_plots(opdtable, start_time, end_time, verbose=False,
     n_to_plot = sum(opdtable[which_opds_mask]['wfs_measurement_type'] == 'pre') - 1
     nrows = int(np.ceil(n_to_plot / n_per_row))
 
-    fig, axes = plt.subplots(figsize=(16, 16), nrows=nrows, ncols=n_per_row,
+    fig, axes = plt.subplots(figsize=(16, nrows*2 + 1), nrows=nrows, ncols=n_per_row,
                              gridspec_kw={'hspace': 0.3, 'wspace': 0.01,
                                           'left': 0.01, 'right': 0.93, 'bottom': 0.01, 'top': 0.92})
     axes_f = axes.flat
