@@ -246,6 +246,8 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, ma
         axes[0].axhline(thresh, color='C2', label='Correction threshold', linestyle='dashed')
 
     axes[0].legend()
+    axes[0].tick_params(right=True, which='both', direction = 'in')
+    axes[0].minorticks_on()
 
 
     nbins=100
@@ -256,10 +258,12 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, ma
     axes[1].hist(interp_rmses*1e3, density=True, bins=nbins, color='#1f77b4')
     axes[1].set_ylabel("Fraction of time with this WFE", fontweight='bold', color='#1f77b4')
     axes[1].set_xlabel("RMS Wavefront Error [nm]")
+    axes[1].minorticks_on()
 
     ax_right = axes[1].twinx()
     ax_right.hist(interp_rmses*1e3, density=True, bins=nbins, cumulative=1, histtype='step', lw=3, color='C1');
     ax_right.set_ylabel("Cumulative fraction of time\nwith this WFE or better", color='C1', fontweight='bold')
+    ax_right.minorticks_on()
 
     ax_right.set_ylim(0,1)
     xmax =  interp_rmses.max()*1e3
@@ -340,7 +344,7 @@ def _get_mimf2_focus_offset_model(npix=256):
     return mimf2_focus_offset
 
 
-def single_measurement_trending_plot(opdtable, row_index=-1, verbose=True, vmax=0.15, ignore_missing=True, subtract_target=True):
+def single_measurement_trending_plot(opdtable, row_index=-1, reference=None, verbose=True, vmax=0.15, ignore_missing=True, subtract_target=True):
     """Wavefront trending plot for a single measurement
 
     Parameters
@@ -354,6 +358,9 @@ def single_measurement_trending_plot(opdtable, row_index=-1, verbose=True, vmax=
         be more verbose in output?
     vmax : float
         Image display scale max for OPD, in microns. Defaults to 0.15 microns = 150 nanometers
+    reference: str, or None
+        Reference OPD to use for comparison, where the string is the date format (e.g. 2022-10-31). 
+        Will select closest match from the opdtable. Default is the MIMF2 measurement.
 
 
     """
@@ -396,7 +403,7 @@ def single_measurement_trending_plot(opdtable, row_index=-1, verbose=True, vmax=
             print("     Subtracting NIRCam SI WFE target phase map")
 
         # Get WSS Target Phase Map
-        was_targ_file = os.path.join(webbpsf.utils.get_webbpsf_data_path(), 'NIRCam', 'OPD', 'wss_target_phase.fits')
+        was_targ_file = os.path.join(webbpsf.utils.get_webbpsf_data_path(), 'NIRCam', 'OPD', 'wss_target_phase_fp1.fits')
         target_1024 = astropy.io.fits.getdata(was_targ_file)
         target_256 = poppy.utils.krebin(target_1024, (256, 256)) /16   # scale factor for rebinning w/out increasing values
 
@@ -414,14 +421,22 @@ def single_measurement_trending_plot(opdtable, row_index=-1, verbose=True, vmax=
     # For this we use the ~ best correction, immediately prior to MIMF-2 measurement
     # And we add in a model for the MIMF2 focus offset, applied just after that.
 
-    ref_row = opdtable[opdtable['visitId'] == 'V01163030001']
-    _, ref_opd_hdu = _read_opd(ref_row['fileName'][0])
-    ref_opd = ref_opd_hdu[1].data + mimf2_focus_offset
+    if reference is None:
+        ref_row = opdtable[opdtable['visitId'] == 'V01163030001']
+        _, ref_opd_hdu = _read_opd(ref_row['fileName'][0])
+        ref_opd = ref_opd_hdu[1].data + mimf2_focus_offset
+        ref_label = '(from MIMF2)'
+    else:
+        actual_ref = min(astropy.time.Time(opdtable['date']), key=lambda x:abs(x-astropy.time.Time(reference))).value
+        ref_row = opdtable[opdtable['date']==actual_ref]
+        _, ref_opd_hdu = _read_opd(ref_row['fileName'][0])
+        ref_opd = ref_opd_hdu[1].data
+        ref_label = get_datetime_utc(ref_opd_hdu)
 
     if subtract_target:
         ref_opd -= target_256
 
-    # Read associated post-correction measurment, if present
+    # Read associated post-correction measurement, if present
     if opdtable[row_index]['is_pre_correction']:
         show_post_move = True
         meas_title = 'Measurement (Pre Move)'
@@ -502,7 +517,7 @@ def single_measurement_trending_plot(opdtable, row_index=-1, verbose=True, vmax=
         fig.text(0.55, 0.77, "Sensing-only visit. No mirror moves.", alpha=0.3,
                  horizontalalignment='center', fontsize=fontsize)
     ####### Row 2
-    # Compare to immedaite prior OPD
+    # Compare to immediate prior OPD
 
     # Panel 2-1: prior OPD
     iax = axes[1, 0]
@@ -529,7 +544,7 @@ def single_measurement_trending_plot(opdtable, row_index=-1, verbose=True, vmax=
     # Panel 3-1: ref OPD
     iax = axes[2, 0]
     show_opd_image(ref_opd * nanmask, ax=iax, title='Prior WFS', vmax=vmax, mask=mask, fontsize=fontsize)
-    iax.set_title(f"Reference Measurement\n(from MIMF2)", fontsize=fontsize*1.1)
+    iax.set_title(f"Reference Measurement\n{ref_label}", fontsize=fontsize*1.2, fontweight='bold')
 
     # Panel 3-2: difference
     iax = axes[2, 1]
@@ -690,7 +705,7 @@ def wavefront_drift_plots(opdtable, start_time, end_time, verbose=False,
     mask = opd != 0
 
     # Get WSS Target Phase Map
-    was_targ_file = os.path.join(webbpsf.utils.get_webbpsf_data_path(), 'NIRCam', 'OPD', 'wss_target_phase.fits')
+    was_targ_file = os.path.join(webbpsf.utils.get_webbpsf_data_path(), 'NIRCam', 'OPD', 'wss_target_phase_fp1.fits')
     target_1024 = astropy.io.fits.getdata(was_targ_file)
     target_256 = poppy.utils.krebin(target_1024, (256, 256))
 
@@ -722,7 +737,7 @@ def wavefront_drift_plots(opdtable, start_time, end_time, verbose=False,
     n_to_plot = sum(opdtable[which_opds_mask]['wfs_measurement_type'] == 'pre') - 1
     nrows = int(np.ceil(n_to_plot / n_per_row))
 
-    fig, axes = plt.subplots(figsize=(16, 10), nrows=nrows, ncols=n_per_row,
+    fig, axes = plt.subplots(figsize=(16, 16), nrows=nrows, ncols=n_per_row,
                              gridspec_kw={'hspace': 0.3, 'wspace': 0.01,
                                           'left': 0.01, 'right': 0.93, 'bottom': 0.01, 'top': 0.92})
     axes_f = axes.flat
