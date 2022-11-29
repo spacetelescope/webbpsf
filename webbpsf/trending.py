@@ -358,7 +358,7 @@ def single_measurement_trending_plot(opdtable, row_index=-1, verbose=True, vmax=
             print("     Subtracting NIRCam SI WFE target phase map")
 
         # Get WSS Target Phase Map
-        was_targ_file = os.path.join(webbpsf.utils.get_webbpsf_data_path(), 'NIRCam', 'OPD', 'wss_target_phase.fits')
+        was_targ_file = os.path.join(webbpsf.utils.get_webbpsf_data_path(), 'NIRCam', 'OPD', 'wss_target_phase_fp1.fits')
         target_1024 = astropy.io.fits.getdata(was_targ_file)
         target_256 = poppy.utils.krebin(target_1024, (256, 256)) /16   # scale factor for rebinning w/out increasing values
 
@@ -652,7 +652,7 @@ def wavefront_drift_plots(opdtable, start_time, end_time, verbose=False,
     mask = opd != 0
 
     # Get WSS Target Phase Map
-    was_targ_file = os.path.join(webbpsf.utils.get_webbpsf_data_path(), 'NIRCam', 'OPD', 'wss_target_phase.fits')
+    was_targ_file = os.path.join(webbpsf.utils.get_webbpsf_data_path(), 'NIRCam', 'OPD', 'wss_target_phase_fp1.fits')
     target_1024 = astropy.io.fits.getdata(was_targ_file)
     target_256 = poppy.utils.krebin(target_1024, (256, 256))
 
