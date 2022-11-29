@@ -1487,7 +1487,7 @@ class JWInstrument(SpaceTelescopeInstrument):
             sensing_inst.set_position_from_aperture_name(sensing_apername)
             # special case: for the main sensing point FP1, we use the official WAS target phase map, rather than the
             # WebbPSF-internal SI WFE model.
-            was_targ_file = os.path.join(utils.get_webbpsf_data_path(), 'NIRCam', 'OPD', 'wss_target_phase.fits')
+            was_targ_file = os.path.join(utils.get_webbpsf_data_path(), 'NIRCam', 'OPD', 'wss_target_phase_fp1.fits')
             if sensing_apername == 'NRCA3_FP1' and os.path.exists(was_targ_file):
                 sensing_fp_si_wfe = poppy.FITSOpticalElement(opd=was_targ_file).opd
             else:
