@@ -34,7 +34,7 @@ def get_datetime_utc(opdhdul, return_as='string'):
         raise ValueError(f"Invalid value for return_as={return_as}")
 
 
-def wavefront_time_series_plot(opdtable, start_date=None, end_date=None, label_visits=True, label_events=True):
+def wavefront_time_series_plot(opdtable, start_date=None, end_date=None, ymin=0, ymax=250, threshold=80, label_visits=True, label_events=True):
     """ Make a time series plot of total WFS versus time
 
     Parameters
@@ -119,11 +119,11 @@ def wavefront_time_series_plot(opdtable, start_date=None, end_date=None, label_v
     ax.set_xlabel("Date, UTC", fontweight='bold', fontsize=15)
 
     # ymin, ymax = 40, 200
-    ymin, ymax = 0, 250
+    # ymin, ymax = 0, 250
     ax.set_ylim(ymin, ymax)
-    ax.axhline(70, ls=":", color='gray')
-    ax.axhline(80, ls=":", color='orange')
-    ax.axhline(100, ls=":", color='gray')
+    ax.axhline(threshold-10, ls=":", color='gray')
+    ax.axhline(threshold, ls=":", color='orange')
+    ax.axhline(threshold+20, ls=":", color='gray')
 
     if start_date is None:
         start_date = datetime.datetime(2022, 3, 20, 0)
@@ -142,8 +142,10 @@ def wavefront_time_series_plot(opdtable, start_date=None, end_date=None, label_v
     if label_events:
         for timestamp, (event, color) in events.items():
             d = astropy.time.Time(timestamp, format='isot')
-            plt.axvline(d.plot_date, color=color, ls=':', alpha=0.5)
-            ax.text(d.plot_date + 0.25, ymax * 0.95, event, color=color, rotation=90, verticalalignment='top', alpha=0.7)
+            #Limit events that happened after start_date:
+            if d >= start_date:
+                plt.axvline(d.plot_date, color=color, ls=':', alpha=0.5)
+                ax.text(d.plot_date + 0.25, ymax * 0.95, event, color=color, rotation=90, verticalalignment='top', alpha=0.7)
 
     # Connect measurements on the same visit
     for row, rms in zip(opdtable[where_post], rms_nm[where_post]):
@@ -172,7 +174,8 @@ def wavefront_time_series_plot(opdtable, start_date=None, end_date=None, label_v
     plt.legend(loc='upper right')
 
 
-def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, download_opds=True):
+
+def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, download_opds=True, mark_corrections='lines'):
     """ Plot histogram and cumulative histogram of WFE over some time range.
 
     Parameters
@@ -213,13 +216,18 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, do
         rmses = opdtable1['rms_wfe']
 
     mjds = []
+    pre_or_post = []
     for row in opdtable1:
         if download_opds:
             full_file_path = os.path.join(webbpsf.utils.get_webbpsf_data_path(), 'MAST_JWST_WSS_OPDs', row['fileName'])
         if 'rms_wfe' not in opdtable1.colnames:
             rmses.append(fits.getheader(full_file_path, ext=1)['RMS_WFE'])
         mjds = opdtable1['date_obs_mjd']
+        pre_or_post.append(webbpsf.mast_wss.infer_pre_or_post_correction(row))
 
+    where_pre = ['pre' in a for a in pre_or_post]
+    where_post = ['post' in a for a in pre_or_post]
+    
     dates = astropy.time.Time(opdtable1['date'], format='isot')
 
     # Interpolate those RMSes into an even grid over time
@@ -229,10 +237,37 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, do
     interp_rmses = interp_fn(mjdrange)
 
     # Plot
-    fig, axes = plt.subplots(figsize=(16,12), nrows=3, gridspec_kw = {'hspace':0.3})
+    fig, axes = plt.subplots(figsize=(16,16), nrows=2, gridspec_kw = {'hspace':0.3})
 
-    axes[0].plot_date(dates.plot_date, np.asarray(rmses)*1e3, 'o', ls='-')
+    
+    axes[0].plot_date(dates.plot_date, np.asarray(rmses)*1e3, 'o', ls='-', label='Sensing visit')
 
+    #ax.xaxis.set_major_locator(matplotlib.dates.WeekdayLocator(interval=1))
+    axes[0].xaxis.set_minor_locator(matplotlib.dates.DayLocator())
+    axes[0].tick_params('x', length=10)
+
+    
+    if mark_corrections=='lines':
+        # Add vertical lines for corrections
+        icorr = 0
+        for i, idate in enumerate(where_post):
+            if idate is True:
+                plot = axes[0].axvline(dates[i].plot_date, ymin=0, ymax=500, linestyle='dashed', color='red')
+                if icorr == 0:
+                    plot.set_label('Corrections')
+                    icorr += 1
+    elif mark_corrections=='triangles':
+        yval = (np.asarray(rmses)*1e3).max()*0.95
+        axes[0].scatter(dates[where_post].plot_date, np.ones(np.sum(where_post))*yval, 
+                        marker='v', s=100, color='limegreen', label='Corrections')
+    elif mark_corrections=='arrows':
+        rms_nm =  np.asarray(rmses)*1e3
+        axes[0].scatter(dates[where_post].plot_date, rms_nm[where_post]+1, 
+                        marker='v', s=100, color='limegreen', label='Corrections')
+        for i, idate in enumerate(where_post):
+            plot_offsets = np.array([-1, 2])
+            if idate:
+                axes[0].plot(dates[i-1:i+1].plot_date, rms_nm[i-1:i+1]+plot_offsets, color='limegreen', lw=3, ls='-', alpha=0.5)
 
     #plt.plot(mjdrange, interp_rmses, marker='+')
     axes[0].set_xlabel("Date")
@@ -241,30 +276,38 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, do
                      fontsize=14, fontweight='bold')
 
     if thresh:
-        axes[0].axhline(thresh, color='C2')
+        axes[0].axhline(thresh, color='C2', label='Correction threshold', linestyle='dashed')
+
+    axes[0].legend()
+    axes[0].tick_params(right=True, which='both', direction = 'in')
+    axes[0].minorticks_on()
+
 
     nbins=100
 
     axes[1].set_title(f"Observatory WFE Histogram from {start_date.isot[0:10]} to {end_date.isot[0:10]}",
                      fontsize=14, fontweight='bold')
 
-    axes[1].hist(interp_rmses*1e3, density=True, bins=nbins)
-    axes[1].set_ylabel("Fraction of time with this WFE", fontweight='bold')
+    axes[1].hist(interp_rmses*1e3, density=True, bins=nbins, color='#1f77b4')
+    axes[1].set_ylabel("Fraction of time with this WFE", fontweight='bold', color='#1f77b4')
+    axes[1].set_xlabel("RMS Wavefront Error [nm]")
+    axes[1].minorticks_on()
 
-    axes[2].hist(interp_rmses*1e3, density=True, bins=nbins, cumulative=1, histtype='step', lw=3, color='C1');
-    axes[2].set_ylabel("Cumulative fraction of time\nwith this WFE or better", fontweight='bold')
-    axes[2].set_title(f"Observatory WFE Cumulative Histogram from {start_date.isot[0:10]} to {end_date.isot[0:10]}",
-                     fontsize=14, fontweight='bold')
+    ax_right = axes[1].twinx()
+    ax_right.hist(interp_rmses*1e3, density=True, bins=nbins, cumulative=1, histtype='step', lw=3, color='C1');
+    ax_right.set_ylabel("Cumulative fraction of time\nwith this WFE or better", color='C1', fontweight='bold')
+    ax_right.minorticks_on()
 
-    axes[2].set_xlabel("RMS Wavefront Error [nm]")
-    axes[2].set_ylim(0,1)
-    axes[2].set_xlim(60, interp_rmses.max()*1e3)
+    ax_right.set_ylim(0,1)
+    xmax =  interp_rmses.max()*1e3
+    ax_right.set_xlim(60, xmax)
 
     if thresh: 
-        for i in [1,2]:
-            axes[i].axvline(thresh, color='C2')    
-        fractime = (interp_rmses*1e3 < thresh).sum()/len(interp_rmses)
-        axes[2].text(thresh+0.5, 0.1, 
+        for i in [1]:
+            if thresh <= xmax:
+                axes[i].axvline(thresh, color='C2', linestyle='dashed')    
+            fractime = (interp_rmses*1e3 < thresh).sum()/len(interp_rmses)
+            axes[i].text(0.75*xmax, 0.1, 
                      f"{fractime*100:.1f}% of the time has WFE < {thresh}", color='C2',
                     fontweight='bold', fontsize=14)    
 
@@ -334,7 +377,7 @@ def _get_mimf2_focus_offset_model(npix=256):
     return mimf2_focus_offset
 
 
-def single_measurement_trending_plot(opdtable, row_index=-1, verbose=True, vmax=0.15, ignore_missing=True, subtract_target=True):
+def single_measurement_trending_plot(opdtable, row_index=-1, reference=None, verbose=True, vmax=0.15, ignore_missing=True, subtract_target=True):
     """Wavefront trending plot for a single measurement
 
     Parameters
@@ -343,11 +386,14 @@ def single_measurement_trending_plot(opdtable, row_index=-1, verbose=True, vmax=
     opdtable : astropy.table.Table
         Table of available OPDs, as returned by retrieve_mast_opd_table()
     row_index : int
-        Index into that table. Which row to make a plot for?
+        Index into that table. Which row to make a plot for? Default: latest OPD.
     verbose: bool
         be more verbose in output?
     vmax : float
         Image display scale max for OPD, in microns. Defaults to 0.15 microns = 150 nanometers
+    reference: str, or None
+        Reference OPD to use for comparison, where the string is the date format (e.g. 2022-10-31). 
+        Will select closest match from the opdtable. Default: MIMF2 meas. + focus offset.
 
 
     """
@@ -408,14 +454,22 @@ def single_measurement_trending_plot(opdtable, row_index=-1, verbose=True, vmax=
     # For this we use the ~ best correction, immediately prior to MIMF-2 measurement
     # And we add in a model for the MIMF2 focus offset, applied just after that.
 
-    ref_row = opdtable[opdtable['visitId'] == 'V01163030001']
-    _, ref_opd_hdu = _read_opd(ref_row['fileName'][0])
-    ref_opd = ref_opd_hdu[1].data + mimf2_focus_offset
+    if reference is None:
+        ref_row = opdtable[opdtable['visitId'] == 'V01163030001']
+        _, ref_opd_hdu = _read_opd(ref_row['fileName'][0])
+        ref_opd = ref_opd_hdu[1].data + mimf2_focus_offset
+        ref_label = '(from MIMF2)'
+    else:
+        actual_ref = min(astropy.time.Time(opdtable['date']), key=lambda x:abs(x-astropy.time.Time(reference))).value
+        ref_row = opdtable[opdtable['date']==actual_ref]
+        _, ref_opd_hdu = _read_opd(ref_row['fileName'][0])
+        ref_opd = ref_opd_hdu[1].data
+        ref_label = get_datetime_utc(ref_opd_hdu)
 
     if subtract_target:
         ref_opd -= target_256
 
-    # Read associated post-correction measurment, if present
+    # Read associated post-correction measurement, if present
     if opdtable[row_index]['is_pre_correction']:
         show_post_move = True
         meas_title = 'Measurement (Pre Move)'
@@ -496,7 +550,7 @@ def single_measurement_trending_plot(opdtable, row_index=-1, verbose=True, vmax=
         fig.text(0.55, 0.77, "Sensing-only visit. No mirror moves.", alpha=0.3,
                  horizontalalignment='center', fontsize=fontsize)
     ####### Row 2
-    # Compare to immedaite prior OPD
+    # Compare to immediate prior OPD
 
     # Panel 2-1: prior OPD
     iax = axes[1, 0]
@@ -523,7 +577,7 @@ def single_measurement_trending_plot(opdtable, row_index=-1, verbose=True, vmax=
     # Panel 3-1: ref OPD
     iax = axes[2, 0]
     show_opd_image(ref_opd * nanmask, ax=iax, title='Prior WFS', vmax=vmax, mask=mask, fontsize=fontsize)
-    iax.set_title(f"Reference Measurement\n(from MIMF2)", fontsize=fontsize*1.1)
+    iax.set_title(f"Reference Measurement\n{ref_label}", fontsize=fontsize*1.2, fontweight='bold')
 
     # Panel 3-2: difference
     iax = axes[2, 1]
@@ -716,7 +770,7 @@ def wavefront_drift_plots(opdtable, start_time, end_time, verbose=False,
     n_to_plot = sum(opdtable[which_opds_mask]['wfs_measurement_type'] == 'pre') - 1
     nrows = int(np.ceil(n_to_plot / n_per_row))
 
-    fig, axes = plt.subplots(figsize=(16, 10), nrows=nrows, ncols=n_per_row,
+    fig, axes = plt.subplots(figsize=(16, nrows*2 + 1), nrows=nrows, ncols=n_per_row,
                              gridspec_kw={'hspace': 0.3, 'wspace': 0.01,
                                           'left': 0.01, 'right': 0.93, 'bottom': 0.01, 'top': 0.92})
     axes_f = axes.flat
