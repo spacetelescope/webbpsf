@@ -29,7 +29,7 @@ Version History and Change Log
 
 Version 1.1.1
 =============
-*2022 December 12*
+*2022 December 14*
 
 Minor bug fix release and improvements in JWST wavefront trending plots.
 
