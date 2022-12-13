@@ -237,7 +237,7 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, do
     interp_rmses = interp_fn(mjdrange)
 
     # Plot
-    fig, axes = plt.subplots(figsize=(16,16), nrows=2, gridspec_kw = {'hspace':0.3})
+    fig, axes = plt.subplots(figsize=(16,9), nrows=2, gridspec_kw = {'hspace':0.3})
 
     
     axes[0].plot_date(dates.plot_date, np.asarray(rmses)*1e3, 'o', ls='-', label='Sensing visit')
