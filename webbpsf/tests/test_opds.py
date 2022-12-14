@@ -204,6 +204,13 @@ def test_update_opd():
 
     # Todo test random drifts
 
+def test_sur_basics():
+    # test we can create a null SUR
+    sur = webbpsf.surs.SUR()
+    assert sur.ngroups==1
+    assert sur.nmoves==0
+    assert isinstance(sur.describe(), str)
+
 
 def test_move_sur(plot=False):
     """ Test we can move mirrors using Segment Update Requests
@@ -438,7 +445,7 @@ def test_segment_tilt_signs(fov_pix = 50, plot=False, npix=1024):
 
     tilt = 1.0
 
-	# We aim for relatively minimalist PSF calcs, to reduce test runtime
+    # We aim for relatively minimalist PSF calcs, to reduce test runtime
     psf_kwargs = {'monochromatic': 2e-6,
                   'fov_pixels': fov_pix,
                   'oversample': 1,
@@ -575,3 +582,19 @@ def test_pupilopd_none():
     centroid = webbpsf.measure_centroid(psf_small, relativeto='center')
     assert np.abs(centroid[0]) < 1e-5, "Centroid should be (0,0)"
     assert np.abs(centroid[1]) < 1e-5, "Centroid should be (0,0)"
+
+def test_get_rms_per_segment():
+    nrc0 = webbpsf.NIRCam()
+    nrc, ote = webbpsf.enable_adjustable_ote(nrc0)
+    rms_per_seg = webbpsf.opds.get_rms_per_segment(ote.opd)
+
+    assert len(rms_per_seg)==18, "Wrong number of elements in result. Must be 18!"
+    for seg in rms_per_seg:
+        assert isinstance(seg, str)
+        assert len(seg)==2
+        assert isinstance(rms_per_seg[seg], float)
+        if seg != 'C3':
+            assert 10 < rms_per_seg[seg] < 100
+
+
+        assert np.isclose(rms_per_seg[seg], ote.rms(seg))

@@ -429,6 +429,8 @@ def deduplicate_opd_table(opdtable, drop_f187n=True, verbose=False):
 
     measurement_dates_encountered = set()
     redundant_aps = set()
+    # Some APs are known to be not good, due to issues in the analyses
+    invalid_aps = ['R2022083106',]
 
     unique_indices = []
 
@@ -445,7 +447,11 @@ def deduplicate_opd_table(opdtable, drop_f187n=True, verbose=False):
             if verbose: print(f"{opdtable[row_index]['fileName']} is F187N. Ignoring it.")
             continue
 
-        if opdtable[row_index]['date'] in measurement_dates_encountered:
+        if opdtable[row_index]['corr_id'] in invalid_aps:
+            if verbose:
+                print(f"{opdtable[row_index]['fileName']} is flaggd as an invalid AP due to known analysis issue(s). Ignoring it.")
+            continue
+        elif opdtable[row_index]['date'] in measurement_dates_encountered:
             # sometimes we end up with multiple redundant APs per a given measurement
             # If so, only plot the first one, and ignore any redundant ones.
             if verbose: print(
@@ -453,6 +459,7 @@ def deduplicate_opd_table(opdtable, drop_f187n=True, verbose=False):
             redundant_aps.add(opdtable[row_index]['fileName'])
             continue
         else:
+            # We should use this AP
             unique_indices.append(row_index)
             measurement_dates_encountered.add(opdtable[row_index]['date'])
 

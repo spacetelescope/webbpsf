@@ -27,6 +27,20 @@ See https://github.com/spacetelescope/webbpsf/issues for currently open issues a
 Version History and Change Log
 -------------------------------
 
+Version 1.1.1
+=============
+*2022 December 14*
+
+Minor bug fix release and improvements in JWST wavefront trending plots.
+
+**James Webb Space Telescope improvements**:
+
+ * Fix a units issue and filename inconsistency in one of the data files for NIRCam wavefront error at the wavefront sensing field point. (:issue:`612`, :pr:`613:` by :user:`mperrin`, :user:`obi-wan76`)
+ * Improvements in OTE wavefront trending plots and  phase decomposition tools (:pr:`598` by :user:`kulpster85`, :pr:`599`, :pr:`601` by :user:`mperrin`, :pr:`603` by :user:`Skyhawk172:`, 
+   :pr:`621` by :user:`obi-wan76`)
+ * Bug fixes for OTE field dependence flag (:pr:`595` by :user:`mperrin`)
+ * Updates various package dependencies to upstream latest versions.
+
 
 Version 1.1.0
 =============
