@@ -929,7 +929,9 @@ class JWInstrument(SpaceTelescopeInstrument):
 
     @SpaceTelescopeInstrument.aperturename.setter
     def aperturename(self, value):
-        """Set SIAF aperture name to new value, with validation
+        """Set SIAF aperture name to new value, with validation.
+
+        This also updates the pixelscale to the local value for that aperture, for a small precision enhancement.
         """
         # Explicitly update detector reference coordinates to the default for the new selected aperture,
         # otherwise old coordinates can persist under certain circumstances
@@ -952,6 +954,14 @@ class JWInstrument(SpaceTelescopeInstrument):
             # Update DetectorGeometry class
             self._detector_geom_info = DetectorGeometry(self.siaf, self._aperturename)
             _log.info(f"{self.name} SIAF aperture name updated to {self._aperturename}")
+
+            # Update detector pixelscale to the local pixelscale as tracked in the SIAF.
+            # Here we make the simplifying assumption of **square** pixels, which is true within 0.5%.
+            # The slight departures from this are handled in the distortion model; see distortion.py
+            self.pixelscale = (ap.XSciScale + ap.YSciScale)/2
+            _log.debug(f"Pixelscale updated to {self.pixelscale} based on average X+Y SciScale at SIAF aperture {self._aperturename}")
+
+
 
     def _tel_coords(self):
         """ Convert from science frame coordinates to telescope frame coordinates using
@@ -1628,8 +1638,8 @@ class MIRI(JWInstrument):
     def __init__(self):
         self.auto_pupil = True
         JWInstrument.__init__(self, "MIRI")
-        self.pixelscale = 0.1108  # MIRI average of X and Y pixel scales. Source: SIAF PRDOPSSOC-031, 2021 April
-        self._rotation = 4.834  # V3IdlYAngle, Source: SIAF PRDOPSSOC-031
+        self.pixelscale = 0.110917  # MIRI average of X and Y pixel scales. Source: SIAF PRDOPSSOC-059, 2022 Dec
+        self._rotation = 4.83544897  # V3IdlYAngle, Source: SIAF PRDOPSSOC-059
                                 # This is rotation counterclockwise; when summed with V3PA it will yield the Y axis PA on sky
 
         self.options['pupil_shift_x'] = -0.0069 # CV3 on-orbit estimate (RPT028027) + OTIS delta from predicted (037134)
@@ -1899,8 +1909,8 @@ class NIRCam(JWInstrument):
     LONG_WAVELENGTH_MAX = 5.3 * 1e-6
 
     def __init__(self):
-        self._pixelscale_short = 0.0311  # average over both X and Y for short-wavelen channels, SIAF PRDOPSSOC-031, 2021 April
-        self._pixelscale_long = 0.0630  # average over both X and Y for long-wavelen channels, SIAF PRDOPSSOC-031, 2021 April
+        self._pixelscale_short = 0.031053  # average over both X and Y for short-wavelen channels, SIAF PRDOPSSOC-059, 2022 Dec
+        self._pixelscale_long =  0.06295   # average over both X and Y for long-wavelen channels, SIAF PRDOPSSOC-059, 2022 Dec
         self.pixelscale = self._pixelscale_short
 
         self.options['pupil_shift_x'] = 0  # Set to 0 since NIRCam FAM corrects for PM shear in flight
@@ -1917,7 +1927,6 @@ class NIRCam(JWInstrument):
         self._detector = 'NRCA1' # Must re-do this after superclass init since that sets it to None.
                                  # This is an annoying workaround to ensure all the auto-channel stuff is ok
 
-        self.pixelscale = self._pixelscale_short  # need to redo 'cause the __init__ call will reset it to zero
         self._filter = 'F200W'  # likewise need to redo
 
         self.image_mask_list = ['MASKLWB', 'MASKSWB', 'MASK210R', 'MASK335R', 'MASK430R']
@@ -1998,6 +2007,10 @@ class NIRCam(JWInstrument):
 
     @JWInstrument.aperturename.setter
     def aperturename(self, value):
+        """Set SIAF aperture name to new value, with validation.
+
+        This also updates the pixelscale to the local value for that aperture, for a small precision enhancement.
+        """
         # Explicitly update detector reference coordinates,
         # otherwise old coordinates can persist under certain circumstances
 
@@ -2041,6 +2054,13 @@ class NIRCam(JWInstrument):
             # Update DetectorGeometry class
             self._detector_geom_info = DetectorGeometry(self.siaf, self._aperturename)
             _log.info("NIRCam aperture name updated to {}".format(self._aperturename))
+
+            # Update detector pixelscale to the local pixelscale as tracked in the SIAF.
+            # Here we make the simplifying assumption of **square** pixels, which is true within 0.5%.
+            # The slight departures from this are handled in the distortion model; see distortion.py
+            self.pixelscale = (ap.XSciScale + ap.YSciScale)/2
+            _log.debug(f"Pixelscale updated to {self.pixelscale} based on average X+Y SciScale at SIAF aperture {self._aperturename}")
+
 
     @property
     def module(self):
@@ -2341,9 +2361,9 @@ class NIRSpec(JWInstrument):
 
     def __init__(self):
         JWInstrument.__init__(self, "NIRSpec")
-        self.pixelscale = 0.1043  # Average over both detectors.  SIAF PRDOPSSOC-031, 2021 April
+        self.pixelscale = 0.10435  # Average over both detectors.  SIAF PRDOPSSOC-059, 2022 Dec
         # Microshutters are 0.2x0.46 but we ignore that here.
-        self._rotation = 138.4  # Average for both detectors in SIAF PRDOPSSOC-031
+        self._rotation = 138.5  # Average for both detectors in SIAF PRDOPSSOC-059
                                 # This is rotation counterclockwise; when summed with V3PA it will yield the Y axis PA on sky
         self.filter_list.append("IFU")
         self._IFU_pixelscale = 0.1043  # same.
@@ -2476,7 +2496,7 @@ class NIRISS(JWInstrument):
     def __init__(self, auto_pupil=True):
         self.auto_pupil = auto_pupil
         JWInstrument.__init__(self, "NIRISS")
-        self.pixelscale = 0.0656  # Average of X and Y scales, SIAF PRDOPSSOC-031, 2021 April
+        self.pixelscale = 0.065657  # Average of X and Y scales, SIAF PRDOPSSOC-059, 2022 Dec
 
         self.options['pupil_shift_x'] = 0.0243  # CV3 on-orbit estimate (RPT028027) + OTIS delta from predicted (037134)
         self.options['pupil_shift_y'] = -0.0141
@@ -2604,7 +2624,7 @@ class FGS(JWInstrument):
 
     def __init__(self):
         JWInstrument.__init__(self, "FGS")
-        self.pixelscale = 0.0691  # Average of X and Y scales for both detectors, SIAF PRDOPSSOC-031, 2021 April
+        self.pixelscale = 0.068991  # Average of X and Y scales for both detectors, SIAF PRDOPSSOC-059, 2022 Dec
 
         self.options['pupil_shift_x'] = 0.0041  # CV3 on-orbit estimate (RPT028027) + OTIS delta from predicted (037134)
         self.options['pupil_shift_y'] = -0.0023
