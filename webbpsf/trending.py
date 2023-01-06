@@ -182,7 +182,7 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, do
     ----------
     opdtable : astropy.table.Table
         OPD table, retrieved from MAST. See functons in mast_wss.py
-    start_date, end_date : datetime.datetime objects
+    start_date, end_date : astropy.time.Time objects
         Start and end dates for the plot time range. Default is March 2022 to present.
     thresh : int
         threshold to filter the RMS WFE
@@ -199,8 +199,6 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, do
         start_date = astropy.time.Time('2022-07-16')
     if end_date is None:
         end_date = astropy.time.Time.now()
-
-
 
     opdtable0 = webbpsf.mast_wss.deduplicate_opd_table(opdtable)
     opdtable1 = webbpsf.mast_wss.filter_opd_table(opdtable0, start_time=start_date, end_time=end_date)
@@ -241,9 +239,8 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, do
 
     
     axes[0].plot_date(dates.plot_date, np.asarray(rmses)*1e3, 'o', ls='-', label='Sensing visit')
-
-    #ax.xaxis.set_major_locator(matplotlib.dates.WeekdayLocator(interval=1))
-    axes[0].xaxis.set_minor_locator(matplotlib.dates.DayLocator())
+    axes[0].xaxis.set_major_locator(matplotlib.dates.DayLocator(bymonthday=[1, 15]))
+    axes[0].xaxis.set_minor_locator(matplotlib.dates.DayLocator(interval=1))
     axes[0].tick_params('x', length=10)
 
     
@@ -269,7 +266,6 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, do
             if idate:
                 axes[0].plot(dates[i-1:i+1].plot_date, rms_nm[i-1:i+1]+plot_offsets, color='limegreen', lw=3, ls='-', alpha=0.5)
 
-    #plt.plot(mjdrange, interp_rmses, marker='+')
     axes[0].set_xlabel("Date")
     axes[0].set_ylabel("RMS WFE\n(OTE+NIRCam)", fontweight='bold')
     axes[0].set_title(f"Observatory WFE from {start_date.isot[0:10]} to {end_date.isot[0:10]}",
@@ -280,15 +276,16 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, do
 
     axes[0].legend()
     axes[0].tick_params(right=True, which='both', direction = 'in')
-    axes[0].minorticks_on()
-
 
     nbins=100
-
+    binwidth = 1
+    minbin = np.round( np.min(interp_rmses*1e3) - binwidth ) 
+    maxbin = np.round( np.max(interp_rmses*1e3) + binwidth)
+    
     axes[1].set_title(f"Observatory WFE Histogram from {start_date.isot[0:10]} to {end_date.isot[0:10]}",
                      fontsize=14, fontweight='bold')
 
-    axes[1].hist(interp_rmses*1e3, density=True, bins=nbins, color='#1f77b4')
+    hist_values = axes[1].hist(interp_rmses*1e3, density=True, bins=np.arange(minbin, maxbin, binwidth), align='left', color='#1f77b4', rwidth=0.95)
     axes[1].set_ylabel("Fraction of time with this WFE", fontweight='bold', color='#1f77b4')
     axes[1].set_xlabel("RMS Wavefront Error [nm]")
     axes[1].minorticks_on()
@@ -298,17 +295,21 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, do
     ax_right.set_ylabel("Cumulative fraction of time\nwith this WFE or better", color='C1', fontweight='bold')
     ax_right.minorticks_on()
 
+    xmin = 60
+    xmax = interp_rmses.max()*1e3 - 0.1
+    ymax = hist_values[0].max()
+    axes[1].set_xticks(np.arange(xmin, xmax, 1), minor=True)
+                           
+    ax_right.set_xlim(xmin, xmax)
     ax_right.set_ylim(0,1)
-    xmax =  interp_rmses.max()*1e3
-    ax_right.set_xlim(60, xmax)
-
+    
     if thresh: 
         for i in [1]:
             if thresh <= xmax:
                 axes[i].axvline(thresh, color='C2', linestyle='dashed')    
             fractime = (interp_rmses*1e3 < thresh).sum()/len(interp_rmses)
-            axes[i].text(0.75*xmax, 0.1, 
-                     f"{fractime*100:.1f}% of the time has WFE < {thresh}", color='C2',
+            axes[i].text(xmin+0.68*(xmax-xmin), 0.65*ymax, 
+                     f"{fractime*100:.1f}% of the time has \nmeasured OTE+NIRCam WFE < {thresh}", color='C2',
                     fontweight='bold', fontsize=14)    
 
 
