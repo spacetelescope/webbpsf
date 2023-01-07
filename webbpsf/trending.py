@@ -279,13 +279,13 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, do
 
     nbins=100
     binwidth = 1
-    minbin = np.round( np.min(interp_rmses*1e3) - binwidth ) 
+    minbin = np.round( np.min(interp_rmses*1e3) - binwidth) 
     maxbin = np.round( np.max(interp_rmses*1e3) + binwidth)
     
     axes[1].set_title(f"Observatory WFE Histogram from {start_date.isot[0:10]} to {end_date.isot[0:10]}",
                      fontsize=14, fontweight='bold')
 
-    hist_values = axes[1].hist(interp_rmses*1e3, density=True, bins=np.arange(minbin, maxbin, binwidth), align='left', color='#1f77b4', rwidth=0.95)
+    hist_values = axes[1].hist(interp_rmses*1e3, density=True, bins=np.arange(minbin, maxbin, binwidth), color='#1f77b4', rwidth=0.95)
     axes[1].set_ylabel("Fraction of time with this WFE", fontweight='bold', color='#1f77b4')
     axes[1].set_xlabel("RMS Wavefront Error [nm]")
     axes[1].minorticks_on()
