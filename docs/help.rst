@@ -26,7 +26,7 @@ WebbPSF includes a helper function that will return a report with information th
    pysynphot version: 0.9.6
    pyFFTW version: 0.9.2
 
-   Floating point type information for numpy.float:
+   Floating point type information for numpy.float_:
    Machine parameters for float64
    ---------------------------------------------------------------------
    precision= 15   resolution= 1.0000000000000001e-15
@@ -37,7 +37,7 @@ WebbPSF includes a helper function that will return a report with information th
    nexp  =    11   min=        -max
    ---------------------------------------------------------------------
 
-   Floating point type information for numpy.complex:
+   Floating point type information for numpy.complex_:
    Machine parameters for float64
    ---------------------------------------------------------------------
    precision= 15   resolution= 1.0000000000000001e-15

@@ -263,7 +263,7 @@ wxpython version: {wxpython}
 
 
 ***************************************************************
-Floating point type information for numpy.float:
+Floating point type information for numpy.float_:
 {finfo_float}
 Floating point type information for numpy.complex:
 {finfo_complex}
@@ -419,7 +419,7 @@ def system_diagnostic():
         pysyn=pysynphot_version,
         astropy=astropy_version,
         finfo_float=numpy.finfo(numpy.float_),
-        finfo_complex=numpy.finfo(numpy.complex),
+        finfo_complex=numpy.finfo(numpy.complex_),
         numexpr=numexpr_version,
         scipy=scipy.__version__,
         accelerate=accelerate_version,
