@@ -418,7 +418,7 @@ def system_diagnostic():
         stsyn=stsynphot_version,
         pysyn=pysynphot_version,
         astropy=astropy_version,
-        finfo_float=numpy.finfo(numpy.float),
+        finfo_float=numpy.finfo(numpy.float_),
         finfo_complex=numpy.finfo(numpy.complex),
         numexpr=numexpr_version,
         scipy=scipy.__version__,
