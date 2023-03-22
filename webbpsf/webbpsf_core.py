@@ -1141,6 +1141,10 @@ class JWInstrument(SpaceTelescopeInstrument):
         # Rewrite result variable based on output_mode set:
         SpaceTelescopeInstrument._calc_psf_format_output(self, result, options)
 
+        # Optional, add detector effects such as IPC
+        if hasattr(self, "_add_detector_effects"):
+            self._add_detector_effects(results)
+
     def interpolate_was_opd(self, array, newdim):
         """ Interpolates an input 2D  array to any given size.
 
