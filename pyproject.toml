@@ -4,7 +4,59 @@ requires = ["setuptools >= 38.0.0",
             "wheel"]
 build-backend = 'setuptools.build_meta'
 
+[project]
+name = "webbpsf"
+description = "Creates simulated point spread functions for the James Webb Space Telescope"
+authors = [{name = "Association of Universities for Research in Astronomy", email = "help@stsci.edu"}]
+license = {file = "LICENSE.md"}
+dynamic = ["version"]
+
+requires-python = ">=3.9"
+dependencies = [
+    "numpy>=1.20.0",
+    "scipy>=1.5.0",
+    "matplotlib>=3.2.0",
+    "astropy>=4.3.0",
+    "photutils>=1.0.0",
+    "poppy>=1.0.0",
+    "pysiaf>=0.19.1",
+    "synphot>=1.0.0",
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "pytest-astropy",
+]
+docs = [
+    "nbsphinx",
+    "stsci_rtd_theme",
+    "sphinx-astropy",
+    "sphinx_rtd_theme",
+    "sphinx-automodapi",
+    "sphinx-issues",
+]
+
+[project.readme]
+text = '"WebbPSF produces simulated PSFs for the James Webb Space Telescope, NASA's next flagship infrared space telescope. WebbPSF can simulate images for any of the four science instruments plus the fine guidance sensor, including both direct imaging and coronagraphic modes."'
+content-type = "text/markdown"
+
+[project.urls]
+Homepage = "http://webbpsf.readthedocs.io/"
+"Github" = "https://github.com/spacetelescope/webbpsf"
+
 [tool.pytest.ini_options]
 testpaths = [
     "webbpsf/tests",
 ]
+
+[tool.setuptools.packages]
+find = {namespaces = false}
+
+[tool.setuptools.package-data]
+"*" = ["*.fits, *.csv"]
+"webbpsf.tests" = ["data/*"]
+
+[tool.setuptools_scm]
+write_to = "webbpsf/version.py"
