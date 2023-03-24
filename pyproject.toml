@@ -22,7 +22,6 @@ dependencies = [
     "pysiaf>=0.19.1",
     "synphot>=1.0.0",
 ]
-dynamic = ["version"]
 
 [project.optional-dependencies]
 test = [
@@ -39,7 +38,7 @@ docs = [
 ]
 
 [project.readme]
-text = '"WebbPSF produces simulated PSFs for the James Webb Space Telescope, NASA's next flagship infrared space telescope. WebbPSF can simulate images for any of the four science instruments plus the fine guidance sensor, including both direct imaging and coronagraphic modes."'
+text = "WebbPSF produces simulated PSFs for the James Webb Space Telescope, NASA's next flagship infrared space telescope. WebbPSF can simulate images for any of the four science instruments plus the fine guidance sensor, including both direct imaging and coronagraphic modes."
 content-type = "text/markdown"
 
 [project.urls]
