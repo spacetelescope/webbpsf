@@ -15,7 +15,9 @@
 
 import os
 import sys
-import datetime
+from datetime import datetime
+from pathlib import Path
+import tomli
 import stsci_rtd_theme
 
 try:
@@ -25,32 +27,21 @@ except ImportError:
     sys.exit(1)
 
 # -- Project information -----------------------------------------------------
-# Get configuration information from setup.cfg
-from configparser import ConfigParser
-conf = ConfigParser()
+with open(Path(__file__).parent.parent / "pyproject.toml", "rb") as metadata_file:
+    configuration = tomli.load(metadata_file)
+    metadata = configuration['project']
+    project = metadata['name']
+    author = metadata["authors"][0]["name"]
+    copyright = f'{datetime.now().year}, {author}'
 
-conf.read([os.path.join(os.path.dirname(__file__), '..', 'setup.cfg')])
-setup_cfg = dict(conf.items('metadata'))
-
-project = setup_cfg['name']
-author = setup_cfg['author']
-copyright = '{0}, {1}'.format(
-    datetime.datetime.now().year, author)
-
-# Also read version and release from  the setup_cfg, for use throughout the
-# built documents.
-
-__import__(setup_cfg['name'])
-package = sys.modules[setup_cfg['name']]
-
-# The short X.Y version.
-try:
-    version = package.__version__.split('-', 1)[0]
-    # The full version, including alpha/beta/rc tags.
-    release = package.__version__
-except AttributeError:
-    version = 'dev'
-    release = 'dev'
+    # The short X.Y version.
+    try:
+        version = project.__version__.split('-', 1)[0]
+        # The full version, including alpha/beta/rc tags.
+        release = project.__version__
+    except AttributeError:
+        version = 'dev'
+        release = 'dev'
 
 
 # -- General configuration ---------------------------------------------------
@@ -223,20 +214,6 @@ epub_exclude_files = ['search.html']
 
 
 # -- Extension configuration -------------------------------------------------
-## -- Options for the edit_on_github extension ----------------------------------------
-
-if eval(setup_cfg.get('edit_on_github')):
-    extensions += ['astropy.sphinx.ext.edit_on_github']
-
-    versionmod = __import__(setup_cfg['name'] + '.version')
-    edit_on_github_project = setup_cfg['github_project']
-    if versionmod.version.release:
-        edit_on_github_branch = "v" + versionmod.version.version
-    else:
-        edit_on_github_branch = "stable"
-
-    edit_on_github_source_root = ""
-    edit_on_github_doc_root = "docs"
 
 # -- Resolving issue number to links in changelog -----------------------------
 # Github integration via sphinx-issues plugin
@@ -245,4 +222,4 @@ if eval(setup_cfg.get('edit_on_github')):
 # Github repo
 issues_github_path = "spacetelescope/webbpsf"
 
-github_issues_url = 'https://github.com/{0}/issues/'.format(setup_cfg['github_project'])
+github_issues_url = 'https://github.com/{0}/issues/'.format(issues_github_path)

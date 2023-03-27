@@ -48,7 +48,7 @@ Releasing new versions
 ======================
 
 If you are making a release for `poppy` at the same time as a release in WebbPSF, do that first.
-Update the dependency requirement to the new version of poppy, in ``webbpsf/setup.cfg``.
+Update the dependency requirement to the new version of poppy, in ``webbpsf/pyproject.toml`.
 
 When you are ready, proceed with the WebbPSF release as follows:
 

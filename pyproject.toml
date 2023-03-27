@@ -43,7 +43,7 @@ content-type = "text/markdown"
 
 [project.urls]
 Homepage = "http://webbpsf.readthedocs.io/"
-"Github" = "https://github.com/spacetelescope/webbpsf"
+github_project = "https://github.com/spacetelescope/webbpsf"
 
 [tool.pytest.ini_options]
 testpaths = [
