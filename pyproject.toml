@@ -74,7 +74,7 @@ addopts = "-p no:warnings"
 
 
 [tool.coverage.run]
-source = "webbpsf"
+source = ["webbpsf",]
 omit = [
     "webbpsf/conftest*",
     "webbpsf/cython_version*",
