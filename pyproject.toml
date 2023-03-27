@@ -45,11 +45,6 @@ content-type = "text/markdown"
 Homepage = "http://webbpsf.readthedocs.io/"
 github_project = "https://github.com/spacetelescope/webbpsf"
 
-[tool.pytest.ini_options]
-testpaths = [
-    "webbpsf/tests",
-]
-
 [tool.setuptools.packages]
 find = {namespaces = false}
 
@@ -62,6 +57,9 @@ write_to = "webbpsf/version.py"
 
 [tool.pytest.ini_options]
 minversion = "2.2"
+testpaths = [
+    "webbpsf/tests",
+]
 norecursedirs = [
     "build",
     "docs/_build",
