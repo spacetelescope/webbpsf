@@ -58,15 +58,15 @@ write_to = "webbpsf/version.py"
 [tool.pytest.ini_options]
 minversion = "2.2"
 testpaths = [
+    "webbpsf",
+    "docs",
     "webbpsf/tests",
 ]
 norecursedirs = [
     "build",
     "docs/_build",
 ]
-testpaths = [
-    "webbpsf",
-    "docs",
+
 astropy_header = "true"
 doctest_plus = "enabled"
 text_file_format = "rst"
@@ -102,7 +102,7 @@ exclude_lines = [
     "except ImportError",
     "raise AssertionError",
     "raise NotImplementedError",
-    "def main\(.*\):",
+    "def main(.*):",
     "pragma: py{ignore_python_version}",
 ]
 omit = [
@@ -123,5 +123,5 @@ omit = [
     "*/webbpsf/tests/*",
     "*/webbpsf/*/tests/*",
     "*/webbpsf/*/*/tests/*",
-    */webbpsf/version*",
+    "*/webbpsf/version*",
 ]
