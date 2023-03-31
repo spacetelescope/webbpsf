@@ -1,10 +1,125 @@
 [build-system]
-requires = ["setuptools >= 38.0.0",
-            "setuptools_scm >= 2.0.0",
+requires = ["setuptools >= 61.2",
+            "setuptools_scm[toml]>=3.4.3",
             "wheel"]
 build-backend = 'setuptools.build_meta'
 
+[project]
+name = "webbpsf"
+description = "Creates simulated point spread functions for the James Webb Space Telescope"
+authors = [{name = "Association of Universities for Research in Astronomy", email = "help@stsci.edu"}]
+license = {file = "LICENSE.md"}
+dynamic = ["version"]
+
+requires-python = ">=3.9"
+dependencies = [
+    "numpy>=1.20.0",
+    "scipy>=1.5.0",
+    "matplotlib>=3.2.0",
+    "astropy>=4.3.0",
+    "photutils>=1.0.0",
+    "poppy>=1.0.0",
+    "pysiaf>=0.19.1",
+    "synphot>=1.0.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "pytest-astropy",
+]
+docs = [
+    "nbsphinx",
+    "stsci_rtd_theme",
+    "sphinx-astropy",
+    "sphinx_rtd_theme",
+    "sphinx-automodapi",
+    "sphinx-issues",
+]
+
+[project.readme]
+text = "WebbPSF produces simulated PSFs for the James Webb Space Telescope, NASA's next flagship infrared space telescope. WebbPSF can simulate images for any of the four science instruments plus the fine guidance sensor, including both direct imaging and coronagraphic modes."
+content-type = "text/markdown"
+
+[project.urls]
+Homepage = "http://webbpsf.readthedocs.io/"
+github_project = "https://github.com/spacetelescope/webbpsf"
+
+[tool.setuptools.packages]
+find = {namespaces = false}
+
+[tool.setuptools.package-data]
+"*" = ["*.fits, *.csv"]
+"webbpsf.tests" = ["data/*"]
+
+[tool.setuptools_scm]
+write_to = "webbpsf/version.py"
+
 [tool.pytest.ini_options]
+minversion = "2.2"
 testpaths = [
     "webbpsf/tests",
+]
+norecursedirs = [
+    "build",
+    "docs/_build",
+]
+
+astropy_header = "true"
+doctest_plus = "enabled"
+text_file_format = "rst"
+addopts = "-p no:warnings"
+
+
+[tool.coverage.run]
+source = ["webbpsf",]
+omit = [
+    "webbpsf/conftest*",
+    "webbpsf/cython_version*",
+    "webbpsf/setup_package*",
+    "webbpsf/*/setup_package*",
+    "webbpsf/*/*/setup_package*",
+    "webbpsf/tests/*",
+    "webbpsf/*/tests/*",
+    "webbpsf/*/*/tests/*",
+    "webbpsf/version*",
+    "*/webbpsf/conftest*",
+    "*/webbpsf/cython_version*",
+    "*/webbpsf/setup_package*",
+    "*/webbpsf/*/setup_package*",
+    "*/webbpsf/*/*/setup_package*",
+    "*/webbpsf/tests/*",
+    "*/webbpsf/*/tests/*",
+    "*/webbpsf/*/*/tests/*",
+    "*/webbpsf/version*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "except ImportError",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "def main(.*):",
+    "pragma: py{ignore_python_version}",
+]
+omit = [
+    "webbpsf/conftest*",
+    "webbpsf/cython_version*",
+    "webbpsf/setup_package*",
+    "webbpsf/*/setup_package*",
+    "webbpsf/*/*/setup_package*",
+    "webbpsf/tests/*",
+    "webbpsf/*/tests/*",
+    "webbpsf/*/*/tests/*",
+    "webbpsf/version*",
+    "*/webbpsf/conftest*",
+    "*/webbpsf/cython_version*",
+    "*/webbpsf/setup_package*",
+    "*/webbpsf/*/setup_package*",
+    "*/webbpsf/*/*/setup_package*",
+    "*/webbpsf/tests/*",
+    "*/webbpsf/*/tests/*",
+    "*/webbpsf/*/*/tests/*",
+    "*/webbpsf/version*",
 ]
