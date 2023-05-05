@@ -96,7 +96,7 @@ def wavefront_time_series_plot(opdtable, start_date=None, end_date=None, ymin=0,
 
     rms_nm = np.asarray(rmses) * 1000
 
-    routine_pids = [1163, 2586, 2724, 2725, 2726]  # commissioning OTE-26 and cycle 1 maintenance
+    routine_pids = [1163, 2586, 2724, 2725, 2726, 4431]  # commissioning OTE-26 and cycle 1 maintenance
 
     is_routine = np.asarray([int(v[1:6]) in routine_pids for v in opdtable[where_pre]['visitId']])
 
@@ -136,7 +136,7 @@ def wavefront_time_series_plot(opdtable, start_date=None, end_date=None, ymin=0,
     ax.xaxis.set_minor_locator(matplotlib.dates.DayLocator())
     ax.tick_params('x', length=10)
     for tick in ax.get_xticklabels():
-        tick.set_rotation(45)
+        tick.set_rotation(75)
 
     # label events
     if label_events:
