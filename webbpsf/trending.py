@@ -880,8 +880,24 @@ def get_opdtable_for_month(year, mon):
 
     return opdtable
 
+def check_colnames(opdtable):
+    """Check for expected column names in the OPD Table
+    Parameters
+    -----------
+    opdtable: astropy.table.Table
+        Table of available OPDs
+    """
+    colnames = webbpsf.mast_wss.get_colnames(True)
+    if all(colname in colnames for colname in opdtable.colnames) is False:
+        colnames = webbpsf.mast_wss.get_colnames()
+        if all(colname in opdtable.colnames for colname in colnames) is False:
+            raise KeyError("Expected the following column names in the opdtable: " + str(colnames))
+        else:
+            opdtable = webbpsf.mast_wss.add_columns_to_track_corrections(opdtable)
+    return opdtable
 
-def monthly_trending_plot(year, month, verbose=True, instrument='NIRCam', filter='F200W', vmax=200):
+
+def monthly_trending_plot(year, month, verbose=True, instrument='NIRCam', filter='F200W', vmax=200, opdtable=None):
     """Make monthly trending plot showing OPDs, mirror moves, RMS WFE, and the resulting PSF EEs
 
     year, month : integers
@@ -890,6 +906,8 @@ def monthly_trending_plot(year, month, verbose=True, instrument='NIRCam', filter
         Print more verbose text output
     vmax : float
         Image display vmax for OPDs, given here in units of nanometers.
+    opdtable : astropy.table.Table
+        Table of available OPDs, Default None: as returned by retrieve_mast_opd_table()
     """
 
     def vprint(*text):
@@ -897,7 +915,11 @@ def monthly_trending_plot(year, month, verbose=True, instrument='NIRCam', filter
 
     # Look up wavefront sensing and mirror move corrections for that month
     start_date, end_date = get_month_start_end(year, month)
-    opdtable = get_opdtable_for_month(year, month)
+    if opdtable is None:
+        opdtable = get_opdtable_for_month(year, month)
+    else:
+        opdtable = check_colnames(opdtable)
+
     corrections_table = webbpsf.mast_wss.get_corrections(opdtable)
 
     inst = webbpsf.instrument(instrument)
