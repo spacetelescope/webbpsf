@@ -19,8 +19,8 @@ import logging
 
 from . import utils
 from . import webbpsf_core
+from . import distortion
 from .optics import _fix_zgrid_NaNs
-
 
 _log = logging.getLogger('webbpsf')
 import pprint
@@ -274,6 +274,7 @@ class RomanInstrument(webbpsf_core.SpaceTelescopeInstrument):
     telescope = "Roman"
 
     def __init__(self, *args, **kwargs):
+        print("CPL 2: RomanInstrument()")
         super().__init__(*args, **kwargs)
         self.options['jitter'] = 'gaussian'
         self.options['jitter_sigma'] = 0.012 # arcsec/axis, see https://roman.ipac.caltech.edu/sims/Param_db.html#telescope
@@ -296,19 +297,21 @@ class RomanInstrument(webbpsf_core.SpaceTelescopeInstrument):
 
         """
 
-        if add_distortion is not False or crop_psf is not False:
-            raise AttributeError('`add_distortion` and `crop_psf` still under '
-                                 'development for Roman WFI')
-            # return default values to True once implemented
+        # Save new keywords to the options dictionary
+        self.options['add_distortion'] = add_distortion
+        self.options['crop_psf'] = crop_psf
 
         # Run poppy calc_psf
+        print("CPL 4: RomanInstrument.calc_psf()", add_distortion)
         psf = webbpsf_core.SpaceTelescopeInstrument.calc_psf(self, outfile=outfile, source=source, nlambda=nlambda,
                                                 monochromatic=monochromatic, fov_arcsec=fov_arcsec,
                                                 fov_pixels=fov_pixels, oversample=oversample,
                                                 detector_oversample=detector_oversample, fft_oversample=fft_oversample,
                                                 overwrite=overwrite, display=display,
-                                                save_intermediates=save_intermediates,
+                                                save_intermediates=save_intermediates, 
                                                 return_intermediates=return_intermediates, normalize=normalize)
+
+        print("CPL 6: RomanInstrument.calc_psf() done")
 
         return psf
 
@@ -351,6 +354,54 @@ class RomanInstrument(webbpsf_core.SpaceTelescopeInstrument):
                                         'Y pixel position (for field dependent aberrations)')
         result[0].header['DETECTOR'] = (self.detector, 'Detector selected')
 
+
+    def _calc_psf_format_output(self, result, options):
+        """
+        Add distortion to the created 1-extension PSF
+
+        Apply desired formatting to output file:
+                 - rebin to detector pixel scale if desired
+                 - set up FITS extensions if desired
+                 - output either the oversampled, rebinned, or both
+        Which image(s) get output depends on the value of the options['output_mode']
+        parameter. It may be set to 'Oversampled image' to output just the oversampled image,
+        'Detector sampled image' to output just the image binned down onto detector pixels, or
+        'Both as FITS extensions' to output the oversampled image as primary HDU and the
+        rebinned image as the first image extension. For convenience, the option can be set
+        to just 'oversampled', 'detector', or 'both'.
+
+        Modifies the 'result' HDUList object.
+
+        """
+       # Pull values from options dictionary
+        add_distortion = options.get('add_distortion', True)
+        crop_psf = options.get('crop_psf', True)
+        print("CPL add dist", add_distortion)
+        
+        # Add distortion if set in calc_psf
+        if add_distortion:
+            _log.debug("Adding PSF distortion(s)")
+            
+            # Set up new extensions to add distortion to:
+            n_exts = len(result)
+            for ext in np.arange(n_exts):
+                hdu_new = fits.ImageHDU(result[ext].data, result[ext].header)  # these will be the PSFs that are edited
+                result.append(hdu_new)
+                ext_new = ext + n_exts
+                result[ext_new].header["EXTNAME"] = result[ext].header["EXTNAME"][0:4] + "DIST"  # change extension name
+                _log.debug("Appending new extension {} with EXTNAME = {}".format(ext_new, result[ext_new].header["EXTNAME"]))
+
+            _log.debug("WFI: Adding optical distortion")
+            #psf_rotated = distortion.apply_rotation(result, crop=crop_psf)  # apply rotation
+            psf_distorted = distortion.apply_distortion(result)  # apply siaf distortion model
+
+            # Edit the variable to match if input didn't request distortion
+            # (cannot set result = psf_distorted due to return method)
+            [result.append(fits.ImageHDU()) for i in np.arange(len(psf_distorted) - len(result))]
+            for ext in np.arange(len(psf_distorted)): result[ext] = psf_distorted[ext]
+
+        # Rewrite result variable based on output_mode set:
+        webbpsf_core.SpaceTelescopeInstrument._calc_psf_format_output(self, result, options)
 
 class WFIPupilController:
     """
@@ -555,6 +606,7 @@ class WFI(RomanInstrument):
     """
 
     def __init__(self):
+        print("CPL 1: WFI()")
         # pixel scale is from Roman-AFTA SDT report final version (p. 91)
         # https://roman.ipac.caltech.edu/sims/Param_db.html
         pixelscale = 110e-3 # arcsec/px
