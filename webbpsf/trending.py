@@ -880,8 +880,24 @@ def get_opdtable_for_month(year, mon):
 
     return opdtable
 
+def check_colnames(opdtable):
+    """Check for expected column names in the OPD Table
+    Parameters
+    -----------
+    opdtable: astropy.table.Table
+        Table of available OPDs
+    """
+    colnames = webbpsf.mast_wss.get_colnames(True)
+    if all(colname in colnames for colname in opdtable.colnames) is False:
+        colnames = webbpsf.mast_wss.get_colnames()
+        if all(colname in opdtable.colnames for colname in colnames) is False:
+            raise KeyError("Expected the following column names in the opdtable: " + str(colnames))
+        else:
+            opdtable = webbpsf.mast_wss.add_columns_to_track_corrections(opdtable)
+    return opdtable
 
-def monthly_trending_plot(year, month, verbose=True, instrument='NIRCam', filter='F200W', vmax=200):
+
+def monthly_trending_plot(year, month, verbose=True, instrument='NIRCam', filter='F200W', vmax=200, opdtable=None):
     """Make monthly trending plot showing OPDs, mirror moves, RMS WFE, and the resulting PSF EEs
 
     year, month : integers
@@ -890,6 +906,8 @@ def monthly_trending_plot(year, month, verbose=True, instrument='NIRCam', filter
         Print more verbose text output
     vmax : float
         Image display vmax for OPDs, given here in units of nanometers.
+    opdtable : astropy.table.Table
+        Table of available OPDs, Default None: as returned by retrieve_mast_opd_table()
     """
 
     def vprint(*text):
@@ -897,7 +915,11 @@ def monthly_trending_plot(year, month, verbose=True, instrument='NIRCam', filter
 
     # Look up wavefront sensing and mirror move corrections for that month
     start_date, end_date = get_month_start_end(year, month)
-    opdtable = get_opdtable_for_month(year, month)
+    if opdtable is None:
+        opdtable = get_opdtable_for_month(year, month)
+    else:
+        opdtable = check_colnames(opdtable)
+
     corrections_table = webbpsf.mast_wss.get_corrections(opdtable)
 
     inst = webbpsf.instrument(instrument)
@@ -1117,3 +1139,187 @@ def monthly_trending_plot(year, month, verbose=True, instrument='NIRCam', filter
                                        names=['Date', 'Filename', 'WFS Type', 'RMS WFE (OTE+SI)', 'RMS WFE (OTE only)',
                                               'EE(2.5 pix)', 'EE(10pix)'])
     return result_table
+
+
+def plot_phase_retrieval_crosscheck(fn, vmax_fraction=1.0):
+    """ Make a plot which displays the quality of the phase retrievals,
+    comparing the WSS-generated retrieved PSF with the actual measured PSF,
+    for both positive and negative defocus.
+
+    This can be used to investigate particular phase retrieval results,
+    among other things offering a quick check against the occasional
+    previously-undetected binary star which may crop up in the WFS target pool.
+
+    Parameters
+    ----------
+    fn : string
+        Filename of an OPD file retrieved from MAST.
+    vmax_fraction : float
+        Scale factor for setting the plot log scale vmax relative to the
+        image peak pixel. vmax_fraction = 1.0 sets the scale vmax to the
+        image max value, vmax_fraction = 0.1 sets it to 1/10th that, etc.
+    """
+    from skimage.registration import phase_cross_correlation
+
+    _ = webbpsf.mast_wss.mast_retrieve_opd(fn)
+
+    opd, hdul = webbpsf.trending._read_opd(fn)
+
+
+    # measured
+    wlm8_m = hdul[5].data
+    wlp8_m = hdul[10].data
+    # computed
+    wlm8_c = poppy.utils.pad_or_crop_to_shape(hdul[6].data, wlm8_m.shape)
+    wlp8_c = poppy.utils.pad_or_crop_to_shape(hdul[11].data, wlm8_m.shape)
+
+    cm = matplotlib.cm.inferno.copy()
+    cm.set_bad(cm(0))
+
+    fscale = wlm8_m.sum() / wlm8_c.sum()
+
+    norm = matplotlib.colors.LogNorm(wlm8_m.max()/1e4*vmax_fraction, wlm8_m.max()*vmax_fraction)
+
+    # Shift to register
+    shift, error, diffphase = phase_cross_correlation(wlm8_m, wlm8_c*fscale)
+    wlm8_cs = np.roll(wlm8_c, tuple(np.array(shift, int)), axis=(0,1))
+
+    shift, error, diffphase = phase_cross_correlation(wlp8_m, wlp8_c*fscale)
+    wlp8_cs = np.roll(wlp8_c, tuple(np.array(shift, int)), axis=(0,1))
+
+
+
+    plt.subplots_adjust(wspace=0.01, hspace=0.01, left=0.2, right=0.8)
+    fig, axes = plt.subplots(figsize=(16,9), ncols=3, nrows=2, gridspec_kw={'left':0.10, 'right':0.90, 'wspace':0.01,
+                                                                            'bottom':0.02, 'top':0.85})
+
+
+    axes[0,0].imshow(wlm8_m, norm=norm, cmap=cm)
+    axes[1,0].imshow(wlp8_m, norm=norm, cmap=cm)
+
+    axes[0,1].imshow(wlm8_cs*fscale, norm=norm, cmap=cm)
+    axes[1,1].imshow(wlp8_cs*fscale, norm=norm, cmap=cm)
+
+    axes[0,2].imshow(wlm8_m-wlm8_cs*fscale, norm=norm, cmap=cm)
+    axes[1,2].imshow(wlp8_m-wlp8_cs*fscale, norm=norm, cmap=cm)
+
+
+    nomask = np.ones_like(wlp8_m)
+    rmserr_m1 = webbpsf.utils.rms(wlm8_m-wlm8_c*fscale, nomask)
+    rmserr_m2 = webbpsf.utils.rms(wlp8_m-wlp8_c*fscale, nomask)
+    axes[0,2].text(10,5, f"RMS counts: {rmserr_m1:.4}", color='white', fontsize=10)
+    axes[1,2].text(10,5, f"RMS counts: {rmserr_m2:.4}", color='white', fontsize=10)
+
+
+    axes[0,0].set_ylabel("WLM8", fontsize=18)
+    axes[1,0].set_ylabel("WLP8", fontsize=18)
+    axes[0,0].set_title("Measured", fontsize=18)
+    axes[0,1].set_title("WAS PR Calc", fontsize=18)
+    axes[0,2].set_title("Difference\n(Measured - WAS PR)", fontsize=18)
+
+    fig.suptitle(f"{hdul[0].header['CORR_ID']}     {hdul[0].header['TSTAMP']}     {fn}", fontsize=18, fontweight='bold')
+
+
+    cax = plt.axes([0.92, 0.02, 0.02, 0.83])
+    plt.colorbar(mappable = axes[0,0].images[0], cax=cax, label='Surface Brightness [MJy/sr]' )
+
+    for ax in axes.flat:
+        ax.xaxis.set_ticks([])
+        ax.yaxis.set_ticks([])
+
+    return fig
+
+def plot_wfs_obs_delta(fn1, fn2, vmax_fraction=1.0):
+    """ Display comparison of two weak lens observations
+
+    This compares the actual measured WL data, not the derived wavefronts.
+    Useful for quick checks of e.g. anything odd in the data, presence of a binary, etc.
+
+    See also plot_phase_retrieval_crosscheck
+
+    Parameters
+    ----------
+    fn1, fn2 : string
+        Filenames of two OPD files retrieved from MAST.
+        (Does not need to include full path, if files were downloaded by webbpsf)
+    vmax_fraction : float
+        Scale factor for setting the plot log scale vmax relative to the
+        image peak pixel. vmax_fraction = 1.0 sets the scale vmax to the
+        image max value, vmax_fraction = 0.1 sets it to 1/10th that, etc.
+
+    """
+    from skimage.registration import phase_cross_correlation
+
+    _ = webbpsf.mast_wss.mast_retrieve_opd(fn1)
+    _ = webbpsf.mast_wss.mast_retrieve_opd(fn2)
+
+    opd, hdul1 = webbpsf.trending._read_opd(fn1)
+
+    wlm8_m1 = hdul1[5].data
+    wlp8_m1 = hdul1[10].data
+    wlm8_c1 = poppy.utils.pad_or_crop_to_shape(hdul1[6].data, wlm8_m1.shape)
+    wlp8_c1 = poppy.utils.pad_or_crop_to_shape(hdul1[11].data, wlm8_m1.shape)
+
+    opd, hdul2 = webbpsf.trending._read_opd(fn2)
+
+    wlm8_m2 = hdul2[5].data
+    wlp8_m2 = hdul2[10].data
+    wlm8_c2 = poppy.utils.pad_or_crop_to_shape(hdul2[6].data, wlm8_m2.shape)
+    wlp8_c2 = poppy.utils.pad_or_crop_to_shape(hdul2[11].data, wlm8_m2.shape)
+
+
+    cm = matplotlib.cm.inferno
+    cm.set_bad(cm(0))
+
+    fscale = wlm8_m1.sum() / wlm8_m2.sum()
+
+    norm = matplotlib.colors.LogNorm(wlm8_m1.max()/1e4*vmax_fraction, wlm8_m1.max()* vmax_fraction)
+
+    # Shift to register
+    shift, error, diffphase = phase_cross_correlation(wlm8_m1, wlm8_m2*fscale)
+    wlm8_m2s = np.roll(wlm8_m2, tuple(np.array(shift, int)), axis=(0,1))
+
+    shift, error, diffphase = phase_cross_correlation(wlp8_m1, wlp8_m2*fscale)
+    wlp8_m2s = np.roll(wlp8_m2, tuple(np.array(shift, int)), axis=(0,1))
+
+
+    plt.subplots_adjust(wspace=0.01, hspace=0.01, left=0.2, right=0.8)
+    fig, axes = plt.subplots(figsize=(16,9), ncols=3, nrows=2, gridspec_kw={'left':0.1, 'right':0.9, 'wspace':0.01,
+                                                                           'bottom':0.05, 'top':0.85})
+
+
+    axes[0,0].imshow(wlm8_m1, norm=norm, cmap=cm)
+    axes[1,0].imshow(wlp8_m1, norm=norm, cmap=cm)
+
+    axes[0,1].imshow(wlm8_m2*fscale, norm=norm, cmap=cm)
+    axes[1,1].imshow(wlp8_m2*fscale, norm=norm, cmap=cm)
+
+    axes[0,2].imshow(wlm8_m1-wlm8_m2s*fscale, norm=norm, cmap=cm)
+    axes[1,2].imshow(wlp8_m1-wlp8_m2s*fscale, norm=norm, cmap=cm)
+
+    nomask = np.ones_like(wlp8_m1)
+    rmserr_m1 = webbpsf.utils.rms(wlm8_m1-wlm8_m2s*fscale, nomask)
+    rmserr_m2 = webbpsf.utils.rms(wlp8_m1-wlp8_m2s*fscale, nomask)
+    axes[0,2].text(0,0, f"RMS counts: {rmserr_m1:.4}", color='white', fontsize=12)
+    axes[1,2].text(0,0, f"RMS counts: {rmserr_m2:.4}", color='white', fontsize=12)
+
+
+
+    axes[0,0].set_ylabel("WLM8", fontsize=18)
+    axes[1,0].set_ylabel("WLP8", fontsize=18)
+    axes[0,0].set_title(f"Measured: \n{fn1}", fontsize=18)
+    axes[0,1].set_title(f"Measured: \n{fn2}", fontsize=18)
+    axes[0,2].set_title("Difference\n ", fontsize=18)
+
+    fig.suptitle(f"{hdul1[0].header['CORR_ID']}, {hdul1[0].header['TSTAMP'][:-3]}   vs.   {hdul2[0].header['CORR_ID']},  {hdul2[0].header['TSTAMP'][:-3]}", fontsize=20, fontweight='bold')
+
+
+    cax = plt.axes([0.92, 0.02, 0.02, 0.83])
+    plt.colorbar(mappable = axes[0,0].images[0], cax=cax, label='Surface Brightness [MJy/sr]' )
+
+
+    for ax in axes.flat:
+        ax.xaxis.set_ticks([])
+        ax.yaxis.set_ticks([])
+
+    return fig
