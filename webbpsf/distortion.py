@@ -121,6 +121,9 @@ def distort_image(hdulist_or_filename, ext=0, to_frame='sci', fill_value=0,
     xsci_cen = hdu_list[ext].header["DET_X"]  # center x location in pixels ('sci')
     ysci_cen = hdu_list[ext].header["DET_Y"]  # center y location in pixels ('sci')
 
+    # Convert the PSF center point from pixels to arcseconds using pysiaf
+    xidl_cen, yidl_cen = aper.sci_to_idl(xsci_cen, ysci_cen)
+
     # ###############################################
     # Create an array of indices (in pixels) for where the PSF is located on the detector
     nx_half, ny_half = ( (nx-1)/2., (ny-1)/2. )
@@ -150,9 +153,6 @@ def distort_image(hdulist_or_filename, ext=0, to_frame='sci', fill_value=0,
         xnew = xarr / osamp_x + xnew_cen
         ynew = yarr / osamp_y + ynew_cen
     else:
-        # Convert the PSF center point from pixels to arcseconds using pysiaf
-        xidl_cen, yidl_cen = aper.sci_to_idl(xsci_cen, ysci_cen)
-
         # Get 'idl' coords
         xidl = xarr * pixelscale + xidl_cen
         yidl = yarr * pixelscale + yidl_cen
