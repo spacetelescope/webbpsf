@@ -150,8 +150,9 @@ def distort_image(hdulist_or_filename, ext=0, to_frame='sci', fill_value=0,
     elif to_frame=='sci':
         osamp_x = aper.XSciScale / pixelscale
         osamp_y = aper.YSciScale / pixelscale
-        xnew = xarr / osamp_x + xnew_cen
-        ynew = yarr / osamp_y + ynew_cen
+        osamp = (osamp_x + osamp_y) / 2
+        xnew = xarr / osamp + xnew_cen
+        ynew = yarr / osamp + ynew_cen
     else:
         # Get 'idl' coords
         xidl = xarr * pixelscale + xidl_cen
