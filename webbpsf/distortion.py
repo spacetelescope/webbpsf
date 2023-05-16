@@ -63,7 +63,7 @@ def distort_image(hdulist_or_filename, ext=0, to_frame='sci', fill_value=0,
         Value used to fill in any blank space by the skewed PSF. Default = 0.
         If set to None, values outside the domain are extrapolated.
     to_frame : str
-        Requested of output coordinate frame. 
+        Requested type of output coordinate frame. 
 
             * 'tel': arcsecs V2,V3
             * 'sci': pixels, in conventional DMS axes orientation
@@ -133,12 +133,7 @@ def distort_image(hdulist_or_filename, ext=0, to_frame='sci', fill_value=0,
 
     # ###############################################
     # Create an array of indices (in pixels) that the final data will be interpolated onto
-    if to_frame=='sci':
-        xnew_cen, ynew_cen = (xsci_cen, ysci_cen)
-    else:
-        # Choose conversion function
-        func_convert = getattr(aper, f'sci_to_{to_frame}')
-        xnew_cen, ynew_cen = func_convert(xsci_cen, ysci_cen)
+    xnew_cen, ynew_cen = aper.convert(xsci_cen, ysci_cen, 'sci', to_frame)
 
     # If new x and y values are specified, create a meshgrid
     if (xnew_coords is not None) and (ynew_coords is not None):
@@ -179,12 +174,7 @@ def distort_image(hdulist_or_filename, ext=0, to_frame='sci', fill_value=0,
         ynew += ynew_cen - np.median(ynew)
     
     # Convert requested coordinates to 'idl' coordinates
-    if to_frame=='idl':
-        xnew_idl, ynew_idl = (xnew, ynew)
-    else:
-        # Choose conversion function
-        func_convert = getattr(aper, f'{to_frame}_to_idl')
-        xnew_idl, ynew_idl = func_convert(xnew, ynew)
+    xnew_idl, ynew_idl = aper.convert(xnew, ynew, to_frame, 'idl')
 
     # ###############################################
     # Interpolate using Regular Grid Interpolator
