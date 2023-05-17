@@ -350,22 +350,6 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         for key in self._extra_keywords:
             result[0].header[key] = self._extra_keywords[key]
 
-    def _calc_psf_format_output(self, result, options):
-        """ Apply desired formatting to output file:
-                 - rebin to detector pixel scale if desired
-                 - set up FITS extensions if desired
-                 - output either the oversampled, rebinned, or both
-
-            Modifies the 'result' HDUList object.
-        """
-        output_mode = options.get('output_mode', conf.default_output_mode)
-
-        if output_mode == 'Mock JWST DMS Output':  # TODO:jlong: move out to JWInstrument
-            # first rebin down to detector sampling
-            # then call mockdms routines to embed in larger detector etc
-            raise NotImplementedError('Not implemented yet')
-        else:
-            poppy.Instrument._calc_psf_format_output(self, result, options)
 
     def get_optical_system(self, fft_oversample=2, detector_oversample=None,
                             fov_arcsec=2, fov_pixels=None, options=None):
