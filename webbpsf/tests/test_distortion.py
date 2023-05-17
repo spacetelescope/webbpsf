@@ -281,3 +281,19 @@ def test_miri_conservation_energy():
         assert pytest.approx(psf_sum, 0.005) == psf_cross_sum, "The energy conversation of the PSF before/after the " \
                                                                "scattering is added is greater than the tolerance of " \
                                                                "0.005"
+
+def test_distortion_with_custom_pixscale():
+    """ Verifies the distortion model works properly even if the pixel scale is changed to
+    a nonstandard value for the calculation. This tests/verifies the fix in PR 669:
+        https://github.com/spacetelescope/webbpsf/pull/669
+    """
+
+    miri = webbpsf_core.MIRI()
+    miri.pixelscale = 0.061
+    psf = miri.calc_psf(fov_arcsec=2)
+
+    # A symptom of the prior bug was the total sum of a distorted PSF would be very
+    # discrepant from the sum of the undistorted PSF. So verif that symptom is not the case:
+
+    assert np.isclose(psf[0].data.sum(), psf[3].data.sum(), rtol=0.001)
+    assert np.isclose(psf[1].data.sum(), psf[3].data.sum(), rtol=0.001)
