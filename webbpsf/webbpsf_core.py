@@ -38,6 +38,7 @@ from . import conf
 from . import utils
 from . import optics
 from . import DATA_VERSION_MIN
+from . import detectors
 from . import distortion
 from . import gridded_library
 from . import opds
@@ -1101,12 +1102,13 @@ class JWInstrument(SpaceTelescopeInstrument):
                 result[ext_new].header["EXTNAME"] = result[ext].header["EXTNAME"][0:4] + "DIST"  # change extension name
                 _log.debug("Appending new extension {} with EXTNAME = {}".format(ext_new, result[ext_new].header["EXTNAME"]))
 
-            # Apply distortions based on the instrument
+            # Apply optical geometric distortions and detector systematic effects based on the instrument
             if self.name in ["NIRCam", "NIRISS", "FGS"]:
                 # Apply distortion effects: Rotation and optical distortion
                 _log.debug("NIRCam/NIRISS/FGS: Adding rotation and optical distortion")
                 psf_rotated = distortion.apply_rotation(result, crop=crop_psf)  # apply rotation
-                psf_distorted = distortion.apply_distortion(psf_rotated)  # apply siaf distortion model
+                psf_siaf_distorted = distortion.apply_distortion(psf_rotated)  # apply siaf distortion model
+                psf_distorted = detectors.apply_h2rg_charge_diffusion(psf_siaf_distorted, options)  # apply detector charge transfer model
             elif self.name == "MIRI":
                 # Apply distortion effects to MIRI psf: Distortion and MIRI Scattering
                 _log.debug("MIRI: Adding optical distortion and Si:As detector internal scattering")
@@ -1114,6 +1116,7 @@ class JWInstrument(SpaceTelescopeInstrument):
                 psf_distorted = distortion.apply_miri_scattering(psf_siaf)  # apply scattering effect
             elif self.name == "NIRSpec":
                 # Apply distortion effects to NIRSpec psf: Distortion only
+                # (because applying detector effects would only make sense after simulating spectral dispersion)
                 _log.debug("NIRSpec: Adding optical distortion")
                 psf_distorted = distortion.apply_distortion(result)  # apply siaf distortion model
 
@@ -1122,12 +1125,8 @@ class JWInstrument(SpaceTelescopeInstrument):
             [result.append(fits.ImageHDU()) for i in np.arange(len(psf_distorted) - len(result))]
             for ext in np.arange(len(psf_distorted)): result[ext] = psf_distorted[ext]
 
-        # Rewrite result variable based on output_mode set:
+        # Rewrite result variable based on output_mode; this includes binning down to detector sampling.
         SpaceTelescopeInstrument._calc_psf_format_output(self, result, options)
-
-        # Optional, add detector effects such as IPC
-        if hasattr(self, "_add_detector_effects"):
-            self._add_detector_effects(results)
 
     def interpolate_was_opd(self, array, newdim):
         """ Interpolates an input 2D  array to any given size.
