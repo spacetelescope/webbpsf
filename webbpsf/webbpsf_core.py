@@ -720,13 +720,6 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         else:
             psf_location = self.detector_position[::-1]  # (y,x)
 
-        # add_distortion keyword is not implemented for WFI Class
-        if self.name == "WFI" and "add_distortion" not in kwargs:
-            kwargs["add_distortion"] = False
-        elif self.name == "WFI" and kwargs["add_distortion"] == True:
-            raise NotImplementedError("Geometric distortions are not implemented in WebbPSF for WFI Instrument. "
-                                      "The add_distortion keyword must be set to False for this case.")
-
         # Call CreatePSFLibrary class
         inst = gridded_library.CreatePSFLibrary(instrument=self, filter_name=filt, detectors=detectors,
                                                 num_psfs=num_psfs, psf_location=psf_location,

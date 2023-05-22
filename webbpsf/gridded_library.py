@@ -131,8 +131,7 @@ class CreatePSFLibrary:
         # Set PSF attributes for the 3 kwargs that will be used before the calc_psf() call
         if "add_distortion" in kwargs:
             self.add_distortion = kwargs["add_distortion"]
-            if self.webb.name == "WFI":
-                del kwargs["add_distortion"]
+
         else:
             self.add_distortion = True
             kwargs["add_distortion"] = self.add_distortion
