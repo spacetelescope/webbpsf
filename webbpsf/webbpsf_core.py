@@ -171,7 +171,6 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         return self._filters[filtername].default_nlambda
 
     def __init__(self, name="", pixelscale=0.064):
-        print("CPL 3: SpaceTelescopeInstrument()")
         self.name = name
 
         self._WebbPSF_basepath, self._data_version = utils.get_webbpsf_data_path(
@@ -1083,7 +1082,6 @@ class JWInstrument(SpaceTelescopeInstrument):
 
             # Set up new extensions to add distortion to:
             n_exts = len(result)
-            print("CPL n_exts:", n_exts)
             for ext in np.arange(n_exts):
                 hdu_new = fits.ImageHDU(result[ext].data, result[ext].header)  # these will be the PSFs that are edited
                 result.append(hdu_new)

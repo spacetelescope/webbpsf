@@ -274,7 +274,6 @@ class RomanInstrument(webbpsf_core.SpaceTelescopeInstrument):
     telescope = "Roman"
 
     def __init__(self, *args, **kwargs):
-        print("CPL 2: RomanInstrument()")
         super().__init__(*args, **kwargs)
         self.options['jitter'] = 'gaussian'
         self.options['jitter_sigma'] = 0.012 # arcsec/axis, see https://roman.ipac.caltech.edu/sims/Param_db.html#telescope
@@ -302,7 +301,6 @@ class RomanInstrument(webbpsf_core.SpaceTelescopeInstrument):
         self.options['crop_psf'] = crop_psf
 
         # Run poppy calc_psf
-        print("CPL 4: RomanInstrument.calc_psf()", add_distortion)
         psf = webbpsf_core.SpaceTelescopeInstrument.calc_psf(self, outfile=outfile, source=source, nlambda=nlambda,
                                                 monochromatic=monochromatic, fov_arcsec=fov_arcsec,
                                                 fov_pixels=fov_pixels, oversample=oversample,
@@ -311,7 +309,6 @@ class RomanInstrument(webbpsf_core.SpaceTelescopeInstrument):
                                                 save_intermediates=save_intermediates, 
                                                 return_intermediates=return_intermediates, normalize=normalize)
 
-        print("CPL 6: RomanInstrument.calc_psf() done")
 
         return psf
 
@@ -376,8 +373,6 @@ class RomanInstrument(webbpsf_core.SpaceTelescopeInstrument):
        # Pull values from options dictionary
         add_distortion = options.get('add_distortion', True)
         crop_psf = options.get('crop_psf', True)
-        print("CPL add dist", add_distortion)
-        
         # Add distortion if set in calc_psf
         if add_distortion:
             _log.debug("Adding PSF distortion(s)")
@@ -606,7 +601,6 @@ class WFI(RomanInstrument):
     """
 
     def __init__(self):
-        print("CPL 1: WFI()")
         # pixel scale is from Roman-AFTA SDT report final version (p. 91)
         # https://roman.ipac.caltech.edu/sims/Param_db.html
         pixelscale = 110e-3 # arcsec/px
