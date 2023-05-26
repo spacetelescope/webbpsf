@@ -144,7 +144,6 @@ def distort_image(hdulist_or_filename, ext=0, to_frame='sci', fill_value=0,
     xidl_cen, yidl_cen = aper.sci_to_idl(xsci_cen, ysci_cen)
 
     # Get 'idl' coords
-    # CPL: Here, we go from pixel to angle units. No distortion yet.
     xidl = xarr * pixelscale + xidl_cen
     yidl = yarr * pixelscale + yidl_cen
 
@@ -183,12 +182,10 @@ def distort_image(hdulist_or_filename, ext=0, to_frame='sci', fill_value=0,
         ynew += ynew_cen - np.median(ynew)
     
     # Convert requested coordinates to 'idl' coordinates
-    # CPL: This is where the distortion gets added
     xnew_idl, ynew_idl = aper.convert(xnew, ynew, to_frame, 'idl')
 
     # ###############################################
     # Interpolate using Regular Grid Interpolator
-    # CPL: Go to angle space:
     xvals = xlin * pixelscale + xidl_cen
     yvals = ylin * pixelscale + yidl_cen
     func = RegularGridInterpolator((yvals,xvals), hdu_list[ext].data, method='linear', 
