@@ -947,6 +947,13 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         # Only update if new value is different
         if self._aperturename != value:
+            # First, check some info from current settings, wich we will use below as part of auto pixelscale code
+            # The point is to check if the pixel scale is set to a custom or default value,
+            # and if it's custom then don't override that.
+            # Note, check self._aperturename first to account for the edge case when this is called from __init__ before _aperturename is set
+            has_custom_pixelscale = self._aperturename and (self.pixelscale != self._get_pixelscale_from_apername(self._aperturename))
+
+            # Now apply changes:
             self._aperturename = value
             # Update detector reference coordinates
             self.detector_position = (ap.XSciRef, ap.YSciRef)
@@ -955,12 +962,9 @@ class JWInstrument(SpaceTelescopeInstrument):
             self._detector_geom_info = DetectorGeometry(self.siaf, self._aperturename)
             _log.info(f"{self.name} SIAF aperture name updated to {self._aperturename}")
 
-            # Update detector pixelscale to the local pixelscale as tracked in the SIAF.
-            # Here we make the simplifying assumption of **square** pixels, which is true within 0.5%.
-            # The slight departures from this are handled in the distortion model; see distortion.py
-            self.pixelscale = (ap.XSciScale + ap.YSciScale)/2
-            _log.debug(f"Pixelscale updated to {self.pixelscale} based on average X+Y SciScale at SIAF aperture {self._aperturename}")
-
+            if not has_custom_pixelscale:
+                self.pixelscale = self._get_pixelscale_from_apername(self._aperturename)
+                _log.debug(f"Pixelscale updated to {self.pixelscale} based on average X+Y SciScale at SIAF aperture {self._aperturename}")
 
 
     def _tel_coords(self):
@@ -1012,6 +1016,13 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         except KeyError:
             raise ValueError("Not a valid aperture name for {}: {}".format(self.name, aperture_name))
+
+    def _get_pixelscale_from_apername(self, apername):
+        """Simple utility function to look up pixelscale from apername"""
+        ap = self.siaf[apername]
+        # Here we make the simplifying assumption of **square** pixels, which is true within 0.5%.
+        # The slight departures from this are handled in the distortion model; see distortion.py
+        return (ap.XSciScale + ap.YSciScale) / 2
 
     def _get_fits_header(self, result, options):
         """ populate FITS Header keywords """
@@ -1638,7 +1649,7 @@ class MIRI(JWInstrument):
     def __init__(self):
         self.auto_pupil = True
         JWInstrument.__init__(self, "MIRI")
-        self.pixelscale = 0.110917  # MIRI average of X and Y pixel scales. Source: SIAF PRDOPSSOC-059, 2022 Dec
+        self.pixelscale =  self._get_pixelscale_from_apername('MIRIM_FULL')
         self._rotation = 4.83544897  # V3IdlYAngle, Source: SIAF PRDOPSSOC-059
                                 # This is rotation counterclockwise; when summed with V3PA it will yield the Y axis PA on sky
 
@@ -1909,25 +1920,24 @@ class NIRCam(JWInstrument):
     LONG_WAVELENGTH_MAX = 5.3 * 1e-6
 
     def __init__(self):
-        self._pixelscale_short = 0.031053  # average over both X and Y for short-wavelen channels, SIAF PRDOPSSOC-059, 2022 Dec
-        self._pixelscale_long =  0.06295   # average over both X and Y for long-wavelen channels, SIAF PRDOPSSOC-059, 2022 Dec
+        # need to set up a bunch of stuff here before calling superclass __init__
+        # so the overridden filter setter will not have errors when called from __init__
+        self.auto_channel = False
+        self.auto_aperturename = False
+        JWInstrument.__init__(self, "NIRCam")
+
+        self._pixelscale_short = self._get_pixelscale_from_apername('NRCA1_FULL')
+        self._pixelscale_long = self._get_pixelscale_from_apername('NRCA5_FULL')
         self.pixelscale = self._pixelscale_short
 
         self.options['pupil_shift_x'] = 0  # Set to 0 since NIRCam FAM corrects for PM shear in flight
         self.options['pupil_shift_y'] = 0
 
-        # need to set up a bunch of stuff here before calling superclass __init__
-        # so the overridden filter setter will work successfully inside that.
+        # Enable the auto behaviours by default (after superclass __init__)
         self.auto_channel = True
         self.auto_aperturename = True
         self._filter = 'F200W'
         self._detector = 'NRCA1'
-
-        JWInstrument.__init__(self, "NIRCam")  # do this after setting the long & short scales.
-        self._detector = 'NRCA1' # Must re-do this after superclass init since that sets it to None.
-                                 # This is an annoying workaround to ensure all the auto-channel stuff is ok
-
-        self._filter = 'F200W'  # likewise need to redo
 
         self.image_mask_list = ['MASKLWB', 'MASKSWB', 'MASK210R', 'MASK335R', 'MASK430R']
         self._image_mask_apertures = {'MASKLWB': 'NRCA5_MASKLWB',
@@ -2040,6 +2050,13 @@ class NIRCam(JWInstrument):
 
         # Only update if new value is different
         if self._aperturename != value:
+            # First, check some info from current settings, wich we will use below as part of auto pixelscale code
+            # The point is to check if the pixel scale is set to a custom or default value,
+            # and if it's custom then don't override that.
+            # Note, check self._aperturename first to account for the edge case when this is called from __init__ before _aperturename is set
+            has_custom_pixelscale = self._aperturename and (self.pixelscale != self._get_pixelscale_from_apername(self._aperturename))
+
+            # Now apply changes:
             self._aperturename = value
             # Update detector reference coordinates
             self.detector_position = (ap.XSciRef, ap.YSciRef)
@@ -2055,11 +2072,9 @@ class NIRCam(JWInstrument):
             self._detector_geom_info = DetectorGeometry(self.siaf, self._aperturename)
             _log.info("NIRCam aperture name updated to {}".format(self._aperturename))
 
-            # Update detector pixelscale to the local pixelscale as tracked in the SIAF.
-            # Here we make the simplifying assumption of **square** pixels, which is true within 0.5%.
-            # The slight departures from this are handled in the distortion model; see distortion.py
-            self.pixelscale = (ap.XSciScale + ap.YSciScale)/2
-            _log.debug(f"Pixelscale updated to {self.pixelscale} based on average X+Y SciScale at SIAF aperture {self._aperturename}")
+            if not has_custom_pixelscale:
+                self.pixelscale = self._get_pixelscale_from_apername(self._aperturename)
+                _log.debug(f"Pixelscale updated to {self.pixelscale} based on average X+Y SciScale at SIAF aperture {self._aperturename}")
 
 
     @property
