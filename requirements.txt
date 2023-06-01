@@ -1,5 +1,5 @@
 astropy==5.2.1
-ipython==8.11.0
+ipython==8.13.2
 matplotlib==3.7.0
 numpy==1.24.2
 photutils==1.6.0
