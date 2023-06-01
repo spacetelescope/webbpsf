@@ -1108,7 +1108,7 @@ class JWInstrument(SpaceTelescopeInstrument):
                 _log.debug("NIRCam/NIRISS/FGS: Adding rotation and optical distortion")
                 psf_rotated = distortion.apply_rotation(result, crop=crop_psf)  # apply rotation
                 psf_siaf_distorted = distortion.apply_distortion(psf_rotated)  # apply siaf distortion model
-                psf_distorted = detectors.apply_h2rg_charge_diffusion(psf_siaf_distorted, options)  # apply detector charge transfer model
+                psf_distorted = detectors.apply_detector_charge_diffusion(psf_siaf_distorted, options)  # apply detector charge transfer model
             elif self.name == "MIRI":
                 # Apply distortion effects to MIRI psf: Distortion and MIRI Scattering
                 _log.debug("MIRI: Adding optical distortion and Si:As detector internal scattering")
@@ -1127,6 +1127,8 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         # Rewrite result variable based on output_mode; this includes binning down to detector sampling.
         SpaceTelescopeInstrument._calc_psf_format_output(self, result, options)
+
+        result = detectors.apply_detector_ipc(result, options)  # apply detector IPC model (after binning to detector sampling)
 
     def interpolate_was_opd(self, array, newdim):
         """ Interpolates an input 2D  array to any given size.

@@ -243,3 +243,17 @@ JWST_CIRCUMSCRIBED_DIAMETER = 6.603464  # meters. Outer corners of B segments
 JWST_INSCRIBED_DIAMETER = 5.47334  # meters. Middle corners of C segments
 
 JWST_TYPICAL_LOS_JITTER_PER_AXIS = 0.0008 # milliarcseconds jitter, 1 sigma per axis. = approx 1 mas rms radial, typically
+
+
+# ad hoc, highly simplified models for charge diffusion within detectors
+# These values are PLACEHOLDERS and should be updated based on comparisons with data and ePSFs (ongoing)
+# Note, these are parameterized as arcseconds for convenience (and consistency with the jitter paramater)
+# but the underlying physics cares more about detector pixel pitch.
+INSTRUMENT_DETECTOR_CHARGE_DIFFUSION_DEFAULT_PARAMETERS = {
+    'NIRCAM_SW': 0.012,     # Fit by Marcio to WFS TA ePSFs
+    'NIRCAM_LW': 0.024,     # Scaled up by pixel pitch
+    'NIRISS': 0.024,
+    'FGS': 0.024,
+    'NIRSPEC': 0.036,
+    'MIRI': 0.070,          # Based on user reports, see issue #674
+}
