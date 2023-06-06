@@ -1179,6 +1179,10 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         """
 
+        if not self.pupil_mask:
+            # if there is no pupil stop mask, these have no effect, so no need to do anything more to find values
+            return 0,0,None
+
         if not lookup_key:
             lookup_key = self.name + "_" + self.pupil_mask
 
