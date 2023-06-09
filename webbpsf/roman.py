@@ -619,12 +619,8 @@ class WFI(RomanInstrument):
         self.pupil_mask_list = list(self._pupil_controller.pupil_file_formatters.keys())
 
         # Define default aberration files for WFI modes
-        print("="*50)
-        print(" WARNING: USING TEST CYCLE 9 DATAFILE")
-        print("="*50)
         self._aberration_files = {
-            #'imaging': os.path.join(self._datapath, 'wim_zernikes_cycle9.csv'),
-            'imaging': '/Users/lajoie/Roman/TEST_CYCLE9.csv',
+            'imaging': os.path.join(self._datapath, 'wim_zernikes_cycle9.csv'),
             'prism': os.path.join(self._datapath,
                                   'wsm_prism_zernikes_cycle9.csv'),
             'grism': os.path.join(self._datapath,
