@@ -20,7 +20,7 @@ def _read_opd(filename):
     """Trivial utilty function to read OPD from a WSS-output FITS file"""
     full_file_path = os.path.join(webbpsf.utils.get_webbpsf_data_path(), 'MAST_JWST_WSS_OPDs', filename)
     opdhdu = fits.open(full_file_path)
-    opd = opdhdu[1].data
+    opd = opdhdu[1].data.copy()
     return opd, opdhdu
 
 def get_datetime_utc(opdhdul, return_as='string'):
@@ -500,6 +500,19 @@ def single_measurement_trending_plot(opdtable, row_index=-1, reference=None, ver
         delta_opd2 = opd - ref_opd
 
     fit2, coeffs = webbpsf.opds.decompose_opd_segment_PTT(delta_opd2)
+
+
+    # If we have info on the WAS' suggested corrections, we can plot that too.
+
+    if 'EXPECTED' in opdhdu:
+        show_correction = True
+        correction = opdhdu['EXPECTED'].data - opdhdu['RESULT_PHASE'].data
+        correction_mask = np.ones_like(correction, float)
+        correction[correction==0] = np.nan
+    else:
+        show_correction = False
+
+
     ############## Plotting
     # Plot setup
     # fig, axes = plt.subplots(figsize=(8.5,11), nrows=3, ncols=4)
@@ -587,8 +600,17 @@ def single_measurement_trending_plot(opdtable, row_index=-1, reference=None, ver
 
     # Panel 3-3: proposed correction
     iax = axes[2, 2]
-    show_opd_image(fit2, ax=iax, vmax=vmax, mask=mask, fontsize=fontsize)
-    iax.set_title(f"Controllable Modes\nin difference", fontsize=fontsize*1.1)
+
+    if show_correction:
+        show_opd_image(-correction, ax=iax, vmax=vmax, mask=correction_mask, fontsize=fontsize)
+        iax.set_title(f"Controllable modes\nfrom WSS proposed correction", fontsize=fontsize*1.1)
+
+#        show_opd_image(fit2, ax=axes[2,3], vmax=vmax, mask=mask, fontsize=fontsize)
+
+
+    else:
+        show_opd_image(fit2, ax=iax, vmax=vmax, mask=mask, fontsize=fontsize)
+        iax.set_title(f"Controllable Modes\nin difference", fontsize=fontsize*1.1)
 
     # Panel 3-4:
     iax = axes[2, 3]
