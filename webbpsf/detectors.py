@@ -33,8 +33,8 @@ def apply_detector_charge_diffusion(psf_hdulist, options):
 
     webbpsf.webbpsf_core._log.info("Detector charge diffusion: Convolving with Gaussian with sigma={0:.3f} arcsec".format(sigma))
     out = scipy.ndimage.gaussian_filter(psf_hdulist[ext].data, sigma / psf_hdulist[0].header['PIXELSCL'])
-    psf_hdulist[0].header['CHDFTYPE'] = ('gaussian', 'Type of detector charge diffusion model')
-    psf_hdulist[0].header['CHDFSIGM'] = (sigma, '[arcsec] Gaussian sigma for charge diff model')
+    psf_hdulist[ext].header['CHDFTYPE'] = ('gaussian', 'Type of detector charge diffusion model')
+    psf_hdulist[ext].header['CHDFSIGM'] = (sigma, '[arcsec] Gaussian sigma for charge diff model')
     psf_hdulist[ext].data = out
 
     return psf_hdulist
