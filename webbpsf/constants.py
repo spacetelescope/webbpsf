@@ -257,3 +257,10 @@ INSTRUMENT_DETECTOR_CHARGE_DIFFUSION_DEFAULT_PARAMETERS = {
     'NIRSPEC': 0.036,
     'MIRI': 0.070,          # Based on user reports, see issue #674
 }
+# add Interpixel capacitance (IPC) effects. These are the parameters for each detector kernel
+# For NIRCam see, Moore, A.C., Ninkov, Z., Forrest, W.J., 2006, Optical Engineering, 45, 7
+# NIRISS has different kernels provided by Kevin Volk, see detectors.apply_detector_ipc for details
+INSTRUMENT_IPC_DEFAULT_KERNEL_PARAMETERS = {
+    'NIRCAM': 0.0065,     #
+    'MIRI': (0.033, 0.024, 0.013),          # Based on JWST-STScI-002925 by Mike Engesser
+}

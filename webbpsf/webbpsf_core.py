@@ -1125,10 +1125,14 @@ class JWInstrument(SpaceTelescopeInstrument):
             [result.append(fits.ImageHDU()) for i in np.arange(len(psf_distorted) - len(result))]
             for ext in np.arange(len(psf_distorted)): result[ext] = psf_distorted[ext]
 
+
         # Rewrite result variable based on output_mode; this includes binning down to detector sampling.
         SpaceTelescopeInstrument._calc_psf_format_output(self, result, options)
+        #you can turn 0n/off IPC corrections via the add_ipc option, default True.
+        add_ipc = options.get('add_ipc', True)
+        if add_ipc:
+            result = detectors.apply_detector_ipc(result)  # apply detector IPC model (after binning to detector sampling)
 
-        result = detectors.apply_detector_ipc(result, options)  # apply detector IPC model (after binning to detector sampling)
 
     def interpolate_was_opd(self, array, newdim):
         """ Interpolates an input 2D  array to any given size.
