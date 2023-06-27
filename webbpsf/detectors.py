@@ -10,12 +10,12 @@ from astropy.io import fits
 
 def apply_detector_ipc(psf_hdulist):
     """Apply a model for interpixel capacitance
-    NIRCam: constant kernel approximation with a coupling coefficient = 0.0065
-    This is following the default value used pyNRC by Jarron Leisenring.
-    This is also consistent with the NIRCam documentation
-    https://jwst-docs.stsci.edu/jwst-near-infrared-camera/nircam-instrumentation/nircam-detector-overview/nircam-detector-performance
+    NIRCam: IPC and PPC values derived during ground I&T, primarily ISIM-CV3 from Jarron Leisenring
+    these IPC/PPC kernels will be update it after flight values are available.
+    For NIRCam only PPC effects are also included, these are relatively small compared to the IPC contribution
     MIRI: Convolution kernels from JWST-STScI-002925 by Mike Engesser
     NIRISS: Convolution kernels and base code provided by Kevin Volk
+    The IPC kernel files are derived from IPC measurements made from NIRISS commissioning dark ramps by Chris Willott.
 
     For NIRISS the user needs to have the right kernels under $WEBBPSF_PATH/NIRISS/IPC/
     These kernels should be available with webbpsf data > Version 1.1.1
@@ -27,17 +27,34 @@ def apply_detector_ipc(psf_hdulist):
 
     inst = psf_hdulist[0].header['INSTRUME'].upper()
     if inst =='NIRCAM':
+
+
+
+        det2sca = {
+            'NRCA1': '481', 'NRCA2': '482', 'NRCA3': '483', 'NRCA4': '484', 'NRCA5': '485',
+            'NRCB1': '486', 'NRCB2': '487', 'NRCB3': '488', 'NRCB4': '489', 'NRCB5': '490',
+        }
+
         webbpsf.webbpsf_core._log.info("Detector IPC: NIRCam (added)")
-        a = webbpsf.constants.INSTRUMENT_IPC_DEFAULT_KERNEL_PARAMETERS[inst]
-        webbpsf.webbpsf_core._log.info("Detector IPC: NIRCam, coupling coefficient = {0:.4f}".format(a))
-        array = np.array([[0, a, 0], [a, 1 - 4 * a, a], [0, a, 0]])
-        kernel = CustomKernel(array)
-        # apply to DET_DIST
         ext = 'DET_DIST'
-        out  = convolve(psf_hdulist[ext].data, kernel)
+        det = psf_hdulist[ext].header['DET_NAME'] #detector name
+        # IPC effect
+        # read the SCA extension for the detector
+        sca_path = os.path.join(utils.get_webbpsf_data_path(), 'NIRCam', 'IPC', 'KERNEL_IPC_CUBE.fits')
+        kernel = CustomKernel(fits.open(sca_path)[det2sca[det]].data[0]) # we read the first slide in the cube
+        # apply to DET_DIST
+        out_ipc  = convolve(psf_hdulist[ext].data, kernel)
+
+        # PPC effect
+        # read the SCA extension for the detector
+        sca_path = os.path.join(utils.get_webbpsf_data_path(), 'NIRCam', 'IPC', 'KERNEL_PPC_CUBE.fits')
+        kernel = CustomKernel(fits.open(sca_path)[det2sca[det]].data[0])  # we read the first slide in the cube
+        # apply to DET_DIST after IPC effect
+        out_ipc_ppc = convolve(out_ipc, kernel)
+
         psf_hdulist[ext].header['IPCINST'] = ('NIRCam', 'Interpixel capacitance (IPC)')
-        psf_hdulist[ext].header['IPCTYPA'] = (a, 'coupling coefficient')
-        psf_hdulist[ext].data = out
+        psf_hdulist[ext].header['IPCTYPA'] = (det2sca[det], 'Post-Pixel Coupling (PPC)')
+        psf_hdulist[ext].data = out_ipc_ppc
 
     if inst =='MIRI':
         a = webbpsf.constants.INSTRUMENT_IPC_DEFAULT_KERNEL_PARAMETERS[inst]
