@@ -5,7 +5,7 @@ Developer Notes: Releasing a new version of WebbPSF
 Prerequisites
 =============
 
- * Is the `develop` build `passing on Travis? <https://travis-ci.org/spacetelescope/webbpsf>`_ with all desired release items included?
+ * Is the `develop` build `passing on Github Actions? <https://github.com/spacetelescope/webbpsf/actions>`_ with all desired release items included?
 
 Releasing new data packages
 ===========================
@@ -52,7 +52,7 @@ Update the dependency requirement to the new version of poppy, in ``webbpsf/pypr
 
 When you are ready, proceed with the WebbPSF release as follows:
 
-#. Get the `develop` branch into the state that you want, including all PRs merged, updated release notes. This includes all tests passing both locally and on Travis.
+#. Get the `develop` branch into the state that you want, including all PRs merged, updated release notes. This includes all tests passing both locally and on GitHub Actions.
 #. Tag the commit with `v<version>`, being sure to sign the tag with the `-s` option.
    * ``git tag -s v<version> -m "Release v<version>"``
 
