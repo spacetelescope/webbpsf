@@ -387,7 +387,6 @@ class RomanInstrument(webbpsf_core.SpaceTelescopeInstrument):
                 _log.debug("Appending new extension {} with EXTNAME = {}".format(ext_new, result[ext_new].header["EXTNAME"]))
 
             _log.debug("WFI: Adding optical distortion")
-            #psf_rotated = distortion.apply_rotation(result, crop=crop_psf)  # apply rotation
             psf_distorted = distortion.apply_distortion(result)  # apply siaf distortion model
 
             # Edit the variable to match if input didn't request distortion
