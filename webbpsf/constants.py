@@ -250,15 +250,16 @@ JWST_TYPICAL_LOS_JITTER_PER_AXIS = 0.0008 # milliarcseconds jitter, 1 sigma per 
 # Note, these are parameterized as arcseconds for convenience (and consistency with the jitter paramater)
 # but the underlying physics cares more about detector pixel pitch.
 INSTRUMENT_DETECTOR_CHARGE_DIFFUSION_DEFAULT_PARAMETERS = {
-    'NIRCAM_SW': 0.012,     # Fit by Marcio to WFS TA ePSFs
-    'NIRCAM_LW': 0.024,     # Scaled up by pixel pitch
-    'NIRISS': 0.024,
-    'FGS': 0.024,
+    'NIRCAM_SW': 0.006,     # Fit by Marcio to WFS TA ePSFs
+    'NIRCAM_LW': 0.012,     # Scaled up by pixel pitch
+    'NIRISS': 0.028,         # Fit by Marcio to MIMF-3 F158M (ePSF)
+    'FGS': 0.07,            # Fit by Marcio to FGS_ID images
     'NIRSPEC': 0.036,
-    'MIRI': 0.070,          # Based on user reports, see issue #674
+    'MIRI': 0.05,          # Fit by Marcio to F560W ePSF and single PSF (MIMF-3)
+                           #  0.070 Based on user reports, see issue #674. However, this is before adding IPC effects
 }
 # add Interpixel capacitance (IPC) effects. These are the parameters for each detector kernel
-# For NIRCam we  sue CV#/Flight convolution kernels from Jarron Leisenring, see detectors.apply_detector_ipc for details
+# For NIRCam we  use CV3/Flight convolution kernels from Jarron Leisenring, see detectors.apply_detector_ipc for details
 # NIRISS has different kernels provided by Kevin Volk (STScI), see detectors.apply_detector_ipc for details
 INSTRUMENT_IPC_DEFAULT_KERNEL_PARAMETERS = {
     'MIRI': (0.033, 0.024, 0.013),          # Based on JWST-STScI-002925 by Mike Engesser

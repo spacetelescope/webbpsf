@@ -1113,12 +1113,14 @@ class JWInstrument(SpaceTelescopeInstrument):
                 # Apply distortion effects to MIRI psf: Distortion and MIRI Scattering
                 _log.debug("MIRI: Adding optical distortion and Si:As detector internal scattering")
                 psf_siaf = distortion.apply_distortion(result)  # apply siaf distortion
-                psf_distorted = distortion.apply_miri_scattering(psf_siaf)  # apply scattering effect
+                psf_siaf_rot = detectors.apply_miri_scattering(psf_siaf)  # apply scattering effect
+                psf_distorted = detectors.apply_detector_charge_diffusion(psf_siaf_rot,options)  # apply detector charge transfer model
             elif self.name == "NIRSpec":
                 # Apply distortion effects to NIRSpec psf: Distortion only
                 # (because applying detector effects would only make sense after simulating spectral dispersion)
                 _log.debug("NIRSpec: Adding optical distortion")
-                psf_distorted = distortion.apply_distortion(result)  # apply siaf distortion model
+                psf_siaf = distortion.apply_distortion(result)  # apply siaf distortion model
+                psf_distorted = detectors.apply_detector_charge_diffusion(psf_siaf,options)  # apply detector charge transfer model
 
             # Edit the variable to match if input didn't request distortion
             # (cannot set result = psf_distorted due to return method)
