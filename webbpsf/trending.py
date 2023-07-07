@@ -235,14 +235,16 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, do
     interp_rmses = interp_fn(mjdrange)
 
     # Plot
-    fig, axes = plt.subplots(figsize=(16,9), nrows=2, gridspec_kw = {'hspace':0.3})
+    hspace = 0.3
+    nrows  = 2
+    fig, axes = plt.subplots(figsize=(16,9), nrows=nrows, gridspec_kw = {'hspace':hspace})
 
+    ms = 14 #markersize
     
-    axes[0].plot_date(dates.plot_date, np.asarray(rmses)*1e3, 'o', ls='-', label='Sensing visit')
+    axes[0].plot_date(dates.plot_date, np.asarray(rmses)*1e3, '.', ms=ms, ls='-', label='Sensing visit')
     axes[0].xaxis.set_major_locator(matplotlib.dates.DayLocator(bymonthday=[1, 15]))
     axes[0].xaxis.set_minor_locator(matplotlib.dates.DayLocator(interval=1))
     axes[0].tick_params('x', length=10)
-
     
     if mark_corrections=='lines':
         # Add vertical lines for corrections
@@ -254,17 +256,28 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, do
                     plot.set_label('Corrections')
                     icorr += 1
     elif mark_corrections=='triangles':
-        yval = (np.asarray(rmses)*1e3).max()*0.95
+        yval = (np.asarray(rmses)*1e3).max() *1.01
         axes[0].scatter(dates[where_post].plot_date, np.ones(np.sum(where_post))*yval, 
                         marker='v', s=100, color='limegreen', label='Corrections')
     elif mark_corrections=='arrows':
         rms_nm =  np.asarray(rmses)*1e3
-        axes[0].scatter(dates[where_post].plot_date, rms_nm[where_post]+1, 
-                        marker='v', s=100, color='limegreen', label='Corrections')
+
+        sub_height = fig.get_figheight() / (nrows+hspace)        
+        plot_size_points = np.asarray([fig.get_figwidth(), sub_height]) * fig.dpi
+        plot_size_data   = [np.diff(axes[0].get_xlim())[0], np.diff(axes[0].get_ylim())[0]]
+
+        yoffset =  (1.2*ms) * plot_size_data[1] / plot_size_points[1]
+        axes[0].scatter(dates[where_post].plot_date, rms_nm[where_post] + yoffset, 
+                        marker='v', s=100, color='limegreen', label='Corrections', zorder=99)
+
+        yoffsets = [0.6 * ms * plot_size_data[0] / plot_size_points[0],
+                    0.6 * ms * plot_size_data[1] / plot_size_points[1]]
+
         for i, idate in enumerate(where_post):
-            plot_offsets = np.array([-1, 2])
             if idate:
-                axes[0].plot(dates[i-1:i+1].plot_date, rms_nm[i-1:i+1]+plot_offsets, color='limegreen', lw=3, ls='-', alpha=0.5)
+                xtmp = dates[i-1:i+1]
+                ytmp = [rms_nm[i-1] - yoffsets[1], rms_nm[i] + yoffsets[1]]
+                axes[0].plot(xtmp.plot_date, ytmp, color='limegreen', lw=2, ls='-')
 
     axes[0].set_xlabel("Date")
     axes[0].set_ylabel("RMS WFE\n(OTE+NIRCam)", fontweight='bold')
