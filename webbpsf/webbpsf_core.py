@@ -929,7 +929,9 @@ class JWInstrument(SpaceTelescopeInstrument):
 
     @SpaceTelescopeInstrument.aperturename.setter
     def aperturename(self, value):
-        """Set SIAF aperture name to new value, with validation
+        """Set SIAF aperture name to new value, with validation.
+
+        This also updates the pixelscale to the local value for that aperture, for a small precision enhancement.
         """
         # Explicitly update detector reference coordinates to the default for the new selected aperture,
         # otherwise old coordinates can persist under certain circumstances
@@ -945,6 +947,13 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         # Only update if new value is different
         if self._aperturename != value:
+            # First, check some info from current settings, wich we will use below as part of auto pixelscale code
+            # The point is to check if the pixel scale is set to a custom or default value,
+            # and if it's custom then don't override that.
+            # Note, check self._aperturename first to account for the edge case when this is called from __init__ before _aperturename is set
+            has_custom_pixelscale = self._aperturename and (self.pixelscale != self._get_pixelscale_from_apername(self._aperturename))
+
+            # Now apply changes:
             self._aperturename = value
             # Update detector reference coordinates
             self.detector_position = (ap.XSciRef, ap.YSciRef)
@@ -952,6 +961,11 @@ class JWInstrument(SpaceTelescopeInstrument):
             # Update DetectorGeometry class
             self._detector_geom_info = DetectorGeometry(self.siaf, self._aperturename)
             _log.info(f"{self.name} SIAF aperture name updated to {self._aperturename}")
+
+            if not has_custom_pixelscale:
+                self.pixelscale = self._get_pixelscale_from_apername(self._aperturename)
+                _log.debug(f"Pixelscale updated to {self.pixelscale} based on average X+Y SciScale at SIAF aperture {self._aperturename}")
+
 
     def _tel_coords(self):
         """ Convert from science frame coordinates to telescope frame coordinates using
@@ -1002,6 +1016,13 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         except KeyError:
             raise ValueError("Not a valid aperture name for {}: {}".format(self.name, aperture_name))
+
+    def _get_pixelscale_from_apername(self, apername):
+        """Simple utility function to look up pixelscale from apername"""
+        ap = self.siaf[apername]
+        # Here we make the simplifying assumption of **square** pixels, which is true within 0.5%.
+        # The slight departures from this are handled in the distortion model; see distortion.py
+        return (ap.XSciScale + ap.YSciScale) / 2
 
     def _get_fits_header(self, result, options):
         """ populate FITS Header keywords """
@@ -1628,8 +1649,8 @@ class MIRI(JWInstrument):
     def __init__(self):
         self.auto_pupil = True
         JWInstrument.__init__(self, "MIRI")
-        self.pixelscale = 0.1108  # MIRI average of X and Y pixel scales. Source: SIAF PRDOPSSOC-031, 2021 April
-        self._rotation = 4.834  # V3IdlYAngle, Source: SIAF PRDOPSSOC-031
+        self.pixelscale =  self._get_pixelscale_from_apername('MIRIM_FULL')
+        self._rotation = 4.83544897  # V3IdlYAngle, Source: SIAF PRDOPSSOC-059
                                 # This is rotation counterclockwise; when summed with V3PA it will yield the Y axis PA on sky
 
         self.options['pupil_shift_x'] = -0.0069 # CV3 on-orbit estimate (RPT028027) + OTIS delta from predicted (037134)
@@ -1899,26 +1920,24 @@ class NIRCam(JWInstrument):
     LONG_WAVELENGTH_MAX = 5.3 * 1e-6
 
     def __init__(self):
-        self._pixelscale_short = 0.0311  # average over both X and Y for short-wavelen channels, SIAF PRDOPSSOC-031, 2021 April
-        self._pixelscale_long = 0.0630  # average over both X and Y for long-wavelen channels, SIAF PRDOPSSOC-031, 2021 April
+        # need to set up a bunch of stuff here before calling superclass __init__
+        # so the overridden filter setter will not have errors when called from __init__
+        self.auto_channel = False
+        self.auto_aperturename = False
+        JWInstrument.__init__(self, "NIRCam")
+
+        self._pixelscale_short = self._get_pixelscale_from_apername('NRCA1_FULL')
+        self._pixelscale_long = self._get_pixelscale_from_apername('NRCA5_FULL')
         self.pixelscale = self._pixelscale_short
 
         self.options['pupil_shift_x'] = 0  # Set to 0 since NIRCam FAM corrects for PM shear in flight
         self.options['pupil_shift_y'] = 0
 
-        # need to set up a bunch of stuff here before calling superclass __init__
-        # so the overridden filter setter will work successfully inside that.
+        # Enable the auto behaviours by default (after superclass __init__)
         self.auto_channel = True
         self.auto_aperturename = True
         self._filter = 'F200W'
         self._detector = 'NRCA1'
-
-        JWInstrument.__init__(self, "NIRCam")  # do this after setting the long & short scales.
-        self._detector = 'NRCA1' # Must re-do this after superclass init since that sets it to None.
-                                 # This is an annoying workaround to ensure all the auto-channel stuff is ok
-
-        self.pixelscale = self._pixelscale_short  # need to redo 'cause the __init__ call will reset it to zero
-        self._filter = 'F200W'  # likewise need to redo
 
         self.image_mask_list = ['MASKLWB', 'MASKSWB', 'MASK210R', 'MASK335R', 'MASK430R']
         self._image_mask_apertures = {'MASKLWB': 'NRCA5_MASKLWB',
@@ -1998,6 +2017,10 @@ class NIRCam(JWInstrument):
 
     @JWInstrument.aperturename.setter
     def aperturename(self, value):
+        """Set SIAF aperture name to new value, with validation.
+
+        This also updates the pixelscale to the local value for that aperture, for a small precision enhancement.
+        """
         # Explicitly update detector reference coordinates,
         # otherwise old coordinates can persist under certain circumstances
 
@@ -2027,6 +2050,13 @@ class NIRCam(JWInstrument):
 
         # Only update if new value is different
         if self._aperturename != value:
+            # First, check some info from current settings, wich we will use below as part of auto pixelscale code
+            # The point is to check if the pixel scale is set to a custom or default value,
+            # and if it's custom then don't override that.
+            # Note, check self._aperturename first to account for the edge case when this is called from __init__ before _aperturename is set
+            has_custom_pixelscale = self._aperturename and (self.pixelscale != self._get_pixelscale_from_apername(self._aperturename))
+
+            # Now apply changes:
             self._aperturename = value
             # Update detector reference coordinates
             self.detector_position = (ap.XSciRef, ap.YSciRef)
@@ -2041,6 +2071,11 @@ class NIRCam(JWInstrument):
             # Update DetectorGeometry class
             self._detector_geom_info = DetectorGeometry(self.siaf, self._aperturename)
             _log.info("NIRCam aperture name updated to {}".format(self._aperturename))
+
+            if not has_custom_pixelscale:
+                self.pixelscale = self._get_pixelscale_from_apername(self._aperturename)
+                _log.debug(f"Pixelscale updated to {self.pixelscale} based on average X+Y SciScale at SIAF aperture {self._aperturename}")
+
 
     @property
     def module(self):
@@ -2341,9 +2376,9 @@ class NIRSpec(JWInstrument):
 
     def __init__(self):
         JWInstrument.__init__(self, "NIRSpec")
-        self.pixelscale = 0.1043  # Average over both detectors.  SIAF PRDOPSSOC-031, 2021 April
+        self.pixelscale = 0.10435  # Average over both detectors.  SIAF PRDOPSSOC-059, 2022 Dec
         # Microshutters are 0.2x0.46 but we ignore that here.
-        self._rotation = 138.4  # Average for both detectors in SIAF PRDOPSSOC-031
+        self._rotation = 138.5  # Average for both detectors in SIAF PRDOPSSOC-059
                                 # This is rotation counterclockwise; when summed with V3PA it will yield the Y axis PA on sky
         self.filter_list.append("IFU")
         self._IFU_pixelscale = 0.1043  # same.
@@ -2476,7 +2511,7 @@ class NIRISS(JWInstrument):
     def __init__(self, auto_pupil=True):
         self.auto_pupil = auto_pupil
         JWInstrument.__init__(self, "NIRISS")
-        self.pixelscale = 0.0656  # Average of X and Y scales, SIAF PRDOPSSOC-031, 2021 April
+        self.pixelscale = 0.065657  # Average of X and Y scales, SIAF PRDOPSSOC-059, 2022 Dec
 
         self.options['pupil_shift_x'] = 0.0243  # CV3 on-orbit estimate (RPT028027) + OTIS delta from predicted (037134)
         self.options['pupil_shift_y'] = -0.0141
@@ -2604,7 +2639,7 @@ class FGS(JWInstrument):
 
     def __init__(self):
         JWInstrument.__init__(self, "FGS")
-        self.pixelscale = 0.0691  # Average of X and Y scales for both detectors, SIAF PRDOPSSOC-031, 2021 April
+        self.pixelscale = 0.068991  # Average of X and Y scales for both detectors, SIAF PRDOPSSOC-059, 2022 Dec
 
         self.options['pupil_shift_x'] = 0.0041  # CV3 on-orbit estimate (RPT028027) + OTIS delta from predicted (037134)
         self.options['pupil_shift_y'] = -0.0023
