@@ -1132,7 +1132,7 @@ class JWInstrument(SpaceTelescopeInstrument):
         SpaceTelescopeInstrument._calc_psf_format_output(self, result, options)
         #you can turn 0n/off IPC corrections via the add_ipc option, default True.
         add_ipc = options.get('add_ipc', True)
-        if add_ipc:
+        if add_ipc and add_distortion:
             result = detectors.apply_detector_ipc(result)  # apply detector IPC model (after binning to detector sampling)
 
 

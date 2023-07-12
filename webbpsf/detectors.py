@@ -32,8 +32,15 @@ def apply_detector_ipc(psf_hdulist):
        """
 
     inst = psf_hdulist[0].header['INSTRUME'].upper()
-    if inst =='NIRCAM':
 
+    ext = 'DET_DIST'
+
+    # In cases for which the user has not asked for the distorted PSF extension, we have nothing to add this to
+    if ext not in psf_hdulist:
+        webbpsf.webbpsf_core._log.debug("Skipping IPC simulation since add_distortion=False")
+        return
+
+    if inst =='NIRCAM':
 
 
         det2sca = {
@@ -42,7 +49,6 @@ def apply_detector_ipc(psf_hdulist):
         }
 
         webbpsf.webbpsf_core._log.info("Detector IPC: NIRCam (added)")
-        ext = 'DET_DIST'
         det = psf_hdulist[ext].header['DET_NAME'] #detector name
         # IPC effect
         # read the SCA extension for the detector
@@ -62,7 +68,7 @@ def apply_detector_ipc(psf_hdulist):
         psf_hdulist[ext].header['IPCTYPA'] = (det2sca[det], 'Post-Pixel Coupling (PPC)')
         psf_hdulist[ext].data = out_ipc_ppc
 
-    if inst =='MIRI':
+    elif inst =='MIRI':
         a = webbpsf.constants.INSTRUMENT_IPC_DEFAULT_KERNEL_PARAMETERS[inst]
         webbpsf.webbpsf_core._log.info("Detector IPC: MIRI")
         alpha = webbpsf.constants.INSTRUMENT_IPC_DEFAULT_KERNEL_PARAMETERS[inst][0]
@@ -73,16 +79,13 @@ def apply_detector_ipc(psf_hdulist):
                                 [c, beta, c]])
         kernel = CustomKernel(miri_kernel)
         # apply to DET_DIST
-        ext = 'DET_DIST'
         out  = convolve(psf_hdulist[ext].data, kernel)
         psf_hdulist[ext].header['IPCINST'] = ('MIRI', 'Interpixel capacitance (IPC)')
         psf_hdulist[ext].header['IPCTYPA'] = (alpha, 'coupling coefficient alpha')
         psf_hdulist[ext].header['IPCTYPB'] = (beta, 'coupling coefficient beta')
         psf_hdulist[ext].data = out
 
-    #
-    if inst == 'NIRISS':
-        ext = 'DET_DIST'
+    elif inst == 'NIRISS':
         # this set-up the input variables as required by Kevin Volk IPC code
         image = psf_hdulist[ext].data
         xposition = psf_hdulist[ext].header["DET_X"]
@@ -115,16 +118,15 @@ def apply_detector_ipc(psf_hdulist):
             psf_hdulist[ext].header['IPCINST'] = ('NIRISS', 'Interpixel capacitance (IPC)')
             psf_hdulist[ext].header['IPCTYPA'] = (ipcname, 'kernel file used for IPC correction')
         else:
-            newimage = numpy.copy(image)
+            newimage = np.copy(image)
             psf_hdulist[ext].header['IPCINST'] = ('NIRISS', 'Interpixel capacitance (IPC)')
             psf_hdulist[ext].header['IPCTYPA'] = ('NIRISS', 'No kernel file found')
-            sf_hdulist[ext].header['IPCTYPB'] = ('NIRISS', 'No IPC correction applied')
+            psf_hdulist[ext].header['IPCTYPB'] = ('NIRISS', 'No IPC correction applied')
             webbpsf.webbpsf_core._log.info("No IPC correction for NIRISS. Check kernel files.")
 
         psf_hdulist[ext].data = newimage
 
-    if inst in ["FGS", "NIRSpec"]:
-        ext = 'DET_DIST'
+    elif inst in ["FGS", "NIRSpec"]:
         psf_hdulist[ext].header['IPCINST'] = (inst, 'No IPC correction applied')
         webbpsf.webbpsf_core._log.info("IPC corrections are not implemented yet for {}".format(inst))
 
