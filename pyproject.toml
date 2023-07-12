@@ -25,6 +25,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+all = [
+    "astroquery",
+    ]
 test = [
     "pytest",
     "pytest-astropy",
