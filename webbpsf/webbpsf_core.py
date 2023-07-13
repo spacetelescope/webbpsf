@@ -1113,6 +1113,10 @@ class JWInstrument(SpaceTelescopeInstrument):
             if self.image_mask == "LRS slit" and self.pupil_mask == "P750L":
                 raise NotImplementedError("Distortion is not implemented yet for MIRI LRS mode.")
 
+            if self.image_mask in ["MIRI-IFU_1", "MIRI-IFU_2", "MIRI-IFU_3", "MIRI-IFU_4"]:
+                raise NotImplementedError("Distortion is not implemented yet for MIRI IFU mode.")
+
+
             # Set up new extensions to add distortion to:
             n_exts = len(result)
             for ext in np.arange(n_exts):
@@ -2343,21 +2347,20 @@ class MIRI(JWInstrument):
         val = GAUSSIAN_SIGMA_TO_FWHM * fitter(m, np.arange(psfm.shape[0]), convolve(psfm, Gaussian1DKernel(kern_al))).stddev * float(pxsc)
         return np.abs(val - self._get_FWHM()) ** 2
 
-    def _empirical_broadening(self, psf_model, alpha_kernel, beta_width):
+    def _empirical_broadening(self, psf_model, alpha_width, beta_width):
         """
         Perform the broadening of a psf model in alpha and beta
         :param psf_model: monochromatic model from webbPSF
-        :param alpha_kernel: gaussian convolution kernel in pixels, None if no broadening should be performed
+        :param alpha_width: gaussian convolution kernel in pixels, None if no broadening should be performed
         :param beta_width: slice width in pixels
         :return:
         """
         kernel_beta = Box1DKernel(beta_width)
-
-        if alpha_kernel is None:
+        if alpha_width is None:
             psf_model_alpha_beta = np.apply_along_axis(lambda m: convolve(m, kernel_beta), axis=0, arr=psf_model)
         else:
-            psf_model_alpha = np.apply_along_axis(lambda m: convolve(m, Gaussian1DKernel(stddev=alpha_kernel)), axis=1,
-                                              arr=psf_model)
+            kernel_alpha = Gaussian1DKernel(stddev=alpha_width)
+            psf_model_alpha = np.apply_along_axis(lambda m: convolve(m, kernel_alpha), axis=1, arr=psf_model)
             psf_model_alpha_beta = np.apply_along_axis(lambda m: convolve(m, kernel_beta), axis=0, arr=psf_model_alpha)
         return psf_model_alpha_beta
 
@@ -2375,7 +2378,7 @@ class MIRI(JWInstrument):
         :return:
         """
         if self._image_mask is None:
-            return JWInstrument.calc_psf(self, outfile=outfile, source=source, nlambda=nlambda,
+            return super().calc_psf(outfile=outfile, source=source, nlambda=nlambda,
                                          monochromatic=monochromatic,
                                          fov_arcsec=fov_arcsec, fov_pixels=fov_pixels, oversample=oversample,
                                          detector_oversample=detector_oversample, fft_oversample=fft_oversample,
@@ -2383,38 +2386,42 @@ class MIRI(JWInstrument):
                                          return_intermediates=return_intermediates,
                                          normalize=normalize, add_distortion=add_distortion, crop_psf=crop_psf)
         elif "MIRI-IFU" in self._image_mask:
+            if monochromatic is None:
+                raise ValueError("MIRI-IFU requires monochromatic PSF calculation")
             # update wavelength
             self.wavelength = monochromatic
             # calculate monochromatic PSF
-            mrspsf = JWInstrument.calc_psf(self, monochromatic=self._wavelength * 1e-6, oversample=oversample,
-                                   display=False, add_distortion=add_distortion, fov_arcsec=fov_arcsec, crop_psf=True)
+            mrspsf = super().calc_psf(monochromatic=self._wavelength * 1e-6, oversample=oversample,
+                                      display=False, add_distortion=add_distortion, fov_arcsec=fov_arcsec,
+                                      crop_psf=crop_psf)
             psf_m = mrspsf[0].data
             pxsc = float(mrspsf[0].header["PIXELSCL"])
             if "broadening" in kwargs:
-                beta_width = self._slice_width/pxsc
-                center = [int(psf_m.shape[0] / 2), int(psf_m.shape[1] / 2)]
-                # fit = minimize(self._alpha_width_minim, x0=np.array([2.5]), args=(psf_m[center[0], :], pxsc), method='Nelder-Mead')
-                # alpha_width = fit.x[0]
-                alpha_width = self._analytical_sigma_alpha_broadening()/pxsc
-                psf_emp = self._empirical_broadening(psf_model=psf_m, alpha_kernel=alpha_width, beta_width=beta_width)
+                if kwargs.get("broadening") == "both":
+                    beta_width = self._slice_width/pxsc
+                    alpha_width = self._analytical_sigma_alpha_broadening()/pxsc
+                elif kwargs.get("broadening") is None: return mrspsf
+                else:
+                    beta_width = self._slice_width / pxsc
+                    alpha_width = None
 
-
-            if display:
-                import matplotlib.pyplot as plt
-                from matplotlib.colors import LogNorm
-                plt.figure()
-                plt.title("Empirical PSF")
-                plt.imshow(psf_emp, origin="lower", norm=LogNorm(),
-                           extent=[-int(0.5 * psf_emp.shape[0]) * pxsc, int(0.5 * psf_emp.shape[0]) * pxsc,
-                                   -int(0.5 * psf_emp.shape[1]) * pxsc, int(0.5 * psf_emp.shape[1]) * pxsc])
-                plt.xlabel("alpha [arcsec")
-                plt.ylabel("beta [arcsec")
-                plt.show()
-            return psf_emp, pxsc
+                psf_m = self._empirical_broadening(psf_model=psf_m, alpha_width=alpha_width, beta_width=beta_width)
+                mrspsf.append(fits.ImageHDU(psf_m))
+            # delete previous DETSAMP
+            del mrspsf[1]
+            # rename new extension
+            mrspsf[1].header = mrspsf[0].header
+            mrspsf[1].name = "OVERBROAD"
+            mrspsf[1].header["MRS_BROAD"] = kwargs.get("broadening")
+            local_options = self.options.copy()
+            local_options["detector_oversample"] = oversample
+            # local_options
+            super()._calc_psf_format_output(mrspsf, local_options)
+            return mrspsf
 
         else:
             # normal PSF calculation for MIRI
-            return JWInstrument.calc_psf(self, outfile=outfile, source=source, nlambda=nlambda, monochromatic=monochromatic,
+            return super().calc_psf(outfile=outfile, source=source, nlambda=nlambda, monochromatic=monochromatic,
                                     fov_arcsec=fov_arcsec, fov_pixels=fov_pixels, oversample=oversample,
                                     detector_oversample=detector_oversample, fft_oversample=fft_oversample,
                                     overwrite=overwrite, display=display, save_intermediates=save_intermediates,
