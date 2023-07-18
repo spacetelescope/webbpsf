@@ -1634,223 +1634,6 @@ class JWInstrument(SpaceTelescopeInstrument):
         self.load_wss_opd(opd_fn, verbose=verbose, plot=plot, **kwargs)
 
 
-class MRS(JWInstrument):
-    """ A class modeling the optics of MIRI-MRS, the Medium Resolution Spectrometer.
-
-    Relevant attributes include `filter`, `image_mask`, and `pupil_mask`.
-
-    The pupil will auto-select appropriate values for the coronagraphic filters
-    if the auto_pupil attribute is set True (which is the default).
-
-    Special Options:
-
-    The 'coron_shift_x' and 'coron_shift_y' options offset a coronagraphic mask in order to
-    produce PSFs centered in the output image, rather than offsetting the PSF. This is useful
-    for direct PSF convolutions. Values are in arcsec.
-    ```
-    miri.options['coron_shift_x'] = 3  # Shifts mask 3" to right; or source 3" to left.
-    ```
-
-    """
-
-    def __init__(self, band: str = "1A"):
-        self.auto_pupil = True
-        JWInstrument.__init__(self, "MIRI")
-        self._band = band
-        self._IFU_pixelscale = {
-            'Ch1': (0.18, 0.19),
-            'Ch2': (0.28, 0.19),
-            'Ch3': (0.39, 0.24),
-            'Ch4': (0.64, 0.27),
-        }
-
-        self.MRSbands = {"1A": [4.887326748103221, 5.753418963216559],
-                        "1B": [5.644625711181792, 6.644794583147869],
-                        "1C": [6.513777066360325, 7.669147994055998],
-                        "2A": [7.494966046398437, 8.782517027772244],
-                        "2B": [8.651469658142522, 10.168811217793243],
-                        "2C": [9.995281242621394, 11.73039280033565],
-                        "3A": [11.529088518317131, 13.491500288051483],
-                        "3B": [13.272122736770127, 15.550153182343314],
-                        "3C": [15.389530615108631, 18.04357852656418],
-                        "4A": [17.686540162850203, 20.973301482912323],
-                        "4B": [20.671069749545193, 24.476094964546686],
-                        "4C": [24.19608171436692, 28.64871057821349]}
-
-        self.MRS_rotation = {"1A": 8.4,
-                            "1B": 8.3,
-                            "1C": 8.3,
-                            "2A": 8.15,
-                            "2B": 8.24,
-                            "2C": 8.17,
-                            "3A": 7.6,
-                            "3B": 7.6,
-                            "3C": 7.6,
-                            "4A": 8.73,
-                            "4B": 9.09,
-                            "4C": 8.43}
-
-        self.cube_pixsize = {"1": 0.13, "2": 0.17, "3": 0.2, "4": 0.35}
-        # The above tuples give the pixel resolution (perpendicular to the slice, along the slice).
-        # The pixels are not square.
-        self._wavelength = np.mean(self.MRSbands[self._band])
-        self.pixelscale = self._IFU_pixelscale[f"Ch{self._band[0]}"][1]
-        self._slice_width = self._IFU_pixelscale[f"Ch{self._band[0]}"][0]
-        self._rotation = self.MRS_rotation[self.band]  # V3IdlYAngle, Source: SIAF PRDOPSSOC-059
-        # This is rotation counterclockwise; when summed with V3PA it will yield the Y axis PA on sky
-
-        self.options[
-            'pupil_shift_x'] = -0.0069  # CV3 on-orbit estimate (RPT028027) + OTIS delta from predicted (037134)
-        self.options['pupil_shift_y'] = -0.0027
-
-        self.auto_aperturename = True
-        self._detectors = {'MIRIM': 'MIRIM_FULL'}
-        #self._detectors = {'SW': 'MIRIFUSHORT', 'LW': 'MIRIFULONG'}  # Mapping from user-facing detector names to SIAF entries.
-        self.detector = self.detector_list[0]
-        self._detector_npixels = 1024
-        self.detector_position = (512, 512)
-        self.pupil_mask = None
-
-        self._si_wfe_class = optics.MIRIFieldDependentAberrationAndObscuration
-
-    @property
-    def wavelength(self):
-        return self._wavelength
-
-    @wavelength.setter
-    def wavelength(self, value):
-        if self.MRSbands["1A"][0] <= value <= self.MRSbands["4C"][1]:
-            self._wavelength = value
-            # check if band needs to be changed
-            if not  self.MRSbands[self._band][0] <= value <= self.MRSbands[self._band][1]:
-                band = self._find_wavelength_band()
-                self.band = band
-        else:
-            print(f"Wavelength not covered by MRS. Reverting to current value: {self._wavelength}")
-        return
-
-    def _find_wavelength_band(self):
-        """Finds first MRS band that the current wavelength is contained in. In order to have the same wavelength in a
-        different band, change the value manually.
-        """
-        for band in self.MRSbands.keys():
-            if self.MRSbands[band][0] <= self._wavelength <= self.MRSbands[band][1]:
-                return band
-
-
-    @property
-    def band(self):
-        return self._band
-
-    @band.setter
-    def band(self, value):
-        if value in self.MRSbands.keys():
-            self._band = value
-            self._slice_width = self._IFU_pixelscale[f"Ch{self._band[0]}"][0]
-            self._rotation = self.MRS_rotation[self._band]
-        else:
-            print(value, " not allowed for the MRS.")
-
-    def _get_default_fov(self):
-        """ Return default FOV in arcseconds """
-        return 8.
-
-    def _get_FWHM(self):
-        """ Return full width at half max for a given wavelength (in um)"""
-        return 0.033*self._wavelength + 0.106  # Law+2023
-
-    def _get_specR(self):
-        """ Return the spectral resolution for a given wavelength (in um)"""
-        return 4603 - 128*self._wavelength  # Argyriou+23
-
-    def _project_psf_to_detector(self):
-        pass
-
-    def _alpha_width_minim(self, kern_al, psfm, pxsc):
-        """
-        Minimisation  function to calculate the kernel size of the gaussian convolution in order to obtain a given
-        FWHM of the resulting PSF in alpha
-        :param kern_al: gaussian convolution kernel in pixels
-        :param psfm: psf model
-        :param pxsc: pixelscale of the grid
-        :return: value to be used in optimisation. L2 norm is used
-        """
-        m = Gaussian1D(amplitude=0.01, mean=int(psfm.shape[0] / 2), stddev=1.)
-        fitter = LevMarLSQFitter()
-        if kern_al % 2 == 0: # do I need this??
-            return np.inf
-        val = GAUSSIAN_SIGMA_TO_FWHM * fitter(m, np.arange(psfm.shape[0]), convolve(psfm, Gaussian1DKernel(kern_al))).stddev * float(pxsc)
-        return np.abs(val - self._get_FWHM()) ** 2
-
-    def _empirical_broadening(self, psf_model, alpha_kernel, beta_width):
-        """
-        Perform the broadening of a psf model in alpha and beta
-        :param psf_model: monochromatic model from webbPSF
-        :param alpha_kernel: gaussian convolution kernel in pixels, None if no broadening should be performed
-        :param beta_width: slice width in pixels
-        :return:
-        """
-        kernel_beta = Box1DKernel(beta_width)
-
-        if alpha_kernel is None:
-            psf_model_alpha_beta = np.apply_along_axis(lambda m: convolve(m, kernel_beta), axis=0, arr=psf_model)
-        else:
-            psf_model_alpha = np.apply_along_axis(lambda m: convolve(m, Gaussian1DKernel(stddev=alpha_kernel)), axis=1,
-                                              arr=psf_model)
-            psf_model_alpha_beta = np.apply_along_axis(lambda m: convolve(m, kernel_beta), axis=0, arr=psf_model_alpha)
-        return psf_model_alpha_beta
-
-    def calc_psf(self, outfile=None, source=None, nlambda=None, monochromatic=None,
-                 fov_arcsec=None, fov_pixels=None, oversample=None, detector_oversample=None, fft_oversample=None,
-                 overwrite=True, display=False, save_intermediates=False, return_intermediates=False,
-                 normalize='first', add_distortion=True, crop_psf=True, **kwargs):
-        """
-        Calculate empirical PSF.
-        :param wavelength: wavelength of PSF
-        :param oversample: oversampling of the evaluation grid
-        :param distortion: include distortion
-        :param display: plot result
-        :param fov_arcsec: FOV of simulation
-        :return:
-        """
-        # update wavelength
-        self.wavelength = monochromatic
-        # calculate monochromatic PSF
-        mrspsf = JWInstrument.calc_psf(self, monochromatic=self._wavelength * 1e-6, oversample=oversample,
-                               display=False, add_distortion=add_distortion, fov_arcsec=fov_arcsec, crop_psf=True)
-        psf_m = mrspsf[0].data
-        pxsc = float(mrspsf[0].header["PIXELSCL"])
-        if "broadening" in kwargs:
-            beta_width = self._slice_width/pxsc
-            center = [int(psf_m.shape[0] / 2), int(psf_m.shape[1] / 2)]
-            fit = minimize(self._alpha_width_minim, x0=np.array([2.5]), args=(psf_m[center[0], :], pxsc), method='Nelder-Mead')
-            alpha_width = fit.x[0]
-            psf_emp = self._empirical_broadening(psf_model=psf_m, alpha_kernel=alpha_width, beta_width=beta_width)
-
-
-        if display:
-            import matplotlib.pyplot as plt
-            from matplotlib.colors import LogNorm
-            plt.figure()
-            plt.title("Empirical PSF")
-            plt.imshow(psf_emp, origin="lower", norm=LogNorm(),
-                       extent=[-int(0.5 * psf_emp.shape[0]) * pxsc, int(0.5 * psf_emp.shape[0]) * pxsc,
-                               -int(0.5 * psf_emp.shape[1]) * pxsc, int(0.5 * psf_emp.shape[1]) * pxsc])
-            plt.xlabel("alpha [arcsec")
-            plt.ylabel("beta [arcsec")
-            plt.show()
-        return psf_emp, pxsc
-
-    def calc_datacube(self, wavelengths, *args, **kwargs):
-        if "broadening" in kwargs:
-            for wav in wavelengths:
-                self.wavelength = wav
-            self.calculate_empirical_psf_cube(wavelength=self._wavelength, oversample=7, distortion=True, display=False,
-                                         fov_arcsec=8, broadening=True)
-
-
-
-
 class MIRI(JWInstrument):
     """ A class modeling the optics of MIRI, the Mid-InfraRed Instrument.
 
@@ -1934,11 +1717,13 @@ class MIRI(JWInstrument):
         self._wavelength = 5.0
         self._band = "1A"
         self._dichroic = "SHORT"
+
+        # pixel scale corresponds to the slice width and the pixel size in the pipeline cube
         self._IFU_pixelscale = {
-            'Ch1': (0.18, 0.19),
-            'Ch2': (0.28, 0.19),
-            'Ch3': (0.39, 0.24),
-            'Ch4': (0.64, 0.27),
+            'Ch1': (0.18, 0.13),
+            'Ch2': (0.28, 0.17),
+            'Ch3': (0.39, 0.2),
+            'Ch4': (0.64, 0.34),
         }
         # The above tuples give the pixel resolution (perpendicular to the slice, along the slice).
         # The pixels are not square.
@@ -2076,9 +1861,6 @@ class MIRI(JWInstrument):
 
         self._update_aperturename()
         self._update_detector()
-
-
-
 
     def _update_detector(self):
         """Determine which detector of MIRI should be used.
@@ -2414,7 +2196,8 @@ class MIRI(JWInstrument):
             mrspsf[1].name = "OVERBROAD"
             mrspsf[1].header["MRS_BROAD"] = kwargs.get("broadening")
             local_options = self.options.copy()
-            local_options["detector_oversample"] = oversample
+            # the detector sampling is set by this ratio
+            local_options["detector_oversample"] = int(self.pixelscale/pxsc)
             # local_options
             super()._calc_psf_format_output(mrspsf, local_options)
             return mrspsf
