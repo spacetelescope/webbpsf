@@ -12,65 +12,62 @@ import astropy.convolution
 import scipy.signal as signal
 
 
+def get_detector_ipc_model(inst, header):
+    """Retrieve detector interpixel capacitance model
 
+    The details of the available calibration data vary per instrument.
 
-def apply_detector_ipc(psf_hdulist):
-    """Apply a model for interpixel capacitance
-    NIRCam: IPC and PPC values derived during ground I&T, primarily ISIM-CV3 from Jarron Leisenring
-    these IPC/PPC kernels will be update after flight values are available.
-    For NIRCam only PPC effects are also included, these are relatively small compared to the IPC contribution
-    MIRI: Convolution kernels from JWST-STScI-002925 by Mike Engesser
-    NIRISS: Convolution kernels and base code provided by Kevin Volk
-    The IPC kernel files are derived from IPC measurements made from NIRISS commissioning dark ramps by Chris Willott.
+    Parameters:
+    -----------
+    inst : string
+        instrument name
+    header : astropy.io.fits.Header
+        FITS header
 
-    For NIRISS the user needs to have the right kernels under $WEBBPSF_PATH/NIRISS/IPC/
-    These kernels should be available with webbpsf data > Version 1.1.1
+    Returns:
+    --------
+    kernel : numpy.ndarray
+        Convolution kernel
+    meta : dict
+        Metadata about that kernel to be saved in FITS header
 
-    You can turn On/Off IPC effects as an option.
-     For example: inst.option['add_ipc'] = False, where inst is the instrument class. Default is True.
+    """
 
-       """
+    inst = inst.upper()
+    det = header['DET_NAME'] #detector name
 
-    inst = psf_hdulist[0].header['INSTRUME'].upper()
+    meta = dict()
 
-    ext = 'DET_DIST'
-
-    # In cases for which the user has not asked for the distorted PSF extension, we have nothing to add this to
-    if ext not in psf_hdulist:
-        webbpsf.webbpsf_core._log.debug("Skipping IPC simulation since add_distortion=False")
-        return
-
-    if inst =='NIRCAM':
-
+    if inst == 'NIRCAM':
 
         det2sca = {
             'NRCA1': '481', 'NRCA2': '482', 'NRCA3': '483', 'NRCA4': '484', 'NRCA5': '485',
             'NRCB1': '486', 'NRCB2': '487', 'NRCB3': '488', 'NRCB4': '489', 'NRCB5': '490',
         }
 
-        webbpsf.webbpsf_core._log.info("Detector IPC: NIRCam (added)")
-        det = psf_hdulist[ext].header['DET_NAME'] #detector name
+        webbpsf.webbpsf_core._log.info(f"Detector IPC: NIRCam {det} (added)")
         # IPC effect
         # read the SCA extension for the detector
         sca_path = os.path.join(utils.get_webbpsf_data_path(), 'NIRCam', 'IPC', 'KERNEL_IPC_CUBE.fits')
-        kernel = CustomKernel(fits.open(sca_path)[det2sca[det]].data[0]) # we read the first slide in the cube
-        # apply to DET_DIST
-        out_ipc  = convolve(psf_hdulist[ext].data, kernel)
+        kernel_ipc = CustomKernel(fits.open(sca_path)[det2sca[det]].data[0]) # we read the first slice in the cube
 
         # PPC effect
         # read the SCA extension for the detector
-        sca_path = os.path.join(utils.get_webbpsf_data_path(), 'NIRCam', 'IPC', 'KERNEL_PPC_CUBE.fits')
-        kernel = CustomKernel(fits.open(sca_path)[det2sca[det]].data[0])  # we read the first slide in the cube
-        # apply to DET_DIST after IPC effect
-        out_ipc_ppc = convolve(out_ipc, kernel)
+        ## TODO: This depends on detector coordinates, and which readout amplifier. if in subarray, then the PPC effect is always like in amplifier 1
+        sca_path_ppc = os.path.join(utils.get_webbpsf_data_path(), 'NIRCam', 'IPC', 'KERNEL_PPC_CUBE.fits')
+        kernel_ppc = CustomKernel(fits.open(sca_path_ppc)[det2sca[det]].data[0])  # we read the first slice in the cube
 
-        psf_hdulist[ext].header['IPCINST'] = ('NIRCam', 'Interpixel capacitance (IPC)')
-        psf_hdulist[ext].header['IPCTYPA'] = (det2sca[det], 'Post-Pixel Coupling (PPC)')
-        psf_hdulist[ext].data = out_ipc_ppc
+        kernel = (kernel_ipc, kernel_ppc)  # Return two distinct convolution kernels in this case
+
+        meta['IPCINST'] = ('NIRCam', 'Interpixel capacitance (IPC)')
+        meta['IPCTYPA'] = (det2sca[det], 'NRC SCA num used for IPC and PPC model')
+        meta['IPCFILE'] = (os.path.basename(sca_path), 'IPC model source file')
+        meta['PPCFILE'] = (os.path.basename(sca_path_ppc), 'PPC model source file')
 
     elif inst =='MIRI':
-        a = webbpsf.constants.INSTRUMENT_IPC_DEFAULT_KERNEL_PARAMETERS[inst]
         webbpsf.webbpsf_core._log.info("Detector IPC: MIRI")
+
+        a = webbpsf.constants.INSTRUMENT_IPC_DEFAULT_KERNEL_PARAMETERS[inst]
         alpha = webbpsf.constants.INSTRUMENT_IPC_DEFAULT_KERNEL_PARAMETERS[inst][0]
         beta = webbpsf.constants.INSTRUMENT_IPC_DEFAULT_KERNEL_PARAMETERS[inst][1]
         c = webbpsf.constants.INSTRUMENT_IPC_DEFAULT_KERNEL_PARAMETERS[inst][2]  # real observation noise adjustment
@@ -78,18 +75,21 @@ def apply_detector_ipc(psf_hdulist):
                                 [alpha, 1 - 2 * alpha - 2 * beta - 4 * c, alpha],
                                 [c, beta, c]])
         kernel = CustomKernel(miri_kernel)
-        # apply to DET_DIST
-        out  = convolve(psf_hdulist[ext].data, kernel)
-        psf_hdulist[ext].header['IPCINST'] = ('MIRI', 'Interpixel capacitance (IPC)')
-        psf_hdulist[ext].header['IPCTYPA'] = (alpha, 'coupling coefficient alpha')
-        psf_hdulist[ext].header['IPCTYPB'] = (beta, 'coupling coefficient beta')
-        psf_hdulist[ext].data = out
+
+        meta['IPCINST'] = ('MIRI', 'Interpixel capacitance (IPC)')
+        meta['IPCTYPA'] = (alpha, 'coupling coefficient alpha')
+        meta['IPCTYPB'] = (beta, 'coupling coefficient beta')
+        meta['IPCFILE'] = ('webbpsf.constants', 'IPC model source file')
 
     elif inst == 'NIRISS':
+        # NIRISS IPC files distinguish between the 4 detector readout channels, and
+        # whether or not the pixel is within the region of a large detector epoxy void
+        # that is present in the NIRISS detector.
+
         # this set-up the input variables as required by Kevin Volk IPC code
-        image = psf_hdulist[ext].data
-        xposition = psf_hdulist[ext].header["DET_X"]
-        yposition = psf_hdulist[ext].header["DET_Y"]
+        #image = psf_hdulist[ext].data
+        xposition = header["DET_X"]
+        yposition = header["DET_Y"]
         # find the voidmask fits file
         voidmask10 = os.path.join(utils.get_webbpsf_data_path(), 'NIRISS', 'IPC', 'voidmask10.fits')
 
@@ -113,22 +113,102 @@ def apply_detector_ipc(psf_hdulist):
                       frag2[flag] + '.fits'
         ipc_file = os.path.join(utils.get_webbpsf_data_path(), 'NIRISS', 'IPC', ipcname)
         if os.path.exists(ipc_file):
-            ipckernel = fits.getdata(ipc_file)
-            newimage = signal.fftconvolve(image, ipckernel, mode='same')
-            psf_hdulist[ext].header['IPCINST'] = ('NIRISS', 'Interpixel capacitance (IPC)')
-            psf_hdulist[ext].header['IPCTYPA'] = (ipcname, 'kernel file used for IPC correction')
+            kernel = fits.getdata(ipc_file)
+            #newimage = signal.fftconvolve(image, ipckernel, mode='same')
+            meta['IPCINST'] = ('NIRISS', 'Interpixel capacitance (IPC)')
+            meta['IPCTYPA'] = (ipcname, 'kernel file used for IPC correction')
+            meta['IPCFILE'] = (os.path.basename(ipc_file), 'IPC model source file')
         else:
-            newimage = np.copy(image)
-            psf_hdulist[ext].header['IPCINST'] = ('NIRISS', 'Interpixel capacitance (IPC)')
-            psf_hdulist[ext].header['IPCTYPA'] = ('NIRISS', 'No kernel file found')
-            psf_hdulist[ext].header['IPCTYPB'] = ('NIRISS', 'No IPC correction applied')
+            kernel = None
+
+            meta['IPCINST'] = ('NIRISS', 'Interpixel capacitance (IPC)')
+            meta['IPCTYPA'] = ('NIRISS', 'No kernel file found')
+            meta['IPCTYPB'] = ('NIRISS', 'No IPC correction applied')
+            meta['IPCFILE'] = ('Not found', 'IPC model source file')
             webbpsf.webbpsf_core._log.info("No IPC correction for NIRISS. Check kernel files.")
 
-        psf_hdulist[ext].data = newimage
 
-    elif inst in ["FGS", "NIRSpec"]:
-        psf_hdulist[ext].header['IPCINST'] = (inst, 'No IPC correction applied')
+    elif inst in ["FGS", "NIRSPEC"]:
+        kernel = None     # No IPC models yet implemented for these
+        meta['IPCFILE'] = ('Not found', 'IPC model source file')
+
+    return kernel, meta
+
+
+def apply_detector_ipc(psf_hdulist, extname = 'DET_DIST'):
+    """Apply a model for interpixel capacitance
+
+
+    NIRCam: IPC and PPC values derived during ground I&T, primarily ISIM-CV3 from Jarron Leisenring
+    these IPC/PPC kernels will be update after flight values are available.
+    For NIRCam only PPC effects are also included, these are relatively small compared to the IPC contribution
+    MIRI: Convolution kernels from JWST-STScI-002925 by Mike Engesser
+    NIRISS: Convolution kernels and base code provided by Kevin Volk
+    The IPC kernel files are derived from IPC measurements made from NIRISS commissioning dark ramps by Chris Willott.
+
+    For NIRISS the user needs to have the right kernels under $WEBBPSF_PATH/NIRISS/IPC/
+    These kernels should be available with webbpsf data > Version 1.1.1
+
+    You can turn On/Off IPC effects as an option.
+     For example: inst.option['add_ipc'] = False, where inst is the instrument class. Default is True.
+
+
+    Parameters
+    ----------
+    psf_hdulist : astropy.io.fits.HDUList
+        A HDUList containing a webbpsf simulation result
+    extname : string
+        Which extension name to apply this to. This gets a bit tricky. In the normal calc_psf code path, this
+        is applied to detector-sampled data, *after* binning the oversampled data to detector resolution. This
+        is most intuitive, and in some sense better represents the actual physics of this effect. However in the
+        psf_grid code path for making ePSFs, we need to be able to apply this model to oversampled PSFs.
+
+    """
+
+    # In cases for which the user has asked for the IPC to be applied to a not-present extension, we have nothing to add this to
+    if extname not in psf_hdulist:
+        webbpsf.webbpsf_core._log.debug(f"Skipping IPC simulation since ext {extname} is not found")
+        return
+
+    inst = psf_hdulist[extname].header['INSTRUME'].upper()
+    oversample = psf_hdulist[extname].header['OVERSAMP']
+
+    kernel, meta = get_detector_ipc_model(inst, psf_hdulist[extname].header)
+
+    if kernel is not None:
+
+        if inst.upper()=='NIRCAM':
+            # For NIRCam we have distinct models for IPC and PPC effects. Needs two convolutions.
+            ipckernel, ppckernel = kernel
+
+            if oversample !=1:
+                ipckernel = oversample_ipc_model(ipckernel, oversample)
+                ppckernel = oversample_ipc_model(ppckernel, oversample)
+
+            out_ipc_0  = convolve(psf_hdulist[extname].data, ipckernel)
+            out_ipc  = convolve(out_ipc_0, ppckernel)
+        elif inst.upper()=='NIRISS':
+            # the NIRISS code provided by Kevin Volk was developed for a different convolution function
+            if oversample !=1:
+                kernel = oversample_ipc_model(kernel, oversample)
+            out_ipct = signal.fftconvolve(image, kernel, mode='same')
+        else:
+            if oversample !=1:
+                kernel = oversample_ipc_model(kernel, oversample)
+            out_ipc  = convolve(psf_hdulist[extname].data, kernel)
+
+        # apply kernel to DET_DIST
+        psf_hdulist[extname].data = out_ipc
+
+        # save metadata to header
+        for key in meta:
+            psf_hdulist[extname].header[key] = meta[key]
+        psf_hdulist[extname].header.add_history("Applied detector interpixel capacitance (IPC) model")
+
+    else:
         webbpsf.webbpsf_core._log.info("IPC corrections are not implemented yet for {}".format(inst))
+        psf_hdulist[extname].header['IPCINST'] = (inst, 'No IPC correction applied')
+
 
 
     return psf_hdulist
@@ -152,11 +232,51 @@ def apply_detector_charge_diffusion(psf_hdulist, options):
 
     webbpsf.webbpsf_core._log.info("Detector charge diffusion: Convolving with Gaussian with sigma={0:.3f} arcsec".format(sigma))
     out = scipy.ndimage.gaussian_filter(psf_hdulist[ext].data, sigma / psf_hdulist[0].header['PIXELSCL'])
+    psf_hdulist[ext].header.add_history("Applied detector charge diffusion model.")
     psf_hdulist[ext].header['CHDFTYPE'] = ('gaussian', 'Type of detector charge diffusion model')
     psf_hdulist[ext].header['CHDFSIGM'] = (sigma, '[arcsec] Gaussian sigma for charge diff model')
     psf_hdulist[ext].data = out
 
     return psf_hdulist
+
+
+def oversample_ipc_model(kernel, oversample):
+    """ Transform an IPC model convolution kernel to be applied to oversampled data.
+
+    The correct way to do this turns out to be to intersperse zeros into the array, turning it
+    into a sparse comb function. This is because the IPC is a discrete effect that acts on pixels,
+    rather than a continuous function.
+
+    (This is non-intuitive but mathematically yields precisely consistent results for either order
+    of binning then applying IPC, or applying IPC then binning).
+
+    Parameters
+    ----------
+    kernel : numpy.ndarray
+        Convolution kernel for IPC model
+    oversample : int
+        Oversampling factor
+
+    Returns a version of the kernel resampled and padded for use on oversampled data, for instance an ePSF
+
+    """
+
+
+
+    oversampling_kernel = np.zeros((oversample, oversample))
+    oversampling_kernel[(oversample-1)//2, (oversample-1)//2] = 1
+
+    kernel_oversample = np.kron(kernel, oversampling_kernel)
+
+    if oversample % 2 == 0:
+        # pad with an extra row and column of zeros, to convert into a symmetrical and odd-sized kernel
+        npix = kernel_oversample.shape[0]
+        padded_kernel = np.zeros((npix+1, npix+1))
+        padded_kernel[1:, 1:] = kernel_oversample
+        kernel_oversample =  padded_kernel
+
+    return kernel_oversample
+
 
 # Functions for applying MIRI Detector Scattering Effect
 

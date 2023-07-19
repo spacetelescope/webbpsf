@@ -2,6 +2,7 @@ import pytest
 import numpy as np
 from astropy.io import fits
 
+import poppy
 import webbpsf.detectors as detectors
 import webbpsf.webbpsf_core as webbpsf_core
 
@@ -146,3 +147,25 @@ def test_miri_conservation_energy():
         assert pytest.approx(psf_sum, 0.005) == psf_cross_sum, "The energy conversation of the PSF before/after the " \
                                                                "scattering is added is greater than the tolerance of " \
                                                                "0.005"
+
+def test_ipc_oversampling_equivalence(oversamp = 2):
+    """Test that we can apply in either order the IPC model and binning to detector pixel scale,
+    and get the same results independent of order of operations.
+
+    This is necessary to verify the "intuitive" way of applying IPC to detector-sampled data,
+    and the alternative way to apply it to higher resolution oversampled data, are equivalent.
+    """
+    nrc = webbpsf_core.NIRCam()
+
+    testpsf = nrc.calc_psf(nlambda=1, oversample=oversamp, fov_pixels=5)
+
+    # regular version, with IPC added after binning to detector sampling
+    # this happens in normal calc_psf calls
+    psf_detdist = testpsf['DET_DIST'].data.copy()  # Binned then has IPC added
+
+    # apply IPC to oversampled extension, then bin
+    # this happens in psf_grid calls
+    detectors.apply_detector_ipc(testpsf, extname='OVERDIST')
+    psf_detdist_v2 = poppy.utils.rebin_array(testpsf['OVERDIST'].data, (oversamp,oversamp))
+
+    assert np.allclose(psf_detdist, psf_detdist_v2), "PSFs calculated should be equivalent for IPC convolution and binning in either order"

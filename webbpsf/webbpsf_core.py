@@ -1130,7 +1130,7 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         # Rewrite result variable based on output_mode; this includes binning down to detector sampling.
         SpaceTelescopeInstrument._calc_psf_format_output(self, result, options)
-        #you can turn 0n/off IPC corrections via the add_ipc option, default True.
+        # you can turn on/off IPC corrections via the add_ipc option, default True.
         add_ipc = options.get('add_ipc', True)
         if add_ipc and add_distortion:
             result = detectors.apply_detector_ipc(result)  # apply detector IPC model (after binning to detector sampling)
