@@ -125,7 +125,7 @@ def get_detector_ipc_model(inst, header):
             meta['IPCTYPA'] = ('NIRISS', 'No kernel file found')
             meta['IPCTYPB'] = ('NIRISS', 'No IPC correction applied')
             meta['IPCFILE'] = ('Not found', 'IPC model source file')
-            webbpsf.webbpsf_core._log.info("No IPC correction for NIRISS. Check kernel files.")
+            webbpsf.webbpsf_core._log.info(f"NIRISS IPC kernel file {ipc_file} not found.")
 
 
     elif inst in ["FGS", "NIRSPEC"]:
@@ -191,7 +191,7 @@ def apply_detector_ipc(psf_hdulist, extname = 'DET_DIST'):
             # the NIRISS code provided by Kevin Volk was developed for a different convolution function
             if oversample !=1:
                 kernel = oversample_ipc_model(kernel, oversample)
-            out_ipct = signal.fftconvolve(image, kernel, mode='same')
+            out_ipc = signal.fftconvolve(psf_hdulist[extname].data, kernel, mode='same')
         else:
             if oversample !=1:
                 kernel = oversample_ipc_model(kernel, oversample)

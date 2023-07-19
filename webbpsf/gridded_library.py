@@ -8,6 +8,8 @@ from astropy.nddata import NDData
 import numpy as np
 import poppy
 
+import webbpsf.detectors
+
 
 class CreatePSFLibrary:
 
@@ -275,12 +277,17 @@ class CreatePSFLibrary:
                     print("    Position {}/{} centroid: {}".format(i+1, len(self.location_list), cntrd))
 
 
-                # Convolve PSF with a square kernel
-                psf_conv = astropy.convolution.convolve(psf[ext].data, kernel)
+                # Convolve PSF with a square kernel for the detector pixel response function
+                psf[ext].data = astropy.convolution.convolve(psf[ext].data, kernel)
 
+                # Convolve PSF with a model for interpixel capacitance
+                # note, normally this is applied in calc_psf to the detector-sampled data;
+                # here we specially apply this to the oversampled data
+                if self.webb.options.get('add_ipc', True):
+                    webbpsf.detectors.apply_detector_ipc(psf, extname=ext)
 
                 # Add PSF to 5D array
-                psf_arr[i, :, :] = psf_conv
+                psf_arr[i, :, :] = psf[ext].data
 
             # Normalize the output PSFs as expected by photutils.GriddedPSFModel:
             #  PSFs should be in surface brightness units, independent of oversampling.
@@ -360,8 +367,9 @@ class CreatePSFLibrary:
                         meta[mykey] = (psf[ext].header[mykey], psf[ext].header.comments[mykey])
 
             # copy all the jitter-related keys (the exact set of keywords varies based on jitter type)
+            # Also copy charge diffusion and IPC
             for k in psf[ext].header.keys():   # do the rest
-                if k.startswith('JITR'):
+                if k.startswith('JITR') or k.startswith('IPC') or k.startswith('CHDF'):
                     meta[k] = (psf[ext].header[k], psf[ext].header.comments[k])
 
             meta["DATE"] = (psf[ext].header["DATE"], "Date of calculation")
