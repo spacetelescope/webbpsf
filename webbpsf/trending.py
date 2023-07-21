@@ -1034,7 +1034,7 @@ def monthly_trending_plot(year, month, verbose=True, instrument='NIRCam', filter
         ax.set_yticks([])
 
     # Make the plots
-    fig = plt.figure(constrained_layout=False, figsize=(16, 9), )
+    fig = plt.figure(constrained_layout=False, figsize=(16, 10), )
 
     subfigs = fig.subfigures(2, 1, hspace=0.02, height_ratios=[2, 2], )
 
@@ -1081,9 +1081,9 @@ def monthly_trending_plot(year, month, verbose=True, instrument='NIRCam', filter
         ee_measurements[ee_npix] = ees_at_rad  # save for later
 
         median_ee = np.median(ees_at_rad)
-        ee_ax_ylim = np.max([ee_ax_ylim, np.abs(ees_at_rad-median_ee).max()*1.1]) # display tweak: adjust the plot Y scale sensibly to its contents
+        ee_ax_ylim = np.max([ee_ax_ylim, np.abs((ees_at_rad-median_ee)/median_ee).max()*1.1]) # display tweak: adjust the plot Y scale sensibly to its contents
 
-        axes[1].plot_date(dates_array.plot_date, ees_at_rad-median_ee, ls='-', color=color,
+        axes[1].plot_date(dates_array.plot_date, (ees_at_rad - median_ee)/median_ee, ls='-', color=color,
                           label=f"$\Delta$EE within {ee_rad:.2f} arcsec ({ee_npix} pix)")
 
         axes[1].text(0.01, 0.75-i*0.12, f'Median EE within {ee_rad:.2f} arcsec = {median_ee:.3f}', color=color,
@@ -1092,7 +1092,7 @@ def monthly_trending_plot(year, month, verbose=True, instrument='NIRCam', filter
 
     axes[1].fill_between( [start_date.plot_date - 0.5, end_date.plot_date + 0.5], -0.03, 0.03, color='gray', alpha=0.1, label="±3% change (stability requirement)")
     axes[1].set_xlabel("Date", fontsize=fs, fontweight='bold')
-    axes[1].set_ylabel(f"Change in \nEncircled Energy\n{instrument} {filter}", fontsize=fs, fontweight='bold')
+    axes[1].set_ylabel(f"% Change in \nEncircled Energy\n{instrument} {filter}", fontsize=fs, fontweight='bold')
     axes[1].set_ylim(0.5, 1.0)
     axes[1].axhline(0, ls=":", color='gray')
     axes[1].set_ylim(-ee_ax_ylim, ee_ax_ylim)
@@ -1156,7 +1156,7 @@ def monthly_trending_plot(year, month, verbose=True, instrument='NIRCam', filter
             basic_show_image(delta_opd * 1e6, ax=im_axes[2, plot_index], nanmask=nanmask, vmax=vmax_micron)
             im_axes[2, plot_index].text(20, 20, f"{webbpsf.utils.rms(delta_opd, mask=apmask)*1e9:.1f}", color='yellow', fontsize=fs*0.6)
 
-    for i, l in enumerate(['WF Sensing', "Drifts", 'Corrections']):
+    for i, l in enumerate(['Measured\nWFE', "Drifts", 'Mirror\nCorrections']):
         im_axes[i, 0].yaxis.set_visible(True)
         im_axes[i, 0].set_ylabel(l + "\n\n", fontsize=fs, fontweight='bold')
 
