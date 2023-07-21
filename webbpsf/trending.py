@@ -96,7 +96,8 @@ def wavefront_time_series_plot(opdtable, start_date=None, end_date=None, ymin=0,
 
     rms_nm = np.asarray(rmses) * 1000
 
-    routine_pids = [1163, 2586, 2724, 2725, 2726, 4431]  # commissioning OTE-26 and cycle 1 maintenance
+    routine_pids = [1163, 2586, 2724, 2725, 2726, 4431, # Commissioning OTE-26 and Cycle 1 maintenance
+                    4500, 4501, 4502, 4503, 4504, 4505, 4506, 4507, 4508, 4509, 4510]  # Cycle 2
 
     is_routine = np.asarray([int(v[1:6]) in routine_pids for v in opdtable[where_pre]['visitId']])
 
