@@ -128,7 +128,7 @@ def get_detector_ipc_model(inst, header):
             webbpsf.webbpsf_core._log.info(f"NIRISS IPC kernel file {ipc_file} not found.")
 
 
-    elif inst in ["FGS", "NIRSPEC"]:
+    elif inst in ["FGS", "NIRSPEC", "WFI"]:
         kernel = None     # No IPC models yet implemented for these
         meta['IPCFILE'] = ('Not found', 'IPC model source file')
 
