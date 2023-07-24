@@ -283,7 +283,7 @@ class CreatePSFLibrary:
                 # Convolve PSF with a model for interpixel capacitance
                 # note, normally this is applied in calc_psf to the detector-sampled data;
                 # here we specially apply this to the oversampled data
-                if self.webb.options.get('add_ipc', True):
+                if self.add_distortion and self.webb.options.get('add_ipc', True):
                     webbpsf.detectors.apply_detector_ipc(psf, extname=ext)
 
                 # Add PSF to 5D array
