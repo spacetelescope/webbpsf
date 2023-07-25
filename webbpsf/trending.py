@@ -7,6 +7,7 @@ import astropy
 import astropy.io.fits as fits
 import astropy.time
 import astropy.units as u
+from astroquery.mast import Observations
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
@@ -176,7 +177,7 @@ def wavefront_time_series_plot(opdtable, start_date=None, end_date=None, ymin=0,
 
 
 
-def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, download_opds=True, mark_corrections='lines'):
+def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, pid=None, download_opds=True, mark_corrections='lines'):
     """ Plot histogram and cumulative histogram of WFE over some time range.
 
     Parameters
@@ -189,17 +190,28 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, do
         threshold to filter the RMS WFE
     download_opds : bool
         toggle downloading of OPDs from MAST
+    pid : int, optional
+        Program ID for which dates of observations are to be overplotted
 
     Returns
     -------
     Nothing, but makes a plot
 
     """
-
+    
     if start_date is None:
         start_date = astropy.time.Time('2022-07-16')
     if end_date is None:
         end_date = astropy.time.Time.now()
+
+
+    # Look up wavefront sensing and mirror move corrections for that month
+    if pid:
+        pid_dates = get_dates_for_pid(pid)
+        if pid_dates is not None:
+            pid_dates = pid_dates[(pid_dates >= start_date) & (pid_dates <= end_date)]
+        else:
+            pid = None
 
     opdtable0 = webbpsf.mast_wss.deduplicate_opd_table(opdtable)
     opdtable1 = webbpsf.mast_wss.filter_opd_table(opdtable0, start_time=start_date, end_time=end_date)
@@ -280,6 +292,7 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, do
                 ytmp = [rms_nm[i-1] - yoffsets[1], rms_nm[i] + yoffsets[1]]
                 axes[0].plot(xtmp.plot_date, ytmp, color='limegreen', lw=2, ls='-')
 
+    if pid: axes[0].set_ylim(0.975*axes[0].get_ylim()[0], 1.025*axes[0].get_ylim()[1])
     axes[0].set_xlabel("Date")
     axes[0].set_ylabel("RMS WFE\n(OTE+NIRCam)", fontweight='bold')
     axes[0].set_title(f"Observatory WFE from {start_date.isot[0:10]} to {end_date.isot[0:10]}",
@@ -288,7 +301,6 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, do
     if thresh:
         axes[0].axhline(thresh, color='C2', label='Correction threshold', linestyle='dashed')
 
-    axes[0].legend()
     axes[0].tick_params(right=True, which='both', direction = 'in')
 
     nbins=100
@@ -327,6 +339,18 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, do
                     fontweight='bold', fontsize=14)    
 
 
+    # Add vertical lines for dates of PID observations
+    if pid:
+        for i, obs_date in enumerate(pid_dates):
+            axes[0].axvline(obs_date.plot_date, color='darkgrey', ls='--', alpha=0.5, zorder=1)
+            y_star = axes[0].get_ylim()[0] + 0.10*np.diff(axes[0].get_ylim())
+            if i==0:
+                label = "PID {:d} obs. date(s)".format(pid)
+            else:
+                label = None
+            axes[0].scatter(obs_date.plot_date, y_star, marker='*', s=200, color='darkgrey', label=label)
+
+    axes[0].legend()
 
 ##### Wavefront Drifts Plot #####
 
@@ -933,11 +957,54 @@ def check_colnames(opdtable):
     return opdtable
 
 
-def monthly_trending_plot(year, month, verbose=True, instrument='NIRCam', filter='F200W', vmax=200, opdtable=None):
+def get_dates_for_pid(pid, project='jwst'):
+    """ Check the archive for the start dates of each observation of the specified PID
+    
+    Parameters
+    -----------
+    pid: int
+         Program ID for which the observation start dates are to be overplotted
+
+    Returns:
+    start_times: list of astropy.time.Time dates
+
+    """
+    
+
+    try:
+        obs_table = Observations.query_criteria(project='jwst', proposal_id=pid)
+
+        cond_calib = (obs_table['calib_level']>1)
+        obs_table  = obs_table[cond_calib]
+
+        obs_table['obs_num'] = [x['obs_id'][7:10] if x['calib_level']==2 else x['obs_id'][8:13] for x in obs_table]
+        obs_table['obs_num'] = [x.strip("_") for x in obs_table['obs_num'] ]
+
+        obs_by_num = obs_table.group_by('obs_num')
+
+        start_times = []
+        for key, group in zip(obs_by_num.groups.keys, obs_by_num.groups):
+            start_times.append(group['t_min'].min())
+    
+        start_times = astropy.time.Time(start_times, format='mjd')
+        start_times = start_times.to_value('fits')#, subfmt='date')
+        start_times = astropy.time.Time( np.unique(start_times) )
+
+        return start_times
+    except:
+        print("No access to data for PID {:d}".format(pid))
+        return 
+
+
+    
+
+def monthly_trending_plot(year, month, verbose=True, instrument='NIRCam', filter='F200W', vmax=200, pid=None, opdtable=None):
     """Make monthly trending plot showing OPDs, mirror moves, RMS WFE, and the resulting PSF EEs
 
     year, month : integers
         Self explanatory
+    pid : int, optional
+        Program ID for which dates of observations are to be overplotted
     verbose : bool
         Print more verbose text output
     vmax : float
@@ -946,11 +1013,20 @@ def monthly_trending_plot(year, month, verbose=True, instrument='NIRCam', filter
         Table of available OPDs, Default None: as returned by retrieve_mast_opd_table()
     """
 
+    
     def vprint(*text):
         if verbose: print(*text)
 
-    # Look up wavefront sensing and mirror move corrections for that month
     start_date, end_date = get_month_start_end(year, month)
+            
+    # Look up wavefront sensing and mirror move corrections for that month
+    if pid:
+        pid_dates = get_dates_for_pid(pid)
+        if pid_dates is not None:
+            pid_dates = pid_dates[(pid_dates >= start_date) & (pid_dates <= end_date)]
+        else:
+            pid = None
+        
     if opdtable is None:
         opdtable = get_opdtable_for_month(year, month)
     else:
@@ -1057,17 +1133,18 @@ def monthly_trending_plot(year, month, verbose=True, instrument='NIRCam', filter
                       color='C1', ls='-', label='Observatory WFE at NIRCam NRCA3')
     axes[0].plot_date(dates_array.plot_date, rms_ote * 1e9,
                       color='C0', ls='-', label='Telescope WFE')
+    
     for ax in axes:
         for corr_date in correction_times:
             ax.axvline(corr_date.plot_date, color='darkgreen', ls='--', alpha=0.5)
+
 
     #axes[0].axhline(59, ls=":", color='gray')
     #axes[0].axhline(80, ls=":", color='gray')
     axes[0].fill_between( [start_date.plot_date - 0.5, end_date.plot_date + 0.5],
                           [59,59], [80, 80], color='blue', alpha=0.08, label='Wavefront control target range')
-    axes[0].legend(loc='lower right', fontsize=9)
 
-    axes[0].set_ylim(0, 150)
+    axes[0].set_ylim(0.8*rms_ote.min()*1e9, 1.2*rms_obs.max()*1e9)
     axes[0].set_ylabel("Wavefront Error\n[nm rms]", fontsize=fs, fontweight='bold')
     axes[0].set_xticklabels([])
 
@@ -1097,7 +1174,7 @@ def monthly_trending_plot(year, month, verbose=True, instrument='NIRCam', filter
     axes[1].set_ylim(0.5, 1.0)
     axes[1].axhline(0, ls=":", color='gray')
     axes[1].set_ylim(-ee_ax_ylim, ee_ax_ylim)
-    axes[1].legend(loc='upper right', fontsize=9)
+
 
     # Configure Axes for the time series plots
     for ax in axes[0:2]:
@@ -1106,6 +1183,21 @@ def monthly_trending_plot(year, month, verbose=True, instrument='NIRCam', filter
         ax.xaxis.set_minor_locator(matplotlib.dates.DayLocator())
         ax.xaxis.set_major_locator(matplotlib.dates.WeekdayLocator(byweekday=matplotlib.dates.MONDAY,
                                                                    interval=1))
+
+    # Add vertical lines for dates of PID observations
+    if pid:
+        for iax, ax in enumerate(axes):
+            for i, obs_date in enumerate(pid_dates):
+                ax.axvline(obs_date.plot_date, color='darkgrey', ls='--', alpha=0.5, zorder=1)
+                y_star = ax.get_ylim()[0] + 0.20*np.diff(ax.get_ylim())
+                if iax==0 and i==0:
+                    label = "PID {:d} obs. date(s)".format(pid)
+                else:
+                    label = None
+                ax.scatter(obs_date.plot_date, y_star, marker='*', s=200, color='darkgrey', label=label)
+
+    axes[0].legend(loc='best', fontsize=9, ncol=2)
+    axes[1].legend(loc='upper right', fontsize=9)
 
     nanmask = np.zeros_like(apmask) + np.nan
     nanmask[apmask == 1] = 1
