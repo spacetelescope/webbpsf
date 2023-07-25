@@ -250,9 +250,9 @@ JWST_TYPICAL_LOS_JITTER_PER_AXIS = 0.0008 # milliarcseconds jitter, 1 sigma per 
 # Note, these are parameterized as arcseconds for convenience (and consistency with the jitter paramater)
 # but the underlying physics cares more about detector pixel pitch.
 INSTRUMENT_DETECTOR_CHARGE_DIFFUSION_DEFAULT_PARAMETERS = {
-    'NIRCAM_SW': 0.006,     # Fit by Marcio to WFS TA ePSFs
-    'NIRCAM_LW': 0.012,     # Scaled up by pixel pitch
-    'NIRISS': 0.028,         # Fit by Marcio to MIMF-3 F158M (ePSF)
+    'NIRCAM_SW': 0.0062,    # Fit by Marcio to WFS TA ePSFs, and by Marshall to prelim NIRCam SW ePSFs by J. Anderson
+    'NIRCAM_LW': 0.018,     # Fit by Marshall to prelim LW ePSFs by J. Anderson
+    'NIRISS': 0.0202,       # Fit by Marcio to MIMF-3 F158M (ePSF), and by Marshall to NIRISS ePSFs by Anderson & Libralato
     'FGS': 0.07,            # Fit by Marcio to FGS_ID images
     'NIRSPEC': 0.036,
     'MIRI': 0.001,          # Fit by Marshall + Marcio to ePSFs, after adding IPC
