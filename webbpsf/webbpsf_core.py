@@ -32,7 +32,6 @@ import astropy.units as units
 from astropy.coordinates import Angle
 from astropy.convolution import convolve, Box1DKernel, Gaussian1DKernel
 from astropy.modeling.functional_models import Gaussian1D, GAUSSIAN_SIGMA_TO_FWHM
-from astropy.modeling.fitting import LevMarLSQFitter
 
 import poppy
 
@@ -2119,12 +2118,6 @@ class MIRI(JWInstrument):
         sigma_diffr = self._get_diffractiom_FWHM()/GAUSSIAN_SIGMA_TO_FWHM
         return np.sqrt(sigma_emp**2 - sigma_diffr**2)  # return kernel width in arcsec
 
-    def mrs_fwhm_meas(self, psfm, pxsc):
-        m = Gaussian1D(amplitude=0.01, mean=int(psfm.shape[0] / 2), stddev=1.)
-        fitter = LevMarLSQFitter()
-        fwhm = GAUSSIAN_SIGMA_TO_FWHM * fitter(m, np.arange(psfm.shape[0]), psfm).stddev
-        return fwhm*pxsc
-
     def _empirical_broadening(self, psf_model, alpha_width, beta_width):
         """
         Perform the broadening of a psf model in alpha and beta
@@ -2148,7 +2141,7 @@ class MIRI(JWInstrument):
                  overwrite=True, display=False, save_intermediates=False, return_intermediates=False,
                  normalize='first', add_distortion=True, crop_psf=True, broadening='both', **kwargs):
         """
-        Calculate empirical PSF.
+        Calculate empirical PSF for MIRI .
         :param broadening: include broadening of PSF for MIRI-IFU. Options are None, "both" for alpha and
         beta broadening
         """
@@ -2165,6 +2158,8 @@ class MIRI(JWInstrument):
                 raise ValueError("MIRI-IFU requires monochromatic PSF calculation")
             # update wavelength
             self.wavelength = monochromatic
+            # we need both extensions
+            self.options['output_mode'] = "both"
             # calculate monochromatic PSF
             mrspsf = super().calc_psf(monochromatic=self._wavelength * 1e-6, oversample=oversample,
                                       display=False, add_distortion=add_distortion, fov_arcsec=fov_arcsec,
@@ -2184,7 +2179,7 @@ class MIRI(JWInstrument):
                 return mrspsf
             # delete previous DETSAMP
             del mrspsf[1]
-            # rename new extension
+            # rename new extension. Instead of DIST we have BROAD for broadening
             mrspsf[1].header = mrspsf[0].header
             mrspsf[1].name = "OVERBROAD"
             mrspsf[1].header["IFUBROAD"] = kwargs.get("broadening", "None")
