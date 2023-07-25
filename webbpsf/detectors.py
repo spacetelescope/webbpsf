@@ -4,7 +4,7 @@ import os
 import numpy as np
 import scipy
 import webbpsf
-from webbpsf import utils
+from webbpsf import utils, constants
 from astropy.convolution.kernels import CustomKernel
 from astropy.convolution import convolve
 from astropy.io import fits
@@ -309,6 +309,9 @@ def _make_miri_scattering_kernel(image, amplitude, nsamples):
     # Create 1d kernel
     kernel_x = amplitude * np.exp(-np.abs(x) / 25)
 
+    # reduce intensity in the inner part, since the cruciform is suppressed at small radii
+    kernel_x[np.abs(x) < constants.MIRI_CRUCIFORM_INNER_RADIUS_PIX] *= 0.5
+
     # Reshape kernel to 2D image for use in convolution
     kernel_x.shape = (1, image.shape[1])
 
@@ -412,6 +415,9 @@ def apply_miri_scattering(hdulist_or_filename=None, kernel_amp=None):
     # and https://github.com/spacetelescope/webbpsf/issues/415
     kernel_amp_corrections = {'F560W': 4.05, 'F770W': 4.1, 'F1000W': 3.8,
                                'F1130W': 2.5, 'F1280W': 2.5, 'F1065C': 2.5, 'F1140C': 2.5}
+    # In-flight correction based on measured cycle 1 ePSFs, coarsely
+    for k in kernel_amp_corrections:
+        kernel_amp_corrections[k] *= 0.5
 
     # Set values if not already set by a keyword argument
     if kernel_amp is None:

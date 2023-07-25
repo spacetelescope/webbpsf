@@ -255,8 +255,8 @@ INSTRUMENT_DETECTOR_CHARGE_DIFFUSION_DEFAULT_PARAMETERS = {
     'NIRISS': 0.028,         # Fit by Marcio to MIMF-3 F158M (ePSF)
     'FGS': 0.07,            # Fit by Marcio to FGS_ID images
     'NIRSPEC': 0.036,
-    'MIRI': 0.05,          # Fit by Marcio to F560W ePSF and single PSF (MIMF-3)
-                           #  0.070 Based on user reports, see issue #674. However, this is before adding IPC effects
+    'MIRI': 0.001,          # Fit by Marshall + Marcio to ePSFs, after adding IPC
+                            #  0.070 Based on user reports, see issue #674. However, this was before adding IPC effects
 }
 # add Interpixel capacitance (IPC) effects. These are the parameters for each detector kernel
 # For NIRCam we  use CV3/Flight convolution kernels from Jarron Leisenring, see detectors.apply_detector_ipc for details
@@ -264,3 +264,8 @@ INSTRUMENT_DETECTOR_CHARGE_DIFFUSION_DEFAULT_PARAMETERS = {
 INSTRUMENT_IPC_DEFAULT_KERNEL_PARAMETERS = {
     'MIRI': (0.033, 0.024, 0.013),          # Based on JWST-STScI-002925 by Mike Engesser
 }
+
+# How many detector pixels to mask out for the inner "hole" in the cruciform?
+# See Gaspar et al. 2021 for illustrative figures.
+# This is a rough approximation of a detector-position-dependent phenomenon
+MIRI_CRUCIFORM_INNER_RADIUS_PIX = 12
