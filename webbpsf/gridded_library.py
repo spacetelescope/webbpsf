@@ -24,6 +24,7 @@ class CreatePSFLibrary:
 
     def __init__(self, instrument, filter_name, detectors="all", num_psfs=16, psf_location=None,
                  use_detsampled_psf=False, save=True, outdir=None, filename=None, overwrite=True, verbose=True,
+                 psf_location_list=None,
                  **kwargs):
         """
         Description
@@ -60,6 +61,10 @@ class CreatePSFLibrary:
         psf_location : tuple
             If num_psfs = 1, then this is used to set the (y,x) location of that PSF.
             Default is the center point for the detector.
+
+        psf_location_list: list of tuples
+            If num_psfs > 1,  then this should be a list of locations for each PSF.
+            This can be used to set irregular sampling, if needed for some reason.
 
         use_detsampled_psf : bool
             If True, the grid of PSFs returned will be detector sampled (made by binning
@@ -128,7 +133,7 @@ class CreatePSFLibrary:
         self.detector_list = self._set_detectors(self.filter, detectors)
 
         # Set the locations on the detector of the fiducial PSFs
-        self.location_list = self._set_psf_locations(num_psfs, psf_location)
+        self.location_list = self._set_psf_locations(num_psfs, psf_location, psf_location_list)
 
         # Set PSF attributes for the 3 kwargs that will be used before the calc_psf() call
         if "add_distortion" in kwargs:
@@ -192,7 +197,7 @@ class CreatePSFLibrary:
 
         return det
 
-    def _set_psf_locations(self, num_psfs, psf_location):
+    def _set_psf_locations(self, num_psfs, psf_location, psf_location_list):
         """Set the locations on the detector of the fiducial PSFs"""
 
         self.num_psfs = num_psfs
@@ -207,9 +212,17 @@ class CreatePSFLibrary:
             # Want this case to be at the specified location
             location_list = [(psf_location[::-1])]  # tuple of (x,y)
         else:
-            max_size = self.webb._detector_npixels - 1
-            loc_list = [int(round(num * max_size)) for num in np.linspace(0, 1, self.length, endpoint=True)]
-            location_list = list(itertools.product(loc_list, loc_list))  # list of tuples (x,y) (for WebbPSF)
+
+            if psf_location_list is not None:
+                if len(psf_location_list) != num_psfs:
+                    raise ValueErrorf(
+                        "Length of psf_location_list ({len(psf_location_list)})  must equal num_psfs ({num_psfs})")
+                location_list = psf_location_list
+
+            else:
+                max_size = self.webb._detector_npixels - 1
+                loc_list = [int(round(num * max_size)) for num in np.linspace(0, 1, self.length, endpoint=True)]
+                location_list = list(itertools.product(loc_list, loc_list))  # list of tuples (x,y) (for WebbPSF)
 
         return location_list
 
