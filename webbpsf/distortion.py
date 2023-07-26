@@ -4,7 +4,7 @@ import astropy.io.fits as fits
 import numpy as np
 import pysiaf
 from scipy.interpolate import RegularGridInterpolator
-from scipy.ndimage.interpolation import rotate
+from scipy.ndimage import rotate
 
 def _get_default_siaf(instrument, aper_name):
     """
