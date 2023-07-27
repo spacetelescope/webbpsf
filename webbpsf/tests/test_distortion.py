@@ -36,7 +36,7 @@ def test_apply_distortion_skew():
 
     # Rebin data to get 3rd extension
     fgs.options["output_mode"] = "Both extensions"
-    fgs.options["detector_oversample"] = 1
+    fgs.options["detector_oversample"] = psf[0].header['DET_SAMP']
     webbpsf_core.SpaceTelescopeInstrument._calc_psf_format_output(fgs, result=psf_siaf, options=fgs.options)
 
     # Test the slope of the rectangle
@@ -78,6 +78,15 @@ def test_apply_distortion_pixel_scale():
     fgs.options["output_mode"] = "Oversampled image"
     psf = fgs.calc_psf(add_distortion=False)
 
+    # Replace data with a fake image of row values equal to the row number
+    data = np.zeros_like(psf[0].data)
+    ny, nx = data.shape
+    for i in np.arange(ny):
+        data[i, :] = i
+
+    # Replace the data in the PSF with the fake image
+    psf[0].data = data
+
     # Set up new extensions (from webbpsf_core.JWInstrument._calc_psf_format_output)
     n_exts = len(psf)
     for ext in np.arange(n_exts):
@@ -89,9 +98,9 @@ def test_apply_distortion_pixel_scale():
     # Run data through the distortion function
     psf_siaf = distortion.apply_distortion(psf)
 
-    # Rebin data to get 3rd extension
+    # Rebin data to get 3rd extension (DET_DIST)
     fgs.options["output_mode"] = "Both extensions"
-    fgs.options["detector_oversample"] = 1
+    fgs.options["detector_oversample"] = psf[0].header['DET_SAMP']
     webbpsf_core.SpaceTelescopeInstrument._calc_psf_format_output(fgs, result=psf_siaf, options=fgs.options)
 
     # Test that the change caused by the pixel distortion is approximately constant along the row
@@ -99,31 +108,25 @@ def test_apply_distortion_pixel_scale():
     i = 20
     ext = 3
 
-    psf_arr = psf_siaf[ext].data
-    size = psf_siaf[ext].data.shape[0]
-    inds = np.arange(len(psf_arr))
+    # Crop off the edges due to skew / rotation that brings in 0s from beyond edge of detector
+    psf_arr = psf_siaf[ext].data[5:-5, 5:-5]
+    ncol = psf_arr.shape[1]
+    inds = np.arange(ncol)
 
     # Model the skew with a basic linear function
-    yN = psf_arr[i, -1]
-    y0 = psf_arr[i, 0]
-    slope = (yN - y0) / len(psf_arr)
-    linear = (slope * inds) + y0
+    slope, intercept = np.polyfit(inds, psf_arr[i, :], 1)
+    linear = (slope * inds) + intercept
 
     # Create a new 1D array that's your 20th row with the linear skew subtracted out
-    # Add y0 because we want the values compared to 0th value, not subtracted down to 0 (just preference)
-    final = psf_arr[i, :] - linear + y0
+    final = psf_arr[i, :] - linear
 
     # Check the difference between adjacent values is the same to 1 decimal place
-    for i in range(size - 1):
-        a = final[i]
-        b = final[i + 1]
-
-        # This is the same as assert round(a - b, 1) == 0
-        assert pytest.approx(a, abs=0.1) == b, \
-            "FGS PSF does not have expected pixel scale distortion for adjacent pixels"
+    diff = final[:-1] - final[1:]
+    assert pytest.approx(diff, abs=0.1) == 0, \
+        "FGS PSF does not have expected pixel scale distortion for adjacent pixels"
 
     # Check that the difference between the first and last value is also the same to 1 decimal
-    assert pytest.approx(final[-1], 0.1) == final[0], "FGS PSF does not have expected pixel scale distortion in the " \
+    assert pytest.approx(final[-1], abs=0.1) == final[0], "FGS PSF does not have expected pixel scale distortion in the " \
                                                       "entire row"
 
 
@@ -140,3 +143,19 @@ def test_apply_rotation_error():
             distortion.apply_rotation(psf)
         assert "ValueError" in str(excinfo), "NIRSpec & MIRI PSFs should not be able to run through apply_rotation"
 
+
+def test_distortion_with_custom_pixscale():
+    """ Verifies the distortion model works properly even if the pixel scale is changed to
+    a nonstandard value for the calculation. This tests/verifies the fix in PR 669:
+        https://github.com/spacetelescope/webbpsf/pull/669
+    """
+
+    miri = webbpsf_core.MIRI()
+    miri.pixelscale = 0.061
+    psf = miri.calc_psf(fov_arcsec=2)
+
+    # A symptom of the prior bug was the total sum of a distorted PSF would be very
+    # discrepant from the sum of the undistorted PSF. So verif that symptom is not the case:
+
+    assert np.isclose(psf[0].data.sum(), psf[3].data.sum(), rtol=0.001)
+    assert np.isclose(psf[1].data.sum(), psf[3].data.sum(), rtol=0.001)

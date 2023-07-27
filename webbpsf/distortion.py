@@ -62,7 +62,7 @@ def distort_image(hdulist_or_filename, ext=0, to_frame='sci', fill_value=0,
         Value used to fill in any blank space by the skewed PSF. Default = 0.
         If set to None, values outside the domain are extrapolated.
     to_frame : str
-        Type of input coordinates. 
+        Requested type of output coordinate frame. 
 
             * 'tel': arcsecs V2,V3
             * 'sci': pixels, in conventional DMS axes orientation
@@ -115,11 +115,13 @@ def distort_image(hdulist_or_filename, ext=0, to_frame='sci', fill_value=0,
     # Pixel scale information
     ny, nx = hdu_list[ext].shape
     pixelscale = hdu_list[ext].header["PIXELSCL"]  # the pixel scale carries the over-sample value
-    oversamp   = hdu_list[ext].header["DET_SAMP"]  # PSF oversampling relative to detector 
 
     # Get 'sci' reference location where PSF is observed
     xsci_cen = hdu_list[ext].header["DET_X"]  # center x location in pixels ('sci')
     ysci_cen = hdu_list[ext].header["DET_Y"]  # center y location in pixels ('sci')
+
+    # Convert the PSF center point from pixels to arcseconds using pysiaf
+    xidl_cen, yidl_cen = aper.sci_to_idl(xsci_cen, ysci_cen)
 
     # ###############################################
     # Create an array of indices (in pixels) for where the PSF is located on the detector
@@ -128,16 +130,10 @@ def distort_image(hdulist_or_filename, ext=0, to_frame='sci', fill_value=0,
     ylin = np.linspace(-1*ny_half, ny_half, ny)
     xarr, yarr = np.meshgrid(xlin, ylin) 
 
-    # Convert the PSF center point from pixels to arcseconds using pysiaf
-    xidl_cen, yidl_cen = aper.sci_to_idl(xsci_cen, ysci_cen)
-
-    # Get 'idl' coords
-    xidl = xarr * pixelscale + xidl_cen
-    yidl = yarr * pixelscale + yidl_cen
-
     # ###############################################
     # Create an array of indices (in pixels) that the final data will be interpolated onto
     xnew_cen, ynew_cen = aper.convert(xsci_cen, ysci_cen, 'sci', to_frame)
+
     # If new x and y values are specified, create a meshgrid
     if (xnew_coords is not None) and (ynew_coords is not None):
         if len(xnew_coords.shape)==1 and len(ynew_coords.shape)==1:
@@ -146,9 +142,15 @@ def distort_image(hdulist_or_filename, ext=0, to_frame='sci', fill_value=0,
             assert xnew_coords.shape==ynew_coords.shape, "If new x and y inputs are a grid, must be same shapes"
             xnew, ynew = xnew_coords, ynew_coords
     elif to_frame=='sci':
-        xnew = xarr / oversamp + xnew_cen
-        ynew = yarr / oversamp + ynew_cen
+        osamp_x = aper.XSciScale / pixelscale
+        osamp_y = aper.YSciScale / pixelscale
+        xnew = xarr / osamp_x + xnew_cen
+        ynew = yarr / osamp_y + ynew_cen
     else:
+        # Get 'idl' coords
+        xidl = xarr * pixelscale + xidl_cen
+        yidl = yarr * pixelscale + yidl_cen
+
         xv, yv = aper.convert(xidl, yidl, 'idl', to_frame)
         xmin, xmax = (xv.min(), xv.max())
         ymin, ymax = (yv.min(), yv.max())
