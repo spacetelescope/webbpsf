@@ -29,13 +29,17 @@ Version History and Change Log
 
 Version 1.2.0
 =============
-Pre-release 
+*Pre-release*
+
 **James Webb Space Telescope improvements**:
+
 This new version includes H2RG detector effects:
+
 * Interpixel capacitance (IPC) and Post-pixel coupling (PPC, NIRCam only)
 * Charge diffusion via a simple ad hoc Gaussian convolution.
 
 **Roman Space Telescope improvements**:
+
 * added geometric distortion for Roman.
 
 Note, this release requires updating your WebbPSF data files to version 1.2.0, `webbpsf-data-1.2.0.tar.gz <https://stsci.box.com/shared/static/34g3slaq4jidgccqj25qqo80tlk6tubl.gz>`_
