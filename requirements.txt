@@ -4,7 +4,7 @@ matplotlib==3.7.2
 numpy==1.25.2
 photutils==1.8.0
 poppy>=1.0.0
-pysiaf==0.19.1
+pysiaf==0.20.0
 scipy==1.11.1
 synphot==1.2.1
 astroquery==0.4.6
