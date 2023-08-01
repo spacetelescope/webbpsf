@@ -36,7 +36,7 @@ def test_apply_distortion_skew():
 
     # Rebin data to get 3rd extension
     fgs.options["output_mode"] = "Both extensions"
-    fgs.options["detector_oversample"] = 1
+    fgs.options["detector_oversample"] = psf[0].header['DET_SAMP']
     webbpsf_core.SpaceTelescopeInstrument._calc_psf_format_output(fgs, result=psf_siaf, options=fgs.options)
 
     # Test the slope of the rectangle
@@ -78,6 +78,15 @@ def test_apply_distortion_pixel_scale():
     fgs.options["output_mode"] = "Oversampled image"
     psf = fgs.calc_psf(add_distortion=False)
 
+    # Replace data with a fake image of row values equal to the row number
+    data = np.zeros_like(psf[0].data)
+    ny, nx = data.shape
+    for i in np.arange(ny):
+        data[i, :] = i
+
+    # Replace the data in the PSF with the fake image
+    psf[0].data = data
+
     # Set up new extensions (from webbpsf_core.JWInstrument._calc_psf_format_output)
     n_exts = len(psf)
     for ext in np.arange(n_exts):
@@ -89,9 +98,9 @@ def test_apply_distortion_pixel_scale():
     # Run data through the distortion function
     psf_siaf = distortion.apply_distortion(psf)
 
-    # Rebin data to get 3rd extension
+    # Rebin data to get 3rd extension (DET_DIST)
     fgs.options["output_mode"] = "Both extensions"
-    fgs.options["detector_oversample"] = 1
+    fgs.options["detector_oversample"] = psf[0].header['DET_SAMP']
     webbpsf_core.SpaceTelescopeInstrument._calc_psf_format_output(fgs, result=psf_siaf, options=fgs.options)
 
     # Test that the change caused by the pixel distortion is approximately constant along the row
@@ -99,31 +108,25 @@ def test_apply_distortion_pixel_scale():
     i = 20
     ext = 3
 
-    psf_arr = psf_siaf[ext].data
-    size = psf_siaf[ext].data.shape[0]
-    inds = np.arange(len(psf_arr))
+    # Crop off the edges due to skew / rotation that brings in 0s from beyond edge of detector
+    psf_arr = psf_siaf[ext].data[5:-5, 5:-5]
+    ncol = psf_arr.shape[1]
+    inds = np.arange(ncol)
 
     # Model the skew with a basic linear function
-    yN = psf_arr[i, -1]
-    y0 = psf_arr[i, 0]
-    slope = (yN - y0) / len(psf_arr)
-    linear = (slope * inds) + y0
+    slope, intercept = np.polyfit(inds, psf_arr[i, :], 1)
+    linear = (slope * inds) + intercept
 
     # Create a new 1D array that's your 20th row with the linear skew subtracted out
-    # Add y0 because we want the values compared to 0th value, not subtracted down to 0 (just preference)
-    final = psf_arr[i, :] - linear + y0
+    final = psf_arr[i, :] - linear
 
     # Check the difference between adjacent values is the same to 1 decimal place
-    for i in range(size - 1):
-        a = final[i]
-        b = final[i + 1]
-
-        # This is the same as assert round(a - b, 1) == 0
-        assert pytest.approx(a, abs=0.1) == b, \
-            "FGS PSF does not have expected pixel scale distortion for adjacent pixels"
+    diff = final[:-1] - final[1:]
+    assert pytest.approx(diff, abs=0.1) == 0, \
+        "FGS PSF does not have expected pixel scale distortion for adjacent pixels"
 
     # Check that the difference between the first and last value is also the same to 1 decimal
-    assert pytest.approx(final[-1], 0.1) == final[0], "FGS PSF does not have expected pixel scale distortion in the " \
+    assert pytest.approx(final[-1], abs=0.1) == final[0], "FGS PSF does not have expected pixel scale distortion in the " \
                                                       "entire row"
 
 
@@ -141,143 +144,18 @@ def test_apply_rotation_error():
         assert "ValueError" in str(excinfo), "NIRSpec & MIRI PSFs should not be able to run through apply_rotation"
 
 
-# @pytest.mark.skip()
-def test_apply_miri_scattering_error():
-    """ Test that the apply_miri_scattering function raises an error for non-MIRI PSFs """
-
-    # Create a PSF
-    nir = webbpsf_core.NIRCam()
-    psf = nir.calc_psf()
-
-    # Test that running this function will raise a ValueError
-    with pytest.raises(ValueError) as excinfo:
-        distortion.apply_miri_scattering(psf)
-    assert "ValueError" in str(excinfo), "Non-MIRI PSFs should not be able to run through apply_miri_scattering"
-
-
-# @pytest.mark.skip()
-def test_apply_miri_scattering():
-    """
-    Test that a cross shape is added by the apply_miri_scattering function.
-
-    Find the difference between the input and output PSF and check that the only non-zero values are
-    along where the cross-shape would lie: i.e. lined up with the image's center.
+def test_distortion_with_custom_pixscale():
+    """ Verifies the distortion model works properly even if the pixel scale is changed to
+    a nonstandard value for the calculation. This tests/verifies the fix in PR 669:
+        https://github.com/spacetelescope/webbpsf/pull/669
     """
 
-    # Create a baseline PSF to have shape/header keywords correct
-    mir = webbpsf_core.MIRI()
-    mir.filter = "F560W"  # this filter has a strong cross added
-    mir.options["output_mode"] = "Oversampled image"
-    psf = mir.calc_psf(add_distortion=False)
+    miri = webbpsf_core.MIRI()
+    miri.pixelscale = 0.061
+    psf = miri.calc_psf(fov_arcsec=2)
 
-    # Set up new extensions (from webbpsf_core.JWInstrument._calc_psf_format_output)
-    n_exts = len(psf)
-    for ext in np.arange(n_exts):
-        hdu_new = fits.ImageHDU(psf[ext].data, psf[ext].header)  # these will be the PSFs that are edited
-        psf.append(hdu_new)
-        ext_new = ext + n_exts
-        psf[ext_new].header["EXTNAME"] = psf[ext].header["EXTNAME"][0:4] + "DIST"  # change extension name
+    # A symptom of the prior bug was the total sum of a distorted PSF would be very
+    # discrepant from the sum of the undistorted PSF. So verif that symptom is not the case:
 
-    # Run it through just the apply_miri_scattering function
-    psf_cross = distortion.apply_miri_scattering(psf)
-
-    # Rebin data to get 3rd extension
-    mir.options["output_mode"] = "Both extensions"
-    mir.options["detector_oversample"] = 1
-    webbpsf_core.SpaceTelescopeInstrument._calc_psf_format_output(mir, result=psf_cross, options=mir.options)
-
-    # Test distortion function
-    for ext in [2, 3]:
-        # Find the difference between the before and after PSF
-        diff = psf_cross[ext].data - psf_cross[ext - 2].data
-
-        # Test that the 4 corners of the box contain very small (close to 0) values
-        ylen, xlen = diff.shape
-
-        # Choose the start/stop points for these squares (each will take up 1/3 of the total array)
-        first = 0
-        second = int(0.33 * xlen)
-        third = int(0.67 * xlen)
-        fourth = xlen - 1
-
-        # Pull these squares out of the data
-        square1 = diff[first:second, first:second]
-        square2 = diff[first:second, third:fourth]
-        square3 = diff[third:fourth, first:second]
-        square4 = diff[third:fourth, third:fourth]
-
-        # What value it is compared to depends on the sampling since the range varies by a factor of the oversampling
-        if ext == 2:
-            value = 5e-7
-        else:
-            value = 1.5e-6
-
-        # Show that these corner squares contain very small values
-        assert_statement = "should have lower values because the scattering shouldn't be adding much to this region." \
-                           " It's too far away from where the cross is"
-        assert np.all(square1 < value), "The LLCorner of the array {}".format(assert_statement)
-        assert np.all(square2 < value), "The LRCorner of the array {}".format(assert_statement)
-        assert np.all(square3 < value), "The ULCorner of the array {}".format(assert_statement)
-        assert np.all(square4 < value), "The URCorner of the array {}".format(assert_statement)
-
-        # Test that there is a cross in the box which has a higher value than the surrounding area
-        xcen = int(xlen / 2)
-        ycen = int(ylen / 2)
-
-        # Pull 20 values along the cross in both the x and y direction to check
-        # shift up 20 pixels to ignore 0s near center
-        cross_values_list = []
-        for i in np.arange(20) + 20:
-            cross_values_list.append(diff[xcen + i, ycen])
-            cross_values_list.append(diff[xcen, ycen + i])
-
-        # Find the average value of the points on the cross and squares
-        avg_cross = np.mean(cross_values_list)
-        avg_edge = np.mean([square1, square2, square3, square4])
-
-        # Show that the average cross value is greater than the average square value by a factor of >100
-        assert avg_cross > avg_edge, "The avg value of the cross should be larger than the avg value of the surrounding"
-        assert avg_cross / 100 > avg_edge, "The avg value of the cross should be larger than the avg value of the " \
-                                           "surrounding by a factor of 100"
-
-
-# @pytest.mark.skip()
-def test_miri_conservation_energy():
-    """
-    Test that the miri scattering function follows conservation of energy, at least within a certain tolerance
-
-    Compare the total sum of the pixels in a MIRI PSF before and after this scattering effect if applied. The PSFs
-    should have almost the same intensity (almost, because there may be some light scattered off the detector at the
-    edges in some cases, so we will add in a tolerance of 0.005).
-    """
-
-    # Create a baseline PSF to have shape/header keywords correct
-    mir = webbpsf_core.MIRI()
-    mir.filter = "F1000W"
-    mir.options["output_mode"] = "Oversampled image"
-    psf = mir.calc_psf(add_distortion=False)
-
-    # Set up new extensions (from webbpsf_core.JWInstrument._calc_psf_format_output)
-    n_exts = len(psf)
-    for ext in np.arange(n_exts):
-        hdu_new = fits.ImageHDU(psf[ext].data, psf[ext].header)  # these will be the PSFs that are edited
-        psf.append(hdu_new)
-        ext_new = ext + n_exts
-        psf[ext_new].header["EXTNAME"] = psf[ext].header["EXTNAME"][0:4] + "DIST"  # change extension name
-
-    # Run it through just the apply_miri_scattering function
-    psf_cross = distortion.apply_miri_scattering(psf)
-
-    # Rebin data to get 3rd extension
-    mir.options["output_mode"] = "Both extensions"
-    mir.options["detector_oversample"] = 1
-    webbpsf_core.SpaceTelescopeInstrument._calc_psf_format_output(mir, result=psf_cross, options=mir.options)
-
-    # Test distortion function
-    for ext in [2, 3]:
-        psf_sum = np.sum(psf_cross[ext - 2].data.flatten())
-        psf_cross_sum = np.sum(psf_cross[ext].data.flatten())
-
-        assert pytest.approx(psf_sum, 0.005) == psf_cross_sum, "The energy conversation of the PSF before/after the " \
-                                                               "scattering is added is greater than the tolerance of " \
-                                                               "0.005"
+    assert np.isclose(psf[0].data.sum(), psf[3].data.sum(), rtol=0.001)
+    assert np.isclose(psf[1].data.sum(), psf[3].data.sum(), rtol=0.001)

@@ -38,6 +38,7 @@ from . import conf
 from . import utils
 from . import optics
 from . import DATA_VERSION_MIN
+from . import detectors
 from . import distortion
 from . import gridded_library
 from . import opds
@@ -350,22 +351,6 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         for key in self._extra_keywords:
             result[0].header[key] = self._extra_keywords[key]
 
-    def _calc_psf_format_output(self, result, options):
-        """ Apply desired formatting to output file:
-                 - rebin to detector pixel scale if desired
-                 - set up FITS extensions if desired
-                 - output either the oversampled, rebinned, or both
-
-            Modifies the 'result' HDUList object.
-        """
-        output_mode = options.get('output_mode', conf.default_output_mode)
-
-        if output_mode == 'Mock JWST DMS Output':  # TODO:jlong: move out to JWInstrument
-            # first rebin down to detector sampling
-            # then call mockdms routines to embed in larger detector etc
-            raise NotImplementedError('Not implemented yet')
-        else:
-            poppy.Instrument._calc_psf_format_output(self, result, options)
 
     def get_optical_system(self, fft_oversample=2, detector_oversample=None,
                             fov_arcsec=2, fov_pixels=None, options=None):
@@ -1117,29 +1102,39 @@ class JWInstrument(SpaceTelescopeInstrument):
                 result[ext_new].header["EXTNAME"] = result[ext].header["EXTNAME"][0:4] + "DIST"  # change extension name
                 _log.debug("Appending new extension {} with EXTNAME = {}".format(ext_new, result[ext_new].header["EXTNAME"]))
 
-            # Apply distortions based on the instrument
+            # Apply optical geometric distortions and detector systematic effects based on the instrument
             if self.name in ["NIRCam", "NIRISS", "FGS"]:
                 # Apply distortion effects: Rotation and optical distortion
                 _log.debug("NIRCam/NIRISS/FGS: Adding rotation and optical distortion")
                 psf_rotated = distortion.apply_rotation(result, crop=crop_psf)  # apply rotation
-                psf_distorted = distortion.apply_distortion(psf_rotated)  # apply siaf distortion model
+                psf_siaf_distorted = distortion.apply_distortion(psf_rotated)  # apply siaf distortion model
+                psf_distorted = detectors.apply_detector_charge_diffusion(psf_siaf_distorted, options)  # apply detector charge transfer model
             elif self.name == "MIRI":
                 # Apply distortion effects to MIRI psf: Distortion and MIRI Scattering
                 _log.debug("MIRI: Adding optical distortion and Si:As detector internal scattering")
                 psf_siaf = distortion.apply_distortion(result)  # apply siaf distortion
-                psf_distorted = distortion.apply_miri_scattering(psf_siaf)  # apply scattering effect
+                psf_siaf_rot = detectors.apply_miri_scattering(psf_siaf)  # apply scattering effect
+                psf_distorted = detectors.apply_detector_charge_diffusion(psf_siaf_rot,options)  # apply detector charge transfer model
             elif self.name == "NIRSpec":
                 # Apply distortion effects to NIRSpec psf: Distortion only
+                # (because applying detector effects would only make sense after simulating spectral dispersion)
                 _log.debug("NIRSpec: Adding optical distortion")
-                psf_distorted = distortion.apply_distortion(result)  # apply siaf distortion model
+                psf_siaf = distortion.apply_distortion(result)  # apply siaf distortion model
+                psf_distorted = detectors.apply_detector_charge_diffusion(psf_siaf,options)  # apply detector charge transfer model
 
             # Edit the variable to match if input didn't request distortion
             # (cannot set result = psf_distorted due to return method)
             [result.append(fits.ImageHDU()) for i in np.arange(len(psf_distorted) - len(result))]
             for ext in np.arange(len(psf_distorted)): result[ext] = psf_distorted[ext]
 
-        # Rewrite result variable based on output_mode set:
+
+        # Rewrite result variable based on output_mode; this includes binning down to detector sampling.
         SpaceTelescopeInstrument._calc_psf_format_output(self, result, options)
+        # you can turn on/off IPC corrections via the add_ipc option, default True.
+        add_ipc = options.get('add_ipc', True)
+        if add_ipc and add_distortion:
+            result = detectors.apply_detector_ipc(result)  # apply detector IPC model (after binning to detector sampling)
+
 
     def interpolate_was_opd(self, array, newdim):
         """ Interpolates an input 2D  array to any given size.

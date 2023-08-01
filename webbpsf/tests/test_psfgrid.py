@@ -9,6 +9,7 @@ from .. import gridded_library
 from .. import webbpsf_core
 from .. import roman
 from .. import utils
+from .. import detectors
 
 
 def test_compare_to_calc_psf_oversampled():
@@ -134,6 +135,8 @@ def test_one_psf():
 
     # Compare Case 2 to the calc_psf output to make sure it's placing the PSF in the right location
     calc = nis.calc_psf(add_distortion=True, oversample=2, fov_pixels=11)
+    # first, add IPC to the oversampled data from case 2, then convolve with detector binning
+    detectors.apply_detector_ipc(calc, extname='OVERDIST')
     kernel = astropy.convolution.Box2DKernel(width=oversample)
     convpsf = astropy.convolution.convolve(calc["OVERDIST"].data, kernel)
     scalefactor = oversample**2 # normalization as used internally in GriddedPSFModel; see #302
@@ -141,7 +144,10 @@ def test_one_psf():
 
     assert grid1.meta["grid_xypos"] == [(1023, 1023)], "Center position not as expected"  # the default is the center of the NIS aperture
     assert grid2.meta["grid_xypos"] == [(10, 0)], "Corner position not as expected" # it's in (x,y)
-    assert np.allclose(convpsf*scalefactor, grid2.data[0, :, :]), "PSF data values not as expected"
+    # check for near-equality of the PSFs computed both ways,
+    #  but ignore the outer few pixels rows and columns, for which boundary wrapping leads to imperfect equality
+    #  depending on the order of the convolutions. Ignore 2 rows/cols on either side based on oversample value
+    assert np.allclose((convpsf*scalefactor)[2:-2, 2:-2], grid2.data[0, 2:-2, 2:-2]), "PSF data values not as expected"
 
 
 def test_nircam_errors():
