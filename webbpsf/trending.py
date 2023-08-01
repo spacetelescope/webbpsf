@@ -1345,3 +1345,115 @@ def plot_wfs_obs_delta(fn1, fn2, vmax_fraction=1.0):
         ax.yaxis.set_ticks([])
 
     return fig
+
+
+def show_wfs_around_obs(filename, verbose='True'):
+    """Make a helpful plot showing available WFS before and after some given science
+    observation. This can be used to help inform how much WFE variability there was around that time.
+
+    Parameters
+    ----------
+    filename : str
+        A filename of some JWST data
+
+    """
+
+    header = fits.getheader(filename)
+
+    get_datetime = lambda header: astropy.time.Time(header['DATE-OBS'] + "T" + header['TIME-OBS'])
+
+    def vprint(*args, **kwargs):
+        if verbose: print(*args, **kwargs)
+
+    # Retrieve header info, and WFS data before and after
+    inst = webbpsf.instrument(header['INSTRUME'])
+    inst.filter=header['filter']
+    inst.set_position_from_aperture_name(header['APERNAME'])
+
+    dateobs = get_datetime(header)
+    vprint(f"File {filename} observed at {dateobs}")
+
+    vprint("Retrieving WFS before that obs...", end="")
+    inst.load_wss_opd_by_date(dateobs, choice='before', verbose=False)
+    wfe_before = inst.get_wfe('total')
+    wfe_before_dateobs = get_datetime(inst.pupilopd[0].header)
+    vprint(f" WFS at {wfe_before_dateobs}")
+
+    vprint("Retrieving WFS after that obs...", end="")
+    inst.load_wss_opd_by_date(dateobs, choice='after', verbose=False)
+    wfe_after = inst.get_wfe('total')
+    wfe_after_dateobs = get_datetime(inst.pupilopd[0].header)
+
+    vprint(f" WFS at {wfe_after_dateobs}")
+
+    fnbase = os.path.basename(filename)
+
+    # Setup axes
+    fig = plt.figure(figsize=(16,9), constrained_layout=False)
+
+    gs = matplotlib.gridspec.GridSpec(2, 4, figure=fig, hspace=0.3, height_ratios=[1,2])
+    ax_t = fig.add_subplot(gs[0, :])
+    ax1 = fig.add_subplot(gs[1, 0])
+    ax2 = fig.add_subplot(gs[1, 1])
+    ax3 = fig.add_subplot(gs[1, 2])
+    ax4 = fig.add_subplot(gs[1, 3])
+
+
+    # Plot and annotate timeline at top
+    ax_t.plot_date([wfe_before_dateobs.plot_date, dateobs.plot_date, wfe_after_dateobs.plot_date],
+                 [0,0,0])
+    ax_t.axhline(0, ls=':')
+
+    ax_t.xaxis.set_major_locator(matplotlib.dates.DayLocator(interval=1))
+    ax_t.xaxis.set_major_formatter(matplotlib.dates.DateFormatter('%Y-%m-%d'))
+    ax_t.xaxis.set_minor_locator(matplotlib.dates.HourLocator(interval=1))
+    ax_t.tick_params(which='major', width=2, length=5)
+
+    ax_t.yaxis.set_visible(False)
+    ax_t.set_ylim(-0.5, 1)
+    ax_t.margins(0.1)
+    ax_t.text(wfe_before_dateobs.plot_date, 0.2, "WFS before", rotation=70, color='C0')
+    ax_t.text(wfe_after_dateobs.plot_date, 0.2, "WFS after", rotation=70, color='C0')
+    ax_t.scatter(dateobs.plot_date,0, marker='s', color='C2', zorder=10)
+    ax_t.set_title(f"Wavefront Sensing around Observation\n {fnbase}", fontweight='bold', fontsize=18)
+
+    ax_t.text( (wfe_before_dateobs+(dateobs-wfe_before_dateobs)/2).plot_date, -0.2,
+              f"{(dateobs-wfe_before_dateobs).to_value(u.day):.3f} days",
+             horizontalalignment='center', color='black')
+    ax_t.text( (dateobs+(wfe_after_dateobs-dateobs)/2).plot_date, -0.2,
+              f"{(wfe_after_dateobs-dateobs).to_value(u.day):.3f} days",
+             horizontalalignment='center', color='black')
+
+    # Not really an axis label for the top plot, but this is a convenient/easy way to
+    # get this text into the middle of the figure:
+    ax_t.set_xlabel(f" \nShowing WFE for {header['APERNAME']}  (inferred from WFS at NRCA3 FP1)",
+                   fontweight='bold', fontsize=18)
+
+    # Compute linear weighted interpolated estimate WFS at time obs
+    #  This is sort of a dirty trick...
+    wfs_deltat = wfe_after_dateobs-wfe_before_dateobs
+    weight_before = (wfe_after_dateobs-dateobs)/wfs_deltat
+    weight_after = (dateobs-wfe_before_dateobs)/wfs_deltat
+    wfe_weighted = wfe_before * weight_before + wfe_after * weight_after
+
+    # one more annotation for above plot, using weights to be clever about spacing
+    ax_t.text(dateobs.plot_date, 0.2, f"Science obs:\n{fnbase}", rotation=0, color='C2',
+             horizontalalignment='right' if weight_after > weight_before else 'left')
+
+
+    # Retrieve ap mask for overplotting OPDS with the borders nicely grayed out
+    apmask = webbpsf.utils.get_pupil_mask()
+    nanmask = np.ones_like(apmask)
+    nanmask[apmask==0] = np.nan
+
+    # Plot the OPDs
+    vmax=0.15
+    webbpsf.trending.show_opd_image(wfe_before*nanmask*1e6, ax=ax1, vmax=vmax, fontsize=10)
+    ax1.set_title("WFS Before\n ", color='C0', fontweight='bold')
+    webbpsf.trending.show_opd_image(wfe_weighted*nanmask*1e6, ax=ax2, vmax=vmax, fontsize=10)
+    ax2.set_title("Time-weighted Linear \nEstimate at Obs Time", color='C2', fontweight='bold')
+    webbpsf.trending.show_opd_image(wfe_after*nanmask*1e6, ax=ax3, vmax=vmax, fontsize=10)
+    ax3.set_title("WFS After\n ", color='C0', fontweight='bold')
+
+    webbpsf.trending.show_opd_image((wfe_after-wfe_before)*nanmask*1e6, ax=ax4, vmax=vmax, fontsize=10)
+    ax4.set_title("Delta WFE\nAfter-Before", color='C1', fontweight='bold')
