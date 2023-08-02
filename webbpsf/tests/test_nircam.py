@@ -192,20 +192,26 @@ def test_nircam_get_detector():
 
 
 def test_nircam_auto_pixelscale():
+    # This test now uses approximate equality in all the checks, to accomodate the fact that
+    # NIRCam pixel scales are drawn directly from SIAF for the aperture, and thus vary for each detector/
+    #
+    # 1.5% variance accomodates the differences between the various NRC detectors in each channel
+    close_enough = lambda a, b: np.isclose(a, b, rtol=0.015)
+
     nc = webbpsf_core.NIRCam()
 
     nc.filter='F200W'
-    assert nc.pixelscale == nc._pixelscale_short
+    assert close_enough(nc.pixelscale,  nc._pixelscale_short)
     assert nc.channel == 'short'
 
     # auto switch to long
     nc.filter='F444W'
-    assert nc.pixelscale == nc._pixelscale_long
+    assert close_enough(nc.pixelscale,  nc._pixelscale_long)
     assert nc.channel == 'long'
 
     # and it can switch back to short:
     nc.filter='F200W'
-    assert nc.pixelscale == nc._pixelscale_short
+    assert close_enough(nc.pixelscale,  nc._pixelscale_short)
     assert nc.channel == 'short'
 
     nc.pixelscale = 0.0123  # user is allowed to set something custom
@@ -217,44 +223,47 @@ def test_nircam_auto_pixelscale():
     nc.pixelscale = nc._pixelscale_long
     # switch short again
     nc.filter='F212N'
-    assert nc.pixelscale == nc._pixelscale_short
+    assert close_enough(nc.pixelscale,  nc._pixelscale_short)
     assert nc.channel == 'short'
 
     # And test we can switch based on detector names too
     nc.detector ='NRCA5'
-    assert nc.pixelscale == nc._pixelscale_long
+    assert close_enough(nc.pixelscale,  nc._pixelscale_long)
     assert nc.channel == 'long'
 
     nc.detector ='NRCB1'
-    assert nc.pixelscale == nc._pixelscale_short
+    assert close_enough(nc.pixelscale,  nc._pixelscale_short)
     assert nc.channel == 'short'
 
     nc.detector ='NRCA3'
-    assert nc.pixelscale == nc._pixelscale_short
+    assert close_enough(nc.pixelscale,  nc._pixelscale_short)
     assert nc.channel == 'short'
 
 
     nc.auto_channel = False
     # now we can switch filters and nothing else should change:
     nc.filter='F480M'
-    assert nc.pixelscale == nc._pixelscale_short
+    assert close_enough(nc.pixelscale,  nc._pixelscale_short)
     assert nc.channel == 'short'
 
     # but changing the detector explicitly always updates pixelscale, regardless
     # of auto_channel being False
 
     nc.detector = 'NRCA5'
-    assert nc.pixelscale == nc._pixelscale_long
+    assert close_enough(nc.pixelscale,  nc._pixelscale_long)
     assert nc.channel == 'long'
 
 
 def test_validate_nircam_wavelengths():
+    # Same as above test: allow for up to 1.5% variance between NIRCam detectors in each channel
+    close_enough = lambda a, b: np.isclose(a, b, rtol=0.015)
+
     nc = webbpsf_core.NIRCam()
 
     # wavelengths fit on shortwave channel -> no exception
     nc.filter='F200W'
     nc._validate_config(wavelengths=np.linspace(nc.SHORT_WAVELENGTH_MIN, nc.SHORT_WAVELENGTH_MAX, 3))
-    assert nc.pixelscale == nc._pixelscale_short
+    assert close_enough(nc.pixelscale,  nc._pixelscale_short)
 
     # short wave is selected but user tries a long wave calculation
     with pytest.raises(RuntimeError) as excinfo:
@@ -264,7 +273,7 @@ def test_validate_nircam_wavelengths():
     # wavelengths fit on long channel -> no exception
     nc.filter='F444W'
     nc._validate_config(wavelengths=np.linspace(nc.LONG_WAVELENGTH_MIN, nc.LONG_WAVELENGTH_MAX, 3))
-    assert nc.pixelscale == nc._pixelscale_long
+    assert close_enough(nc.pixelscale,  nc._pixelscale_long)
 
     # long wave is selected but user tries a short  wave calculation
     with pytest.raises(RuntimeError) as excinfo:
