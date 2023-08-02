@@ -239,14 +239,13 @@ def test_2d_to_griddedpsfmodel():
 def test_wfi():
     """Test that the psf_grid method works for the WFI class"""
 
-    # Check add_distortion not specified defaults to false
     oversample = 2
     fov_pixels = 10
     nlambda = 1
 
     # Create PSF grid
     wfi = roman.WFI()
-    grid = wfi.psf_grid(all_detectors=False, num_psfs=4, fov_pixels=fov_pixels, oversample=oversample, nlambda=nlambda, verbose=False)
+    grid = wfi.psf_grid(all_detectors=False, add_distortion=False, num_psfs=4, fov_pixels=fov_pixels, oversample=oversample, nlambda=nlambda, verbose=False)
 
     # Pull one of the PSFs out of the grid
     psfnum = 1
@@ -267,10 +266,3 @@ def test_wfi():
     assert np.allclose(gridpsf, convpsf*scalefactor), "Data values not as expected"
 
 
-def test_wfi_error():
-    """Check add_distortion=True raises an error"""
-
-    with pytest.raises(NotImplementedError) as excinfo:
-        wfi = roman.WFI()
-        wfi.psf_grid(add_distortion=True, num_psfs=1, fov_pixels=1, detector_oversample=2)
-    assert "NotImplementedError" in str(excinfo)

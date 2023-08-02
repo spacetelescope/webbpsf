@@ -281,15 +281,16 @@ class RomanInstrument(webbpsf_core.SpaceTelescopeInstrument):
     def calc_psf(self, outfile=None, source=None, nlambda=None, monochromatic=None,
                  fov_arcsec=None, fov_pixels=None, oversample=None, detector_oversample=None, fft_oversample=None,
                  overwrite=True, display=False, save_intermediates=False, return_intermediates=False,
-                 normalize='first', add_distortion=False, crop_psf=False):
+                 normalize='first', add_distortion=True, crop_psf=False):
         """
         Compute a PSF
 
         Parameters
         ----------
         add_distortion : bool
-            Included for API compatibility with the JWST instrument classes, but has no
-            effect on the results for Roman WFI PSF calculations.
+            If True, will add 2 new extensions to the PSF HDUlist object. The 2nd extension
+            will be a distorted version of the over-sampled PSF and the 3rd extension will
+            be a distorted version of the detector-sampled PSF.
         crop_psf : bool
             Included for API compatibility with the JWST instrument classes, but has no
             effect on the results for Roman WFI PSF calculations.
