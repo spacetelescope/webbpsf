@@ -302,7 +302,7 @@ class RomanInstrument(webbpsf_core.SpaceTelescopeInstrument):
         self.options['crop_psf'] = crop_psf
 
         # add_distortion keyword is not implemented for RomanCoronagraph Class
-        if self.name == "RomanCoronagraph" and add_distortion==True
+        if self.name == "RomanCoronagraph" and add_distortion==True:
             self.options['add_distortion'] = False
             self.options['crop_psf'] = False
             _log.info("Geometric distortions are not implemented in WebbPSF for Roman CGI. The add_distortion keyword must be set to False for this case.")
