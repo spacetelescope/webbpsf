@@ -301,11 +301,11 @@ class RomanInstrument(webbpsf_core.SpaceTelescopeInstrument):
         self.options['add_distortion'] = add_distortion
         self.options['crop_psf'] = crop_psf
 
-        if hasattr(self, '_instrument'):
-            if self._instrument=='RomanCoronagraph':
-                self.options['add_distortion'] = False
-                self.options['crop_psf'] = False
-                _log.info('Distortion not supported for Roman Coronagraph; setting add_distortion=False')
+        # add_distortion keyword is not implemented for RomanCoronagraph Class
+        if self.name == "RomanCoronagraph" and add_distortion==True
+            self.options['add_distortion'] = False
+            self.options['crop_psf'] = False
+            _log.info("Geometric distortions are not implemented in WebbPSF for Roman CGI. The add_distortion keyword must be set to False for this case.")
         
         # Run poppy calc_psf
         psf = webbpsf_core.SpaceTelescopeInstrument.calc_psf(self, outfile=outfile, source=source, nlambda=nlambda,
@@ -969,8 +969,6 @@ class RomanCoronagraph(RomanInstrument):
         self._detector_npixels = 1024
         self._detectors = {camera: 'placeholder' for camera in self.camera_list}
 
-        self._instrument = "RomanCoronagraph"
-        
         self.pupil_mask_list = self.lyotstop_list  # alias for use in webbpsf_core
         self.image_mask_list = self.fpm_list  # alias for use in webbpsf_core
         self.pupil = os.path.join(self._WebbPSF_basepath, 'AFTA_CGI_C5_Pupil_onax_256px_flip.fits')
