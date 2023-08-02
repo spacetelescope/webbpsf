@@ -21,7 +21,7 @@ WebbPSF: Simulated Point Spread Functions for the James Webb and Nancy Grace Rom
 .. image:: https://img.shields.io/badge/ascl-1504.007-blue.svg?colorB=262255
    :target: http://ascl.net/1504.007
 
-WebbPSF produces simulated PSFs for the James Webb Space Telescope, NASA's next
+WebbPSF produces simulated PSFs for the James Webb Space Telescope, NASA's
 flagship infrared space telescope. WebbPSF can simulate images for any of the
 four science instruments plus the fine guidance sensor, including both direct
 imaging and coronagraphic modes.
