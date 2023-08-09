@@ -127,3 +127,5 @@ from .opds import enable_adjustable_ote
 from .roman import WFI, RomanCoronagraph
 
 from .jupyter_gui import show_notebook_interface
+
+from .match_data import setup_sim_to_match_file
