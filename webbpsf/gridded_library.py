@@ -218,7 +218,7 @@ class CreatePSFLibrary:
 
             if psf_location_list is not None:
                 if len(psf_location_list) != num_psfs:
-                    raise ValueErrorf(
+                    raise ValueError(
                         "Length of psf_location_list ({len(psf_location_list)})  must equal num_psfs ({num_psfs})")
                 location_list = psf_location_list
 
