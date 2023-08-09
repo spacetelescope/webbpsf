@@ -75,7 +75,7 @@ Perhaps you want to calculate PSFs for all filters of a given instrument, using 
                 niriss.filter=filtname
                 fov=18
                 outname = "PSF_NIRISS_%scen_wfe%d.fits" % (filtname, i)
-                psf = niriss.calc_psf(outname, nlambda=1, oversample=4, fov_arcsec=fov, rebin=True, display=True)
+                psf = niriss.calc_psf(outname, nlambda=1, oversample=4, fov_arcsec=fov, display=True)
 
 
 
@@ -97,7 +97,7 @@ Monochromatic PSFs with steps of 0.1 micron from 5-28.3 micron.
 
     for iw, wavelength in enumerate(waves):
         psffile = 'psf_MIRI_mono_%.1fum_opd1.fits' % (wavelength*1e6)
-        psf = m.calc_psf(fov_arcsec=30, oversample=4, rebin=True, monochromatic=wavelength, display=False,
+        psf = m.calc_psf(fov_arcsec=30, oversample=4, monochromatic=wavelength, display=False,
                    outfile=psffile)
         ax = plt.subplot(16,16,iw+1)
         webbpsf.display_psf(psffile, ext='DET_SAMP', colorbar=False, imagecrop=8)
@@ -135,7 +135,7 @@ NIRSpec fixed slits
 
     psfs = {}
     for wave in [0.6e-6, 1e-6, 2e-6, 3e-6]:
-        psfs[wave] = nspec.calc_psf(monochromatic=wave, oversamp=4)
+        psfs[wave] = nspec.calc_psf(monochromatic=wave, oversample=4)
 
     for i, wave in enumerate([0.6e-6, 1e-6, 2e-6, 3e-6]):
         plt.subplot(1, 4, i+1)
@@ -159,7 +159,7 @@ NIRSpec MSA
     ns.image_mask='MSA all open'
     ns.display()
     plt.savefig('example_nirspec_msa_optics.png')
-    msapsf = ns.calc_psf(monochromatic=2e-6, oversample=8, rebin=True)
+    msapsf = ns.calc_psf(monochromatic=2e-6, oversample=8)
     webbpsf.display_psf(msapsf, ext='DET_SAMP')
 
 .. image:: ./fig_example_nirspec_msa_optics.png
@@ -215,7 +215,7 @@ NIRCam coronagraphy with an offset source
                                                # (note that this is MUCH larger than expected acq
                                                # offsets. This size displacement is just for show)
     nc.options['source_offset_theta'] = 45     # at a position angle of 45 deg
-    nc.calc_psf('coronagraphic.fits', oversample=4, clobber=True)   # create highly oversampled output image
+    nc.calc_psf('coronagraphic.fits', oversample=4)   # create highly oversampled output image
 
 
     plt.figure(figsize=(12,4))
@@ -332,7 +332,7 @@ Make plots of encircled energy in PSFs at various wavelengths
 
                 outname = "PSF_MIRI_%.1fum_wfe%d.fits" % (wave, i)
                 psf = miri.calc_psf(outname, monochromatic=wave*1e-6,
-                        oversample=4, fov_arcsec=fov, rebin=True, display=True)
+                        oversample=4, fov_arcsec=fov, display=True)
 
 
 
@@ -414,7 +414,7 @@ There are two functions here, one that creates a simulated PSF for a given amoun
                     return
 
                 psf, intermediates = miri.calc_psf(oversample=4, fov_arcsec=fov,
-                        rebin=True, display=display, return_intermediates=True, \*\*kwargs)
+                        display=display, return_intermediates=True, \*\*kwargs)
 
                 lyot_intensity = intermediates[4]
 

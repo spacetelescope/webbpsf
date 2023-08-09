@@ -5,7 +5,7 @@ Developer Notes: Releasing a new version of WebbPSF
 Prerequisites
 =============
 
- * Is the `develop` build `passing on Travis? <https://travis-ci.org/spacetelescope/webbpsf>`_ with all desired release items included?
+ * Is the `develop` build `passing on Github Actions? <https://github.com/spacetelescope/webbpsf/actions>`_ with all desired release items included?
 
 Releasing new data packages
 ===========================
@@ -18,7 +18,7 @@ Releasing new data packages
      #. This now means on Box. Upload to Box in the webbpsf shared data folder. Get the Box shared file URL.
      #. Update ``docs/installation.rst`` to have that new URL and updated filename in the appropriate location.
 
- #. Update the shared copy on STScI Central Store:
+ #. Update the shared copy on STScI Central Store (DEPRECATED AS OF VERSION 1.2.0):
 
     #. ``cd`` to ``/grp/jwst/ote`` and remove the ``webbpsf-data`` symlink
     #. Copy the archive into ``/grp/jwst/ote/`` and extract it to ``/grp/jwst/ote/webbpsf-data``
@@ -52,7 +52,7 @@ Update the dependency requirement to the new version of poppy, in ``webbpsf/pypr
 
 When you are ready, proceed with the WebbPSF release as follows:
 
-#. Get the `develop` branch into the state that you want, including all PRs merged, updated release notes. This includes all tests passing both locally and on Travis.
+#. Get the `develop` branch into the state that you want, including all PRs merged, updated release notes. This includes all tests passing both locally and on GitHub Actions.
 #. Tag the commit with `v<version>`, being sure to sign the tag with the `-s` option.
    * ``git tag -s v<version> -m "Release v<version>"``
 

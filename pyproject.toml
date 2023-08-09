@@ -10,7 +10,7 @@ description = "Creates simulated point spread functions for the James Webb Space
 authors = [{name = "Association of Universities for Research in Astronomy", email = "help@stsci.edu"}]
 license = {file = "LICENSE.md"}
 dynamic = ["version"]
-readme = "README.md"
+readme = "README.rst"
 
 requires-python = ">=3.9"
 dependencies = [
