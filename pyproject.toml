@@ -10,6 +10,7 @@ description = "Creates simulated point spread functions for the James Webb Space
 authors = [{name = "Association of Universities for Research in Astronomy", email = "help@stsci.edu"}]
 license = {file = "LICENSE.md"}
 dynamic = ["version"]
+readme = "README.md"
 
 requires-python = ">=3.9"
 dependencies = [
@@ -20,10 +21,14 @@ dependencies = [
     "photutils>=1.0.0",
     "poppy>=1.0.0",
     "pysiaf>=0.19.1",
+    "soc_roman_tools>=0.1.0",
     "synphot>=1.0.0",
 ]
 
 [project.optional-dependencies]
+all = [
+    "astroquery",
+    ]
 test = [
     "pytest",
     "pytest-astropy",
@@ -35,11 +40,8 @@ docs = [
     "sphinx_rtd_theme",
     "sphinx-automodapi",
     "sphinx-issues",
+    "tomli; python_version <\"3.11\"",
 ]
-
-[project.readme]
-text = "WebbPSF produces simulated PSFs for the James Webb Space Telescope, NASA's next flagship infrared space telescope. WebbPSF can simulate images for any of the four science instruments plus the fine guidance sensor, including both direct imaging and coronagraphic modes."
-content-type = "text/markdown"
 
 [project.urls]
 Homepage = "http://webbpsf.readthedocs.io/"
