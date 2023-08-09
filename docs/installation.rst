@@ -86,7 +86,7 @@ You should now be able to successfully ``import webbpsf`` in a Python session.
 
 .. Note::
 
-   **For STScI Users Only:** Please note, we are no longer providing users at STScI a location with the required data files on the Central Storage network. Therefore, to run WebbPSF, you must download these files and tell WebbPSF where to find them using the WEBBPSF_PATH environment variable. ::
+   **For STScI Users Only:** Please note, we are no longer providing users at STScI a location with the required data files on the Central Storage network. Therefore, to run WebbPSF, you must download these files and tell WebbPSF where to find them using the WEBBPSF_PATH environment variable.
 
 Software Requirements
 ---------------------
