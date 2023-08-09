@@ -18,7 +18,7 @@ Releasing new data packages
      #. This now means on Box. Upload to Box in the webbpsf shared data folder. Get the Box shared file URL.
      #. Update ``docs/installation.rst`` to have that new URL and updated filename in the appropriate location.
 
- #. Update the shared copy on STScI Central Store:
+ #. Update the shared copy on STScI Central Store (DEPRECATED AS OF VERSION 1.2.0):
 
     #. ``cd`` to ``/grp/jwst/ote`` and remove the ``webbpsf-data`` symlink
     #. Copy the archive into ``/grp/jwst/ote/`` and extract it to ``/grp/jwst/ote/webbpsf-data``
