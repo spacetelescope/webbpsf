@@ -32,16 +32,20 @@ Version 1.2.0
 We are pleased to announce the release of the latest version of WebbPSF version 1.2.0, now available on PyPi and GitHub. This release comes with new features and improvements including but not limited to:
 
 1. The addition of detector effects for JWST simulations. H2RG detector effects are included in two flavors, a simple ad hoc Gaussian convolution to model charge diffusion effects and a set of convolution kernels to model interpixel capacitance (IPC) and post-pixel coupling effects. We have found that these effects greatly improve the agreement between observations and simulations. See `JWST Detector Effects for more details. <https://webbpsf.readthedocs.io/en/latest/jwst_detector_effects.html>`_
-2. A new utility function for simulating matching PSFs to science data. See `Matching PSF sims to in-flight JWST data <https://webbpsf.readthedocs.io/en/latest/jwst_matching_psfs_data.html>`_. 
-2. Implement geometric distortion for Roman using the Roman SIAF.
-3. Various improvements for OTE trending.
 
-## What's Changed
+2. A new utility function for simulating matching PSFs to science data. See `Matching PSF sims to in-flight JWST data <https://webbpsf.readthedocs.io/en/latest/jwst_matching_psfs_data.html>`_. 
+
+3. Implement geometric distortion for Roman using the Roman SIAF.
+
+4. Various improvements for OTE trending.
+
+**What's Changed**
+
 * Fixed trending histogram binning so that bars add up to 1.0 by @Skyhawk172 in https://github.com/spacetelescope/webbpsf/pull/634
 
 * Add phase retrieval crosscheck plot and wfs obs delta plot by @mperrin in https://github.com/spacetelescope/webbpsf/pull/650
 
-* 597 - add opdtable as positional param to monthly_trending_plot by @kulpster85 in https://github.com/spacetelescope/webbpsf/pull/600
+* Add opdtable as positional param to monthly_trending_plot by @kulpster85 in https://github.com/spacetelescope/webbpsf/pull/600
 
 * Update to read SI pixelscales directly from pysiaf by @mperrin in https://github.com/spacetelescope/webbpsf/pull/626
 
