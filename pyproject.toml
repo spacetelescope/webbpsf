@@ -23,21 +23,19 @@ dependencies = [
     "pysiaf>=0.19.1",
     "soc_roman_tools>=0.1.0",
     "synphot>=1.0.0",
+    "astroquery>=0.4.6",
 ]
 
 [project.optional-dependencies]
-all = [
-    "astroquery",
-    ]
 test = [
     "pytest",
     "pytest-astropy",
 ]
 docs = [
     "nbsphinx",
+    "sphinx<7.0",
     "stsci_rtd_theme",
     "sphinx-astropy",
-    "sphinx_rtd_theme",
     "sphinx-automodapi",
     "sphinx-issues",
     "tomli; python_version <\"3.11\"",
