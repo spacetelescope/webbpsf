@@ -33,7 +33,7 @@ See :ref:`using_api`.
 
 .. admonition:: Getting Help
 
-   For help using or installing webbpsf, you can contact the STScI JWST Help Desk at jwsthelp.stsci.edu, , category WebbPSF/JWST Telescope.
+   For help using or installing webbpsf, you can contact the STScI JWST Help Desk at jwsthelp.stsci.edu, category WebbPSF/JWST Telescope.
 
 
 :ref:`What's new in the latest release? <whatsnew>`
