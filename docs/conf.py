@@ -79,6 +79,7 @@ extensions = [
     "sphinx_issues",
     "nbsphinx",
     "numpydoc",
+    "astroquery",
 ]
 
 numpydoc_show_class_members = False
