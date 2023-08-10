@@ -19,7 +19,7 @@ WebbPSF is a Python package that computes simulated point spread functions (PSFs
 
 
 **Contributors:**
-WebbPSF has been developed by Marshall Perrin, Marcio Meléndez Hernandez, Shannon Osborne, Robel Geda, Brad Sappington, Charles Lajoie, Joseph Long, Justin Otor, Jarron Leisenring, Neil Zimmerman, Keira Brooks, and Anand Sivaramakrishnan, with contributions from Alden Jurling, Lauren Chambers, Ewan Douglas, and `others <https://github.com/spacetelescope/webbpsf/graphs/contributors>`_. 
+WebbPSF has been developed by Marshall Perrin, Marcio Meléndez, Shannon Osborne, Robel Geda, Brad Sappington, Charles-Philippe Lajoie, Joseph Long, Justin Otor, Jarron Leisenring, Neil Zimmerman, Keira Brooks, and Anand Sivaramakrishnan, with contributions from Alden Jurling, Lauren Chambers, Ewan Douglas, and `others <https://github.com/spacetelescope/webbpsf/graphs/contributors>`_. 
 
 Getting Started with WebbPSF
 ----------------------------
@@ -33,7 +33,7 @@ See :ref:`using_api`.
 
 .. admonition:: Getting Help
 
-   For help using or installing webbpsf, you can contact the STScI JWST Help Desk at jwsthelp.stsci.edu. Note that WebbPSF is included in the Astroconda python distribution, as well as being installable via :ref:`standard Python packaging tools <installation>`.
+   For help using or installing webbpsf, you can contact the STScI JWST Help Desk at jwsthelp.stsci.edu, , category WebbPSF/JWST Telescope.
 
 
 :ref:`What's new in the latest release? <whatsnew>`
