@@ -13,8 +13,8 @@ jobs:
 
           - name: Coverage test in Python 3
             os: ubuntu-latest
-            python: '3.10'
-            toxenv: py310-poppydev-pysiafdev-cov
+            python: '3.11'
+            toxenv: py311-poppydev-pysiafdev-cov
 
           - name: Check for Sphinx doc build errors
             os: ubuntu-latest
@@ -28,28 +28,28 @@ jobs:
 
           - name: Try latest versions of all dependencies
             os: ubuntu-latest
-            python: '3.10'
-            toxenv: py310-latest-test
+            python: '3.11'
+            toxenv: py311-latest-test
 
           - name: Try minimum supported versions
             os: ubuntu-latest
-            python: 3.8
-            toxenv: py38-legacy-test
+            python: 3.9
+            toxenv: py39-legacy-test
 
           - name: Try released POPPY and PySIAF
             os: ubuntu-latest
-            python: 3.8
-            toxenv: py38-stable-test
+            python: 3.9
+            toxenv: py39-stable-test
             continue-on-error: 'true'
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         fetch-depth: 0
 
     - name: Set up Python ${{ matrix.python }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v3
       with:
         python-version: ${{ matrix.python }}
 
@@ -58,7 +58,7 @@ jobs:
 
     - name: Get WebbPSF Data
       run: | # Get WebbPSF data files (just a subset of the full dataset!) and set up environment variable
-           wget https://stsci.box.com/shared/static/n1fealx9q0m6sdnass6wnyfikvxtc0zz.gz  -O /tmp/minimal-webbpsf-data.tar.gz
+           wget https://stsci.box.com/shared/static/ykkvequ9cbble6qg88ldhjoep4m9ey6x.gz -O /tmp/minimal-webbpsf-data.tar.gz
            tar -xzvf /tmp/minimal-webbpsf-data.tar.gz
            echo "WEBBPSF_PATH=${{github.workspace}}/webbpsf-data" >> $GITHUB_ENV
 
