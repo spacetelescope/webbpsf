@@ -40,7 +40,7 @@ if sys.version_info < tuple(
 # required. If changes to the code and data mean WebbPSF won't work
 # properly with an old data package, increment this version number.
 # (It's checked against $WEBBPSF_DATA/version.txt)
-DATA_VERSION_MIN = (1, 2, 0)
+DATA_VERSION_MIN = (1, 2, 1)
 
 
 class Conf(_config.ConfigNamespace):
