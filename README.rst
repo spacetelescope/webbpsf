@@ -1,7 +1,7 @@
 WebbPSF: Simulated Point Spread Functions for the James Webb and Nancy Grace Roman Space Telescopes
 ===================================================================================================
 
-.. image:: docs/readme_fig.png
+.. image:: https://github.com/spacetelescope/webbpsf/blob/stable/docs/readme_fig.png docs/readme_fig.png?raw=true
 
 .. image:: https://img.shields.io/pypi/v/webbpsf.svg
    :target: https://pypi.python.org/pypi/webbpsf
