@@ -2163,7 +2163,7 @@ class MIRI(JWInstrument):
             # calculate monochromatic PSF
             mrspsf = super().calc_psf(monochromatic=self._wavelength * 1e-6, oversample=oversample,
                                       display=False, add_distortion=add_distortion, fov_arcsec=fov_arcsec,
-                                      crop_psf=crop_psf)
+                                      fov_pixels=fov_pixels, crop_psf=crop_psf)
             psf_m = mrspsf[0].data
             pxsc = float(mrspsf[0].header["PIXELSCL"])
             if broadening is not None:
