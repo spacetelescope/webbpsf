@@ -1258,7 +1258,7 @@ def monthly_trending_plot(year, month, verbose=True, instrument='NIRCam', filter
             im_axes[i,j].set_visible(False)
 
     outname = f'wf_trending_{year}-{month:02d}.pdf'
-    plt.savefig(outname, dpi=200)
+    plt.savefig(outname, dpi=200, bbox_inches = 'tight')
     vprint(f"Saved to {outname}")
 
     wfs_type = [("Sensing" if row['wfs_measurement_type'] == 'pre' else "Post Mirror Move") for row in opdtable]
