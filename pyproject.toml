@@ -33,7 +33,7 @@ test = [
 ]
 docs = [
     "nbsphinx",
-    "sphinx<7.0",
+    "sphinx<8.0",
     "stsci_rtd_theme",
     "sphinx-astropy",
     "sphinx-automodapi",
