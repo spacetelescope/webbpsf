@@ -10,7 +10,7 @@ Prerequisites
 Releasing new data packages
 ===========================
 
- #. Run ``dev_utils/make-data-sdist.sh`` (details below) to make a gzipped tarred archive of the WebbPSF data
+ #. Run ``dev_utils/master_data_release.sh`` (details below) to make a gzipped tarred archive of the WebbPSF data
  #. If the new data package is **required** (meaning you can't run WebbPSF without it, or you can run but may get incorrect results), you must bump ``DATA_VERSION_MIN`` in ``__init__.py`` to ``(0, X, Y)``
  #. Extract the resulting data archive and check that you can run the WebbPSF tests with ``WEBBPSF_PATH`` pointing to it
  #. Copy the data archive into public web space.
@@ -18,13 +18,7 @@ Releasing new data packages
      #. This now means on Box. Upload to Box in the webbpsf shared data folder. Get the Box shared file URL.
      #. Update ``docs/installation.rst`` to have that new URL and updated filename in the appropriate location.
 
- #. Update the shared copy on STScI Central Store (DEPRECATED AS OF VERSION 1.2.0):
-
-    #. ``cd`` to ``/grp/jwst/ote`` and remove the ``webbpsf-data`` symlink
-    #. Copy the archive into ``/grp/jwst/ote/`` and extract it to ``/grp/jwst/ote/webbpsf-data``
-    #. Rename the folder to ``webbpsf-data-0.x.y``
-    #. Create a symbolic link at ``/grp/jwst/ote/webbpsf-data`` to point to the new folder
-
+ #. A shared copy will be automatically configured in STScI Central Store with updated symlink ``/grp/jwst/ote/webbpsf-data``
  #. Update the URL in ``installation.rst`` under :ref:`data_install`
 
 Details for using `make-data-sdist.sh`:
