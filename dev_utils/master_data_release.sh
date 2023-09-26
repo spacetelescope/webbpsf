@@ -14,7 +14,8 @@ TMPDIR="/tmp/webbpsf-data"
 
 ./make-data-sdist.sh $VER
 
-# Copy latest data to /grp/jwst/ote for internal stsci use with common symlink
+echo
+echo "Copying latest data to /grp/jwst/ote for internal stsci use..."
 main_directory="/grp/jwst/ote"
 new_directory="$main_directory/webbpsf-data-$VER"
 symlink_directory="/grp/jwst/ote/webbpsf-data"
