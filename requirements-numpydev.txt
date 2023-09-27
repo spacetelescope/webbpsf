@@ -1,0 +1,12 @@
+# Use Bi-weekly numpy/scipy dev builds
+--extra-index-url https://pypi.anaconda.org/scientific-python-nightly-wheels/simple
+matplotlib>=0.0.dev0
+numpy>=0.0.dev0
+scipy>=0.0.dev0
+
+# Use weekly astropy dev build
+--extra-index-url https://pypi.anaconda.org/astropy/simple
+astropy --pre
+
+#git+https://github.com/spacetelescope/poppy.git#egg=poppy
+#git+https://github.com/spacetelescope/pysiaf.git#egg=pysiaf

@@ -21,6 +21,11 @@ jobs:
             python: 3.9
             toxenv: docbuild
 
+          - name: Try Numpy development version
+            os: ubuntu-latest
+            python: '3.10'
+            toxenv: py310-numpydev-test
+
           - name: Try Astropy development version
             os: ubuntu-latest
             python: 3.9
