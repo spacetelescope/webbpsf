@@ -3,7 +3,7 @@
 .. _using_api:
 
 *************
-Using WebbPSF 
+Using WebbPSF
 *************
 
 
@@ -18,7 +18,7 @@ See :ref:`this page <detailed_api>` for the detailed API; for now let's dive int
 Usage and Examples
 ==================
 
-Simple PSFs are easily obtained. 
+Simple PSFs are easily obtained.
 
 Instantiate a model of :py:class:`~webbpsf.NIRCam`, set attributes to configure a particular observing mode, then call :py:meth:`~webbpsf.JWInstrument.calc_psf`:
 
@@ -29,9 +29,7 @@ Instantiate a model of :py:class:`~webbpsf.NIRCam`, set attributes to configure 
     >>> plt.imshow(psf[0].data)             # display it on screen yourself, or
     >>> webbpsf.display_psf(psf)            # use this convenient function to make a nice log plot with labeled axes
     >>>
-    >>> psf = nc.calc_psf(filter='F470N', oversample=4)    # this is just a shortcut for setting the filter, then computing a PSF
-    >>>
-    >>> nc.calc_psf("myPSF.fits", filter='F480M')         # you can also write the output directly to disk if you prefer.
+    >>> nc.calc_psf("myPSF.fits")         # you can also write the output directly to disk if you prefer.
 
 
 For interactive use, you can have the PSF displayed as it is computed:
@@ -110,7 +108,7 @@ For convenience offsets can also be given in cartesian coordinates:
 >>> instrument.options['source_offset_y'] = -3     # offset is in arsec
 
 
-The option ``source_offset`` defines “the location of the point source within the simulated subarray”. It doesn’t affect the WFE, but it does affect the position offset of the source relative to any focal plane elements such as a coronagraph mask or spectrograph slit. For coronagraphic modes, the coronagraph occulter is always assumed to be at the center of the output array. Therefore, these options let you offset the source away from the coronagraph. 
+The option ``source_offset`` defines “the location of the point source within the simulated subarray”. It doesn’t affect the WFE, but it does affect the position offset of the source relative to any focal plane elements such as a coronagraph mask or spectrograph slit. For coronagraphic modes, the coronagraph occulter is always assumed to be at the center of the output array. Therefore, these options let you offset the source away from the coronagraph.
 
 Note that instead of offsetting the source we could offset the coronagraph mask in the opposite direction. This can be done with the ``coron_shift_x`` and ``coron_shift_y`` options. These options will offset a coronagraphic mask in order to produce PSFs centered in the output image, rather than offsetting the PSF. Both options, ``coron_shift``  and ``source_offset`` give consistent results. Using the same ``source_offset`` values above, we can use offset  a coronagraphic mask:
 
@@ -135,8 +133,9 @@ Array sizes, star positions, and centering
 Output array sizes may be specified either in units of arcseconds or pixels.  For instance,
 
 >>> mynircam = webbpsf.NIRCam()
->>> result = mynircam.calc_psf(fov_arcsec=7, oversample=2, filter='F250M')
->>> result2= mynircam.calc_psf(fov_pixels=512, oversample=2, filter='F250M')
+>>> mynircam.filter = 'F250M'
+>>> result = mynircam.calc_psf(fov_arcsec=7, oversample=2)
+>>> result2= mynircam.calc_psf(fov_pixels=512, oversample=2)
 
 In the latter example, you will in fact get an array which is 1024 pixels on a side: 512 physical detector pixels, times an oversampling of 2.
 
@@ -150,7 +149,7 @@ If one of these is particularly desirable to you, set the parity option appropri
 Setting one of these options will ensure that a field of view specified in arcseconds is properly rounded to either odd or even when converted from arcsec to pixels. Alternatively,
 you may also just set the desired number of pixels explicitly in the call to calc_psf():
 
->>>  instrument.calc_psf(fov_npixels=512)
+>>>  instrument.calc_psf(fov_pixels=512)
 
 
 .. note::
@@ -196,10 +195,10 @@ pixel scale in a variety of ways, as follows. See the :py:class:`JWInstrument.ca
 
 
 
-2. For coronagraphic calculations, it is possible to set different oversampling factors at different parts of the calculation. See the ``calc_oversample`` and ``detector_oversample`` parameters. This
-   is of no use for regular imaging calculations (in which case ``oversample`` is a synonym for ``detector_oversample``). Specifically, the ``calc_oversample`` keyword is used for Fourier transformation to and from the intermediate optical plane where the occulter (coronagraph spot) is located, while ``detector_oversample`` is used for propagation to the final detector. Note that the behavior of these keywords changes for coronagraphic modeling using the Semi-Analytic Coronagraphic propagation algorithm (not fully documented yet - contact Marshall Perrin if curious).
+2. For coronagraphic calculations, it is possible to set different oversampling factors at different parts of the calculation. See the ``fft_oversample`` and ``detector_oversample`` parameters. This
+   is of no use for regular imaging calculations (in which case ``oversample`` is a synonym for ``detector_oversample``). Specifically, the ``fft_oversample`` keyword is used for Fourier transformation to and from the intermediate optical plane where the occulter (coronagraph spot) is located, while ``detector_oversample`` is used for propagation to the final detector. Note that the behavior of these keywords changes for coronagraphic modeling using the Semi-Analytic Coronagraphic propagation algorithm (not fully documented yet - contact Marshall Perrin if curious).
 
-   >>> miri.calc_psf(calc_oversample=8, detector_oversample=2)  # model the occulter with very fine pixels, then save the
+   >>> miri.calc_psf(fft_oversample=8, detector_oversample=2)  # model the occulter with very fine pixels, then save the
    >>>                                                          # data on a coarser (but still oversampled) scale
 
 3. Or, if you need even more flexibility, just change the ``instrument.pixelscale`` attribute to be whatever arbitrary scale you require.

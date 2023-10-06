@@ -6,6 +6,8 @@ import pysiaf
 from scipy.interpolate import RegularGridInterpolator
 from scipy.ndimage import rotate
 
+from soc_roman_tools.siaf.siaf import RomanSiaf
+
 def _get_default_siaf(instrument, aper_name):
     """
     Create instance of pysiaf for the input instrument and aperture
@@ -33,8 +35,12 @@ def _get_default_siaf(instrument, aper_name):
         siaf_name = instrument
 
     # Select a single SIAF aperture
-    siaf = pysiaf.Siaf(siaf_name)
-    aper = siaf.apertures[aper_name]
+    if instrument=='WFI':
+        siaf = RomanSiaf()
+        aper = siaf[aper_name]
+    else:
+        siaf = pysiaf.Siaf(siaf_name)
+        aper = siaf.apertures[aper_name]
 
     return aper
 
@@ -107,11 +113,16 @@ def distort_image(hdulist_or_filename, ext=0, to_frame='sci', fill_value=0,
 
     if aper is None:
         # Log instrument and detector names
-        instrument = hdu_list[0].header["INSTRUME"].upper()
-        aper_name = hdu_list[0].header["APERNAME"].upper()
+        instrument = hdu_list[0].header["INSTRUME"].upper().strip()
+
+        if instrument == 'WFI':
+            aper_name = 'WFI' + hdu_list[0].header["DETECTOR"][-2:] + "_FULL"
+        else:
+            aper_name = hdu_list[0].header["APERNAME"].upper()
+
         # Pull default values
         aper = _get_default_siaf(instrument, aper_name)
-    
+
     # Pixel scale information
     ny, nx = hdu_list[ext].shape
     pixelscale = hdu_list[ext].header["PIXELSCL"]  # the pixel scale carries the over-sample value
@@ -222,8 +233,11 @@ def apply_distortion(hdulist_or_filename=None, fill_value=0):
     ext = 1  # edit the oversampled PSF (OVERDIST extension)
 
     # Log instrument and detector names
-    instrument = hdu_list[0].header["INSTRUME"].upper()
-    aper_name = hdu_list[0].header["APERNAME"].upper()
+    instrument = hdu_list[0].header["INSTRUME"].upper().strip()
+    if instrument == 'WFI':
+        aper_name = 'WFI' + hdu_list[0].header["DETECTOR"][-2:] + "_FULL"
+    else:
+        aper_name = hdu_list[0].header["APERNAME"].upper()
 
     # Pull default values
     aper = _get_default_siaf(instrument, aper_name)
@@ -287,12 +301,17 @@ def apply_rotation(hdulist_or_filename=None, rotate_value=None, crop=True):
     psf = copy.deepcopy(hdu_list)
 
     # Log instrument and detector names
-    instrument = hdu_list[0].header["INSTRUME"].upper()
-    aper_name = hdu_list[0].header["APERNAME"].upper()
+    instrument = hdu_list[0].header["INSTRUME"].upper().strip()
+    if instrument == 'WFI':
+        aper_name = 'WFI' + hdu_list[0].header["DETECTOR"][-2:] + "_FULL"
+    else:
+        aper_name = hdu_list[0].header["APERNAME"].upper()
 
     if instrument in ["MIRI", "NIRSPEC"]:
         raise ValueError("{}'s rotation is already included in WebbPSF and "
                          "shouldn't be added again.".format(instrument))
+    if instrument == "WFI":
+        raise ValueError("Rotation not necessary for {:} as pupil are aligned with SCAs (to confirm).".format(instrument))
 
     # Set rotation value if not already set by a keyword argument
     if rotate_value is None:
