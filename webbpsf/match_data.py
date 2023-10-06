@@ -40,6 +40,7 @@ def setup_sim_to_match_file(filename_or_HDUList, verbose=True, plot=False):
             inst.pupil_mask = header['PUPIL']
             inst.image_mask = header['CORONMSK'].replace('MASKA', 'MASK')  # note, have to modify the value slightly for
                                                                            # consistency with the labels used in webbpsf
+            inst.set_position_from_aperture_name(header['APERNAME'])   # Redo this, in case the image_mask setting auto switched it to something else
     elif inst.name == 'MIRI':
         if inst.filter in ['F1065C', 'F1140C', 'F1550C']:
             inst.image_mask = 'FQPM'+inst.filter[1:5]
