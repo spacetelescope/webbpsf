@@ -1235,8 +1235,8 @@ def monthly_trending_plot(year, month, verbose=True, instrument='NIRCam', filter
             continue
 
         delta_opd = wfes_ote[i] - wfes_ote[i - 1] if i > 0 else np.zeros((1024, 1024))
-
         vmax_micron = vmax / 1000
+        rms_label = None
         if row['wfs_measurement_type'] == 'pre':
             plot_index += 1
             # Plot WFS in row 1
@@ -1263,8 +1263,10 @@ def monthly_trending_plot(year, month, verbose=True, instrument='NIRCam', filter
             # Update row 1 to show post-mirror-move WFS
             basic_show_image(wfes_ote[i] * 1e6, ax=im_axes[0, plot_index], nanmask=nanmask,
                              vmax=vmax_micron)  # , title=None)
-            rms_label.set_visible(False)
-            del rms_label # delete the previously-written one for the pre-move sensing
+            if rms_label is not None:
+                rms_label.set_visible(False)
+                del rms_label # delete the previously-written one for the pre-move sensing
+
             im_axes[0, plot_index].text(20, 20, f"{webbpsf.utils.rms(wfes_ote[i], mask=apmask)*1e9:.1f}", color='yellow', fontsize=fs*0.6)
             # Plot correction in row 3
             basic_show_image(delta_opd * 1e6, ax=im_axes[2, plot_index], nanmask=nanmask, vmax=vmax_micron)
