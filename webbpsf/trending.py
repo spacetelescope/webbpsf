@@ -177,7 +177,8 @@ def wavefront_time_series_plot(opdtable, start_date=None, end_date=None, ymin=0,
 
 
 
-def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, pid=None, download_opds=True, mark_corrections='lines'):
+def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, pid=None,
+                        download_opds=True, mark_corrections='lines', ote_only=False):
     """ Plot histogram and cumulative histogram of WFE over some time range.
 
     Parameters
@@ -232,7 +233,21 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, pi
         if download_opds:
             full_file_path = os.path.join(webbpsf.utils.get_webbpsf_data_path(), 'MAST_JWST_WSS_OPDs', row['fileName'])
         if 'rms_wfe' not in opdtable1.colnames:
-            rmses.append(fits.getheader(full_file_path, ext=1)['RMS_WFE'])
+            
+            if ote_only == False:
+                rmses.append(fits.getheader(full_file_path, ext=1)['RMS_WFE'])
+            elif ote_only == True:
+                opd_data = fits.getdata(full_file_path, ext=1)
+                mask = opd_data != 0
+
+                # Get WSS Target Phase Map
+                was_targ_file = os.path.join(webbpsf.utils.get_webbpsf_data_path(), 'NIRCam', 'OPD', 'wss_target_phase_fp1.fits')
+                target_1024 = astropy.io.fits.getdata(was_targ_file)
+                target_256 = poppy.utils.krebin(target_1024, (256, 256))/16
+                wf_si = target_256 * mask  # Nircam target phase map at FP1
+
+                rmses.append(webbpsf.utils.rms(opd_data - wf_si,mask=mask))
+                
         mjds = opdtable1['date_obs_mjd']
         pre_or_post.append(webbpsf.mast_wss.infer_pre_or_post_correction(row))
 
@@ -250,14 +265,14 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, pi
     # Plot
     hspace = 0.3
     nrows  = 2
-    fig, axes = plt.subplots(figsize=(16,9), nrows=nrows, gridspec_kw = {'hspace':hspace})
+    fig, axes = plt.subplots(figsize=(16,10), nrows=nrows, gridspec_kw = {'hspace':hspace})
 
     ms = 14 #markersize
     
     axes[0].plot_date(dates.plot_date, np.asarray(rmses)*1e3, '.', ms=ms, ls='-', label='Sensing visit')
-    axes[0].xaxis.set_major_locator(matplotlib.dates.DayLocator(bymonthday=[1, 15]))
+    axes[0].xaxis.set_major_locator(matplotlib.dates.DayLocator(bymonthday=[1]))
     axes[0].xaxis.set_minor_locator(matplotlib.dates.DayLocator(interval=1))
-    axes[0].tick_params('x', length=10)
+    axes[0].tick_params('x', length=10, rotation=30)
     
     if mark_corrections=='lines':
         # Add vertical lines for corrections
@@ -292,14 +307,20 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, pi
                 ytmp = [rms_nm[i-1] - yoffsets[1], rms_nm[i] + yoffsets[1]]
                 axes[0].plot(xtmp.plot_date, ytmp, color='limegreen', lw=2, ls='-')
 
-    if pid: axes[0].set_ylim(0.975*axes[0].get_ylim()[0], 1.025*axes[0].get_ylim()[1])
+    if pid:
+        axes[0].set_ylim(0.975*axes[0].get_ylim()[0], 1.025*axes[0].get_ylim()[1])
+
+    fig_title = "OTE" if ote_only else "Observatory"
+    ylabel    = "OTE-only" if ote_only else "OTE+NIRCam"
+    
     axes[0].set_xlabel("Date")
-    axes[0].set_ylabel("RMS WFE\n(OTE+NIRCam)", fontweight='bold')
-    axes[0].set_title(f"Observatory WFE from {start_date.isot[0:10]} to {end_date.isot[0:10]}",
+    axes[0].set_ylabel(f"RMS WFE\n({ylabel})", fontweight='bold')
+
+    axes[0].set_title(f"{fig_title} WFE from {start_date.isot[0:10]} to {end_date.isot[0:10]}",
                      fontsize=14, fontweight='bold')
 
     if thresh:
-        axes[0].axhline(thresh, color='C2', label='Correction threshold', linestyle='dashed')
+        axes[0].axhline(thresh, color='C2', label=f'OTE Correction threshold', linestyle='dashed')
 
     axes[0].tick_params(right=True, which='both', direction = 'in')
 
@@ -308,7 +329,7 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, pi
     minbin = np.round( np.min(interp_rmses*1e3) - binwidth) 
     maxbin = np.round( np.max(interp_rmses*1e3) + binwidth)
     
-    axes[1].set_title(f"Observatory WFE Histogram from {start_date.isot[0:10]} to {end_date.isot[0:10]}",
+    axes[1].set_title(f"{fig_title} WFE Histogram from {start_date.isot[0:10]} to {end_date.isot[0:10]}",
                      fontsize=14, fontweight='bold')
 
     hist_values = axes[1].hist(interp_rmses*1e3, density=True, bins=np.arange(minbin, maxbin, binwidth), color='#1f77b4', rwidth=0.95)
@@ -335,7 +356,7 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, pi
                 axes[i].axvline(thresh, color='C2', linestyle='dashed')    
             fractime = (interp_rmses*1e3 < thresh).sum()/len(interp_rmses)
             axes[i].text(xmin+0.68*(xmax-xmin), 0.65*ymax, 
-                     f"{fractime*100:.1f}% of the time has \nmeasured OTE+NIRCam WFE < {thresh}", color='C2',
+                     f"{fractime*100:.1f}% of the time has \nmeasured {ylabel} WFE < {thresh}", color='C2',
                     fontweight='bold', fontsize=14)    
 
 
