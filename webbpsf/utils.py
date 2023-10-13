@@ -834,9 +834,12 @@ def to_griddedpsfmodel(HDUlist_or_filename=None, ext_data=0, ext_header=0):
         grid_xypos and oversampling keys
     """
     try:
-        from photutils import GriddedPSFModel
+        from photutils.psf import GriddedPSFModel
     except ImportError:
-        raise ImportError("This method requires photutils >= 0.6")
+        try:
+            from photutils import GriddedPSFModel
+        except ImportError:
+            raise ImportError("This method requires photutils >= 0.6")
 
     if isinstance(HDUlist_or_filename, str):
         HDUlist = fits.open(HDUlist_or_filename)

@@ -427,9 +427,12 @@ class CreatePSFLibrary:
             and oversampling keys
         """
         try:
-            from photutils import GriddedPSFModel
+            from photutils.psf import GriddedPSFModel
         except ImportError:
-            raise ImportError("This method requires photutils >= 0.6")
+            try:
+                from photutils import GriddedPSFModel
+            except ImportError:
+                raise ImportError("This method requires photutils >= 0.6")
 
         ndd = NDData(data, meta=meta, copy=True)
 
