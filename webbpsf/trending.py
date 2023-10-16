@@ -661,6 +661,10 @@ def single_measurement_trending_plot(opdtable, row_index=-1, reference=None, ver
     iax = axes[2, 2]
 
     if show_correction:
+        # Note, the WSS does not remove piston from the correction so it's not zero mean.
+        # Fix that here before display. This also affects the derived rms value displayed.
+        correction -= np.nanmean(correction[correction_mask==1])
+
         show_opd_image(-correction, ax=iax, vmax=vmax, mask=correction_mask, fontsize=fontsize)
         iax.set_title(f"Controllable modes\nfrom WSS proposed correction", fontsize=fontsize*1.1)
 
