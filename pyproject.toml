@@ -17,7 +17,7 @@ dependencies = [
     "numpy>=1.20.0",
     "scipy>=1.5.0",
     "matplotlib>=3.2.0",
-    "astropy>=4.3.0",
+    "astropy>=5.1.0",
     "photutils>=1.0.0",
     "poppy>=1.0.0",
     "pysiaf>=0.19.1",
@@ -33,7 +33,7 @@ test = [
 ]
 docs = [
     "nbsphinx",
-    "sphinx<7.0",
+    "sphinx<=8",
     "stsci_rtd_theme",
     "sphinx-astropy",
     "sphinx-automodapi",
