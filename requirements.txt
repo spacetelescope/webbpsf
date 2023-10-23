@@ -1,10 +1,10 @@
-astropy==5.3.1
-ipython==8.14.0
-matplotlib==3.7.2
-numpy==1.25.2
-photutils==1.8.0
+astropy==5.3.3
+ipython==8.16.1
+matplotlib==3.8.0
+numpy==1.26.0
+photutils==1.9.0
 poppy>=1.0.0
 pysiaf==0.20.0
-scipy==1.11.1
+scipy==1.11.3
 synphot==1.2.1
 astroquery==0.4.6

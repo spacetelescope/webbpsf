@@ -836,7 +836,7 @@ class NIRCam_BandLimitedCoron(poppy.BandLimitedCoron):
             else:
                 raise NotImplementedError("invalid name for NIRCam wedge occulter")
 
-            sigmas = scipy.poly1d(polyfitcoeffs)(scalefact)
+            sigmas = np.poly1d(polyfitcoeffs)(scalefact)
 
             sigmar = sigmas * np.abs(y)
             # clip sigma: The minimum is to avoid divide by zero
@@ -1022,7 +1022,7 @@ def _calc_blc_wedge(deg=4, wavelength=2.1e-6):
     sigs = [_width_blc(difflim * ri) for ri in r]
 
     pcs = scipy.polyfit(r, sigs, deg)
-    p = scipy.poly1d(pcs)
+    p = np.poly1d(pcs)
     plt.plot(r, sigs, 'b')
     plt.plot(r, p(r), "r--")
     diffs = (sigs - p(r))
