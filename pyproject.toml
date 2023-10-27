@@ -45,6 +45,9 @@ docs = [
 Homepage = "http://webbpsf.readthedocs.io/"
 github_project = "https://github.com/spacetelescope/webbpsf"
 
+[project.entry-points]
+pytest11 = {webbpsf = 'pytest_plugin.plugin'}
+
 [tool.setuptools.packages]
 find = {namespaces = false}
 
