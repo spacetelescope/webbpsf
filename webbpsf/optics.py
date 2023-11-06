@@ -1601,7 +1601,7 @@ class NIRCamFieldAndWavelengthDependentAberration(WebbFieldDependentAberration):
 
             tilt_offset = ctilt_model(wave_um) - ctilt_model(ta_ref_wave)
             _log.info("  Applying OPD tilt adjustment based on NIRCam tilt vs wavelength model")
-            print("  Modified tilt from {} to {} um: {:.3f} nm wfe".format(
+            _log.info("  Modified tilt from {} to {} um: {:.3f} nm wfe".format(
                 ta_ref_wave, wave_um, tilt_offset * 1e9)
             )
 
