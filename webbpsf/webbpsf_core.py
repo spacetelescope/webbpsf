@@ -29,6 +29,9 @@ import astropy
 import astropy.io.fits as fits
 import astropy.io.ascii as ioascii
 import astropy.units as units
+from astropy.coordinates import Angle
+from astropy.convolution import convolve, Box1DKernel, Gaussian1DKernel
+from astropy.modeling.functional_models import Gaussian1D, GAUSSIAN_SIGMA_TO_FWHM
 
 import poppy
 
@@ -1086,6 +1089,10 @@ class JWInstrument(SpaceTelescopeInstrument):
             if self.image_mask == "LRS slit" and self.pupil_mask == "P750L":
                 raise NotImplementedError("Distortion is not implemented yet for MIRI LRS mode.")
 
+            if self.image_mask in ["MIRI-IFU_1", "MIRI-IFU_2", "MIRI-IFU_3", "MIRI-IFU_4"]:
+                raise NotImplementedError("Distortion is not implemented yet for MIRI IFU mode.")
+
+
             # Set up new extensions to add distortion to:
             n_exts = len(result)
             for ext in np.arange(n_exts):
@@ -1613,8 +1620,6 @@ class JWInstrument(SpaceTelescopeInstrument):
         self.load_wss_opd(opd_fn, verbose=verbose, plot=plot, **kwargs)
 
 
-
-
 class MIRI(JWInstrument):
     """ A class modeling the optics of MIRI, the Mid-InfraRed Instrument.
 
@@ -1622,6 +1627,9 @@ class MIRI(JWInstrument):
 
     The pupil will auto-select appropriate values for the coronagraphic filters
     if the auto_pupil attribute is set True (which is the default).
+
+    MIRI-IFU can produce PSF models for the cube as well as the detector planes. Default calc_psf produces a
+    monochromatic PSF in the cube.
 
     Special Options:
 
@@ -1644,27 +1652,72 @@ class MIRI(JWInstrument):
         self.options['pupil_shift_x'] = -0.0069 # CV3 on-orbit estimate (RPT028027) + OTIS delta from predicted (037134)
         self.options['pupil_shift_y'] = -0.0027
 
-        self.image_mask_list = ['FQPM1065', 'FQPM1140', 'FQPM1550', 'LYOT2300', 'LRS slit']
+        self.image_mask_list = ['FQPM1065', 'FQPM1140', 'FQPM1550', 'LYOT2300', 'LRS slit',
+                                "MIRI-IFU_1", "MIRI-IFU_2", "MIRI-IFU_3",  "MIRI-IFU_4"]
+
         self.pupil_mask_list = ['MASKFQPM', 'MASKLYOT', 'P750L']
 
         self._image_mask_apertures = {'FQPM1065': 'MIRIM_CORON1065',
                                       'FQPM1140': 'MIRIM_CORON1140',
                                       'FQPM1550': 'MIRIM_CORON1550',
-                                      'LYOT2300': 'MIRIM_CORONLYOT'}
+                                      'LYOT2300': 'MIRIM_CORONLYOT',
+                                      'MIRI-IFU_1': "MIRIFU_CHANNEL1A",
+                                      'MIRI-IFU_2': "MIRIFU_CHANNEL2A",
+                                      'MIRI-IFU_3': "MIRIFU_CHANNEL3A",
+                                      'MIRI-IFU_4': "MIRIFU_CHANNEL4A"}
+
+        self.dichroic_to_subband = {"SHORT": "A", "MEDIUM": "B", "LONG": "C"}
+        self.subband_to_dichroic = {"A": "SHORT", "B": "MEDIUM", "C": "LONG"}
+
+        self.MRSbands = {"1A": [4.887326748103221, 5.753418963216559],
+                         "1B": [5.644625711181792, 6.644794583147869],
+                         "1C": [6.513777066360325, 7.669147994055998],
+                         "2A": [7.494966046398437, 8.782517027772244],
+                         "2B": [8.651469658142522, 10.168811217793243],
+                         "2C": [9.995281242621394, 11.73039280033565],
+                         "3A": [11.529088518317131, 13.491500288051483],
+                         "3B": [13.272122736770127, 15.550153182343314],
+                         "3C": [15.389530615108631, 18.04357852656418],
+                         "4A": [17.686540162850203, 20.973301482912323],
+                         "4B": [20.671069749545193, 24.476094964546686],
+                         "4C": [24.19608171436692, 28.64871057821349]}
+
+        self.MRS_rotation = {"1A": 8.4,
+                             "1B": 8.3,
+                             "1C": 8.3,
+                             "2A": 8.15,
+                             "2B": 8.24,
+                             "2C": 8.17,
+                             "3A": 7.6,
+                             "3B": 7.6,
+                             "3C": 7.6,
+                             "4A": 8.73,
+                             "4B": 9.09,
+                             "4C": 8.43}
+
+        # manually add miri filters: FIXME
+        self.filter_list.extend(['DSHORT', 'DMEDIUM', "DLONG"])
+        for f in ['DSHORT', 'DMEDIUM', "DLONG"]:
+            self._filters[f] = Filter(name=f, filename="N/A", default_nlambda=9)
+
         self.auto_aperturename = True
 
-        self.monochromatic = 8.0
-        self._IFU_pixelscale = {
-            'Ch1': (0.18, 0.19),
-            'Ch2': (0.28, 0.19),
-            'Ch3': (0.39, 0.24),
-            'Ch4': (0.64, 0.27),
-        }
-        # The above tuples give the pixel resolution (perpendicular to the slice, along the slice).
-        # The pixels are not square.
+        self.monochromatic = 5.0
+        self._wavelength = 5.0
+        self._band = "1A"
+        self._dichroic = "SHORT"
 
-        self._detectors = {'MIRIM': 'MIRIM_FULL'}  # Mapping from user-facing detector names to SIAF entries.
-        self.detector = self.detector_list[0]
+        # pixel scale corresponds to the slice width and the pixel size in the pipeline cube
+        self._IFU_pixelscale = {
+            'Ch1': (0.18, 0.13),
+            'Ch2': (0.28, 0.17),
+            'Ch3': (0.39, 0.2),
+            'Ch4': (0.64, 0.34),
+        }
+
+        # Mapping from user-facing detector names to SIAF entries.
+        self._detectors = {'MIRIM': 'MIRIM_FULL', "MIRIFUSHORT": "MIRIFU_CHANNEL1A", "MIRIFULONG": "MIRIFU_CHANNEL3A"}
+        self.detector = 'MIRIM'
         self._detector_npixels = 1024
         self.detector_position = (512, 512)
 
@@ -1674,9 +1727,73 @@ class MIRI(JWInstrument):
         """ Return default FOV in arcseconds """
         return 12
 
+    @property
+    def wavelength(self):
+        return self._wavelength
+
+    @wavelength.setter
+    def wavelength(self, value):
+        if self.MRSbands["1A"][0] <= value <= self.MRSbands["4C"][1]:
+            self._wavelength = value
+            # check if band needs to be changed
+            if not self.MRSbands[self._band][0] <= value <= self.MRSbands[self._band][1]:
+                band = self._find_wavelength_band()
+                self.band = band
+        else:
+            print(f"Wavelength not covered by MRS. Reverting to current value: {self._wavelength}")
+        return
+
+    def _find_wavelength_band(self):
+        """Finds first MRS band that the current wavelength is contained in. In order to have the same wavelength in a
+        different band, change the value manually.
+        """
+        for band in self.MRSbands.keys():
+            if self.MRSbands[band][0] <= self._wavelength <= self.MRSbands[band][1]:
+                return band
+
+    @property
+    def band(self):
+        return self._band
+
+    @band.setter
+    def band(self, value):
+        if value in self.MRSbands.keys():
+            self._band = value
+            self._slice_width = self._IFU_pixelscale[f"Ch{self._band[0]}"][0]
+            self._rotation = self.MRS_rotation[self._band]
+            # update filter, image_mask and detector
+            self._filter = "D"+ self.subband_to_dichroic[self._band[1]]
+            self._image_mask = "MIRI-IFU_" + self._band[0]
+            self._update_detector()
+            if not (self.MRSbands[self.band][0] <= self._wavelength <= self.MRSbands[self.band][1]):
+                self._wavelength = np.mean(self.MRSbands[self.band])
+        else:
+            print(value, " not allowed for the MRS.")
+
+    def _get_FWHM(self):
+        """ Return full width at half max for a given wavelength (in um)"""
+        return 0.033 * self.wavelength + 0.106  # Law+2023
+
+    def _get_diffractiom_FWHM(self):
+        return Angle(1.025*self.wavelength*1E-6/constants.JWST_CIRCUMSCRIBED_DIAMETER, units.radian).to(units.arcsec).value
+
+    def _get_specR(self):
+        """ Return the spectral resolution for a given wavelength (in um)"""
+        return 4603 - 128 * self.wavelength  # Argyriou+23
+
     @JWInstrument.filter.setter
     def filter(self, value):
-        super(MIRI, self.__class__).filter.__set__(self, value)
+        if value[0] == "D":
+            self._filter = value
+            self._dichroic = value[1:]
+            if "MIRI-IFU" not in self._image_mask:
+                print("Attempting to set filter before image mask (slicer): setting image mask to MIRI-IFU_1")
+                self.image_mask = "MIRI-IFU_1"
+            else:
+                # set band value
+                self.band = self._image_mask[-1] + self.dichroic_to_subband[self._dichroic]
+        else:
+            super(MIRI, self.__class__).filter.__set__(self, value)
 
         if self.auto_pupil:
             # set the pupil shape based on filter
@@ -1696,6 +1813,105 @@ class MIRI(JWInstrument):
         if self.filter.startswith("MRS-IFU"):
             raise NotImplementedError("The MIRI MRS is not yet implemented.")
         return super(MIRI, self)._validate_config(**kwargs)
+
+    @JWInstrument.image_mask.setter
+    def image_mask(self, name):
+
+        if name == "": name = None
+
+        if name is not None:
+            if name in self.image_mask_list:
+                pass  # there's a perfect match, this is fine.
+            else:
+                name = name.upper()  # force to uppercase
+                if name not in self.image_mask_list:  # if still not found, that's an error.
+                    raise ValueError("Instrument %s doesn't have an image mask called '%s'." % (self.name, name))
+        self._image_mask = name
+        if name is None:
+            if hasattr(self, '_image_mask_apertures') and name in self._image_mask_apertures:
+                self.set_position_from_aperture_name(self._image_mask_apertures[name])
+        elif "MIRI-IFU" in self._image_mask:
+            # if we are changing the IFU slicer we should update the detector, band and wavelength
+            ch = self._image_mask.split("_")[-1]
+            if ch not in ["1", "2", "3", "4"]:
+                raise ValueError(f"MIRI MRS does not have channel {ch}")
+
+            if self.filter[0] != "D":
+                self.filter = "DSHORT"
+                print("set filter to DSHORT for the MRS")
+
+            self.band = ch + self.dichroic_to_subband[self.filter[1:]]
+            self.wavelength = np.mean(self.MRSbands[self._band])
+        else:
+            if hasattr(self, '_image_mask_apertures') and name in self._image_mask_apertures:
+                self.set_position_from_aperture_name(self._image_mask_apertures[name])
+
+        self._update_aperturename()
+        self._update_detector()
+
+    @JWInstrument.detector.setter
+    def detector(self, value):
+        if value.upper() not in self.detector_list:
+            raise ValueError("Invalid detector. Valid detector names are: {}".format(', '.join(self.detector_list)))
+        self._detector = value.upper()
+        self._update_aperturename()  # automatically set an appropriate aperture name
+        self._update_detector()
+
+    def _update_detector(self):
+        """Determine which detector of MIRI should be used.
+        """
+        # # Check if detector is correct
+        if self._image_mask is None:
+            # we are using MIRIM: Imaging
+            self._detector = "MIRIM"
+            # Update detector reference coordinates
+            self.detector_position = (self.siaf[self._aperturename].XSciRef, self.siaf[self._aperturename].YSciRef)
+            # Update DetectorGeometry class
+            self._detector_geom_info = DetectorGeometry(self.siaf, "MIRIM_FULL")  # FIXME
+            _log.info("MIRI aperture name updated to {}".format(self._aperturename))
+
+            # First, check some info from current settings, which we will use below as part of auto pixelscale code
+            # The point is to check if the pixel scale is set to a custom or default value,
+            # and if it's custom then don't override that.
+            # Note, check self._aperturename first to account for the edge case when this is called from __init__ before _aperturename is set
+            has_custom_pixelscale = self._aperturename and (
+                    self.pixelscale != self._get_pixelscale_from_apername(self._aperturename))
+
+            if not has_custom_pixelscale:
+                self.pixelscale = self._get_pixelscale_from_apername(self._aperturename)
+                _log.debug(
+                    f"Pixelscale updated to {self.pixelscale} based on average X+Y SciScale at SIAF aperture {self._aperturename}")
+        elif "MIRI-IFU" in self._image_mask:
+            # we are using the MRS -> update detector based on band name
+            if self._band[0] in ["1", "2"]:
+                self._detector = "MIRIFUSHORT"
+            elif self._band[0] in ["3", "4"]:
+                self._detector = "MIRIFULONG"
+            # update pixelscale
+            self.pixelscale = self._IFU_pixelscale["Ch"+self.band[0]][1]
+            self.detector_position = (self.siaf["MIRIM_FULL"].XSciRef, self.siaf["MIRIM_FULL"].YSciRef) # FIXME
+            self._detector_geom_info = DetectorGeometry(self.siaf, "MIRIM_FULL")  # FIXME
+
+        else:
+            # we are using MIRIM: LRS, coronagraphy
+            self._detector = "MIRIM"
+            # Update detector reference coordinates
+            self.detector_position = (self.siaf[self._aperturename].XSciRef, self.siaf[self._aperturename].YSciRef)
+            # Update DetectorGeometry class
+            self._detector_geom_info = DetectorGeometry(self.siaf, "MIRIM_FULL")  # FIXME
+            _log.info("MIRI aperture name updated to {}".format(self._aperturename))
+
+            # First, check some info from current settings, which we will use below as part of auto pixelscale code
+            # The point is to check if the pixel scale is set to a custom or default value,
+            # and if it's custom then don't override that.
+            # Note, check self._aperturename first to account for the edge case when this is called from __init__ before _aperturename is set
+            has_custom_pixelscale = self._aperturename and (
+                        self.pixelscale != self._get_pixelscale_from_apername(self._aperturename))
+
+            if not has_custom_pixelscale:
+                self.pixelscale = self._get_pixelscale_from_apername(self._aperturename)
+                _log.debug(
+                    f"Pixelscale updated to {self.pixelscale} based on average X+Y SciScale at SIAF aperture {self._aperturename}")
 
     def _addAdditionalOptics(self, optsys, oversample=2):
         """Add coronagraphic or spectrographic optics for MIRI.
@@ -1819,7 +2035,6 @@ class MIRI(JWInstrument):
 
         return (optsys, trySAM, SAM_box_size if trySAM else None)
 
-
     def _update_aperturename(self):
         """Determine sensible SIAF aperture names for MIRI. Implements the auto_aperturename functionality.
         Called after detector is changed
@@ -1840,15 +2055,160 @@ class MIRI(JWInstrument):
             apname = 'MIRIM_FULL'
 
         # Call aperturename.setter to update ap ref coords and DetectorGeometry class
-        self.aperturename = apname
+        self._aperturename = apname
 
         str_debug = '_update_aperturename AFTER  - Det: {}, Ap: {}, ImMask: {}, PupMask: {}, DetPos: {}'.format(
             self._detector, self._aperturename, self.image_mask, self.pupil_mask, self.detector_position
         )
         _log.debug(str_debug)
 
+    @JWInstrument.aperturename.setter
+    def aperturename(self, value):
+        """Set SIAF aperture name to new value, with validation.
 
-    def _get_fits_header(self, hdulist, options):
+        This also updates the pixelscale to the local value for that aperture, for a small precision enhancement.
+        """
+        # Explicitly update detector reference coordinates,
+        # otherwise old coordinates can persist under certain circumstances
+
+        # Get NIRCam SIAF apertures
+        try:
+            ap = self.siaf[value]
+        except KeyError:
+            _log.warning(f'Aperture name {value} not a valid MIRI pysiaf name')
+            return
+            # Only update if new value is different
+        if self._aperturename != value:
+            # Now apply changes:
+            self._aperturename = value
+            # # update detector
+            self._update_detector()
+
+    # MIRI IFU specific functions
+
+    def _print_mrs_config(self):
+        """
+        Print the current IFU, dichtoic, detector, band, wavelength setup
+        """
+        print(f"IFU: {self._image_mask}, Dichroic: {self._filter}, slice width: {self._slice_width} \n "
+              f"Detector: {self._detector},  pixelscale: {self.pixelscale} \n"
+              f"MRS band: {self._band}, wavelength: {self._wavelength}")
+
+    def _project_psf_to_detector(self):
+        pass
+
+    def _analytical_sigma_alpha_broadening(self):
+        """
+        Calculate the Gaussian scale of the kernel that broadens the diffraction limited
+        FWHM to the empirically measured one
+        """
+        sigma_emp = self._get_FWHM()/GAUSSIAN_SIGMA_TO_FWHM
+        sigma_diffr = self._get_diffractiom_FWHM()/GAUSSIAN_SIGMA_TO_FWHM
+        return np.sqrt(sigma_emp**2 - sigma_diffr**2)  # return kernel width in arcsec
+
+    def _empirical_broadening(self, psf_model, alpha_width, beta_width):
+        """
+        Perform the broadening of a psf model in alpha and beta
+        :param psf_model: monochromatic model from webbPSF
+        :param alpha_width: gaussian convolution kernel in pixels, None if no broadening should be performed
+        :param beta_width: slice width in pixels
+        :return:
+        """
+        kernel_beta = Box1DKernel(beta_width)
+        if alpha_width is None:
+            psf_model_alpha_beta = np.apply_along_axis(lambda m: convolve(m, kernel_beta), axis=0, arr=psf_model)
+        else:
+            kernel_alpha = Gaussian1DKernel(stddev=alpha_width)
+            psf_model_alpha = np.apply_along_axis(lambda m: convolve(m, kernel_alpha), axis=1, arr=psf_model)
+            psf_model_alpha_beta = np.apply_along_axis(lambda m: convolve(m, kernel_beta), axis=0, arr=psf_model_alpha)
+        return psf_model_alpha_beta
+
+    @utils.combine_docstrings
+    def calc_psf(self, outfile=None, source=None, nlambda=None, monochromatic=None,
+                 fov_arcsec=None, fov_pixels=None, oversample=None, detector_oversample=None, fft_oversample=None,
+                 overwrite=True, display=False, save_intermediates=False, return_intermediates=False,
+                 normalize='first', add_distortion=True, crop_psf=True, broadening='both', **kwargs):
+        """
+        Calculate empirical PSF for MIRI .
+        :param broadening: include broadening of PSF for MIRI-IFU. Options are None, "both" for alpha and
+        beta broadening
+        """
+        if self._image_mask is None:
+            return super().calc_psf(outfile=outfile, source=source, nlambda=nlambda,
+                                         monochromatic=monochromatic,
+                                         fov_arcsec=fov_arcsec, fov_pixels=fov_pixels, oversample=oversample,
+                                         detector_oversample=detector_oversample, fft_oversample=fft_oversample,
+                                         overwrite=overwrite, display=display, save_intermediates=save_intermediates,
+                                         return_intermediates=return_intermediates,
+                                         normalize=normalize, add_distortion=add_distortion, crop_psf=crop_psf)
+        elif "MIRI-IFU" in self._image_mask:
+            if monochromatic is None:
+                raise ValueError("MIRI-IFU requires monochromatic PSF calculation")
+            # update wavelength
+            self.wavelength = monochromatic
+            # we need both extensions
+            self.options['output_mode'] = "both"
+            # calculate monochromatic PSF
+            mrspsf = super().calc_psf(monochromatic=self._wavelength * 1e-6, oversample=oversample,
+                                      display=False, add_distortion=add_distortion, fov_arcsec=fov_arcsec,
+                                      fov_pixels=fov_pixels, crop_psf=crop_psf)
+            psf_m = mrspsf[0].data
+            pxsc = float(mrspsf[0].header["PIXELSCL"])
+            if broadening is not None:
+                if broadening == "both":
+                    beta_width = self._slice_width/pxsc
+                    alpha_width = self._analytical_sigma_alpha_broadening()/pxsc
+                else:
+                    beta_width = self._slice_width / pxsc
+                    alpha_width = None
+                psf_m = self._empirical_broadening(psf_model=psf_m, alpha_width=alpha_width, beta_width=beta_width)
+                mrspsf.append(fits.ImageHDU(psf_m))
+            else:
+                return mrspsf
+            # delete previous DETSAMP
+            del mrspsf[1]
+            # rename new extension. Instead of DIST we have BROAD for broadening
+            mrspsf[1].header = mrspsf[0].header
+            mrspsf[1].name = "OVERBROAD"
+            mrspsf[1].header["IFUBROAD"] = kwargs.get("broadening", "None")
+            local_options = self.options.copy()
+            # the detector sampling is set by this ratio
+            local_options["detector_oversample"] = int(self.pixelscale/pxsc)
+            # local_options
+            super()._calc_psf_format_output(mrspsf, local_options)
+            return mrspsf
+
+        else:
+            # normal PSF calculation for MIRI
+            return super().calc_psf(outfile=outfile, source=source, nlambda=nlambda, monochromatic=monochromatic,
+                                    fov_arcsec=fov_arcsec, fov_pixels=fov_pixels, oversample=oversample,
+                                    detector_oversample=detector_oversample, fft_oversample=fft_oversample,
+                                    overwrite=overwrite, display=display, save_intermediates=save_intermediates,
+                                    return_intermediates=return_intermediates,
+                                    normalize=normalize, add_distortion=add_distortion, crop_psf=crop_psf)
+
+    def calc_datacube(self, wavelengths, **kwargs):
+        """
+        Calculate IFU data cube for MIRI
+        """
+        cube = []
+        ext = kwargs.get("extent", 0)
+        if ext > 3:
+            _log.debug("PSF has extent up to 3. Setting extent to 0.")
+            ext = 0
+        outfile = kwargs.get("outfile", None)
+        for wav in wavelengths:
+            self.wavelength = wav
+            out = self.calc_psf(monochromatic=self._wavelength, outfile=None, **kwargs)
+            cube.append(out[ext].data)
+
+        hdu = fits.PrimaryHDU(data=np.array(cube))
+        if outfile is not None:
+            hdu.writeto(outfile)
+        return hdu
+
+
+def _get_fits_header(self, hdulist, options):
         """ Format MIRI-like FITS headers, based on JWST DMS SRD 1 FITS keyword info """
         super(MIRI, self)._get_fits_header(hdulist, options)
 
