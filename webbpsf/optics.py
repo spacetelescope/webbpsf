@@ -1503,13 +1503,23 @@ class NIRCamFieldAndWavelengthDependentAberration(WebbFieldDependentAberration):
         self.fm_long  = np.poly1d(lw_focus_cf)
 
         # Coronagraphic tilt (`ctilt`) offset model
-        # Primarily effects the LW channel (approximately a 0.031mm diff from 3.5um to 5.0um).
-        # SW module is small compared to LW, but we include it for completeness.
-        # Values have been determined using the Zernike offsets as reported in the 
-        # NIRCam Zemax models. The center reference positions will correspond to the 
-        # NIRCam target acquisition filters (3.35um for LW and 2.1um for SW)
-        sw_ctilt_cf = np.array([125.849834, -289.018704]) / 1e9
-        lw_ctilt_cf = np.array([146.827501, -2000.965222, 8385.546158, -11101.658322]) / 1e9
+        # Due to dispersion in the wedge elements, the location of the coronagraphic
+        # image on the detectors is wavelength dependent. The relative shift of the COM
+        # features at the image plane in raw pixels:
+        # LWA (relative to 3.5um)
+        #    2.5,   3.0,  3.5,   4.0,   4.5 umhttps://www.google.com/search?client=safari&rls=en&q=16&ie=UTF-8&oe=UTF-8
+        #  -1.43, -0.32, 0.00, -0.15, -0.60 (ypix)
+        # SWA (relative to 2.0um)
+        #    0.5,   1.0,  1.5,   2.0,   2.5 um
+        #  30.51,  8.15, 3.29,  0.00, -3.31 (ypix)
+        # Note: This does not affect the mapping of the COM to the sky, but the COM and sky
+        # will both shift on the detector due to the dispersion.
+        # The final center reference positions will correspond to the NIRCam target acquisition 
+        # filter wavelengths (3.35um for LW and 2.1um for SW).
+        # For SW filters, we only care about wavelength between 1.7 and 2.3um, which has a linear offset.
+        sw_ctilt_cf = np.array([-1620.3792, +3240.7584]) / 1e9
+        # LW dispersion is a little more complicated, so we use a 3rd order polynomial
+        lw_ctilt_cf = np.array([-134.9596, +1939.0256, -8683.2786, +12515.1242]) / 1e9
         self.ctilt_short = np.poly1d(sw_ctilt_cf)
         self.ctilt_long  = np.poly1d(lw_ctilt_cf)
 

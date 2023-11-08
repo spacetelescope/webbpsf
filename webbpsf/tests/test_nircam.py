@@ -381,8 +381,8 @@ def test_nircam_coron_wfe_offset(fov_pix=15, oversample=2, fit_gaussian=True):
     """
     Test offset of LW coronagraphic PSF w.r.t. wavelength due to optical wedge dispersion.
     Option to fit a Gaussian to PSF core in order to better determine peak position.
-    Difference from 2.5 to 3.3 um should be ~0.015mm.
-    Difference from 3.3 to 5.0 um should be ~0.030mm.
+    Difference from 2.5 to 3.3 um should be ~0.025mm.
+    Difference from 3.3 to 5.0 um should be ~0.021mm.
     """
 
     # Disable Gaussian fit if astropy not installed
@@ -436,12 +436,12 @@ def test_nircam_coron_wfe_offset(fov_pix=15, oversample=2, fit_gaussian=True):
             yloc.append(xvals[yvals==yvals.max()][0])
     yloc = np.array(yloc)
 
-    # Difference from 2.5 to 3.3 um should be ~0.015mm
+    # Difference from 2.5 to 3.3 um should be ~0.025mm
     diff_25_33 = np.abs(yloc[0] - yloc[1])
-    assert np.allclose( diff_25_33, 0.016, rtol=rtol), "PSF shift between {:.2f} and {:.2f} um of {:.3f} mm does not match expected value (~0.016 mm).".format(warr[1], warr[0], diff_25_33)
-    # Difference from 3.3 to 5.0 um should be ~0.030mm
+    assert np.allclose( diff_25_33, 0.025, rtol=rtol), "PSF shift between {:.2f} and {:.2f} um of {:.3f} mm does not match expected value (~0.025 mm).".format(warr[1], warr[0], diff_25_33)
+    # Difference from 3.3 to 5.0 um should be ~0.020mm
     diff_50_33 = np.abs(yloc[2] - yloc[1])
-    assert np.allclose( diff_50_33, 0.032, rtol=rtol), "PSF shift between {:.2f} and {:.2f} um of {:.3f} mm does not match expected value (~0.032 mm).".format(warr[1], warr[2], diff_50_33)
+    assert np.allclose( diff_50_33, 0.021, rtol=rtol), "PSF shift between {:.2f} and {:.2f} um of {:.3f} mm does not match expected value (~0.021 mm).".format(warr[1], warr[2], diff_50_33)
 
 def test_nircam_auto_aperturename():
     """
