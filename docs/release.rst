@@ -5,38 +5,33 @@ Developer Notes: Releasing a new version of WebbPSF
 Prerequisites
 =============
 
- * Is the `develop` build `passing on Travis? <https://travis-ci.org/spacetelescope/webbpsf>`_ with all desired release items included?
+ * Is the `develop` build `passing on Github Actions? <https://github.com/spacetelescope/webbpsf/actions>`_ with all desired release items included?
 
 Releasing new data packages
 ===========================
 
- #. Run ``dev_utils/make-data-sdist.sh`` (details below) to make a gzipped tarred archive of the WebbPSF data
+ #. Run ``dev_utils/master_data_release.sh`` (details below) to make a gzipped tarred archive of the WebbPSF data
  #. If the new data package is **required** (meaning you can't run WebbPSF without it, or you can run but may get incorrect results), you must bump ``DATA_VERSION_MIN`` in ``__init__.py`` to ``(0, X, Y)``
  #. Extract the resulting data archive and check that you can run the WebbPSF tests with ``WEBBPSF_PATH`` pointing to it
- #. Copy the data archive into public web space.
+ #. Copy the data archive into public web space. This now means on Box. The following steps need to be performed in this sequence in order to preserve the naming conventions.
+     #. Find webbpsf-data-LATEST.tar.gz, and click on "more options" and "Update Version".  Choose the newest version of webbpsf-data-#.#.#.tar.gz
+     #. This will change the name of webbpsf-data-LATEST.tar.gz to be what you just uploaded, rename the file back to "webbpsf-data-LATEST.tar.gz"
+     #. Upload to Box a separate version of webbpsf-data-#.#.#.tar.gz shared data folder for future storage.
+     #. Upload to Box the minimal-webbpsf-data-#.#.#.tar.gz shared data folder.
+     #. Verify the shared link of webbpsf-data-latest.tar.gz is the same that exists in ``docs/installation.rst`` ("copy shared link" then "link settings")
 
-     #. This now means on Box. Upload to Box in the webbpsf shared data folder. Get the Box shared file URL.
-     #. Update ``docs/installation.rst`` to have that new URL and updated filename in the appropriate location.
-
- #. Update the shared copy on STScI Central Store:
-
-    #. ``cd`` to ``/grp/jwst/ote`` and remove the ``webbpsf-data`` symlink
-    #. Copy the archive into ``/grp/jwst/ote/`` and extract it to ``/grp/jwst/ote/webbpsf-data``
-    #. Rename the folder to ``webbpsf-data-0.x.y``
-    #. Create a symbolic link at ``/grp/jwst/ote/webbpsf-data`` to point to the new folder
-
+ #. A shared copy will be automatically configured in STScI Central Store with updated symlink ``/grp/jwst/ote/webbpsf-data``
  #. Update the URL in ``installation.rst`` under :ref:`data_install`
 
-Details for using `make-data-sdist.sh`:
+Details for using `master_data_release.sh`:
 -------------------------------------
 
-Invoke ``dev_utils/make-data-sdist.sh`` one of the following ways to make a gzipped tarred archive of the WebbPSF data suitable for distribution.
+Invoke ``dev_utils/master_data_release.sh`` one of the following ways to make a gzipped tarred archive of the WebbPSF data suitable for distribution.
 
 **If you are on the Institute network:** ::
 
    $ cd webbpsf/dev_utils/
-   $ ./make-data-sdist.sh 0.X.Y
-   $ cp ./webbpsf-data-0.X.Y.tar.gz /path/to/public/web/directory/
+   $ ./master_data_release.sh 0.X.Y
 
 **If you're working from a local data root:** ::
 
@@ -52,7 +47,7 @@ Update the dependency requirement to the new version of poppy, in ``webbpsf/pypr
 
 When you are ready, proceed with the WebbPSF release as follows:
 
-#. Get the `develop` branch into the state that you want, including all PRs merged, updated release notes. This includes all tests passing both locally and on Travis.
+#. Get the `develop` branch into the state that you want, including all PRs merged, updated release notes. This includes all tests passing both locally and on GitHub Actions.
 #. Tag the commit with `v<version>`, being sure to sign the tag with the `-s` option.
    * ``git tag -s v<version> -m "Release v<version>"``
 

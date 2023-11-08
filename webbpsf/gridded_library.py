@@ -8,6 +8,8 @@ from astropy.nddata import NDData
 import numpy as np
 import poppy
 
+import webbpsf.detectors
+
 
 class CreatePSFLibrary:
 
@@ -22,6 +24,7 @@ class CreatePSFLibrary:
 
     def __init__(self, instrument, filter_name, detectors="all", num_psfs=16, psf_location=None,
                  use_detsampled_psf=False, save=True, outdir=None, filename=None, overwrite=True, verbose=True,
+                 psf_location_list=None,
                  **kwargs):
         """
         Description
@@ -58,6 +61,10 @@ class CreatePSFLibrary:
         psf_location : tuple
             If num_psfs = 1, then this is used to set the (y,x) location of that PSF.
             Default is the center point for the detector.
+
+        psf_location_list: list of tuples
+            If num_psfs > 1,  then this should be a list of locations for each PSF.
+            This can be used to set irregular sampling, if needed for some reason.
 
         use_detsampled_psf : bool
             If True, the grid of PSFs returned will be detector sampled (made by binning
@@ -105,9 +112,12 @@ class CreatePSFLibrary:
 
         # Before doing anything else, check that we have GriddedPSFModel
         try:
-            from photutils import GriddedPSFModel
+            from photutils.psf import GriddedPSFModel
         except ImportError:
-            raise ImportError("This method requires photutils >= 0.6")
+            try:
+                from photutils import GriddedPSFModel
+            except ImportError:
+                raise ImportError("This method requires photutils >= 0.6")
 
         # Pull WebbPSF instance
         self.webb = instrument
@@ -126,13 +136,12 @@ class CreatePSFLibrary:
         self.detector_list = self._set_detectors(self.filter, detectors)
 
         # Set the locations on the detector of the fiducial PSFs
-        self.location_list = self._set_psf_locations(num_psfs, psf_location)
+        self.location_list = self._set_psf_locations(num_psfs, psf_location, psf_location_list)
 
         # Set PSF attributes for the 3 kwargs that will be used before the calc_psf() call
         if "add_distortion" in kwargs:
             self.add_distortion = kwargs["add_distortion"]
-            if self.webb.name == "WFI":
-                del kwargs["add_distortion"]
+
         else:
             self.add_distortion = True
             kwargs["add_distortion"] = self.add_distortion
@@ -190,7 +199,7 @@ class CreatePSFLibrary:
 
         return det
 
-    def _set_psf_locations(self, num_psfs, psf_location):
+    def _set_psf_locations(self, num_psfs, psf_location, psf_location_list):
         """Set the locations on the detector of the fiducial PSFs"""
 
         self.num_psfs = num_psfs
@@ -205,9 +214,17 @@ class CreatePSFLibrary:
             # Want this case to be at the specified location
             location_list = [(psf_location[::-1])]  # tuple of (x,y)
         else:
-            max_size = self.webb._detector_npixels - 1
-            loc_list = [int(round(num * max_size)) for num in np.linspace(0, 1, self.length, endpoint=True)]
-            location_list = list(itertools.product(loc_list, loc_list))  # list of tuples (x,y) (for WebbPSF)
+
+            if psf_location_list is not None:
+                if len(psf_location_list) != num_psfs:
+                    raise ValueError(
+                        "Length of psf_location_list ({len(psf_location_list)})  must equal num_psfs ({num_psfs})")
+                location_list = psf_location_list
+
+            else:
+                max_size = self.webb._detector_npixels - 1
+                loc_list = [int(round(num * max_size)) for num in np.linspace(0, 1, self.length, endpoint=True)]
+                location_list = list(itertools.product(loc_list, loc_list))  # list of tuples (x,y) (for WebbPSF)
 
         return location_list
 
@@ -275,12 +292,17 @@ class CreatePSFLibrary:
                     print("    Position {}/{} centroid: {}".format(i+1, len(self.location_list), cntrd))
 
 
-                # Convolve PSF with a square kernel
-                psf_conv = astropy.convolution.convolve(psf[ext].data, kernel)
+                # Convolve PSF with a square kernel for the detector pixel response function
+                psf[ext].data = astropy.convolution.convolve(psf[ext].data, kernel)
 
+                # Convolve PSF with a model for interpixel capacitance
+                # note, normally this is applied in calc_psf to the detector-sampled data;
+                # here we specially apply this to the oversampled data
+                if self.add_distortion and self.webb.options.get('add_ipc', True):
+                    webbpsf.detectors.apply_detector_ipc(psf, extname=ext)
 
                 # Add PSF to 5D array
-                psf_arr[i, :, :] = psf_conv
+                psf_arr[i, :, :] = psf[ext].data
 
             # Normalize the output PSFs as expected by photutils.GriddedPSFModel:
             #  PSFs should be in surface brightness units, independent of oversampling.
@@ -318,7 +340,7 @@ class CreatePSFLibrary:
                 if self.fov_pixels % 2 == 0:
                     loc += 0.5  # even arrays must be at a half pixel
 
-                meta["DET_YX{}".format(h)] = (str((loc[1], loc[0])),
+                meta["DET_YX{}".format(h)] = (str((float(loc[1]), float(loc[0]))),
                                               "The #{} PSF's (y,x) detector pixel position".format(h))
 
             meta["NUM_PSFS"] = (self.num_psfs, "The total number of fiducial PSFs")
@@ -360,8 +382,9 @@ class CreatePSFLibrary:
                         meta[mykey] = (psf[ext].header[mykey], psf[ext].header.comments[mykey])
 
             # copy all the jitter-related keys (the exact set of keywords varies based on jitter type)
+            # Also copy charge diffusion and IPC
             for k in psf[ext].header.keys():   # do the rest
-                if k.startswith('JITR'):
+                if k.startswith('JITR') or k.startswith('IPC') or k.startswith('CHDF'):
                     meta[k] = (psf[ext].header[k], psf[ext].header.comments[k])
 
             meta["DATE"] = (psf[ext].header["DATE"], "Date of calculation")
@@ -404,9 +427,12 @@ class CreatePSFLibrary:
             and oversampling keys
         """
         try:
-            from photutils import GriddedPSFModel
+            from photutils.psf import GriddedPSFModel
         except ImportError:
-            raise ImportError("This method requires photutils >= 0.6")
+            try:
+                from photutils import GriddedPSFModel
+            except ImportError:
+                raise ImportError("This method requires photutils >= 0.6")
 
         ndd = NDData(data, meta=meta, copy=True)
 

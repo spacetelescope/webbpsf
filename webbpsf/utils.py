@@ -263,9 +263,9 @@ wxpython version: {wxpython}
 
 
 ***************************************************************
-Floating point type information for numpy.float_:
+Floating point type information for numpy.double:
 {finfo_float}
-Floating point type information for numpy.complex:
+Floating point type information for numpy.cdouble:
 {finfo_complex}
 
 ***************************************************************
@@ -418,8 +418,8 @@ def system_diagnostic():
         stsyn=stsynphot_version,
         pysyn=pysynphot_version,
         astropy=astropy_version,
-        finfo_float=numpy.finfo(numpy.float_),
-        finfo_complex=numpy.finfo(numpy.complex_),
+        finfo_float=numpy.finfo(numpy.double),
+        finfo_complex=numpy.finfo(numpy.cdouble),
         numexpr=numexpr_version,
         scipy=scipy.__version__,
         accelerate=accelerate_version,
@@ -834,9 +834,12 @@ def to_griddedpsfmodel(HDUlist_or_filename=None, ext_data=0, ext_header=0):
         grid_xypos and oversampling keys
     """
     try:
-        from photutils import GriddedPSFModel
+        from photutils.psf import GriddedPSFModel
     except ImportError:
-        raise ImportError("This method requires photutils >= 0.6")
+        try:
+            from photutils import GriddedPSFModel
+        except ImportError:
+            raise ImportError("This method requires photutils >= 0.6")
 
     if isinstance(HDUlist_or_filename, str):
         HDUlist = fits.open(HDUlist_or_filename)

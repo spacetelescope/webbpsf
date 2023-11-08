@@ -1,7 +1,7 @@
 Documentation for WebbPSF
 ===============================
 
-WebbPSF is a Python package that computes simulated point spread functions (PSFs) for NASA's James Webb Space Telescope (JWST) and Nancy Grace Roman Space Telescope (formerly WFIRST). WebbPSF transforms models of telescope and instrument optical state into PSFs, taking into account detector pixel scales, rotations, filter profiles, and point source spectra. It is *not* a full optical model of JWST, but rather a tool for transforming optical path difference (OPD) maps, created with some other tool, into the resulting PSFs as observed with JWST's or Roman's instruments.
+WebbPSF is a Python package that computes simulated point spread functions (PSFs) for NASA's James Webb Space Telescope (JWST) and Nancy Grace Roman Space Telescope. WebbPSF transforms models of telescope and instrument optical state into PSFs, taking into account detector pixel scales, rotations, filter profiles, and point source spectra. It is rather a tool for transforming optical path difference (OPD) maps, created with observatory systems engineering models, into the resulting PSFs as observed with JWST's or Roman's instruments.
 
 .. figure:: ./fig_instrument_comparison.png
    :scale: 45 %
@@ -19,7 +19,7 @@ WebbPSF is a Python package that computes simulated point spread functions (PSFs
 
 
 **Contributors:**
-WebbPSF has been developed by Marshall Perrin, Shannon Osborne, Robel Geda, Joseph Long, Justin Otor, Jarron Leisenring, Neil Zimmerman, Keira Brooks, and Anand Sivaramakrishnan, with contributions from Marcio Meléndez Hernandez, Alden Jurling, Lauren Chambers, Ewan Douglas, Charles Lajoie, Megan Sosey, and Kathryn St.Laurent. We also are grateful to the contributors of the astropy-helpers and stsci package templates.
+WebbPSF has been developed by Marshall Perrin, Marcio Meléndez, Shannon Osborne, Robel Geda, Brad Sappington, Charles-Philippe Lajoie, Joseph Long, Justin Otor, Jarron Leisenring, Neil Zimmerman, Keira Brooks, and Anand Sivaramakrishnan, with contributions from Alden Jurling, Lauren Chambers, Ewan Douglas, and `others <https://github.com/spacetelescope/webbpsf/graphs/contributors>`_. 
 
 Getting Started with WebbPSF
 ----------------------------
@@ -30,8 +30,10 @@ See :ref:`using_api`.
 
    This documentation is complemented by an `Jupyter Notebook format quickstart tutorial <http://nbviewer.jupyter.org/github/spacetelescope/webbpsf/blob/stable/notebooks/WebbPSF_tutorial.ipynb>`_. Downloading and running that notebook is a great way to get started using WebbPSF.
 
-.. note:: 
-   *Getting help:* For help using or installing webbpsf, you can contact the STScI JWST Help Desk at jwsthelp.stsci.edu. Note that WebbPSF is included in the Astroconda python distribution, as well as being installable via :ref:`standard Python packaging tools <installation>`.
+
+.. admonition:: Getting Help
+
+   For help using or installing webbpsf, you can contact the STScI JWST Help Desk at jwsthelp.stsci.edu, category WebbPSF/JWST Telescope.
 
 
 :ref:`What's new in the latest release? <whatsnew>`
@@ -47,8 +49,10 @@ Contents
    relnotes.rst
    usage.rst
    jwst.rst
-   jwst_optical_budgets.ipynb
    jwst_measured_opds.ipynb
+   jwst_detector_effects.ipynb
+   jwst_matching_psfs_to_data.ipynb
+   jwst_optical_budgets.ipynb
    jwst_wavefront_deltas.ipynb
    roman.rst
    psf_grids.rst

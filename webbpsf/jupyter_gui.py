@@ -188,8 +188,8 @@ def show_notebook_interface_wfi(instrument):
                 overwrite=True
             )
         fig, (ax_oversamp, ax_detsamp) = plt.subplots(1, 2)
-        poppy.display_PSF(psf, ax=ax_oversamp)
-        poppy.display_PSF(psf, ax=ax_detsamp, ext='DET_SAMP')
+        poppy.display_psf(psf, ax=ax_oversamp)
+        poppy.display_psf(psf, ax=ax_detsamp, ext='DET_SAMP')
         progress.visible = None
         download_link.visible = True
 
@@ -396,9 +396,9 @@ def show_notebook_interface_jwst(instrument):
             )
         fig, (ax_oversamp, ax_detsamp) = plt.subplots(1, 2,figsize=(12, 4))
         title1 = "PSF sim for {}, {}\n".format(instrument.name, instrument.filter)
-        poppy.display_PSF(psf, ax=ax_oversamp,
+        poppy.display_psf(psf, ax=ax_oversamp,
                           title=title1+"Oversampled PSF")
-        poppy.display_PSF(psf, ax=ax_detsamp, ext='DET_SAMP',
+        poppy.display_psf(psf, ax=ax_detsamp, ext='DET_SAMP',
                           title=title1+'Detector pixel sampled PSF')
         progress.visible = None
         download_link.visible = True

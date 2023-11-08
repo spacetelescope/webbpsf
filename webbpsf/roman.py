@@ -19,8 +19,8 @@ import logging
 
 from . import utils
 from . import webbpsf_core
+from . import distortion
 from .optics import _fix_zgrid_NaNs
-
 
 _log = logging.getLogger('webbpsf')
 import pprint
@@ -281,34 +281,41 @@ class RomanInstrument(webbpsf_core.SpaceTelescopeInstrument):
     def calc_psf(self, outfile=None, source=None, nlambda=None, monochromatic=None,
                  fov_arcsec=None, fov_pixels=None, oversample=None, detector_oversample=None, fft_oversample=None,
                  overwrite=True, display=False, save_intermediates=False, return_intermediates=False,
-                 normalize='first', add_distortion=False, crop_psf=False):
+                 normalize='first', add_distortion=True, crop_psf=False):
         """
         Compute a PSF
 
         Parameters
         ----------
         add_distortion : bool
-            Included for API compatibility with the JWST instrument classes, but has no
-            effect on the results for Roman WFI PSF calculations.
+            If True, will add 2 new extensions to the PSF HDUlist object. The 2nd extension
+            will be a distorted version of the over-sampled PSF and the 3rd extension will
+            be a distorted version of the detector-sampled PSF.
         crop_psf : bool
             Included for API compatibility with the JWST instrument classes, but has no
             effect on the results for Roman WFI PSF calculations.
 
         """
 
-        if add_distortion is not False or crop_psf is not False:
-            raise AttributeError('`add_distortion` and `crop_psf` still under '
-                                 'development for Roman WFI')
-            # return default values to True once implemented
+        # Save new keywords to the options dictionary
+        self.options['add_distortion'] = add_distortion
+        self.options['crop_psf'] = crop_psf
 
+        # add_distortion keyword is not implemented for RomanCoronagraph Class
+        if self.name == "RomanCoronagraph" and add_distortion==True:
+            self.options['add_distortion'] = False
+            self.options['crop_psf'] = False
+            _log.info("Geometric distortions are not implemented in WebbPSF for Roman CGI. The add_distortion keyword must be set to False for this case.")
+        
         # Run poppy calc_psf
         psf = webbpsf_core.SpaceTelescopeInstrument.calc_psf(self, outfile=outfile, source=source, nlambda=nlambda,
                                                 monochromatic=monochromatic, fov_arcsec=fov_arcsec,
                                                 fov_pixels=fov_pixels, oversample=oversample,
                                                 detector_oversample=detector_oversample, fft_oversample=fft_oversample,
                                                 overwrite=overwrite, display=display,
-                                                save_intermediates=save_intermediates,
+                                                save_intermediates=save_intermediates, 
                                                 return_intermediates=return_intermediates, normalize=normalize)
+
 
         return psf
 
@@ -351,6 +358,51 @@ class RomanInstrument(webbpsf_core.SpaceTelescopeInstrument):
                                         'Y pixel position (for field dependent aberrations)')
         result[0].header['DETECTOR'] = (self.detector, 'Detector selected')
 
+
+    def _calc_psf_format_output(self, result, options):
+        """
+        Add distortion to the created 1-extension PSF
+
+        Apply desired formatting to output file:
+                 - rebin to detector pixel scale if desired
+                 - set up FITS extensions if desired
+                 - output either the oversampled, rebinned, or both
+        Which image(s) get output depends on the value of the options['output_mode']
+        parameter. It may be set to 'Oversampled image' to output just the oversampled image,
+        'Detector sampled image' to output just the image binned down onto detector pixels, or
+        'Both as FITS extensions' to output the oversampled image as primary HDU and the
+        rebinned image as the first image extension. For convenience, the option can be set
+        to just 'oversampled', 'detector', or 'both'.
+
+        Modifies the 'result' HDUList object.
+
+        """
+       # Pull values from options dictionary
+        add_distortion = options.get('add_distortion', True)
+        crop_psf = options.get('crop_psf', True)
+        # Add distortion if set in calc_psf
+        if add_distortion:
+            _log.debug("Adding PSF distortion(s)")
+            
+            # Set up new extensions to add distortion to:
+            n_exts = len(result)
+            for ext in np.arange(n_exts):
+                hdu_new = fits.ImageHDU(result[ext].data, result[ext].header)  # these will be the PSFs that are edited
+                result.append(hdu_new)
+                ext_new = ext + n_exts
+                result[ext_new].header["EXTNAME"] = result[ext].header["EXTNAME"][0:4] + "DIST"  # change extension name
+                _log.debug("Appending new extension {} with EXTNAME = {}".format(ext_new, result[ext_new].header["EXTNAME"]))
+
+            _log.debug("WFI: Adding optical distortion")
+            psf_distorted = distortion.apply_distortion(result)  # apply siaf distortion model
+
+            # Edit the variable to match if input didn't request distortion
+            # (cannot set result = psf_distorted due to return method)
+            [result.append(fits.ImageHDU()) for i in np.arange(len(psf_distorted) - len(result))]
+            for ext in np.arange(len(psf_distorted)): result[ext] = psf_distorted[ext]
+
+        # Rewrite result variable based on output_mode set:
+        webbpsf_core.SpaceTelescopeInstrument._calc_psf_format_output(self, result, options)
 
 class WFIPupilController:
     """
@@ -591,6 +643,7 @@ class WFI(RomanInstrument):
         self.pupilopd = self.opd_list[-1]
 
     def _addAdditionalOptics(self, optsys, **kwargs):
+        _log.debug("   No optics added for WFI")
         return optsys, False, None
 
     def _load_detector_aberrations(self, path):

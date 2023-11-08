@@ -75,10 +75,12 @@ extensions = [
     "sphinx.ext.inheritance_diagram",
     "sphinx.ext.viewcode",
     "sphinx.ext.autosummary",
+    "sphinxcontrib.jquery",
     "sphinx_automodapi.automodapi",
     "sphinx_issues",
     "nbsphinx",
     "numpydoc",
+    "astroquery",
 ]
 
 numpydoc_show_class_members = False

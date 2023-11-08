@@ -27,6 +27,55 @@ See https://github.com/spacetelescope/webbpsf/issues for currently open issues a
 Version History and Change Log
 -------------------------------
 
+Version 1.2.1
+=============
+Minor documentation updates
+
+Version 1.2.0
+=============
+We are pleased to announce the release of the latest version of WebbPSF version 1.2.0, now available on PyPi and GitHub. This release comes with new features and improvements including but not limited to:
+
+1. The addition of detector effects for JWST simulations. H2RG detector effects are included in two flavors, a simple ad hoc Gaussian convolution to model charge diffusion effects and a set of convolution kernels to model interpixel capacitance (IPC) and post-pixel coupling effects. We have found that these effects greatly improve the agreement between observations and simulations. See `JWST Detector Effects for more details. <https://webbpsf.readthedocs.io/en/latest/jwst_detector_effects.html>`_
+
+2. A new utility function for simulating matching PSFs to science data. See `Matching PSF sims to in-flight JWST data <https://webbpsf.readthedocs.io/en/latest/jwst_matching_psfs_to_data.html>`_.
+
+3. Implement geometric distortion for Roman using the Roman SIAF.
+
+4. Various improvements for OTE trending.
+
+**What's Changed**
+
+* Fixed trending histogram binning so that bars add up to 1.0 by @Skyhawk172 in https://github.com/spacetelescope/webbpsf/pull/634
+
+* Add phase retrieval crosscheck plot and wfs obs delta plot by @mperrin in https://github.com/spacetelescope/webbpsf/pull/650
+
+* Add opdtable as positional param to monthly_trending_plot by @kulpster85 in https://github.com/spacetelescope/webbpsf/pull/600
+
+* Update to read SI pixelscales directly from pysiaf by @mperrin in https://github.com/spacetelescope/webbpsf/pull/626
+
+* Update/enhance trending plot to show WSS proposed corrections by @mperrin in https://github.com/spacetelescope/webbpsf/pull/642
+
+* Add notebooks for plotting JWST SI WFE, and JWST SI MIMF field points by @mperrin in https://github.com/spacetelescope/webbpsf/pull/652
+
+* Add H2RG detector effects sim framework by @mperrin and @obi-wan76 in https://github.com/spacetelescope/webbpsf/pull/671
+
+* Tune detector effects model parameters to better match measured ePSFs by @mperrin in https://github.com/spacetelescope/webbpsf/pull/693
+
+* Non-standard pixel sizes for distortion by @JarronL in https://github.com/spacetelescope/webbpsf/pull/669
+
+* Add setup_sim_to_match_data function by @mperrin in https://github.com/spacetelescope/webbpsf/pull/706
+
+* Add trending plot function "show_wfs_around_obs" by @mperrin in https://github.com/spacetelescope/webbpsf/pull/705
+
+* Additional fixes to trending.py by @Skyhawk172 in https://github.com/spacetelescope/webbpsf/pull/688
+
+* Implement distortion for Roman by @Skyhawk172 in https://github.com/spacetelescope/webbpsf/pull/668
+
+**Full Changelog**: https://github.com/spacetelescope/webbpsf/compare/v1.1.1...v1.2.0
+
+Note, this release requires updating your WebbPSF data files to version 1.2.0, `webbpsf-data-1.2.0.tar.gz <https://stsci.box.com/shared/static/34g3slaq4jidgccqj25qqo80tlk6tubl.gz>`_
+
+
 Version 1.1.1
 =============
 *2022 December 14*
@@ -36,7 +85,7 @@ Minor bug fix release and improvements in JWST wavefront trending plots.
 **James Webb Space Telescope improvements**:
 
  * Fix a units issue and filename inconsistency in one of the data files for NIRCam wavefront error at the wavefront sensing field point. (:issue:`612`, :pr:`613:` by :user:`mperrin`, :user:`obi-wan76`)
- * Improvements in OTE wavefront trending plots and  phase decomposition tools (:pr:`598` by :user:`kulpster85`, :pr:`599`, :pr:`601` by :user:`mperrin`, :pr:`603` by :user:`Skyhawk172:`, 
+ * Improvements in OTE wavefront trending plots and  phase decomposition tools (:pr:`598` by :user:`kulpster85`, :pr:`599`, :pr:`601` by :user:`mperrin`, :pr:`603` by :user:`Skyhawk172:`,
    :pr:`621` by :user:`obi-wan76`)
  * Bug fixes for OTE field dependence flag (:pr:`595` by :user:`mperrin`)
  * Updates various package dependencies to upstream latest versions.

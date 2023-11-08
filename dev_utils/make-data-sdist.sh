@@ -9,7 +9,7 @@ if ! [[ $1 ]]; then
 fi
 
 if ! [[ $DATAROOT ]]; then
-  DATAROOT="/itar/jwst/tel/share/webbpsf/webbpsf-data-source/"
+  DATAROOT="/grp/jwst/ote/webbpsf-data-source/"
 fi
 echo "Using data from $DATAROOT"
 
