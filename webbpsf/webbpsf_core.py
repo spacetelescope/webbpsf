@@ -1118,6 +1118,8 @@ class JWInstrument(SpaceTelescopeInstrument):
         # Pull values from options dictionary
         add_distortion = options.get('add_distortion', True)
         crop_psf = options.get('crop_psf', True)
+        # you can turn on/off IPC corrections via the add_ipc option, default True.
+        add_ipc = options.get('add_ipc', True)
 
         # Add distortion if set in calc_psf
         if add_distortion:
@@ -1141,6 +1143,7 @@ class JWInstrument(SpaceTelescopeInstrument):
                 psf_rotated = distortion.apply_rotation(result, crop=crop_psf)  # apply rotation
                 psf_siaf_distorted = distortion.apply_distortion(psf_rotated)  # apply siaf distortion model
                 psf_distorted = detectors.apply_detector_charge_diffusion(psf_siaf_distorted, options)  # apply detector charge transfer model
+                print('NIRCam Detector distortion inside')
             elif self.name == "MIRI":
                 # Apply distortion effects to MIRI psf: Distortion and MIRI Scattering
                 _log.debug("MIRI: Adding optical distortion and Si:As detector internal scattering")
@@ -1160,17 +1163,19 @@ class JWInstrument(SpaceTelescopeInstrument):
 
             # Edit the variable to match if input didn't request distortion
             # (cannot set result = psf_distorted due to return method)
+
             [result.append(fits.ImageHDU()) for i in np.arange(len(psf_distorted) - len(result))]
             for ext in np.arange(len(psf_distorted)): result[ext] = psf_distorted[ext]
 
 
+
         # Rewrite result variable based on output_mode; this includes binning down to detector sampling.
         SpaceTelescopeInstrument._calc_psf_format_output(self, result, options)
-        # you can turn on/off IPC corrections via the add_ipc option, default True.
-        add_ipc = options.get('add_ipc', True)
-        if add_ipc and add_distortion:
-            result = detectors.apply_detector_ipc(result)  # apply detector IPC model (after binning to detector sampling)
 
+        if add_ipc and add_distortion and ('DET_DIST' in result):
+            result = detectors.apply_detector_ipc(result)  # apply detector IPC model (after binning to detector sampling)
+        if add_ipc and add_distortion and ('OVERDIST' in result):
+            result = detectors.apply_detector_ipc(result, extname = 'OVERDIST')  # apply detector IPC model to oversampled PSF
 
     def interpolate_was_opd(self, array, newdim):
         """ Interpolates an input 2D  array to any given size.

@@ -302,10 +302,7 @@ class CreatePSFLibrary:
                 psf[ext].data = astropy.convolution.convolve(psf[ext].data, kernel)
 
                 # Convolve PSF with a model for interpixel capacitance
-                # note, normally this is applied in calc_psf to the detector-sampled data;
-                # here we specially apply this to the oversampled data
-                if self.add_distortion and self.webb.options.get('add_ipc', True):
-                    webbpsf.detectors.apply_detector_ipc(psf, extname=ext)
+                # This is apply outside the gridded libary see issue #736
 
                 # Add PSF to 5D array
                 psf_arr[i, :, :] = psf[ext].data
@@ -390,7 +387,7 @@ class CreatePSFLibrary:
             # copy all the jitter-related keys (the exact set of keywords varies based on jitter type)
             # Also copy charge diffusion and IPC
             for k in psf[ext].header.keys():   # do the rest
-                if k.startswith('JITR') or k.startswith('IPC') or k.startswith('CHDF'):
+                if k.startswith('JITR') or k.startswith('IPC') or k.startswith('PPC') or k.startswith('CHDF'):
                     meta[k] = (psf[ext].header[k], psf[ext].header.comments[k])
 
             meta["DATE"] = (psf[ext].header["DATE"], "Date of calculation")

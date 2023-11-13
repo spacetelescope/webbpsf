@@ -166,6 +166,8 @@ def apply_detector_ipc(psf_hdulist, extname = 'DET_DIST'):
     """
 
     # In cases for which the user has asked for the IPC to be applied to a not-present extension, we have nothing to add this to
+
+    if psf_hdulist is  None: return
     if extname not in psf_hdulist:
         webbpsf.webbpsf_core._log.debug(f"Skipping IPC simulation since ext {extname} is not found")
         return
