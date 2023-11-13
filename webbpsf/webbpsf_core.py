@@ -1143,7 +1143,6 @@ class JWInstrument(SpaceTelescopeInstrument):
                 psf_rotated = distortion.apply_rotation(result, crop=crop_psf)  # apply rotation
                 psf_siaf_distorted = distortion.apply_distortion(psf_rotated)  # apply siaf distortion model
                 psf_distorted = detectors.apply_detector_charge_diffusion(psf_siaf_distorted, options)  # apply detector charge transfer model
-                print('NIRCam Detector distortion inside')
             elif self.name == "MIRI":
                 # Apply distortion effects to MIRI psf: Distortion and MIRI Scattering
                 _log.debug("MIRI: Adding optical distortion and Si:As detector internal scattering")
