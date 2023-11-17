@@ -976,7 +976,9 @@ class JWInstrument(SpaceTelescopeInstrument):
 
             # setting the detector must happen -before- we set the position
             detname = aperture_name.split('_')[0]
-            self.detector = detname  # As a side effect this auto reloads SIAF info, see detector.setter
+
+            if detname != 'NRS': # Many NIRSpec slit apertures are defined generally, not for a specific detector
+                self.detector = detname  # As a side effect this auto reloads SIAF info, see detector.setter
 
             self.aperturename = aperture_name
 
@@ -985,8 +987,10 @@ class JWInstrument(SpaceTelescopeInstrument):
                 self.detector_position = (ap.XSciRef, ap.YSciRef)  # set this AFTER the SIAF reload
             else:
                 # NIRSpec slit apertures need some separate handling, since they don't map directly to detector pixels
+                # In this case the detector position is not uniquely defined, but we ensure to get reasonable values by
+                # using one of the full-detector NIRspec apertures
                 ref_in_tel = ap.V2Ref, ap.V3Ref
-                nrs_full_aperture = self.siaf[aperture_name.split('_')[0]+"_FULL"]
+                nrs_full_aperture = self.siaf[self.detector + "_FULL"]
                 ref_in_sci = nrs_full_aperture.tel_to_sci(*ref_in_tel)
                 self.detector_position = ref_in_sci
 
@@ -1112,7 +1116,11 @@ class JWInstrument(SpaceTelescopeInstrument):
                 # Apply distortion effects to NIRSpec psf: Distortion only
                 # (because applying detector effects would only make sense after simulating spectral dispersion)
                 _log.debug("NIRSpec: Adding optical distortion")
-                psf_siaf = distortion.apply_distortion(result)  # apply siaf distortion model
+                if 'IFU' not in self.aperturename:
+                    psf_siaf = distortion.apply_distortion(result)  # apply siaf distortion model
+                else:
+                    # there is not yet any distortion calibration for the IFU.
+                    psf_siaf = result
                 psf_distorted = detectors.apply_detector_charge_diffusion(psf_siaf,options)  # apply detector charge transfer model
 
             # Edit the variable to match if input didn't request distortion
@@ -1613,6 +1621,140 @@ class JWInstrument(SpaceTelescopeInstrument):
         self.load_wss_opd(opd_fn, verbose=verbose, plot=plot, **kwargs)
 
 
+    def calc_datacube_fast(self, wavelengths, compare_methods = False, *args, **kwargs):
+        """Calculate a spectral datacube of PSFs: Simplified, much MUCH faster version.
+
+        This is adapted from poppy.Instrument.calc_datacube, optimized and simplified
+        for a substantial gain in speed at minimal reduction in accuracy for some use cases.
+
+        ASSUMPTIONS:
+         1) Assumes the wavefront error (OPD) and amplitude are independent of wavelength, such
+            that we can do the expensive propagation from sky through the optics to the
+            exit pupil of NIRSpec *only once*, save that, and reuse the same exit pupil wavefront
+            many times changing only the wavelength for just the last DFT step to the detector.
+        2) Assumes we do not need the binned-to-detector-resolution nor distorted versions;
+            we just want the oversampled PSF datacube at many wavelengths as fast as possible.
+
+        Testing for NIRSpec IFU indicates this achieves ~150x speedup,
+        and the differences in computed oversampled PSF are typically ~1/100th or less
+        relative to the local PSF values in any given pixel.
+
+        A consequence of the above iassumption 1 is that this methiod is not well applicable
+        for cases that have image plane masks, nor for NIRCam in general. It does seem to be
+        reasonably applicable for NIRSpec IFU calculations within the current limited fidelity
+        of webbpsf for that mode, IF we also neglect the image plane stop around the IFU FOV.
+
+        Parameters
+        -----------
+        wavelengths : iterable of floats
+            List or ndarray or tuple of floating point wavelengths in meters, such as
+            you would supply in a call to calc_psf via the "monochromatic" option
+        compare_methods : bool
+            If true, compute the PSF **BOTH WAYS**, and return both for comparisons.
+            This is of course much slower. Default is False. This is retained for
+            test and debug usage for assessing cases in which this method is OK or not.
+
+
+        Returns
+        --------
+        a PSF datacube, normally (with compare_methods=False)
+
+        A list of two PSF datacubes and two exit wavefront objects, if compare_methods is True
+
+        """
+
+        # Allow up to 10,000 wavelength slices. The number matters because FITS
+        # header keys can only have up to 8 characters. Backward-compatible.
+        nwavelengths = len(wavelengths)
+        if nwavelengths < 100:
+            label_wl = lambda i: 'WAVELN{:02d}'.format(i)
+        elif nwavelengths < 10000:
+            label_wl = lambda i: 'WVLN{:04d}'.format(i)
+        else:
+            raise ValueError("Maximum number of wavelengths exceeded. "
+                             "Cannot be more than 10,000.")
+
+        # Set up cube and initialize structure based on PSF at first wavelength
+        poppy.poppy_core._log.info("Starting multiwavelength data cube calculation.")
+        REF_WAVE = 2e-6  # This must not be too short, to avoid phase wrapping for the C3 bump
+
+        psf, waves = self.calc_psf(*args, monochromatic=REF_WAVE, return_intermediates=True, **kwargs)
+        from copy import deepcopy
+        # Setup arrays to save data
+
+        # Copy the first (oversampled) HDU only
+        cubefast = astropy.io.fits.HDUList(deepcopy(psf[0]))
+        ext=0
+        cubefast[ext].data = np.zeros((nwavelengths, psf[ext].data.shape[0], psf[ext].data.shape[1]))
+        cubefast[ext].data[0] = psf[ext].data
+        cubefast[ext].header[label_wl(0)] = wavelengths[0]
+
+
+
+        ### Fast way. Assumes wavelength-independent phase and amplitude at the exit pupil!!
+        if compare_methods:
+            print("Running fast way")
+            t0 = time.time()
+
+        # Set up a simplified optical system just going from the exit pupil to the detector
+        # Make the "entrance" pupil of this system replicate the exit pupl of the full calculation
+        exitpupil = waves[-2]
+        exit_opd = exitpupil.phase*exitpupil.wavelength.to_value(u.m) /(2*np.pi)
+        oversamp = psf[0].header['DET_SAMP']
+
+        quickosys = poppy.OpticalSystem(npix = exitpupil.shape[0],
+                                        pupil_diameter=exitpupil.shape[0]*u.pixel*exitpupil.pixelscale)
+        quickosys.add_pupil(poppy.ArrayOpticalElement(opd=exit_opd,
+                                                      transmission=exitpupil.amplitude,
+                                                      pixelscale=exitpupil.pixelscale))
+        quickosys.add_detector(pixelscale = psf[0].header['PIXELSCL'] * oversamp,
+                               oversample = oversamp,
+                               fov_pixels = psf[0].header['NAXIS1'] // oversamp
+                               )
+        # Now do the propagations
+        for i in range(0, nwavelengths):
+            wl = wavelengths[i]
+            psfw = quickosys.calc_psf(wavelength=wl, normalize='None')
+            cubefast[0].data[i] = psfw[0].data
+        cubefast[0].header['NWAVES'] = nwavelengths
+
+        ### OPTIONAL
+        ### Also do the slower traditional way for comparison / debugging tests
+
+        if compare_methods:
+            psf2, waves2 = quickosys.calc_psf(wavelengths[0], return_intermediates=True)
+
+            t1 = time.time()
+
+            cube = deepcopy(psf)
+
+            for ext in range(len(psf)):
+                cube[ext].data = np.zeros((nwavelengths, psf[ext].data.shape[0], psf[ext].data.shape[1]))
+                cube[ext].data[0] = psf[ext].data
+                cube[ext].header[label_wl(0)] = wavelengths[0]
+
+
+            # iterate rest of wavelengths
+            print("Running standard way")
+            for i in range(0, nwavelengths):
+                wl = wavelengths[i]
+                psf = self.calc_psf(*args, monochromatic=wl, **kwargs)
+                for ext in range(len(psf)):
+                    cube[ext].data[i] = psf[ext].data
+                    cube[ext].header[label_wl(i)] = wl
+                    cube[ext].header.add_history("--- Cube Plane {} ---".format(i))
+                    for h in psf[ext].header['HISTORY']:
+                        cube[ext].header.add_history(h)
+            t2 = time.time()
+            cube[0].header['NWAVES'] = nwavelengths
+
+            print(f"Fast way: {t1-t0:.3f} s")
+            print(f"Standard way: {t2-t1:.3f} s")
+
+
+            return cube, cubefast, waves, waves2  # return extra stuff for compariosns
+
+        return cubefast
 
 
 class MIRI(JWInstrument):
@@ -2453,6 +2595,75 @@ class NIRSpec(JWInstrument):
         super(NIRSpec, self)._get_fits_header(hdulist, options)
         hdulist[0].header['GRATING'] = ('None', 'NIRSpec grating element name')
         hdulist[0].header['APERTURE'] = (str(self.image_mask), 'NIRSpec slit aperture name')
+
+
+    @JWInstrument.aperturename.setter
+    def aperturename(self, value):
+        """Set SIAF aperture name to new value, with validation.
+
+        This also updates the pixelscale to the local value for that aperture, for a small precision enhancement.
+
+        Similar to superclass function, but handles the more complex situation with NIRSpec apertures and detectors
+        """
+        # Explicitly update detector reference coordinates to the default for the new selected aperture,
+        # otherwise old coordinates can persist under certain circumstances
+
+        try:
+            ap = self.siaf[value]
+        except KeyError:
+            raise ValueError(f'Aperture name {value} not a valid SIAF aperture name for {self.name}')
+
+        # NIRSpec apertures can either be per detector (i.e. "NRS1_FULL") or for the focal plane but not per detector (i.e. "NRS_FULL_IFU")
+
+        if value[0:4] in ['NRS1', 'NRS2']:
+            # this is a regular per-detector aperture, so just call the regular code in the superclass
+            JWInstrument.aperturename.fset(self, value)
+        else:
+            # apertures that start with NRS define V2,V3 position, but not pixel coordinates and pixelscale. So we
+            # still have to use a full-detector aperturename for that.
+            detector_apername = self.detector + "_FULL"
+
+            # Only update if new value is different
+            if self._aperturename != value:
+                # First, check some info from current settings, which we will use below as part of auto pixelscale code
+                # The point is to check if the pixel scale is set to a custom or default value,
+                # and if it's custom then don't override that.
+                # Note, check self._aperturename first to account for the edge case when this is called from __init__ before _aperturename is set
+                has_custom_pixelscale = self._aperturename and (self.pixelscale != self._get_pixelscale_from_apername(detector_apername))
+
+                # Now apply changes:
+                self._aperturename = value
+                # Update detector reference coordinates
+                # self.detector_position = (ap.XSciRef, ap.YSciRef)
+
+                # Update DetectorGeometry class
+                self._detector_geom_info = DetectorGeometry(self.siaf, self._aperturename)
+                _log.info(f"{self.name} SIAF aperture name updated to {self._aperturename}")
+
+                if not has_custom_pixelscale:
+                    self.pixelscale = self._get_pixelscale_from_apername(detector_apername)
+                    _log.debug(f"Pixelscale updated to {self.pixelscale} based on average X+Y SciScale at SIAF aperture {self._aperturename}")
+
+
+
+    def _tel_coords(self):
+        """ Convert from science frame coordinates to telescope frame coordinates using
+        SIAF transformations. Returns (V2, V3) tuple, in arcminutes.
+
+        Note that the astropy.units framework is used to return the result as a
+        dimensional Quantity.
+
+        Some extra steps for NIRSpec to handle the more complicated/flexible mapping between detector and sky coordinates
+        """
+
+        if self.aperturename.startswith("NRS_"):
+            # These apertures don't map directly to particular detector position in the usual way
+            # Return coords for center of the aperture reference location
+            return np.asarray((self._detector_geom_info.aperture.V2Ref,
+                               self._detector_geom_info.aperture.V3Ref)) / 60 * units.arcmin
+        else:
+            return super()._tel_coords()
+
 
 
 class NIRISS(JWInstrument):
