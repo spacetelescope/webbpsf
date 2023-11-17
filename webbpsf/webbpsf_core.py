@@ -1621,7 +1621,7 @@ class JWInstrument(SpaceTelescopeInstrument):
         self.load_wss_opd(opd_fn, verbose=verbose, plot=plot, **kwargs)
 
 
-   def calc_datacube_fast(self, wavelengths, compare_methods = False, *args, **kwargs):
+    def calc_datacube_fast(self, wavelengths, compare_methods = False, *args, **kwargs):
         """Calculate a spectral datacube of PSFs: Simplified, much MUCH faster version.
 
         This is adapted from poppy.Instrument.calc_datacube, optimized and simplified
@@ -1710,7 +1710,7 @@ class JWInstrument(SpaceTelescopeInstrument):
         quickosys.add_detector(pixelscale = psf[0].header['PIXELSCL'] * oversamp,
                                oversample = oversamp,
                                fov_pixels = psf[0].header['NAXIS1'] // oversamp
-                            )
+                               )
         # Now do the propagations
         for i in range(0, nwavelengths):
             wl = wavelengths[i]
