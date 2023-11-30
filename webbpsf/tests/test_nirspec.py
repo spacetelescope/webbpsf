@@ -50,3 +50,10 @@ def test_calc_datacube_fast():
 
     cube = nrs.calc_datacube_fast(waves, fov_pixels=30, oversample=1, compare_methods=True)
 
+
+def test_mode_switch():
+    nrs = webbpsf_core.NIRSpec()
+    nrs.mode = 'IFU'
+    assert 'IFU' in nrs.aperturename
+    nrs.mode = 'imaging'
+    assert 'IFU' not in nrs.aperturename
