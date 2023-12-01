@@ -5,6 +5,6 @@ numpy==1.26.1
 photutils==1.9.0
 poppy>=1.0.0
 pysiaf==0.21.0
-scipy==1.11.3
+scipy==1.11.4
 synphot==1.2.1
 astroquery==0.4.6
