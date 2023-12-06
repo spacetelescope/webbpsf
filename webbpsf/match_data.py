@@ -48,10 +48,20 @@ def setup_sim_to_match_file(filename_or_HDUList, verbose=True, plot=False, choic
     # per-instrument specializations
     if inst.name == 'NIRCam':
         if header['PUPIL'].startswith('MASK'):
-            inst.pupil_mask = header['PUPIL']
+            if header['PUPIL'] == 'MASKBAR':
+                inst.pupil_mask = header['CORONMSK'].replace('MASKA', 'MASK')
+            else:
+                inst.pupil_mask = header['PUPIL']
             inst.image_mask = header['CORONMSK'].replace('MASKA', 'MASK')  # note, have to modify the value slightly for
                                                                            # consistency with the labels used in webbpsf
+
             inst.set_position_from_aperture_name(header['APERNAME'])   # Redo this, in case the image_mask setting auto switched it to something else
+        elif header['PUPIL'].startswith('F'):
+            inst.filter = header['PUPIL']
+        else:
+            inst.pupil_mask = header['PUPIL']
+
+
     elif inst.name == 'MIRI':
         if inst.filter in ['F1065C', 'F1140C', 'F1550C']:
             inst.image_mask = 'FQPM'+inst.filter[1:5]
