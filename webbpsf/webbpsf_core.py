@@ -1959,6 +1959,10 @@ class MIRI(JWInstrument):
         shift_x, shift_y = self._get_pupil_shift()
         rotation = self.options.get('pupil_rotation', None)
 
+        if self.options.get('coron_include_pre_lyot_plane', False) and self.pupil_mask.startswith('MASK'):
+            optsys.add_pupil(poppy.ScalarTransmission(name='Pre Lyot Stop'))
+            optsys.planes[3].wavefront_display_hint = 'intensity'
+
         if self.pupil_mask == 'MASKFQPM':
             optsys.add_pupil(transmission=self._datapath + "/optics/MIRI_FQPMLyotStop.fits.gz",
                              name=self.pupil_mask,
@@ -2502,6 +2506,13 @@ class NIRCam(JWInstrument):
         else:
             optsys.add_pupil(transmission=self._WebbPSF_basepath + "/tricontagon_oversized_4pct.fits.gz",
                              name='filter stop', shift_x=shift_x, shift_y=shift_y, rotation=rotation)
+
+        if self.options.get('coron_include_pre_lyot_plane', False) and self.pupil_mask.startswith('MASK'):
+            optsys.add_pupil(poppy.ScalarTransmission(name='Pre Lyot Stop'), index=3)  # this is before the above plane, but do the insertion here
+                                                             # because of all the hard-coded index=3 above
+
+            optsys.planes[3].wavefront_display_hint = 'intensity'
+
 
         return (optsys, trySAM, SAM_box_size)
 
