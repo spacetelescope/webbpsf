@@ -264,6 +264,3 @@ def test_wfi():
     # Compare to make sure they are in fact the same PSF
     assert gridpsf.shape == calcpsf.shape, "Shape mismatch"
     assert np.allclose(gridpsf, convpsf*scalefactor), "Data values not as expected"
-
-
-test_saving('/Users/bsappington/tmp/')
