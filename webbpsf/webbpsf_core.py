@@ -2438,13 +2438,22 @@ class NIRCam(JWInstrument):
             SAM_box_size = 5.0
         elif ((self.image_mask == 'MASKSWB') or (self.image_mask == 'MASKLWB')):
             bar_offset = self.options.get('bar_offset', None)
-            # If the bar offset is not provided, use the filter name to lookup the default
+            # If the bar offset is not provided, use the SIAF aperture name, or else the filter name to lookup the default
             # position. If an offset is provided and is a floating point value, use that
             # directly as the offset. Otherwise assume it's a filter name and try passing
             # that in to the auto offset. (that allows for selecting the narrow position, or
             # for simulating using a given filter at some other filter's position.)
             if bar_offset is None:
-                auto_offset = self.filter
+                # Try to use the SIAF aperture name to determine the offset
+                # This can help better automate simulations matching data, since match_data.py will
+                # have copied the aperturename from the header, like NRCA5_MASKLWB_NARROW or similar
+                if 'MASK' in self.aperturename:
+                    try:
+                        auto_offset = self.aperturename.split('_')[-1].replace('NARROW', 'narrow') # set to lower case for consistency with existing code in optics.py
+                        _log.info(f"Set bar offset to {auto_offset} based on current aperture name {self.aperturename}")
+                    except:
+                        auto_offset = self.filter
+                        _log.info(f"Set bar offset to {auto_offset} based on current filter {self.filter}")
             else:
                 try:
                     _ = float(bar_offset)
