@@ -5,11 +5,11 @@ from astropy.io import fits
 import numpy as np
 import pytest
 
-from webbpsf import gridded_library
-from webbpsf import webbpsf_core
-from webbpsf import roman
-from webbpsf import utils
-from webbpsf import detectors
+from .. import gridded_library
+from .. import webbpsf_core
+from .. import roman
+from .. import utils
+from .. import detectors
 
 
 def test_compare_to_calc_psf_oversampled():
