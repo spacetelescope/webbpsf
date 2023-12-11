@@ -436,8 +436,6 @@ class CreatePSFLibrary:
                 raise ImportError("This method requires photutils >= 0.6")
 
         ndd = NDData(data, meta=meta, copy=True)
-        print("TO_MODEL - NDD DATA: ")
-        print (ndd.data)
 
         ndd.meta['grid_xypos'] = [((float(ndd.meta[key][0].split(',')[1].split(')')[0])),
                                   (float(ndd.meta[key][0].split(',')[0].split('(')[1])))
@@ -447,9 +445,7 @@ class CreatePSFLibrary:
         ndd.meta = {key.lower(): ndd.meta[key] for key in ndd.meta}
 
         model = GriddedPSFModel(ndd)
-        print ("TO_MODEL - MODEL DATA: ")
-        print (model.data)
-
+        
         return model
 
     def writeto(self, data, meta, detector):
