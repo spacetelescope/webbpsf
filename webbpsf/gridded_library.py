@@ -1,13 +1,13 @@
-from collections import OrderedDict
 import itertools
 import os
+from collections import OrderedDict
 
 import astropy.convolution
+import numpy as np
 from astropy.io import fits
 from astropy.nddata import NDData
-import numpy as np
-import poppy
 
+import poppy
 import webbpsf.detectors
 
 
@@ -445,7 +445,7 @@ class CreatePSFLibrary:
         ndd.meta = {key.lower(): ndd.meta[key] for key in ndd.meta}
 
         model = GriddedPSFModel(ndd)
-        
+
         return model
 
     def writeto(self, data, meta, detector):
