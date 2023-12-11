@@ -399,7 +399,8 @@ class CreatePSFLibrary:
             model_list.append(model)
 
             if self.save is True:
-                self.writeto(psf_arr, meta, det)
+                # model.data is sorted with xygrid, psf_arr is not. Store the sorted data
+                self.writeto(model.data, meta, det)
 
         # If only 1 detector, only return that 1 object. Else, return list of objects
         if len(self.detector_list) == 1:
@@ -435,6 +436,8 @@ class CreatePSFLibrary:
                 raise ImportError("This method requires photutils >= 0.6")
 
         ndd = NDData(data, meta=meta, copy=True)
+        print("TO_MODEL - NDD DATA: ")
+        print (ndd.data)
 
         ndd.meta['grid_xypos'] = [((float(ndd.meta[key][0].split(',')[1].split(')')[0])),
                                   (float(ndd.meta[key][0].split(',')[0].split('(')[1])))
@@ -444,6 +447,8 @@ class CreatePSFLibrary:
         ndd.meta = {key.lower(): ndd.meta[key] for key in ndd.meta}
 
         model = GriddedPSFModel(ndd)
+        print ("TO_MODEL - MODEL DATA: ")
+        print (model.data)
 
         return model
 
