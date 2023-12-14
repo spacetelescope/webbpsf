@@ -33,7 +33,7 @@ def test_compare_to_calc_psf_oversampled():
 
     # Pull one of the PSFs out of the grid
     psfnum = 1
-    loc = grid.meta["grid_xypos"][psfnum]
+    loc = grid.grid_xypos[psfnum]
     locy = int(float(loc[1]) - 0.5)
     locx = int(float(loc[0]) - 0.5)
     gridpsf = grid.data[psfnum, :, :]
@@ -68,7 +68,7 @@ def test_compare_to_calc_psf_detsampled():
 
     # Pull one of the PSFs out of the grid
     psfnum = 1
-    loc = grid.meta["grid_xypos"][psfnum]
+    loc = grid.grid_xypos[psfnum]
     locy = int(float(loc[1]))
     locx = int(float(loc[0]))
     gridpsf = grid.data[psfnum, :, :]
@@ -142,8 +142,8 @@ def test_one_psf():
     scalefactor = oversample**2 # normalization as used internally in GriddedPSFModel; see #302
 
 
-    assert grid1.meta["grid_xypos"] == [(1023, 1023)], "Center position not as expected"  # the default is the center of the NIS aperture
-    assert grid2.meta["grid_xypos"] == [(10, 0)], "Corner position not as expected" # it's in (x,y)
+    assert np.all(grid1.grid_xypos == [[1023, 1023]]), "Center position not as expected"  # the default is the center of the NIS aperture
+    assert np.all(grid2.grid_xypos == [(10, 0)]), "Corner position not as expected" # it's in (x,y)
     # check for near-equality of the PSFs computed both ways,
     #  but ignore the outer few pixels rows and columns, for which boundary wrapping leads to imperfect equality
     #  depending on the order of the convolutions. Ignore 2 rows/cols on either side based on oversample value
@@ -209,7 +209,7 @@ def test_saving(tmpdir):
         # Check meta data
         model = utils.to_griddedpsfmodel(infile)
         assert model.meta.keys() == grid.meta.keys()
-        assert model.meta["grid_xypos"] == grid.meta["grid_xypos"]
+        assert np.all(model.grid_xypos == grid.grid_xypos)
         assert model.meta["oversampling"] == grid.meta["oversampling"]
 
     # Remove temporary directory
@@ -249,7 +249,7 @@ def test_wfi():
 
     # Pull one of the PSFs out of the grid
     psfnum = 1
-    loc = grid.meta["grid_xypos"][psfnum]
+    loc = grid.grid_xypos[psfnum]
     locy = int(float(loc[1])-0.5)
     locx = int(float(loc[0])-0.5)
     gridpsf = grid.data[psfnum, :, :]
@@ -264,5 +264,3 @@ def test_wfi():
     # Compare to make sure they are in fact the same PSF
     assert gridpsf.shape == calcpsf.shape, "Shape mismatch"
     assert np.allclose(gridpsf, convpsf*scalefactor), "Data values not as expected"
-
-

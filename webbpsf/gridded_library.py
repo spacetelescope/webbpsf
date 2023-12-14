@@ -1,13 +1,13 @@
-from collections import OrderedDict
 import itertools
 import os
+from collections import OrderedDict
 
 import astropy.convolution
+import numpy as np
 from astropy.io import fits
 from astropy.nddata import NDData
-import numpy as np
-import poppy
 
+import poppy
 import webbpsf.detectors
 
 
@@ -399,7 +399,8 @@ class CreatePSFLibrary:
             model_list.append(model)
 
             if self.save is True:
-                self.writeto(psf_arr, meta, det)
+                # model.data is sorted with xygrid, psf_arr is not. Store the sorted data
+                self.writeto(model.data, meta, det)
 
         # If only 1 detector, only return that 1 object. Else, return list of objects
         if len(self.detector_list) == 1:
