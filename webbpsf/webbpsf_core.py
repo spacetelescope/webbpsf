@@ -919,30 +919,50 @@ class JWInstrument(SpaceTelescopeInstrument):
         except KeyError:
             raise ValueError(f'Aperture name {value} not a valid SIAF aperture name for {self.name}')
 
-        if self.detector not in value:
-            raise ValueError(f'Aperture name {value} does not match currently selected detector {self.detector}. '
-                             f'Change detector attribute first, then set desired aperture.')
-
         # Only update if new value is different
         if self._aperturename != value:
-            # First, check some info from current settings, wich we will use below as part of auto pixelscale code
-            # The point is to check if the pixel scale is set to a custom or default value,
-            # and if it's custom then don't override that.
-            # Note, check self._aperturename first to account for the edge case when this is called from __init__ before _aperturename is set
-            has_custom_pixelscale = self._aperturename and (self.pixelscale != self._get_pixelscale_from_apername(self._aperturename))
 
-            # Now apply changes:
-            self._aperturename = value
-            # Update detector reference coordinates
-            self.detector_position = (ap.XSciRef, ap.YSciRef)
+            if ap.AperType == 'SLIT':
+                # Special case for SLIT apertures (NIRSpec and MIRI)
+                # apertures of type SLIT define V2,V3 position, but not pixel coordinates and pixelscale. So we
+                # still have to use a full-detector aperturename for that subset of apertures
+                detector_apername = self.detector + "_FULL"
+                _log.info(f'Aperture {value} is of type SLIT; using {detector_apername} for detector geometry.')
 
-            # Update DetectorGeometry class
-            self._detector_geom_info = DetectorGeometry(self.siaf, self._aperturename)
-            _log.info(f"{self.name} SIAF aperture name updated to {self._aperturename}")
+                has_custom_pixelscale = self._aperturename and (self.pixelscale != self._get_pixelscale_from_apername(detector_apername))
 
-            if not has_custom_pixelscale:
-                self.pixelscale = self._get_pixelscale_from_apername(self._aperturename)
-                _log.debug(f"Pixelscale updated to {self.pixelscale} based on average X+Y SciScale at SIAF aperture {self._aperturename}")
+                # Now apply changes:
+                self._aperturename = value
+
+                 # Update DetectorGeometry class
+                self._detector_geom_info = DetectorGeometry(self.siaf, self._aperturename)
+                _log.info(f"{self.name} SIAF aperture name updated to {self._aperturename} using geometry from {detector_apername}")
+                if not has_custom_pixelscale:
+                    self.pixelscale = self._get_pixelscale_from_apername(detector_apername)
+                    _log.debug(f"Pixelscale updated to {self.pixelscale} based on average X+Y SciScale at SIAF aperture {detector_apername}")
+            else:
+                if self.detector not in value:
+                    raise ValueError(f'Aperture name {value} does not match currently selected detector {self.detector}. '
+                                     f'Change detector attribute first, then set desired aperture.')
+
+                # First, check some info from current settings, wich we will use below as part of auto pixelscale code
+                # The point is to check if the pixel scale is set to a custom or default value,
+                # and if it's custom then don't override that.
+                # Note, check self._aperturename first to account for the edge case when this is called from __init__ before _aperturename is set
+                has_custom_pixelscale = self._aperturename and (self.pixelscale != self._get_pixelscale_from_apername(self._aperturename)) and ap.AperType != 'SLIT'
+
+                # Now apply changes:
+                self._aperturename = value
+                # Update detector reference coordinates
+                self.detector_position = (ap.XSciRef, ap.YSciRef)
+
+                # Update DetectorGeometry class
+                self._detector_geom_info = DetectorGeometry(self.siaf, self._aperturename)
+                _log.info(f"{self.name} SIAF aperture name updated to {self._aperturename}")
+
+                if not has_custom_pixelscale:
+                    self.pixelscale = self._get_pixelscale_from_apername(self._aperturename)
+                    _log.debug(f"Pixelscale updated to {self.pixelscale} based on average X+Y SciScale at SIAF aperture {self._aperturename}")
 
 
     def _tel_coords(self):
@@ -953,7 +973,13 @@ class JWInstrument(SpaceTelescopeInstrument):
         dimensional Quantity.
         """
 
-        return self._detector_geom_info.pix2angle(self.detector_position[0], self.detector_position[1])
+        if self._detector_geom_info.aperture.AperType=='SLIT':
+            # These apertures don't map directly to particular detector position in the usual way
+            # Return coords for center of the aperture reference location
+            return np.asarray((self._detector_geom_info.aperture.V2Ref,
+                               self._detector_geom_info.aperture.V3Ref)) / 60 * units.arcmin
+        else:
+            return self._detector_geom_info.pix2angle(self.detector_position[0], self.detector_position[1])
 
     def _xan_yan_coords(self):
         """ Convert from detector pixel coordinates to the XAN, YAN coordinate system
@@ -989,6 +1015,7 @@ class JWInstrument(SpaceTelescopeInstrument):
                 # NIRSpec slit apertures need some separate handling, since they don't map directly to detector pixels
                 # In this case the detector position is not uniquely defined, but we ensure to get reasonable values by
                 # using one of the full-detector NIRspec apertures
+                _log.debug("Inferring detector position using V coords for SLIT aperture: {ap.V2Ref, ap.V3Ref}")
                 ref_in_tel = ap.V2Ref, ap.V3Ref
                 nrs_full_aperture = self.siaf[self.detector + "_FULL"]
                 ref_in_sci = nrs_full_aperture.tel_to_sci(*ref_in_tel)
@@ -2595,74 +2622,6 @@ class NIRSpec(JWInstrument):
         super(NIRSpec, self)._get_fits_header(hdulist, options)
         hdulist[0].header['GRATING'] = ('None', 'NIRSpec grating element name')
         hdulist[0].header['APERTURE'] = (str(self.image_mask), 'NIRSpec slit aperture name')
-
-
-    @JWInstrument.aperturename.setter
-    def aperturename(self, value):
-        """Set SIAF aperture name to new value, with validation.
-
-        This also updates the pixelscale to the local value for that aperture, for a small precision enhancement.
-
-        Similar to superclass function, but handles the more complex situation with NIRSpec apertures and detectors
-        """
-        # Explicitly update detector reference coordinates to the default for the new selected aperture,
-        # otherwise old coordinates can persist under certain circumstances
-
-        try:
-            ap = self.siaf[value]
-        except KeyError:
-            raise ValueError(f'Aperture name {value} not a valid SIAF aperture name for {self.name}')
-
-        # NIRSpec apertures can either be per detector (i.e. "NRS1_FULL") or for the focal plane but not per detector (i.e. "NRS_FULL_IFU")
-
-        if value[0:4] in ['NRS1', 'NRS2']:
-            # this is a regular per-detector aperture, so just call the regular code in the superclass
-            JWInstrument.aperturename.fset(self, value)
-        else:
-            # apertures that start with NRS define V2,V3 position, but not pixel coordinates and pixelscale. So we
-            # still have to use a full-detector aperturename for that.
-            detector_apername = self.detector + "_FULL"
-
-            # Only update if new value is different
-            if self._aperturename != value:
-                # First, check some info from current settings, which we will use below as part of auto pixelscale code
-                # The point is to check if the pixel scale is set to a custom or default value,
-                # and if it's custom then don't override that.
-                # Note, check self._aperturename first to account for the edge case when this is called from __init__ before _aperturename is set
-                has_custom_pixelscale = self._aperturename and (self.pixelscale != self._get_pixelscale_from_apername(detector_apername))
-
-                # Now apply changes:
-                self._aperturename = value
-                # Update detector reference coordinates
-                # self.detector_position = (ap.XSciRef, ap.YSciRef)
-
-                # Update DetectorGeometry class
-                self._detector_geom_info = DetectorGeometry(self.siaf, self._aperturename)
-                _log.info(f"{self.name} SIAF aperture name updated to {self._aperturename}")
-
-                if not has_custom_pixelscale:
-                    self.pixelscale = self._get_pixelscale_from_apername(detector_apername)
-                    _log.debug(f"Pixelscale updated to {self.pixelscale} based on average X+Y SciScale at SIAF aperture {self._aperturename}")
-
-
-
-    def _tel_coords(self):
-        """ Convert from science frame coordinates to telescope frame coordinates using
-        SIAF transformations. Returns (V2, V3) tuple, in arcminutes.
-
-        Note that the astropy.units framework is used to return the result as a
-        dimensional Quantity.
-
-        Some extra steps for NIRSpec to handle the more complicated/flexible mapping between detector and sky coordinates
-        """
-
-        if self.aperturename.startswith("NRS_"):
-            # These apertures don't map directly to particular detector position in the usual way
-            # Return coords for center of the aperture reference location
-            return np.asarray((self._detector_geom_info.aperture.V2Ref,
-                               self._detector_geom_info.aperture.V3Ref)) / 60 * units.arcmin
-        else:
-            return super()._tel_coords()
 
 
 
