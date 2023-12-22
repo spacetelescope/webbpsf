@@ -1,6 +1,7 @@
 import logging
 import os
-
+import astropy.units as u
+import pysiaf
 import numpy as np
 
 _log = logging.getLogger('test_webbpsf')
@@ -71,3 +72,18 @@ def test_miri_aperturename():
     assert miri.detector_position == (128, 128), "Changing to a subarray aperture didn't change the " \
                                                  "reference pixel coords as expected"
     assert np.any( miri._tel_coords() != ref_tel_coords), "Changing to a subarray aperture didn't change the V2V3 coords as expected."
+
+
+def test_miri_slit_apertures():
+    """Test that we can use slit and aperture names that don't map to a specific detector
+    Verify that the V2 and V3 coordinates are reported as expected.
+    """
+    miri = webbpsf_core.MIRI()
+
+    apname = "MIRIM_SLIT"  # this is the only slit aperture on the MIRI imager
+    miri.set_position_from_aperture_name(apname)
+
+    ap = pysiaf.Siaf('MIRI')[apname]
+
+    assert np.isclose(miri._tel_coords()[0].to_value(u.arcsec), ap.V2Ref)
+    assert np.isclose(miri._tel_coords()[1].to_value(u.arcsec), ap.V3Ref)
