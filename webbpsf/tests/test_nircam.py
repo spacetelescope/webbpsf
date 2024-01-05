@@ -592,3 +592,18 @@ def test_coron_shift(offset_npix_x=4, offset_npix_y=-3, plot=False):
     assert np.isclose(cutout_1.sum(), cutout_2.sum()), "PSF cutout sums should be consistent"
 
     assert np.allclose(cutout_1, cutout_2), "PSF cutouts should be consistent"
+
+def test_coron_extra_lyot_plane():
+    # Test adding the optional output of the WFE prior to the Lyot stop plane
+    nrc = webbpsf_core.NIRCam()
+    nrc.pupil_mask = 'MASKLWB'
+    nrc.image_mask = 'MASKLWB'
+    nrc.filter='F460M'
+
+    psf, planes = nrc.calc_psf(nlambda=1, return_intermediates=True, display=True)
+
+    nrc.options['coron_include_pre_lyot_plane'] = True
+    psf2, planes2 = nrc.calc_psf(nlambda=1, return_intermediates=True, display=True)
+
+    assert len(planes2) == len(planes)+1, "There should be an added plane for coron_include_pre_lyot_plane"
+    assert np.allclose(psf[0].data, psf2[0].data), "The PSF output should be the same either way"
