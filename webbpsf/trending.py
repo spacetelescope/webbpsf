@@ -1139,6 +1139,8 @@ def monthly_trending_plot(year, month, verbose=True, instrument='NIRCam', filter
     fig = plt.figure(constrained_layout=False, figsize=(16, 10), )
 
     subfigs = fig.subfigures(2, 1, hspace=0.02, height_ratios=[2, 2], )
+    for sf in subfigs:
+        sf.set_facecolor('none')  # work around display issue that was hiding the connection patches
 
     min_n_im_axes = 12
     im_axes = subfigs[0].subplots(3, max(npoints,min_n_im_axes),
@@ -1229,6 +1231,7 @@ def monthly_trending_plot(year, month, verbose=True, instrument='NIRCam', filter
     plot_index = -1
     from matplotlib.patches import ConnectionPatch
 
+    ax0ymax = axes[0].get_ylim()[1]  # for use in connection patches below
     for i, row in enumerate(opdtable):
         if verbose:
             print(row['fileName'], row['date'],
@@ -1256,7 +1259,7 @@ def monthly_trending_plot(year, month, verbose=True, instrument='NIRCam', filter
 
             # Make a fancy connector line from the OPD plots to the correct time in the time series plots
             # Draw this for all sensing instances pre-move, but no need to repeat for any post-correction sensing
-            cp = ConnectionPatch([0.5, 0], (dates_array[i].plot_date, 150),
+            cp = ConnectionPatch([0.5, 0], (dates_array[i].plot_date, ax0ymax),
                                  coordsA='axes fraction', coordsB='data',
                                  axesA=im_axes[2, plot_index], axesB=axes[0],
                                  color='darkgreen', ls='--', alpha=0.5
