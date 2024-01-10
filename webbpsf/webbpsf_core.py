@@ -1720,17 +1720,18 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         ### Fast way. Assumes wavelength-independent phase and amplitude at the exit pupil!!
         if compare_methods:
+            import time
             print("Running fast way")
             t0 = time.time()
 
         # Set up a simplified optical system just going from the exit pupil to the detector
         # Make the "entrance" pupil of this system replicate the exit pupl of the full calculation
         exitpupil = waves[-2]
-        exit_opd = exitpupil.phase*exitpupil.wavelength.to_value(u.m) /(2*np.pi)
+        exit_opd = exitpupil.phase*exitpupil.wavelength.to_value(units.m) /(2*np.pi)
         oversamp = psf[0].header['DET_SAMP']
 
         quickosys = poppy.OpticalSystem(npix = exitpupil.shape[0],
-                                        pupil_diameter=exitpupil.shape[0]*u.pixel*exitpupil.pixelscale)
+                                        pupil_diameter=exitpupil.shape[0]*units.pixel*exitpupil.pixelscale)
         quickosys.add_pupil(poppy.ArrayOpticalElement(opd=exit_opd,
                                                       transmission=exitpupil.amplitude,
                                                       pixelscale=exitpupil.pixelscale))

@@ -41,3 +41,12 @@ def test_nirspec_slit_apertures():
         assert np.isclose(nrs._tel_coords()[0].to_value(u.arcsec),ap.V2Ref)
         assert np.isclose(nrs._tel_coords()[1].to_value(u.arcsec),ap.V3Ref)
 
+def test_calc_datacube_fast():
+    nrs = webbpsf_core.NIRSpec()
+    nrs.set_position_from_aperture_name('NRS_FULL_IFU')
+    nrs.image_mask='IFU'
+    
+    waves = np.linspace(3e-6, 5e-6, 3)
+
+    cube = nrs.calc_datacube_fast(waves, fov_pixels=30, oversample=1, compare_methods=True)
+
