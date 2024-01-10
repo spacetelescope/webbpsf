@@ -1953,7 +1953,8 @@ class MIRI(JWInstrument):
             #
             # Per Klaus Pontoppidan: The LRS slit is aligned with the detector x-axis, so that the
             # dispersion direction is along the y-axis.
-            optsys.add_image(optic=poppy.RectangularFieldStop(width=4.7, height=0.51,
+            # Slit width and height values derived from SIAF PRDOPSSOC-063, 2024 January
+            optsys.add_image(optic=poppy.RectangularFieldStop(width=4.72345, height=0.51525,
                                                               rotation=self._rotation, name=self.image_mask))
             trySAM = False
         else:
@@ -1992,12 +1993,14 @@ class MIRI(JWInstrument):
                              name='filter cold stop', shift_x=shift_x, shift_y=shift_y, rotation=rotation)
             # FIXME this is probably slightly oversized? Needs to have updated specifications here.
 
-        if self.include_si_wfe:
-            # now put back in the aberrations we grabbed above.
-            optsys.add_pupil(miri_aberrations)
-
         optsys.add_rotation(-self._rotation, hide=True)
         optsys.planes[-1].wavefront_display_hint = 'intensity'
+
+        if self.include_si_wfe:
+            # now put back in the aberrations we grabbed above.
+            # Note, the SI WFE models are in the detector coordinate frame, so this has to be added
+            # *after* the rotation by ~5 degrees to that frame.
+            optsys.add_pupil(miri_aberrations)
 
         return (optsys, trySAM, SAM_box_size if trySAM else None)
 
