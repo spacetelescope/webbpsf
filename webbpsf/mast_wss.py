@@ -2,6 +2,7 @@
 
 
 import os
+import functools
 
 import astropy
 import astropy.io.fits as fits
@@ -581,3 +582,42 @@ def get_corrections(opdtable):
                                                   'Post Move Sensing OPD Filename'])
 
     return correction_table
+
+
+# Functions for retrieving images
+
+
+@functools.lru_cache
+def get_visit_nrc_ta_image(visitid, verbose=True):
+    """Retrieve from MAST the NIRCam target acq image for a given visit.
+
+    This retrieves an image from MAST and returns it as a HDUList variable
+    without writing to disk.
+    """
+
+    from astroquery.mast import Mast
+    keywords = {
+            'visit_id': [visitid[1:]], # note: drop the initial character 'V'
+            'category': ['CAL'],
+            'exp_type': ['NRC_TACQ']
+           }
+
+    def set_params(parameters):
+        return [{"paramName" : p, "values" : v} for p, v in parameters.items()]
+
+
+    # Restructuring the keywords dictionary to the MAST syntax
+    params = {'columns': '*',
+          'filters': set_params(keywords)
+         }
+
+    service = 'Mast.Jwst.Filtered.Nircam'
+    t = Mast.service_request(service, params)
+    filename = t[0]['filename']
+
+    if verbose:
+        print(f"TA filename: {filename}")
+    mast_file_url = f"https://mast.stsci.edu/api/v0.1/Download/file?uri=mast:JWST/product/{filename}"
+    ta_hdul = fits.open(mast_file_url)
+
+    return ta_hdul
