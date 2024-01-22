@@ -1614,8 +1614,9 @@ def show_wfs_ta_img(visitid, ax=None, return_handles=False):
 
     if ax is None:
         ax = plt.gca()
-    ax.imshow(ta_img - bglevel, norm=norm, cmap=cmap)
+    ax.imshow(ta_img - bglevel, norm=norm, cmap=cmap, origin='lower')
     ax.set_title(f"WFS TA on {visitid}\n{hdul[0].header['DATE-OBS']}")
+    ax.set_ylabel("[Pixels]")
 
     if return_handles:
         return hdul, ax, norm, cmap, bglevel
@@ -1657,25 +1658,18 @@ def nrc_ta_image_comparison(visitid):
     im_sim_scaled_aligned = im_sim_shifted*scalefactor
 
     # Plot
-    axes[1].imshow(im_sim_scaled_aligned, norm=norm, cmap=cmap)
+    axes[1].imshow(im_sim_scaled_aligned, norm=norm, cmap=cmap, origin='lower')
     axes[1].set_title(f"Simulated PSF in F212N\nusing {opdname}")
 
     diffim = im_obs -bglevel - im_sim_scaled_aligned
 
-    if 0:
-        vmx = np.nanmax(np.abs(diffim))
-        norm2 = matplotlib.colors.Normalize(-vmx/2, vmx/2)
-
-        axes[2].imshow(diffim, cmap=matplotlib.cm.RdBu_r, norm=norm2)
-
-    else:
-         axes[2].imshow(diffim, cmap=cmap, norm=norm)
+    axes[2].imshow(diffim, cmap=cmap, norm=norm, origin='lower')
     axes[2].set_title('Difference image\nafter alignment and scaling')
 
     for ax in axes:
         fig.colorbar(ax.images[0], ax=ax, orientation='horizontal',
                     label=hdul['SCI'].header['BUNIT'])
-   
+
     plt.tight_layout()
 
 
