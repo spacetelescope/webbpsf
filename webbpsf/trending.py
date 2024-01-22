@@ -1590,3 +1590,99 @@ def show_wfs_around_obs(filename, verbose='True'):
 
     webbpsf.trending.show_opd_image((wfe_after-wfe_before)*nanmask*1e6, ax=ax4, vmax=vmax, fontsize=10)
     ax4.set_title("Delta WFE\nAfter-Before", color='C1', fontweight='bold')
+
+
+#### Functions for image comparisons
+def show_wfs_ta_img(visitid, ax=None, return_handles=False):
+    """ Retrieve and display a WFS target acq image"""
+
+    hdul = webbpsf.mast_wss.get_visit_nrc_ta_image(visitid)
+
+    ta_img = hdul['SCI'].data
+    mask = np.isfinite(ta_img)
+    rmean, rmedian, rsig = astropy.stats.sigma_clipped_stats(ta_img[mask])
+    bglevel = rmedian
+
+    vmax = np.nanmax(ta_img) - bglevel
+    cmap = matplotlib.cm.viridis.copy()
+    cmap.set_bad('orange')
+
+
+    norm = matplotlib.colors.AsinhNorm(linear_width = vmax*0.003, vmax=vmax, #vmin=0)
+                                       vmin=-1*rsig)
+
+
+    if ax is None:
+        ax = plt.gca()
+    ax.imshow(ta_img - bglevel, norm=norm, cmap=cmap, origin='lower')
+    ax.set_title(f"WFS TA on {visitid}\n{hdul[0].header['DATE-OBS']}")
+    ax.set_ylabel("[Pixels]")
+    ax.text(0.05, 0.9, hdul[0].header['TARGPROP'],
+            color='white', transform=ax.transAxes)
+
+
+    if return_handles:
+        return hdul, ax, norm, cmap, bglevel
+
+def nrc_ta_image_comparison(visitid):
+    """ Retrieve a NIRCam target acq image and compare to a simulation
+
+    Parameters:
+    -----------
+    visitid : string
+        Visit ID. Should be one of the WFSC visits, starting with a NIRCam target acq, or at least
+        some other sort of visit that begins with a NIRCam target acquisition.
+    """
+    from skimage.registration import phase_cross_correlation
+
+    fig, axes = plt.subplots(figsize=(10,5), ncols=3)
+
+    # Get and plot the observed TA image
+    hdul, ax, norm, cmap, bglevel = show_wfs_ta_img(visitid, ax=axes[0], return_handles=True)
+    im_obs = hdul['SCI'].data
+    im_obs_err = hdul['ERR'].data
+
+    # Make a matching sim
+    nrc = webbpsf.setup_sim_to_match_file(hdul, verbose=False)
+    opdname = nrc.pupilopd[0].header['CORR_ID'] + "-NRCA3_FP1-1.fits"
+    psf = nrc.calc_psf(fov_pixels=64)
+
+    # Align and Shift:
+
+    im_sim = psf['DET_DIST'].data   # Use the extension including distortion and IPC
+
+    im_obs_clean = astropy.convolution.interpolate_replace_nans(im_obs, kernel=np.ones((5,5)))
+
+    shift, _, _ = phase_cross_correlation(im_obs_clean, im_sim, upsample_factor=32)
+    im_sim_shifted = scipy.ndimage.shift(im_sim, shift, order=5)
+
+    # figure out the background level and scale factor
+    scalefactor = np.nanmax(im_obs) / im_sim.max()
+
+    im_sim_scaled_aligned = im_sim_shifted*scalefactor
+
+    # Plot
+    axes[1].imshow(im_sim_scaled_aligned, norm=norm, cmap=cmap, origin='lower')
+    axes[1].set_title(f"Simulated PSF in F212N\nusing {opdname}")
+
+    diffim = im_obs -bglevel - im_sim_scaled_aligned
+
+    dofs = np.isfinite(diffim).sum() - 4  # 4 estimated parameters: X and Y offsets, flux scaling, background level
+    reduced_chisq = np.nansum(((diffim / im_obs_err)**2)) / dofs
+
+    axes[2].imshow(diffim, cmap=cmap, norm=norm, origin='lower')
+    axes[2].set_title('Difference image\nafter alignment and scaling')
+    axes[2].text(0.05, 0.9, f"$\\chi^2_r$ = {reduced_chisq:.3g}" + (
+                  "  Alert, not a good fit!" if (reduced_chisq > 1.5) else ""),
+                 transform = axes[2].transAxes, color='white' if (reduced_chisq <1.5) else 'yellow')
+
+    for ax in axes:
+        fig.colorbar(ax.images[0], ax=ax, orientation='horizontal',
+                    label=hdul['SCI'].header['BUNIT'])
+
+    plt.tight_layout()
+
+
+    outname = f'wfs_ta_comparison_{visitid}.pdf'
+    plt.savefig(outname)
+    print(f" => {outname}")
