@@ -1617,6 +1617,9 @@ def show_wfs_ta_img(visitid, ax=None, return_handles=False):
     ax.imshow(ta_img - bglevel, norm=norm, cmap=cmap, origin='lower')
     ax.set_title(f"WFS TA on {visitid}\n{hdul[0].header['DATE-OBS']}")
     ax.set_ylabel("[Pixels]")
+    ax.text(0.05, 0.9, hdul[0].header['TARGPROP'],
+            color='white', transform=ax.transAxes)
+
 
     if return_handles:
         return hdul, ax, norm, cmap, bglevel
