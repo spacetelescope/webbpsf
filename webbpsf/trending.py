@@ -1637,6 +1637,7 @@ def nrc_ta_image_comparison(visitid):
     # Get and plot the observed TA image
     hdul, ax, norm, cmap, bglevel = show_wfs_ta_img(visitid, ax=axes[0], return_handles=True)
     im_obs = hdul['SCI'].data
+    im_obs_err = hdul['ERR'].data
 
     # Make a matching sim
     nrc = webbpsf.setup_sim_to_match_file(hdul, verbose=False)
@@ -1663,8 +1664,14 @@ def nrc_ta_image_comparison(visitid):
 
     diffim = im_obs -bglevel - im_sim_scaled_aligned
 
+    dofs = np.isfinite(diffim).sum() - 4  # 4 estimated parameters: X and Y offsets, flux scaling, background level
+    reduced_chisq = np.nansum(((diffim / im_obs_err)**2)) / dofs
+
     axes[2].imshow(diffim, cmap=cmap, norm=norm, origin='lower')
     axes[2].set_title('Difference image\nafter alignment and scaling')
+    axes[2].text(0.05, 0.9, f"$\\chi^2_r$ = {reduced_chisq:.3g}" + (
+                  "  Alert, not a good fit!" if (reduced_chisq > 1.5) else ""),
+                 transform = axes[2].transAxes, color='white' if (reduced_chisq <1.5) else 'yellow')
 
     for ax in axes:
         fig.colorbar(ax.images[0], ax=ax, orientation='horizontal',
