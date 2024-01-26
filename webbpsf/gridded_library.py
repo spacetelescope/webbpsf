@@ -291,7 +291,7 @@ class CreatePSFLibrary:
                 if self.verbose is True:
                     print("    Position {}/{}: {} pixels".format(i+1, len(self.location_list), loc))
 
-                # Deactivate IPC corrections, if any, before calc_psf as we are applying them later
+
                 self.webb.options['add_ipc_gridded'] = False # add dictionary key to keep track of the user's IPC input
                 # Deactivate IPC corrections, if any, before calc_psf as we are applying them later
                 if self.webb.options.get('add_ipc', True):

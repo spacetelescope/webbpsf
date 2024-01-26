@@ -172,9 +172,7 @@ def apply_detector_ipc(psf_hdulist, extname = 'DET_DIST'):
         webbpsf.webbpsf_core._log.debug(f"Skipping IPC simulation since ext {extname} is not found")
         return
 
-    # This avoid applying IPC corrections twice, especially when calling the psf_grid code path for making ePSFs
-    #  because the IPC corrections are applied in gridded_library
-
+    # This avoid applying IPC corrections twice
     keyword = 'IPCINST'
     if keyword in psf_hdulist[extname].header._keyword_indices: return
 
