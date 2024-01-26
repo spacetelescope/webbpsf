@@ -291,6 +291,13 @@ class CreatePSFLibrary:
                 if self.verbose is True:
                     print("    Position {}/{}: {} pixels".format(i+1, len(self.location_list), loc))
 
+                # Deactivate IPC corrections, if any, before calc_psf as we are applying them later
+                self.webb.options['add_ipc_gridded'] = False # add dictionary key to keep track of the user's IPC input
+                # Deactivate IPC corrections, if any, before calc_psf as we are applying them later
+                if self.webb.options.get('add_ipc', True):
+                    self.webb.options['add_ipc'] = False
+                    self.webb.options['add_ipc_gridded'] = True
+
                 # Create PSF
                 psf = self.webb.calc_psf(**self._kwargs)
                 if self.verbose is True:
@@ -302,7 +309,10 @@ class CreatePSFLibrary:
                 psf[ext].data = astropy.convolution.convolve(psf[ext].data, kernel)
 
                 # Convolve PSF with a model for interpixel capacitance
-                # This is apply outside the gridded libary see issue #736
+
+                if self.add_distortion and self.webb.options['add_ipc_gridded']:
+                    webbpsf.detectors.apply_detector_ipc(psf, extname=ext)
+                    self.webb.options['add_ipc'] = True # restore the dictionary keyword for the IPC
 
                 # Add PSF to 5D array
                 psf_arr[i, :, :] = psf[ext].data
