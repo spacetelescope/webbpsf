@@ -124,7 +124,7 @@ omit = [
     "*/webbpsf/version*",
 ]
 
-[tool.ruff.lint]
+[tool.ruff]
 extend-exclude = [
     '.git',
     '__pycache__',
