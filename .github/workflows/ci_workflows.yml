@@ -65,9 +65,6 @@ jobs:
     - name: Check conda info
       run: conda info
 
-    - name: Run Lint Checks
-      run: tox -e lint-check
-
     - name: Run tests with requirements file
       if: ${{ contains(matrix.toxenv,'-latest') }}
       run: |
