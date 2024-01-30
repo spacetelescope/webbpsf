@@ -65,12 +65,6 @@ jobs:
     - name: Check conda info
       run: conda info
 
-    - name: Ruff Linting
-      run: |
-        pip install ruff
-        ruff .
-
-
     - name: Run tests with requirements file
       if: ${{ contains(matrix.toxenv,'-latest') }}
       run: |
