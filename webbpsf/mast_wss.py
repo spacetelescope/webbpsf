@@ -598,7 +598,7 @@ def get_visit_nrc_ta_image(visitid, verbose=True):
     from astroquery.mast import Mast
     keywords = {
             'visit_id': [visitid[1:]], # note: drop the initial character 'V'
-            'category': ['CAL'],
+            #'category': ['CAL'],
             'exp_type': ['NRC_TACQ']
            }
 

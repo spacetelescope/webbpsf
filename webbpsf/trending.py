@@ -1596,7 +1596,7 @@ def show_wfs_around_obs(filename, verbose='True'):
 
 
 #### Functions for image comparisons
-def show_wfs_ta_img(visitid, ax=None, return_handles=False):
+def show_nrc_ta_img(visitid, ax=None, return_handles=False):
     """ Retrieve and display a WFS target acq image"""
 
     hdul = webbpsf.mast_wss.get_visit_nrc_ta_image(visitid)
@@ -1610,15 +1610,13 @@ def show_wfs_ta_img(visitid, ax=None, return_handles=False):
     cmap = matplotlib.cm.viridis.copy()
     cmap.set_bad('orange')
 
-
     norm = matplotlib.colors.AsinhNorm(linear_width = vmax*0.003, vmax=vmax, #vmin=0)
                                        vmin=-1*rsig)
-
 
     if ax is None:
         ax = plt.gca()
     ax.imshow(ta_img - bglevel, norm=norm, cmap=cmap, origin='lower')
-    ax.set_title(f"WFS TA on {visitid}\n{hdul[0].header['DATE-OBS']}")
+    ax.set_title(f"NIRCam TA on {visitid}\n{hdul[0].header['DATE-OBS']}")
     ax.set_ylabel("[Pixels]")
     ax.text(0.05, 0.9, hdul[0].header['TARGPROP'],
             color='white', transform=ax.transAxes)
@@ -1627,7 +1625,7 @@ def show_wfs_ta_img(visitid, ax=None, return_handles=False):
     if return_handles:
         return hdul, ax, norm, cmap, bglevel
 
-def nrc_ta_image_comparison(visitid):
+def nrc_ta_image_comparison(visitid, verbose=False):
     """ Retrieve a NIRCam target acq image and compare to a simulation
 
     Parameters:
@@ -1641,26 +1639,34 @@ def nrc_ta_image_comparison(visitid):
     fig, axes = plt.subplots(figsize=(10,5), ncols=3)
 
     # Get and plot the observed TA image
-    hdul, ax, norm, cmap, bglevel = show_wfs_ta_img(visitid, ax=axes[0], return_handles=True)
-    im_obs = hdul['SCI'].data
+    hdul, ax, norm, cmap, bglevel = show_nrc_ta_img(visitid, ax=axes[0], return_handles=True)
+    im_obs = hdul['SCI'].data.copy()
     im_obs_err = hdul['ERR'].data
+    im_obs_dq = hdul['DQ'].data
+
+    im_obs_clean = im_obs.copy()
+    im_obs_clean[im_obs_dq & 1] = np.nan  # Mask out any DO_NOT_USE pixels.
+    im_obs_clean = astropy.convolution.interpolate_replace_nans(im_obs_clean, kernel=np.ones((5,5)))
 
     # Make a matching sim
     nrc = webbpsf.setup_sim_to_match_file(hdul, verbose=False)
     opdname = nrc.pupilopd[0].header['CORR_ID'] + "-NRCA3_FP1-1.fits"
-    psf = nrc.calc_psf(fov_pixels=64)
+    if verbose:
+        print(f"Calculating PSF to match that TA image...")
+    psf = nrc.calc_psf(fov_pixels=im_obs.shape[0])
 
     # Align and Shift:
-
     im_sim = psf['DET_DIST'].data   # Use the extension including distortion and IPC
 
-    im_obs_clean = astropy.convolution.interpolate_replace_nans(im_obs, kernel=np.ones((5,5)))
-
     shift, _, _ = phase_cross_correlation(im_obs_clean, im_sim, upsample_factor=32)
+    if verbose:
+        print(f"Shift to register sim to data: {shift} pix")
     im_sim_shifted = scipy.ndimage.shift(im_sim, shift, order=5)
 
     # figure out the background level and scale factor
-    scalefactor = np.nanmax(im_obs) / im_sim.max()
+    scalefactor = np.nanmax(im_obs_clean) / im_sim.max()
+    if verbose:
+        print(f"Scale factor to match sim to data: {scalefactor}")
 
     im_sim_scaled_aligned = im_sim_shifted*scalefactor
 
