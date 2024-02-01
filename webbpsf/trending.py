@@ -1621,11 +1621,10 @@ def show_nrc_ta_img(visitid, ax=None, return_handles=False):
     ax.text(0.05, 0.9, hdul[0].header['TARGPROP'],
             color='white', transform=ax.transAxes)
 
-
     if return_handles:
         return hdul, ax, norm, cmap, bglevel
 
-def nrc_ta_image_comparison(visitid, verbose=False):
+def nrc_ta_image_comparison(visitid, verbose=False, show_centroid=False):
     """ Retrieve a NIRCam target acq image and compare to a simulation
 
     Parameters:
@@ -1671,6 +1670,29 @@ def nrc_ta_image_comparison(visitid, verbose=False):
     im_sim_scaled_aligned = im_sim_shifted*scalefactor
 
     # Plot
+    if show_centroid:
+        # First, see if we can retrieve the on-board TA centroid measurment from the OSS engineering DB in MAST
+        try:
+            import misc_jwst  # Optional dependency, including engineering database access tools
+            # If we have that, retrieve the log for this visit, extract the OSS centroids, and convert to same
+            # coordinate frame as used here:
+            osslog = misc_jwst.engdb.get_ictm_event_log(hdul[0].header['VSTSTART'], hdul[0].header['VISITEND'])
+            oss_cen = misc_jwst.engdb.extract_oss_TA_centroids(osslog, 'V' + hdul[0].header['VISIT_ID'])
+            # Convert from full-frame (as used by OSS) to detector subarray coords:
+            oss_cen_sci = nrc._detector_geom_info.aperture.det_to_sci( *oss_cen)
+            oss_cen_sci_pythonic = np.asarray(oss_cen_sci) - 1  # convert from 1-based pixel indexing to 0-based
+            oss_centroid_text = f"\n   OSS centroid: {oss_cen_sci_pythonic[0]:.2f}, {oss_cen_sci_pythonic[1]:.2f}"
+            #print(oss_cen_sci_pythonic)
+        except ImportError:
+            oss_centroid_text = ""
+
+        cen = webbpsf.fwcentroid.fwcentroid(im_obs_clean)
+        axes[0].scatter(cen[1], cen[0], color='red', marker='+', s=50)
+        axes[0].text(0.95, 0.05, f'      Centroid: {cen[1]:.2f}, {cen[0]:.2f}'+oss_centroid_text,
+                     horizontalalignment='right', verticalalignment='bottom',
+                     transform=axes[0].transAxes,
+                     color='white')
+
     axes[1].imshow(im_sim_scaled_aligned, norm=norm, cmap=cmap, origin='lower')
     axes[1].set_title(f"Simulated PSF in F212N\nusing {opdname}")
 
