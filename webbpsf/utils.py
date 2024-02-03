@@ -699,7 +699,7 @@ def _run_benchmark(timer, iterations=1):
         time_fftw = timer.timeit(number=iterations) / iterations
         print("  {:.2f} s".format(time_fftw))
     else:
-        time_fftw = np.NaN
+        time_fftw = np.nan
 
     if poppy.accel_math._NUMEXPR_AVAILABLE:
         print("Timing performance with Numexpr:")
@@ -708,7 +708,7 @@ def _run_benchmark(timer, iterations=1):
         time_numexpr = timer.timeit(number=iterations) / iterations
         print("  {:.2f} s".format(time_numexpr))
     else:
-        time_numexpr = np.NaN
+        time_numexpr = np.nan
 
     if poppy.accel_math._CUDA_AVAILABLE:
         print("Timing performance with CUDA + Numexpr:")
@@ -717,7 +717,7 @@ def _run_benchmark(timer, iterations=1):
         time_cuda = timer.timeit(number=iterations) / iterations
         print("  {:.2f} s".format(time_cuda))
     else:
-        time_cuda = np.NaN
+        time_cuda = np.nan
 
     if poppy.accel_math._OPENCL_AVAILABLE:
         print("Timing performance with OpenCL + Numexpr:")
@@ -726,7 +726,7 @@ def _run_benchmark(timer, iterations=1):
         time_opencl = timer.timeit(number=iterations) / iterations
         print("  {:.2f} s".format(time_opencl))
     else:
-        time_opencl = np.NaN
+        time_opencl = np.nan
 
     poppy.conf.use_fftw, poppy.conf.use_numexpr, poppy.conf.use_cuda, poppy.conf.use_opencl = defaults
 
