@@ -588,7 +588,7 @@ def get_corrections(opdtable):
 
 
 @functools.lru_cache
-def get_visit_nrc_ta_image(visitid, verbose=True):
+def get_visit_nrc_ta_image(visitid, verbose=True, kind='cal'):
     """Retrieve from MAST the NIRCam target acq image for a given visit.
 
     This retrieves an image from MAST and returns it as a HDUList variable
@@ -615,9 +615,30 @@ def get_visit_nrc_ta_image(visitid, verbose=True):
     t = Mast.service_request(service, params)
     filename = t[0]['filename']
 
+    # If user manually specifies rate or uncal, retrieve that instead
+    if kind=='rate' or kind=='uncal':
+        filename = filename.replace('_cal.fits', f'_{kind}.fits')
+
     if verbose:
         print(f"TA filename: {filename}")
     mast_file_url = f"https://mast.stsci.edu/api/v0.1/Download/file?uri=mast:JWST/product/{filename}"
-    ta_hdul = fits.open(mast_file_url)
+    import urllib
+
+    try:
+        ta_hdul = fits.open(mast_file_url)
+    except urllib.error.HTTPError as err:
+        if err.code == 401:  # Unauthorized
+            # Use MAST API to allow retrieval of exclusive access data, if relevant
+            import astroquery, tempfile
+            mast_api_token = os.environ.get('MAST_API_TOKEN', None)
+            mast_obs = astroquery.mast.ObservationsClass(mast_api_token)
+            uri = f"mast:JWST/product/{filename}"
+            with tempfile.NamedTemporaryFile() as temp:
+                mast_obs.download_file(uri, local_path=temp.name, cache=False)
+                ta_hdul = astropy.io.fits.open(temp.name)
+        else:
+            raise  # re-raise any errors other than 401 for permissions denied
+
+
 
     return ta_hdul

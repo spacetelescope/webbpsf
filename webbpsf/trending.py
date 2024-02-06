@@ -1671,24 +1671,60 @@ def nrc_ta_image_comparison(visitid, verbose=False, show_centroid=False):
 
     # Plot
     if show_centroid:
+        ### OSS CENTROIDS ###
         # First, see if we can retrieve the on-board TA centroid measurment from the OSS engineering DB in MAST
         try:
             import misc_jwst  # Optional dependency, including engineering database access tools
             # If we have that, retrieve the log for this visit, extract the OSS centroids, and convert to same
             # coordinate frame as used here:
             osslog = misc_jwst.engdb.get_ictm_event_log(hdul[0].header['VSTSTART'], hdul[0].header['VISITEND'])
-            oss_cen = misc_jwst.engdb.extract_oss_TA_centroids(osslog, 'V' + hdul[0].header['VISIT_ID'])
-            # Convert from full-frame (as used by OSS) to detector subarray coords:
-            oss_cen_sci = nrc._detector_geom_info.aperture.det_to_sci( *oss_cen)
-            oss_cen_sci_pythonic = np.asarray(oss_cen_sci) - 1  # convert from 1-based pixel indexing to 0-based
-            oss_centroid_text = f"\n   OSS centroid: {oss_cen_sci_pythonic[0]:.2f}, {oss_cen_sci_pythonic[1]:.2f}"
+            try:
+                oss_cen = misc_jwst.engdb.extract_oss_TA_centroids(osslog, 'V' + hdul[0].header['VISIT_ID'])
+                # Convert from full-frame (as used by OSS) to detector subarray coords:
+                oss_cen_sci = nrc._detector_geom_info.aperture.det_to_sci( *oss_cen)
+                oss_cen_sci_pythonic = np.asarray(oss_cen_sci) - 1  # convert from 1-based pixel indexing to 0-based
+                oss_centroid_text = f"\n   OSS centroid: {oss_cen_sci_pythonic[0]:.2f}, {oss_cen_sci_pythonic[1]:.2f}"
+                axes[0].scatter(oss_cen_sci_pythonic[0], oss_cen_sci_pythonic[1], color='0.5', marker='+', s=50)
+                axes[0].text(oss_cen_sci_pythonic[0], oss_cen_sci_pythonic[1], 'OSS  ', color='0.9', verticalalignment='center', horizontalalignment='right')
+                if verbose:
+                    print(f"OSS centroid on board:  {oss_cen}  (full det coord frame, 1-based)")
+                    print(f"OSS centroid converted: {oss_cen_sci_pythonic}  (sci frame in {nrc._detector_geom_info.aperture.AperName}, 0-based)")
+                    full_ap = nrc.siaf[nrc._detector_geom_info.aperture.AperName[0:5] + "_FULL"]
+                    oss_cen_full_sci = np.asarray(full_ap.det_to_sci(*oss_cen)) - 1
+                    print(f"OSS centroid converted: {oss_cen_full_sci}  (sci frame in {full_ap.AperName}, 0-based)")
+
+            except RuntimeError:
+                if verbose:
+                    print("Could not parse TA coordinates from log. TA may have failed?")
+                oss_cen_sci_pythonic = None
+
+            ### WCS COORDINATES ###
+            import jwst
+            model = jwst.datamodels.open(hdul)
+            targ_coords = astropy.coordinates.SkyCoord(model.meta.target.ra, model.meta.target.dec, frame='icrs', unit=u.deg)
+            targ_coords_pix = model.meta.wcs.world_to_pixel(targ_coords)  # returns x, y
+            axes[0].scatter(targ_coords_pix[0], targ_coords_pix[1], color='magenta', marker='+', s=50)
+            axes[0].text(targ_coords_pix[0], targ_coords_pix[1]+2, 'WCS', color='magenta', verticalalignment='bottom', horizontalalignment='center')
+            axes[0].text(0.95, 0.18, f'From WCS: {targ_coords_pix[0]:.2f}, {targ_coords_pix[1]:.2f}',
+                     horizontalalignment='right', verticalalignment='bottom',
+                     transform=axes[0].transAxes,
+                     color='white')
+
+
+            if verbose:
+                print(f"Star coords from WCS: {targ_coords_pix}")
+                if oss_cen_sci_pythonic is not None:
+                    print(f"WCS offset =  {np.asarray(targ_coords_pix) - oss_cen_sci_pythonic} pix")
+
             #print(oss_cen_sci_pythonic)
         except ImportError:
             oss_centroid_text = ""
 
+        ### WEBBPSF CENTROIDS ###
         cen = webbpsf.fwcentroid.fwcentroid(im_obs_clean)
         axes[0].scatter(cen[1], cen[0], color='red', marker='+', s=50)
-        axes[0].text(0.95, 0.05, f'      Centroid: {cen[1]:.2f}, {cen[0]:.2f}'+oss_centroid_text,
+        axes[0].text(cen[1], cen[0], '  webbpsf', color='red', verticalalignment='center')
+        axes[0].text(0.95, 0.05, f' webbpsf Centroid: {cen[1]:.2f}, {cen[0]:.2f}'+oss_centroid_text,
                      horizontalalignment='right', verticalalignment='bottom',
                      transform=axes[0].transAxes,
                      color='white')
