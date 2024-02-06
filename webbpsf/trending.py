@@ -1597,7 +1597,7 @@ def show_wfs_around_obs(filename, verbose='True'):
 
 #### Functions for image comparisons
 def show_nrc_ta_img(visitid, ax=None, return_handles=False):
-    """ Retrieve and display a WFS target acq image"""
+    """ Retrieve and display a NIRCam target acq image"""
 
     hdul = webbpsf.mast_wss.get_visit_nrc_ta_image(visitid)
 
@@ -1624,6 +1624,7 @@ def show_nrc_ta_img(visitid, ax=None, return_handles=False):
     if return_handles:
         return hdul, ax, norm, cmap, bglevel
 
+
 def nrc_ta_image_comparison(visitid, verbose=False, show_centroid=False):
     """ Retrieve a NIRCam target acq image and compare to a simulation
 
@@ -1645,7 +1646,7 @@ def nrc_ta_image_comparison(visitid, verbose=False, show_centroid=False):
 
     im_obs_clean = im_obs.copy()
     im_obs_clean[im_obs_dq & 1] = np.nan  # Mask out any DO_NOT_USE pixels.
-    im_obs_clean = astropy.convolution.interpolate_replace_nans(im_obs_clean, kernel=np.ones((5,5)))
+    im_obs_clean = astropy.convolution.interpolate_replace_nans(im_obs_clean, kernel=np.ones((5, 5)))
 
     # Make a matching sim
     nrc = webbpsf.setup_sim_to_match_file(hdul, verbose=False)
@@ -1681,7 +1682,7 @@ def nrc_ta_image_comparison(visitid, verbose=False, show_centroid=False):
             try:
                 oss_cen = misc_jwst.engdb.extract_oss_TA_centroids(osslog, 'V' + hdul[0].header['VISIT_ID'])
                 # Convert from full-frame (as used by OSS) to detector subarray coords:
-                oss_cen_sci = nrc._detector_geom_info.aperture.det_to_sci( *oss_cen)
+                oss_cen_sci = nrc._detector_geom_info.aperture.det_to_sci(*oss_cen)
                 oss_cen_sci_pythonic = np.asarray(oss_cen_sci) - 1  # convert from 1-based pixel indexing to 0-based
                 oss_centroid_text = f"\n   OSS centroid: {oss_cen_sci_pythonic[0]:.2f}, {oss_cen_sci_pythonic[1]:.2f}"
                 axes[0].scatter(oss_cen_sci_pythonic[0], oss_cen_sci_pythonic[1], color='0.5', marker='+', s=50)
@@ -1710,13 +1711,11 @@ def nrc_ta_image_comparison(visitid, verbose=False, show_centroid=False):
                      transform=axes[0].transAxes,
                      color='white')
 
-
             if verbose:
                 print(f"Star coords from WCS: {targ_coords_pix}")
                 if oss_cen_sci_pythonic is not None:
                     print(f"WCS offset =  {np.asarray(targ_coords_pix) - oss_cen_sci_pythonic} pix")
 
-            #print(oss_cen_sci_pythonic)
         except ImportError:
             oss_centroid_text = ""
 
@@ -1750,6 +1749,6 @@ def nrc_ta_image_comparison(visitid, verbose=False, show_centroid=False):
     plt.tight_layout()
 
 
-    outname = f'wfs_ta_comparison_{visitid}.pdf'
+    outname = f'nrc_ta_comparison_{visitid}.pdf'
     plt.savefig(outname)
     print(f" => {outname}")

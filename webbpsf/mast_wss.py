@@ -598,7 +598,6 @@ def get_visit_nrc_ta_image(visitid, verbose=True, kind='cal'):
     from astroquery.mast import Mast
     keywords = {
             'visit_id': [visitid[1:]], # note: drop the initial character 'V'
-            #'category': ['CAL'],
             'exp_type': ['NRC_TACQ']
            }
 
@@ -616,7 +615,7 @@ def get_visit_nrc_ta_image(visitid, verbose=True, kind='cal'):
     filename = t[0]['filename']
 
     # If user manually specifies rate or uncal, retrieve that instead
-    if kind=='rate' or kind=='uncal':
+    if kind == 'rate' or kind == 'uncal':
         filename = filename.replace('_cal.fits', f'_{kind}.fits')
 
     if verbose:
@@ -629,7 +628,8 @@ def get_visit_nrc_ta_image(visitid, verbose=True, kind='cal'):
     except urllib.error.HTTPError as err:
         if err.code == 401:  # Unauthorized
             # Use MAST API to allow retrieval of exclusive access data, if relevant
-            import astroquery, tempfile
+            import astroquery
+            import tempfile
             mast_api_token = os.environ.get('MAST_API_TOKEN', None)
             mast_obs = astroquery.mast.ObservationsClass(mast_api_token)
             uri = f"mast:JWST/product/{filename}"
