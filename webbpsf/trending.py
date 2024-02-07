@@ -1700,7 +1700,7 @@ def nrc_ta_image_comparison(visitid, verbose=False, show_centroid=False):
                 oss_cen_sci_pythonic = None
 
             ### WCS COORDINATES ###
-            import jwst
+            import jwst.datamodels
             model = jwst.datamodels.open(hdul)
             targ_coords = astropy.coordinates.SkyCoord(model.meta.target.ra, model.meta.target.dec, frame='icrs', unit=u.deg)
             targ_coords_pix = model.meta.wcs.world_to_pixel(targ_coords)  # returns x, y
