@@ -1362,6 +1362,8 @@ def filter_opdtable_for_month(year, mon, opdtable):
     opdtable = webbpsf.mast_wss.filter_opd_table(
         opdtable, start_time=pre_start_date, end_time=end_date
     )
+    if len(opdtable) == 0:
+        raise ValueError("The opdtable is empty for this date range.")
 
     # Trim the table to have 1 and only 1 precursor measurement -
     # we'll use this to compute the drift for the first WFS in the time period
@@ -1382,7 +1384,6 @@ def get_opdtable_for_month(year, mon):
     opdtable0 = webbpsf.mast_wss.deduplicate_opd_table(opdtable0)
 
     opdtable = filter_opdtable_for_month(year, mon, opdtable0)
-
     return opdtable
 
 
@@ -1484,13 +1485,17 @@ def monthly_trending_plot(
         else:
             pid = None
 
-    if opdtable is None:
-        vprint("obtaining opdtable for month")
-        opdtable = get_opdtable_for_month(year, month)
-    else:
-        vprint("filtering opdtable for month")
-        opdtable = check_colnames(opdtable)
-        opdtable = filter_opdtable_for_month(year, month, opdtable)
+    try:
+        if opdtable is None:
+            vprint("obtaining opdtable for month")
+            opdtable = get_opdtable_for_month(year, month)
+        else:
+            vprint("filtering opdtable for month")
+            opdtable = check_colnames(opdtable)
+            opdtable = filter_opdtable_for_month(year, month, opdtable)
+    except ValueError as e:
+        print(e)
+        raise
 
     corrections_table = webbpsf.mast_wss.get_corrections(opdtable)
 
