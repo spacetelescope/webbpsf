@@ -1,4 +1,5 @@
 import astropy
+import astropy.time
 import astropy.units as u
 import calendar
 import webbpsf
