@@ -1983,9 +1983,15 @@ class MIRI(JWInstrument):
                              name=self.pupil_mask,
                              flip_y=True, shift_x=shift_x, shift_y=shift_y, rotation=rotation)
             optsys.planes[-1].wavefront_display_hint = 'intensity'
-        elif self.pupil_mask == 'P750L':
+        elif self.pupil_mask == 'P750L' or self.image_mask == 'LRS slit':
+            # This oversized pupil stop is present on all MIRI imaging filters, thus should
+            # implicitly be included in all MIRI imager calculations, but in practice for
+            # normal imaging modes, the system pupil stop is defined by the OTE primary, so this
+            # stop has no effect. However for any light passing through the LRS slit, the spatial
+            # filtering leads to diffractive spreading in the subsequen pupil which this should
+            # be included for, in order to model slit losses correctly.
             optsys.add_pupil(transmission=self._datapath + "/optics/MIRI_LRS_Pupil_Stop.fits.gz",
-                             name=self.pupil_mask,
+                             name=self.pupil_mask if self.pupil_mask else 'MIRI internal pupil stop',
                              flip_y=True, shift_x=shift_x, shift_y=shift_y, rotation=rotation)
             optsys.planes[-1].wavefront_display_hint = 'intensity'
         else:  # all the MIRI filters have a tricontagon outline, even the non-coron ones.
