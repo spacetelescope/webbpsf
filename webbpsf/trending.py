@@ -1136,9 +1136,9 @@ def monthly_trending_plot(year, month, verbose=True, instrument='NIRCam', filter
     rms_obs = np.asarray(rms_obs)
     rms_ote = np.asarray(rms_ote)
 
-    sensing_tds = (astropy.time.Time(corrections_table['Post Move Sensing Time']) -
-                   astropy.time.Time(corrections_table['Pre Move Sensing Time']))
-    correction_times = astropy.time.Time(corrections_table['Pre Move Sensing Time']) + sensing_tds / 2
+    sensing_tds = (astropy.time.Time(corrections_table['Post Move Sensing Time'], format="isot") -
+                   astropy.time.Time(corrections_table['Pre Move Sensing Time'], format="isot"))
+    correction_times = astropy.time.Time(corrections_table['Pre Move Sensing Time'], format="isot") + sensing_tds / 2
 
     npoints = sum(opdtable[1:]['wfs_measurement_type'] == 'pre')
 
