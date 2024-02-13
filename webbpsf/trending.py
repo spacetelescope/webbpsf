@@ -199,7 +199,7 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, pi
     Nothing, but makes a plot
 
     """
-    
+
     if start_date is None:
         start_date = astropy.time.Time('2022-07-16')
     if end_date is None:
@@ -220,7 +220,7 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, pi
     if download_opds:
         webbpsf.mast_wss.download_all_opds(opdtable1)
 
-    # Retrieve all RMSes, from the FITS headers. 
+    # Retrieve all RMSes, from the FITS headers.
     # These are observatory WFE (OTE + NIRCam), at the WFS sensing field point
     rmses=[]
 
@@ -233,7 +233,7 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, pi
         if download_opds:
             full_file_path = os.path.join(webbpsf.utils.get_webbpsf_data_path(), 'MAST_JWST_WSS_OPDs', row['fileName'])
         if 'rms_wfe' not in opdtable1.colnames:
-            
+
             if ote_only == False:
                 rmses.append(fits.getheader(full_file_path, ext=1)['RMS_WFE'])
             elif ote_only == True:
@@ -247,13 +247,13 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, pi
                 wf_si = target_256 * mask  # Nircam target phase map at FP1
 
                 rmses.append(webbpsf.utils.rms(opd_data - wf_si,mask=mask))
-                
+
         mjds = opdtable1['date_obs_mjd']
         pre_or_post.append(webbpsf.mast_wss.infer_pre_or_post_correction(row))
 
     where_pre = ['pre' in a for a in pre_or_post]
     where_post = ['post' in a for a in pre_or_post]
-    
+
     dates = astropy.time.Time(opdtable1['date'], format='isot')
 
     # Interpolate those RMSes into an even grid over time
@@ -268,12 +268,12 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, pi
     fig, axes = plt.subplots(figsize=(16,10), nrows=nrows, gridspec_kw = {'hspace':hspace})
 
     ms = 14 #markersize
-    
+
     axes[0].plot_date(dates.plot_date, np.asarray(rmses)*1e3, '.', ms=ms, ls='-', label='Sensing visit')
     axes[0].xaxis.set_major_locator(matplotlib.dates.DayLocator(bymonthday=[1]))
     axes[0].xaxis.set_minor_locator(matplotlib.dates.DayLocator(interval=1))
     axes[0].tick_params('x', length=10, rotation=30)
-    
+
     if mark_corrections=='lines':
         # Add vertical lines for corrections
         icorr = 0
@@ -285,17 +285,17 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, pi
                     icorr += 1
     elif mark_corrections=='triangles':
         yval = (np.asarray(rmses)*1e3).max() *1.01
-        axes[0].scatter(dates[where_post].plot_date, np.ones(np.sum(where_post))*yval, 
+        axes[0].scatter(dates[where_post].plot_date, np.ones(np.sum(where_post))*yval,
                         marker='v', s=100, color='limegreen', label='Corrections')
     elif mark_corrections=='arrows':
         rms_nm =  np.asarray(rmses)*1e3
 
-        sub_height = fig.get_figheight() / (nrows+hspace)        
+        sub_height = fig.get_figheight() / (nrows+hspace)
         plot_size_points = np.asarray([fig.get_figwidth(), sub_height]) * fig.dpi
         plot_size_data   = [np.diff(axes[0].get_xlim())[0], np.diff(axes[0].get_ylim())[0]]
 
         yoffset =  (1.2*ms) * plot_size_data[1] / plot_size_points[1]
-        axes[0].scatter(dates[where_post].plot_date, rms_nm[where_post] + yoffset, 
+        axes[0].scatter(dates[where_post].plot_date, rms_nm[where_post] + yoffset,
                         marker='v', s=100, color='limegreen', label='Corrections', zorder=99)
 
         yoffsets = [0.6 * ms * plot_size_data[0] / plot_size_points[0],
@@ -312,7 +312,7 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, pi
 
     fig_title = "OTE" if ote_only else "Observatory"
     ylabel    = "OTE-only" if ote_only else "OTE+NIRCam"
-    
+
     axes[0].set_xlabel("Date")
     axes[0].set_ylabel(f"RMS WFE\n({ylabel})", fontweight='bold')
 
@@ -326,9 +326,9 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, pi
 
     nbins=100
     binwidth = 1
-    minbin = np.round( np.min(interp_rmses*1e3) - binwidth) 
+    minbin = np.round( np.min(interp_rmses*1e3) - binwidth)
     maxbin = np.round( np.max(interp_rmses*1e3) + binwidth)
-    
+
     axes[1].set_title(f"{fig_title} WFE Histogram from {start_date.isot[0:10]} to {end_date.isot[0:10]}",
                      fontsize=14, fontweight='bold')
 
@@ -346,18 +346,18 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, pi
     xmax = interp_rmses.max()*1e3 - 0.1
     ymax = hist_values[0].max()
     axes[1].set_xticks(np.arange(xmin, xmax, 1), minor=True)
-                           
+
     ax_right.set_xlim(xmin, xmax)
     ax_right.set_ylim(0,1)
-    
-    if thresh: 
+
+    if thresh:
         for i in [1]:
             if thresh <= xmax:
-                axes[i].axvline(thresh, color='C2', linestyle='dashed')    
+                axes[i].axvline(thresh, color='C2', linestyle='dashed')
             fractime = (interp_rmses*1e3 < thresh).sum()/len(interp_rmses)
-            axes[i].text(xmin+0.68*(xmax-xmin), 0.65*ymax, 
+            axes[i].text(xmin+0.68*(xmax-xmin), 0.65*ymax,
                      f"{fractime*100:.1f}% of the time has \nmeasured {ylabel} WFE < {thresh}", color='C2',
-                    fontweight='bold', fontsize=14)    
+                    fontweight='bold', fontsize=14)
 
 
     # Add vertical lines for dates of PID observations
@@ -452,7 +452,7 @@ def single_measurement_trending_plot(opdtable, row_index=-1, reference=None, ver
     vmax : float
         Image display scale max for OPD, in microns. Defaults to 0.15 microns = 150 nanometers
     reference: str, or None
-        Reference OPD to use for comparison, where the string is the date format (e.g. 2022-10-31). 
+        Reference OPD to use for comparison, where the string is the date format (e.g. 2022-10-31).
         Will select closest match from the opdtable. Default: MIMF2 meas. + focus offset.
 
 
@@ -941,29 +941,40 @@ def get_month_start_end(year, month):
     return start_date, end_date
 
 
-def get_opdtable_for_month(year, mon):
-    """Return table of OPD measurements for a given month.
-
-    This includes the last measurement in the prior month too, so we can compute a delta
+def filter_opdtable_for_month(year, mon, opdtable):
+    """Filter existing opdtable for a given month
+    This includes the last measurement in the prior month too (if applicable), so we can compute a delta
     to the first one
     """
     start_date, end_date = get_month_start_end(year, mon)
-
     # Start a little early, such that we are going to have at least 1 WFS before the start date
     pre_start_date = astropy.time.Time(start_date) - astropy.time.TimeDelta(4 * u.day)
-
-    # Retrieve full OPD table, then trim to the selected time period
-    opdtable0 = webbpsf.mast_wss.retrieve_mast_opd_table()
-    opdtable0 = webbpsf.mast_wss.deduplicate_opd_table(opdtable0)
-    opdtable = webbpsf.mast_wss.filter_opd_table(opdtable0, start_time=pre_start_date, end_time=end_date)
+    opdtable = webbpsf.mast_wss.filter_opd_table(
+        opdtable, start_time=pre_start_date, end_time=end_date
+    )
+    if len(opdtable) == 0:
+        raise ValueError("The opdtable is empty for this date range.")
 
     # Trim the table to have 1 and only 1 precursor measurement -
     # we'll use this to compute the drift for the first WFS in the time period
-    is_pre = [astropy.time.Time(row['date']) < start_date for row in opdtable]
-    opdtable['is_pre'] = is_pre
-    opdtable = opdtable[np.sum(is_pre) - 1:]
+    is_pre = [astropy.time.Time(row["date"]) < start_date for row in opdtable]
+    opdtable["is_pre"] = is_pre
+    opdtable = opdtable[np.sum(is_pre) - 1 :]
 
     return opdtable
+
+
+def get_opdtable_for_month(year, mon):
+    """Return table of OPD measurements for a given month.
+    retrieve the opd table and filter according to month/year designation
+    """
+    # Retrieve full OPD table, then trim to the selected time period
+    opdtable0 = webbpsf.mast_wss.retrieve_mast_opd_table()
+    opdtable0 = webbpsf.mast_wss.deduplicate_opd_table(opdtable0)
+
+    opdtable = filter_opdtable_for_month(year, mon, opdtable0)
+    return opdtable
+
 
 def check_colnames(opdtable):
     """Check for expected column names in the OPD Table
@@ -984,7 +995,7 @@ def check_colnames(opdtable):
 
 def get_dates_for_pid(pid, project='jwst'):
     """ Check the archive for the start dates of each observation of the specified PID
-    
+
     Parameters
     -----------
     pid: int
@@ -994,7 +1005,7 @@ def get_dates_for_pid(pid, project='jwst'):
     start_times: list of astropy.time.Time dates
 
     """
-    
+
 
     try:
         obs_table = Observations.query_criteria(project='jwst', proposal_id=pid)
@@ -1010,7 +1021,7 @@ def get_dates_for_pid(pid, project='jwst'):
         start_times = []
         for key, group in zip(obs_by_num.groups.keys, obs_by_num.groups):
             start_times.append(group['t_min'].min())
-    
+
         start_times = astropy.time.Time(start_times, format='mjd')
         start_times = start_times.to_value('fits')#, subfmt='date')
         start_times = astropy.time.Time( np.unique(start_times) )
@@ -1018,10 +1029,10 @@ def get_dates_for_pid(pid, project='jwst'):
         return start_times
     except:
         print("No access to data for PID {:d}".format(pid))
-        return 
+        return
 
 
-    
+
 
 def monthly_trending_plot(year, month, verbose=True, instrument='NIRCam', filter='F200W', vmax=200, pid=None, opdtable=None):
     """Make monthly trending plot showing OPDs, mirror moves, RMS WFE, and the resulting PSF EEs
@@ -1038,12 +1049,12 @@ def monthly_trending_plot(year, month, verbose=True, instrument='NIRCam', filter
         Table of available OPDs, Default None: as returned by retrieve_mast_opd_table()
     """
 
-    
+
     def vprint(*text):
         if verbose: print(*text)
 
     start_date, end_date = get_month_start_end(year, month)
-            
+
     # Look up wavefront sensing and mirror move corrections for that month
     if pid:
         pid_dates = get_dates_for_pid(pid)
@@ -1051,11 +1062,18 @@ def monthly_trending_plot(year, month, verbose=True, instrument='NIRCam', filter
             pid_dates = pid_dates[(pid_dates >= start_date) & (pid_dates <= end_date)]
         else:
             pid = None
-        
-    if opdtable is None:
-        opdtable = get_opdtable_for_month(year, month)
-    else:
-        opdtable = check_colnames(opdtable)
+
+    try:
+        if opdtable is None:
+            vprint("obtaining opdtable for month")
+            opdtable = get_opdtable_for_month(year, month)
+        else:
+            vprint("filtering opdtable for month")
+            opdtable = check_colnames(opdtable)
+            opdtable = filter_opdtable_for_month(year, month, opdtable)
+    except ValueError as e:
+        print(e)
+        raise
 
     corrections_table = webbpsf.mast_wss.get_corrections(opdtable)
 
@@ -1160,7 +1178,7 @@ def monthly_trending_plot(year, month, verbose=True, instrument='NIRCam', filter
                       color='C1', ls='-', label='Observatory WFE at NIRCam NRCA3')
     axes[0].plot_date(dates_array.plot_date, rms_ote * 1e9,
                       color='C0', ls='-', label='Telescope WFE')
-    
+
     for ax in axes:
         for corr_date in correction_times:
             ax.axvline(corr_date.plot_date, color='darkgreen', ls='--', alpha=0.5)
