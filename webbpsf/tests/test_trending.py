@@ -1,18 +1,7 @@
 import astropy
 import astropy.time
 import astropy.units as u
-import calendar
 import webbpsf
-
-def get_month_start_end(year, month):
-    _, ndays = calendar.monthrange(year, month)
-    start_date_str = f"{year:04d}-{month:02d}-01"
-    end_date_str = f"{year:04d}-{month:02d}-{ndays:02d}"
-
-    start_date = astropy.time.Time(start_date_str)
-    end_date = astropy.time.Time(end_date_str)
-
-    return start_date, end_date
 
 
 def test_monthly_trending_plot_auto_opdtable():
@@ -22,8 +11,8 @@ def test_monthly_trending_plot_auto_opdtable():
 
 def test_monthly_trending_plot_opdtable_param():
     # Get broad range opdtable to verify our internal filtering works
-    start_date, end_date = get_month_start_end(2023, 5)
-    start_date2, end_date2 = get_month_start_end(2023, 7)
+    start_date, end_date = webbpsf.trending.get_month_start_end(2023, 5)
+    start_date2, end_date2 = webbpsf.trending.get_month_start_end(2023, 7)
     # Start a little early, such that we are going to have at least 1 WFS before the start date
     pre_start_date = astropy.time.Time(start_date) - astropy.time.TimeDelta(4 * u.day)
 
