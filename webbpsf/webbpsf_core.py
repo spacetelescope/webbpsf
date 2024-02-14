@@ -704,7 +704,11 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
             detectors = self.detector
 
         if single_psf_centered is True:
-            psf_location = (int((self._detector_npixels - 1) / 2), int((self._detector_npixels - 1) / 2))  # center pt
+            if isinstance(self._detector_npixels, tuple):
+                det_npix_y, det_npix_x = self._detector_npixels  # A tuple has been provided for a non-square detector with different Y and X dimensions
+            else:
+                det_npix_y = det_npix_x = self._detector_npixels  # same dimensions in both X and Y
+            psf_location = ( int(det_npix_x - 1) // 2, int(det_npix_y - 1) // 2)  # center pt
         else:
             psf_location = self.detector_position[::-1]  # (y,x)
 

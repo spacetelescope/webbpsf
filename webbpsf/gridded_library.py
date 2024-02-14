@@ -222,7 +222,13 @@ class CreatePSFLibrary:
                 location_list = psf_location_list
 
             else:
-                max_size = self.webb._detector_npixels - 1
+                if isinstance(self.webb._detector_npixels, tuple):
+                    max_size = min(self.webb._detector_npixels) - 1   # a tuple has been provided for non-square detector.
+                                                                      # This is only true for MIRI (1024, 1032) and it's a
+                                                                      # small enough effect that it's reasonable to treat
+                                                                      # it as square when choosing locatins here.
+                else:
+                    max_size = self.webb._detector_npixels - 1
                 loc_list = [int(round(num * max_size)) for num in np.linspace(0, 1, self.length, endpoint=True)]
                 location_list = list(itertools.product(loc_list, loc_list))  # list of tuples (x,y) (for WebbPSF)
 
