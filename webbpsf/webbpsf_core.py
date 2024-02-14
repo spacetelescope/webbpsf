@@ -303,9 +303,13 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
             raise ValueError("Detector pixel coordinates must be pairs of nonnegative numbers, not {}".format(position))
         if x < 0 or y < 0:
             raise ValueError("Detector pixel coordinates must be nonnegative integers")
-        if x > self._detector_npixels - 1 or y > self._detector_npixels - 1:
-            raise ValueError("The maximum allowed detector pixel coordinate value is {}".format(
-                self._detector_npixels - 1))
+        if isinstance(self._detector_npixels, tuple):
+            det_npix_y, det_npix_x = self._detector_npixels  # A tuple has been provided for a non-square detector with different Y and X dimensions
+        else:
+            det_npix_y = det_npix_x = self._detector_npixels  # same dimensions in both X and Y
+
+        if x > det_npix_x- 1 or y > det_npix_y - 1:
+            raise ValueError(f"The maximum allowed detector pixel coordinate value is (X,Y) = ({det_npix_x-1}, {det_npix_y-1})")
 
         self._detector_position = (int(position[0]), int(position[1]))
 
@@ -1835,7 +1839,7 @@ class MIRI(JWInstrument):
 
         self._detectors = {'MIRIM': 'MIRIM_FULL'}  # Mapping from user-facing detector names to SIAF entries.
         self.detector = self.detector_list[0]
-        self._detector_npixels = 1024
+        self._detector_npixels = (1032, 1024)  # MIRI detector is not square
         self.detector_position = (512, 512)
 
         self._si_wfe_class = optics.MIRIFieldDependentAberrationAndObscuration

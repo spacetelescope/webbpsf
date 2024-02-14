@@ -87,3 +87,10 @@ def test_miri_slit_apertures():
 
     assert np.isclose(miri._tel_coords()[0].to_value(u.arcsec), ap.V2Ref)
     assert np.isclose(miri._tel_coords()[1].to_value(u.arcsec), ap.V3Ref)
+
+def test_miri_nonsquare_detector():
+    """ Test that we can handle the slightly different
+    dimenssions in X and Y of the MIRI detector"""
+    miri = webbpsf_core.MIRI()
+    miri.detector_position = (1023, 1031)  # recall this is X, Y order
+    assert miri.detector_position == (1023, 1031)
