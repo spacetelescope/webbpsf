@@ -42,8 +42,9 @@ def wavefront_time_series_plot(opdtable, start_date=None, end_date=None, ymin=0,
     ----------
     opdtable : astropy.table.Table
         OPD table, retrieved from MAST. See functons in mast_wss.py
-    start_date, end_date : datetime.datetime objects
-        Start and end dates for the plot time range. Default is March 2022 to present.
+    start_date, end_date : strings or astropy.time.Time objects
+        Start and end dates for the plot time range, specified as strings giving the
+        ISO format datetime, or astropy time.Time instances. Default is March 2022 to present.
     label_visits : bool
         Label program_id:visit_id for each WFS visit.
     label_events : bool
@@ -128,11 +129,13 @@ def wavefront_time_series_plot(opdtable, start_date=None, end_date=None, ymin=0,
     ax.axhline(threshold+20, ls=":", color='gray')
 
     if start_date is None:
-        start_date = datetime.datetime(2022, 3, 20, 0)
+        start_date = astropy.time.Time("2022-03-20 00:00:00")
     if end_date is None:
-        end_date = datetime.datetime.now() + datetime.timedelta(days=7)
-    # start_date = datetime.datetime(2022, 2, 20, 0)
-    ax.set_xlim(start_date, end_date)
+        end_date = astropy.time.Time.now() + 7*u.day
+    start_date = astropy.time.Time(start_date)   # cast any input date string to Time
+    end_date = astropy.time.Time(end_date)
+
+    ax.set_xlim(start_date.plot_date, end_date.plot_date)
 
     ax.xaxis.set_major_locator(matplotlib.dates.WeekdayLocator(interval=1))
     ax.xaxis.set_minor_locator(matplotlib.dates.DayLocator())
@@ -185,7 +188,7 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, pi
     ----------
     opdtable : astropy.table.Table
         OPD table, retrieved from MAST. See functons in mast_wss.py
-    start_date, end_date : astropy.time.Time objects
+    start_date, end_date : astropy.time.Time objects, or strings
         Start and end dates for the plot time range. Default is March 2022 to present.
     thresh : int
         threshold to filter the RMS WFE
@@ -204,6 +207,8 @@ def wfe_histogram_plot(opdtable, start_date=None, end_date=None, thresh=None, pi
         start_date = astropy.time.Time('2022-07-16')
     if end_date is None:
         end_date = astropy.time.Time.now()
+    start_date = astropy.time.Time(start_date)  # cast any input string to Date object
+    end_date = astropy.time.Time(end_date)  # cast any input string to Date object
 
 
     # Look up wavefront sensing and mirror move corrections for that month
