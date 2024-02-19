@@ -946,12 +946,11 @@ def get_month_start_end(year, month):
     return start_date, end_date
 
 
-def filter_opdtable_for_month(year, mon, opdtable):
-    """Filter existing opdtable for a given month
-    This includes the last measurement in the prior month too (if applicable), so we can compute a delta
+def filter_opdtable_for_daterange(start_date,  end_date, opdtable):
+    """Filter existing opdtable for a given time range
+    This includes the last measurement in the prior time range too (if applicable), so we can compute a delta
     to the first one
     """
-    start_date, end_date = get_month_start_end(year, mon)
     # Start a little early, such that we are going to have at least 1 WFS before the start date
     pre_start_date = astropy.time.Time(start_date) - astropy.time.TimeDelta(4 * u.day)
     opdtable = webbpsf.mast_wss.filter_opd_table(
@@ -966,6 +965,30 @@ def filter_opdtable_for_month(year, mon, opdtable):
     opdtable["is_pre"] = is_pre
     opdtable = opdtable[np.sum(is_pre) - 1 :]
 
+    return opdtable
+
+
+def filter_opdtable_for_month(year, mon, opdtable):
+    """Filter existing opdtable for a given month
+    This includes the last measurement in the prior month too (if applicable), so we can compute a delta
+    to the first one
+    """
+    start_date, end_date = get_month_start_end(year, mon)
+    return filter_opdtable_for_daterange(start_date, end_date, opdtable)
+
+
+
+def get_opdtable_for_daterange(start_date, end_date):
+    """Return table of OPD measurements for date range.
+
+    This includes the last measurement preceding this date range, too, so we
+    can compute the first delta at the start of this range.
+    """
+    # Retrieve full OPD table, then trim to the selected time period
+    opdtable0 = webbpsf.mast_wss.retrieve_mast_opd_table()
+    opdtable0 = webbpsf.mast_wss.deduplicate_opd_table(opdtable0)
+
+    opdtable = filter_opdtable_for_daterange(start_date, end_date, opdtable0)
     return opdtable
 
 
@@ -1035,8 +1058,6 @@ def get_dates_for_pid(pid, project='jwst'):
     except:
         print("No access to data for PID {:d}".format(pid))
         return
-
-
 
 
 def monthly_trending_plot(year, month, verbose=True, instrument='NIRCam', filter='F200W', vmax=200, pid=None, opdtable=None):
@@ -1410,6 +1431,7 @@ def plot_phase_retrieval_crosscheck(fn, vmax_fraction=1.0):
 
     return fig
 
+
 def plot_wfs_obs_delta(fn1, fn2, vmax_fraction=1.0):
     """ Display comparison of two weak lens observations
 
@@ -1509,6 +1531,8 @@ def plot_wfs_obs_delta(fn1, fn2, vmax_fraction=1.0):
 def show_wfs_around_obs(filename, verbose='True'):
     """Make a helpful plot showing available WFS before and after some given science
     observation. This can be used to help inform how much WFE variability there was around that time.
+
+    See also show_wfs_during_program.
 
     Parameters
     ----------
@@ -1616,6 +1640,102 @@ def show_wfs_around_obs(filename, verbose='True'):
 
     webbpsf.trending.show_opd_image((wfe_after-wfe_before)*nanmask*1e6, ax=ax4, vmax=vmax, fontsize=10)
     ax4.set_title("Delta WFE\nAfter-Before", color='C1', fontweight='bold')
+
+
+def show_wfs_during_program(program, verbose=False, ax = None, ref_wavefront_date=None):
+    """ Show WFS data for the entire time interval in which a given program was observed.
+
+    Plots time series of the WFS measured RMS WFE as seen in NIRCam, the start and end times
+    of all the observations in that program, and the delta wavefront RMS relative to either
+    the median wavefront during that time period, or to a specifed date.
+
+    See also show_wfs_around_obs.
+
+    Parameters
+    ----------
+    program : str or int
+        Program ID number
+    verbose : str
+        be more verbose in output?
+    ax : matplotlib.Axes instance, or None
+        an existing Axes to plot into, or else a new one will be created.
+    ref_wavefront_date : date-like str or None
+    	Optional, to specify which date's wavefront sensing should be used as
+    	the reference wavefront for computation of the plotted delta WFE RMS.
+    	The closest wavefront in time to the specified date will be used.
+    	If not set, the median wavefront over the entire time period will be used.
+    """
+
+    # Query mast for when the observations took place
+    science_visit_table = webbpsf.mast_wss.query_program_visit_times(program, verbose=verbose)
+    science_visit_table.sort(keys=['start_mjd'])
+
+    # Figure out reasonable start and end dates for the time interval to display
+    sci_duration = science_visit_table['start_mjd'].max() - science_visit_table['start_mjd'].min()
+    plot_padding_time_range = max(sci_duration.to(u.day)*0.2, 4*u.day)
+    start_date = science_visit_table['start_mjd'].min() - plot_padding_time_range
+    end_date =  science_visit_table['end_mjd'].max() + plot_padding_time_range
+
+    # Look up wavefront sensing and mirror move corrections for that range
+    opdtable = get_opdtable_for_daterange(start_date, end_date)
+    corrections_table = webbpsf.mast_wss.get_corrections(opdtable)
+
+    # Iterate over the WFS measurements to retrieve the OPDs and RMS WFE
+    wfs_dates = []
+    rms_obs = []
+    opds = []
+    for row_index in range(len(opdtable)):
+        opd_fn = opdtable[row_index]['fileName']
+        opd, opd_hdul = webbpsf.trending._read_opd(opd_fn)
+
+        opds.append(opd)
+        wfs_dates.append(opdtable[row_index]['date'])
+        rms_obs.append(opd_hdul[1].header['RMS_WFE']*1000)
+    wfs_dates_array = astropy.time.Time(wfs_dates, format='isot')
+    opd_array = np.asarray(opds)
+
+    # Compute delta WFE, either relative to median or a specifed date
+    if ref_wavefront_date:
+        refdate = astropy.time.Time(ref_wavefront_date)
+        delta_times = wfs_dates_array - refdate
+        closest = np.argmin(np.abs(delta_times))
+        reference_opd = opds[closest]
+        ref_label = "WFS near "+ref_wavefront_date
+        if verbose:
+            print(f"for date {ref_wavefront_date}, using opd {closest}")
+    else:
+        median_opd = np.median(opd_array, axis=0)
+        reference_opd = median_opd
+        ref_label = 'median wavefront'
+    delta_opds = opd_array - reference_opd
+    mask = opd_array.sum(axis=0)!=0
+    delta_rmses = [webbpsf.utils.rms(d, mask=mask)*1000 for d in delta_opds]
+
+    # Plot!
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(8,4), ncols=1, nrows=1)
+
+    ax.plot_date(wfs_dates_array.plot_date, rms_obs, '+',
+                 color='C1', ls='-', label='Measured RMS Wavefront Error at NIRCam NRCA3')
+    ax.plot_date(wfs_dates_array.plot_date, delta_rmses,'none',
+                 color='C0', ls='--', label=f'RMS Delta Wavefront relative to {ref_label}')
+
+    plot_sci_y = 25
+    ax.scatter(science_visit_table['start_mjd'].plot_date,
+               [plot_sci_y]*len(science_visit_table), s=150, marker="*", color='black' ,
+               label=f'Program {program} observations')
+    for row in science_visit_table:
+        ax.fill_betweenx([0,120], row['start_mjd'].plot_date, (row['end_mjd']).plot_date,
+                        color='gray', alpha=0.2)
+        ax.text(row['start_mjd'].plot_date, plot_sci_y+4, row['visit_id'], rotation=45, fontsize='small')
+
+    ax.set_ylim(0,120)
+    ax.legend(framealpha=0.99)
+    ax.xaxis.set_major_formatter(
+        matplotlib.dates.ConciseDateFormatter(ax.xaxis.get_major_locator()))
+    ax.set_ylabel("Measured Wavefront Error RMS [nm]")
+    ax.set_xlim(start_date.plot_date, end_date.plot_date)
+
 
 
 #### Functions for image comparisons
