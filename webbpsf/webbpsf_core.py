@@ -419,7 +419,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
         optsys.add_pupil(pupil_optic)
 
         pupil_rms_wfe_nm = np.sqrt(np.mean(pupil_optic.opd[pupil_optic.amplitude == 1] ** 2)) * 1e9
-        self._extra_keywords['TEL_WFE'] = (pupil_rms_wfe_nm, '[nm] Telescope pupil RMS wavefront error')
+        self._extra_keywords['TEL_WFE'] = (float(pupil_rms_wfe_nm), '[nm] Telescope pupil RMS wavefront error')
         if hasattr(pupil_optic, 'header_keywords'):
             self._extra_keywords.update(pupil_optic.header_keywords())
 
@@ -446,7 +446,7 @@ class SpaceTelescopeInstrument(poppy.instrument.Instrument):
                 # though with a flip in the Y axis to account for entrance vs. exit pupil conventions
                 exit_pupil_mask = pupil_optic.amplitude[::-1] == 1
                 inst_rms_wfe_nm = np.sqrt(np.mean(aberration_optic.opd[exit_pupil_mask] ** 2)) * 1e9
-                self._extra_keywords['SI_WFE'] = (inst_rms_wfe_nm, '[nm] instrument pupil RMS wavefront error')
+                self._extra_keywords['SI_WFE'] = (float(inst_rms_wfe_nm), '[nm] instrument pupil RMS wavefront error')
             except (TypeError, IndexError):
                 # Currently the above does not work for Roman, but fixing this is deferred to future work
                 pass
