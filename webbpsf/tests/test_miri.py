@@ -94,3 +94,10 @@ def test_miri_nonsquare_detector():
     miri = webbpsf_core.MIRI()
     miri.detector_position = (1023, 1031)  # recall this is X, Y order
     assert miri.detector_position == (1023, 1031)
+
+def test_mode_switch():
+    miri = webbpsf_core.MIRI()
+    miri.mode = 'IFU'
+    assert 'IFU' in miri.aperturename
+    miri.mode = 'imaging'
+    assert 'IFU' not in miri.aperturename
