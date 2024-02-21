@@ -960,6 +960,9 @@ class JWInstrument(SpaceTelescopeInstrument):
                 self._aperturename = value
                 # Update DetectorGeometry class
                 self._detector_geom_info = DetectorGeometry(self.siaf, self._aperturename)
+                if not has_custom_pixelscale:
+                    self.pixelscale = self._get_pixelscale_from_apername(value)
+                    _log.debug( f"Pixelscale updated to {self.pixelscale} based on IFU cubepars for {value}")
 
             else:
                 if self.detector not in value:
@@ -2177,8 +2180,12 @@ class MIRI(JWInstrument_with_IFU):
         """Simple utility function to look up pixelscale from apername"""
 
         if 'MIRIFU' in apername:
-            print('special case for MIRI IFU pixelscales')
-            return 0.1
+            if apername.startswith('MIRIFU_CHANNEL'):
+                band = apername[-2:]
+                spaxelsize, _, _, _= self._IFU_bands_cubepars[band]
+                return spaxelsize
+            else:
+                raise RuntimeError(f"Not sure how to determine pixelscale for {apername}")
         else:
             return super()._get_pixelscale_from_apername(apername)
 
@@ -2252,7 +2259,6 @@ class MIRI(JWInstrument_with_IFU):
         if value in self._IFU_bands_cubepars.keys():
             self._band = value
             #self._slice_width = self._IFU_pixelscale[f"Ch{self._band[0]}"][0]
-
             self.aperturename = 'MIRIFU_CHANNEL' + value
             # setting aperturename will also auto update self._rotation
             #self._rotation = self.MRS_rotation[self._band]
@@ -2973,7 +2979,6 @@ class NIRSpec(JWInstrument_with_IFU):
     def _get_pixelscale_from_apername(self, apername):
         """Simple utility function to look up pixelscale from apername"""
         if 'IFU' in apername:
-            print('DEBUG - special case for NIRSpec IFU pixelscales')
             return super()._get_pixelscale_from_apername('NRS1_FULL')
         else:
             return super()._get_pixelscale_from_apername(apername)
