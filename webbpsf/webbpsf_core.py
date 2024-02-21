@@ -22,6 +22,7 @@ Code by Marshall Perrin <mperrin@stsci.edu>
 import os
 import glob
 from collections import namedtuple, OrderedDict
+from abc import ABC, abstractmethod
 import numpy as np
 import scipy.interpolate, scipy.ndimage
 
@@ -1736,6 +1737,10 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         # Allow up to 10,000 wavelength slices. The number matters because FITS
         # header keys can only have up to 8 characters. Backward-compatible.
+
+        if isinstance(wavelengths, units.Quantity):
+            wavelengths = wavelengths.to_value(units.m)
+
         nwavelengths = len(wavelengths)
         if nwavelengths < 100:
             label_wl = lambda i: 'WAVELN{:02d}'.format(i)
@@ -1828,7 +1833,7 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         return cubefast
 
-class JWInstrument_with_IFU(JWInstrument):
+class JWInstrument_with_IFU(JWInstrument, ABC):
     """ Subclass which adds some additional infrastructure for IFU sims"""
 
 
@@ -1838,6 +1843,8 @@ class JWInstrument_with_IFU(JWInstrument):
         self._modes_list = {'imaging': None,
                             'IFU': None}
         self._mode = 'imaging'
+
+        self._IFU_bands_cubepars = {}  # placeholder, subclass should implement
 
     @property
     def mode(self):
@@ -1851,6 +1858,26 @@ class JWInstrument_with_IFU(JWInstrument):
             raise ValueError(f"'{value} is not an allowed mode for this instrument.")
         self._mode = value
         self.set_position_from_aperture_name(self._modes_list[value])
+
+    @property
+    @abstractmethod
+    def band(self):
+        # Subclass must implement this
+        pass
+
+    def get_IFU_wavelengths(self, nlambda=None):
+        """Return an array of wavelengths spanning the currently selected IFU sub-band
+        """
+        if self.mode != 'IFU':
+            raise RuntimeError("This method only applies in IFU mode")
+        spaxelsize, wavestep, minwave, maxwave = self._IFU_bands_cubepars[self.band]
+        if nlambda:
+            # Return the specified number of wavelengths, across that band
+            return np.linspace(minwave, maxwave, nlambda) * units.micron
+        else:
+            # Return wavelength across that band using the same spectral sampling
+            # as the instrument and pipeline
+            return np.arange(minwave, maxwave, wavestep) * units.micron
 
 
 class MIRI(JWInstrument_with_IFU):
@@ -1897,32 +1924,48 @@ class MIRI(JWInstrument_with_IFU):
 
         self.monochromatic = 8.0
         self._IFU_pixelscale = {
-            'Ch1': (0.18, 0.19),
-            'Ch2': (0.28, 0.19),
-            'Ch3': (0.39, 0.24),
-            'Ch4': (0.64, 0.27),
+            'Ch1': (0.176, 0.196),
+            'Ch2': (0.277, 0.196),
+            'Ch3': (0.387, 0.245),
+            'Ch4': (0.645, 0.273),
         }
-        # The above tuples give the pixel resolution (perpendicular to the slice, along the slice).
-        # The pixels are not square.
+        # The above tuples give the pixel resolution (first the 'alpha' direction, perpendicular to the slice,
+        # then the 'beta' direction, along the slice).
+        # The pixels are not square.  See https://jwst-docs.stsci.edu/jwst-mid-infrared-instrument/miri-observing-modes/miri-medium-resolution-spectroscopy
 
         # Mappings between alternate names used for MRS subbands
         self._MRS_dichroic_to_subband = {"SHORT": "A", "MEDIUM": "B", "LONG": "C"}
         self._MRS_subband_to_dichroic = {"A": "SHORT", "B": "MEDIUM", "C": "LONG"}
 
         self._band = None
-        self._MRS_bands = {"1A": [4.887326748103221, 5.753418963216559],   # Values provided by Polychronis Patapis
-                           "1B": [5.644625711181792, 6.644794583147869],   # To-do: obtain from CRDS pipeline refs
-                           "1C": [6.513777066360325, 7.669147994055998],
-                           "2A": [7.494966046398437, 8.782517027772244],
-                           "2B": [8.651469658142522, 10.168811217793243],
-                           "2C": [9.995281242621394, 11.73039280033565],
-                           "3A": [11.529088518317131, 13.491500288051483],
-                           "3B": [13.272122736770127, 15.550153182343314],
-                           "3C": [15.389530615108631, 18.04357852656418],
-                           "4A": [17.686540162850203, 20.973301482912323],
-                           "4B": [20.671069749545193, 24.476094964546686],
-                           "4C": [24.19608171436692, 28.64871057821349]}
-
+#        self._MRS_bands = {"1A": [4.887326748103221, 5.753418963216559],   # Values provided by Polychronis Patapis
+#                           "1B": [5.644625711181792, 6.644794583147869],   # To-do: obtain from CRDS pipeline refs
+#                           "1C": [6.513777066360325, 7.669147994055998],
+#                           "2A": [7.494966046398437, 8.782517027772244],
+#                           "2B": [8.651469658142522, 10.168811217793243],
+#                           "2C": [9.995281242621394, 11.73039280033565],
+#                           "3A": [11.529088518317131, 13.491500288051483],
+#                           "3B": [13.272122736770127, 15.550153182343314],
+#                           "3C": [15.389530615108631, 18.04357852656418],
+#                           "4A": [17.686540162850203, 20.973301482912323],
+#                           "4B": [20.671069749545193, 24.476094964546686],
+#                           "4C": [24.19608171436692, 28.64871057821349]}
+        self._IFU_bands_cubepars = {  # pipeline data cube parameters
+                # Taken from ifucubepars_table in CRDS file 'jwst_miri_cubepar_0014.fits', current as of 2023 December
+                # Each tuple gives pipeline spaxelsize, spectralstep, wave_min, wave_max
+                '1A': (0.13, 0.0008, 4.90, 5.74),
+                '1B': (0.13, 0.0008, 5.66, 6.63),
+                '1C': (0.13, 0.0008, 6.53, 7.65),
+                '2A': (0.17, 0.0013, 7.51, 8.77),
+                '2B': (0.17, 0.0013, 8.67, 10.13),
+                '2C': (0.17, 0.0013, 10.01, 11.70),
+                '3A': (0.20, 0.0025, 11.55, 13.47),
+                '3B': (0.20, 0.0025, 13.34, 15.57),
+                '3C': (0.20, 0.0025, 15.41, 17.98),
+                '4A': (0.35, 0.0060, 17.70, 20.95),
+                '4B': (0.35, 0.0060, 20.69, 24.48),
+                '4C': (0.35, 0.0060, 24.40, 28.70),
+        }
 
         self._detectors = {'MIRIM': 'MIRIM_FULL',  # Mapping from user-facing detector names to SIAF entries.
                            'MIRIFUSHORT': 'MIRIFU_CHANNEL1A',   # only applicable in IFU mode
@@ -2206,7 +2249,7 @@ class MIRI(JWInstrument_with_IFU):
                 raise RuntimeError("The 'band' property is only valid for IFU mode simulations.")
             return
 
-        if value in self._MRS_bands.keys():
+        if value in self._IFU_bands_cubepars.keys():
             self._band = value
             #self._slice_width = self._IFU_pixelscale[f"Ch{self._band[0]}"][0]
 
@@ -2221,6 +2264,17 @@ class MIRI(JWInstrument_with_IFU):
         #    self._wavelength = np.mean(self.MRSbands[self.band])
         else:
             raise ValueError(f"Not a valid MRS band: {value}")
+
+    def _calc_psf_format_output(self, result, options):
+        """ Format output HDUList. In particular, add some extra metadata if in IFU mode"""
+        super()._calc_psf_format_output(result, options)
+        if self.mode =='IFU':
+            n_exts = len(result)
+            for ext in np.arange(n_exts):
+                result[ext].header['MODE'] = ("IFU", 'This is a MIRI MRS IFU mode simulation')
+                result[ext].header['FILTER'] = ('MIRIFU_CHANNEL'+self.band, 'MIRI IFU sub-band simulated')
+                result[ext].header['BAND'] = (self.band, 'MIRI IFU sub-band simulated')
+
 
 class NIRCam(JWInstrument):
     """ A class modeling the optics of NIRCam.
@@ -2757,6 +2811,20 @@ class NIRSpec(JWInstrument_with_IFU):
         self.image_mask = 'MSA all open'
         self.pupil_mask = self.pupil_mask_list[-1]
 
+        self.disperser_list = ['PRISM', 'G140M', 'G140H', 'G235M', 'G235H', 'G394M', 'G395H']
+        self._disperser = None
+        self._IFU_bands_cubepars  = {
+            'PRISM/CLEAR': (0.10, 0.0050, 0.60, 5.30),
+            'G140M/F070LP': (0.10, 0.0006, 0.70, 1.27),
+            'G140M/F100LP': (0.10, 0.0006, 0.97, 1.89),
+            'G140H/F070LP': (0.10, 0.0002, 0.70, 1.27),
+            'G140H/F100LP': (0.10, 0.0002, 0.97, 1.89),
+            'G235M/F170LP': (0.10, 0.0011, 1.66, 3.17),
+            'G235H/F170LP': (0.10, 0.0004, 1.66, 3.17),
+            'G395M/F290LP': (0.10, 0.0018, 2.87, 5.27),
+            'G395H/F290LP': (0.10, 0.0007, 2.87, 5.27),
+        }
+
         det_list = ['NRS1', 'NRS2']
         self._detectors = dict()
         for name in det_list: self._detectors[name] = '{0}_FULL'.format(name)
@@ -2875,12 +2943,13 @@ class NIRSpec(JWInstrument_with_IFU):
                     self.pixelscale = self._get_pixelscale_from_apername(detector_apername)
                     _log.debug(f"Pixelscale updated to {self.pixelscale} based on average X+Y SciScale at SIAF aperture {self._aperturename}")
 
-
                 if 'IFU' in self.aperturename:
                     self._mode = 'IFU'
+                    if self._disperser is None:
+                        self.disperser = 'PRISM'  # Set some default spectral mode
+                        self.filter = 'CLEAR'
                 else:
                     self._mode = 'imaging' # More to implement here later!
-
 
 
     def _tel_coords(self):
@@ -2908,6 +2977,45 @@ class NIRSpec(JWInstrument_with_IFU):
             return super()._get_pixelscale_from_apername('NRS1_FULL')
         else:
             return super()._get_pixelscale_from_apername(apername)
+
+    @property
+    def disperser(self):
+        """NIRSpec spectral dispersing element (grating or prism).
+        Only applies for IFU mode sims, currently; used to help set the
+        wavelength range to simulate
+        """
+        if self.mode =='IFU':
+            return self._disperser
+        else:
+            return None
+
+    @disperser.setter
+    def disperser(self, value):
+        if (value is None) or (value in self.disperser_list):
+            self._disperser = value
+        else:
+            raise RuntimeError(f'Not a valid NIRSpec disperser name: {value}')
+
+    def _calc_psf_format_output(self, result, options):
+        """ Format output HDUList. In particular, add some extra metadata if in IFU mode"""
+        super()._calc_psf_format_output(result, options)
+        if self.mode == 'IFU':
+            n_exts = len(result)
+            for ext in np.arange(n_exts):
+                result[ext].header['MODE'] = ("IFU", 'This is a NIRSpec IFU mode simulation')
+                result[ext].header['GRATING'] = (self.disperser, 'Name of the grating (or prism) element simulated.')
+
+
+    @property
+    def band(self):
+        if self.mode != 'IFU':
+            return None
+
+        return self.disperser + "/" + self.filter
+
+    @band.setter
+    def band(self, value):
+        raise RuntimeError("This is a read-only property. Set grating and/or filter attributes instead.")
 
 
 class NIRISS(JWInstrument):

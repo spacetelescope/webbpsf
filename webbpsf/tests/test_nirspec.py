@@ -53,7 +53,16 @@ def test_calc_datacube_fast():
 
 def test_mode_switch():
     nrs = webbpsf_core.NIRSpec()
+    # check mode swith to IFU
     nrs.mode = 'IFU'
     assert 'IFU' in nrs.aperturename
+    assert nrs.band == 'PRISM/CLEAR'
+
+    # check switch of which IFU band
+    nrs.grating = 'G395H'
+    nrs.filter = 'F290LP'
+    assert nrs.band == 'G395H/F290LP'
+
+    # check mode switch back to imaging
     nrs.mode = 'imaging'
     assert 'IFU' not in nrs.aperturename
