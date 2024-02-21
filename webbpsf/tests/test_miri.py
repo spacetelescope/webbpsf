@@ -133,3 +133,12 @@ def test_mode_switch():
     assert miri.detector =='MIRIFUSHORT'
     assert miri.aperturename.startswith('MIRIFU_CH')
     assert miri._rotation != imager_rotation
+
+    # band switching should toggle detector and aper name
+    miri.band = '4C'
+    assert miri.detector == 'MIRIFULONG'
+    assert miri.aperturename == 'MIRIFU_CHANNEL4C'
+
+    miri.band = '2A'
+    assert miri.detector == 'MIRIFUSHORT'
+    assert miri.aperturename == 'MIRIFU_CHANNEL2A'

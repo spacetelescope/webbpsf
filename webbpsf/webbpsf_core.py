@@ -2180,6 +2180,7 @@ class MIRI(JWInstrument_with_IFU):
         if self.mode == 'IFU':
             if self.band != value[-2:]:
                 self.band = value[-2:]
+            self._detector = 'MIRIFULONG' if self.band[0] in ['3', '4'] else 'MIRIFUSHORT'
 
 
     @property
