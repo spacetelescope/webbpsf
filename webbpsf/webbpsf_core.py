@@ -957,6 +957,8 @@ class JWInstrument(SpaceTelescopeInstrument):
 
                 # Now apply changes:
                 self._aperturename = value
+                # Update DetectorGeometry class
+                self._detector_geom_info = DetectorGeometry(self.siaf, self._aperturename)
 
             else:
                 if self.detector not in value:
@@ -1022,10 +1024,14 @@ class JWInstrument(SpaceTelescopeInstrument):
             detname = aperture_name.split('_')[0]
 
             if detname.startswith('MIRIFU'):
+                self._mode = 'IFU'
                 if 'CHANNEL1' in aperture_name or 'CHANNEL2' in aperture_name:
                     self.detector = 'MIRIFUSHORT'
                 else:
                     self.detector = 'MIRIFULONG'
+            elif detname.startswith('MIRIM'):
+                self._mode = 'imaging'
+                self.detector = detname  # As a side effect this auto reloads SIAF info, see detector.setter
 
             elif detname != 'NRS': # Many NIRSpec slit apertures are defined generally, not for a specific detector
                 self.detector = detname  # As a side effect this auto reloads SIAF info, see detector.setter
@@ -1891,6 +1897,25 @@ class MIRI(JWInstrument_with_IFU):
         # The above tuples give the pixel resolution (perpendicular to the slice, along the slice).
         # The pixels are not square.
 
+        # Mappings between alternate names used for MRS subbands
+        self._MRS_dichroic_to_subband = {"SHORT": "A", "MEDIUM": "B", "LONG": "C"}
+        self._MRS_subband_to_dichroic = {"A": "SHORT", "B": "MEDIUM", "C": "LONG"}
+
+        self._band = None
+        self._MRS_bands = {"1A": [4.887326748103221, 5.753418963216559],   # Values provided by Polychronis Patapis
+                           "1B": [5.644625711181792, 6.644794583147869],   # To-do: obtain from CRDS pipeline refs
+                           "1C": [6.513777066360325, 7.669147994055998],
+                           "2A": [7.494966046398437, 8.782517027772244],
+                           "2B": [8.651469658142522, 10.168811217793243],
+                           "2C": [9.995281242621394, 11.73039280033565],
+                           "3A": [11.529088518317131, 13.491500288051483],
+                           "3B": [13.272122736770127, 15.550153182343314],
+                           "3C": [15.389530615108631, 18.04357852656418],
+                           "4A": [17.686540162850203, 20.973301482912323],
+                           "4B": [20.671069749545193, 24.476094964546686],
+                           "4C": [24.19608171436692, 28.64871057821349]}
+
+
         self._detectors = {'MIRIM': 'MIRIM_FULL',  # Mapping from user-facing detector names to SIAF entries.
                            'MIRIFUSHORT': 'MIRIFU_CHANNEL1A',   # only applicable in IFU mode
                            'MIRIFULONG': 'MIRIFU_CHANNEL3A'}    # ditto
@@ -2070,8 +2095,12 @@ class MIRI(JWInstrument_with_IFU):
                 apname = 'MIRIM_FULL'  # LRS slit uses full array readout
             else:
                 apname = self._image_mask_apertures[self._image_mask]
-        else:
+        elif self.mode == 'imaging':
             apname = 'MIRIM_FULL'
+        else:
+            # IFU mode is complex, don't try to set a different apname here
+            # (This gracefully works around an edge case in mode switching)
+            apname = self.aperturename
 
         # Call aperturename.setter to update ap ref coords and DetectorGeometry class
         self.aperturename = apname
@@ -2101,6 +2130,88 @@ class MIRI(JWInstrument_with_IFU):
             return 0.1
         else:
             return super()._get_pixelscale_from_apername(apername)
+
+    def _get_aperture_rotation(self, apername):
+        """Get the rotation angle of a given aperture, using values from SIAF.
+
+        Returns ~ position angle counterclockwise from the V3 axis, in degrees
+        (i.e. consistent with SIAF V3IdlYangle)
+
+        Note, MIRIFU aperture geometry is extremely complex, and this oversimplifies.
+        See https://jwst-docs.stsci.edu/jwst-mid-infrared-instrument/miri-instrumentation/miri-mrs-field-and-coordinates
+        Consistent with that reference, we compute the angle of the along-slice (alpha) direction relative to the
+        horizontal (V2). Because the apertuers are skewed, this yields different values by several degrees
+        than an equivalent calculation for beta.
+        """
+        if apername.startswith('MIRIM'):
+            return self.siaf['MIRIM_FULL'].V3IdlYAngle
+        elif apername.startswith('MIRIFU'):
+            # These SLIT or COMPOUND apertures do not have a V3IdlYangle param defined in SIAF
+            # But we can work out the angles from the aperture corner vertices which are defined.
+            cx, cy = self.siaf[apername].corners('tel', rederive=False)
+            # The aperture shapes are irregular quadrilaterals, not squares or rectangles
+            # So, take the angles of both alpha-axis (~horizontal) sides, and average them to get an average rotation angle
+            dx = cx[0] - cx[1]
+            dy = cy[0] - cy[1]
+            dx2 = cx[3] - cx[2]
+            dy2 = cy[3] - cy[2]
+            # take the average, and convert to degrees.
+            # The signs and parity of the arctan2 are atypical here, to match the expected output convention of
+            # rotation counterclockwise relative to the V2V3 frame.
+            avg_V3IdlYangle = np.rad2deg((np.arctan2(dy, -dx) + np.arctan2(dy2, -dx2)) / 2)
+            return avg_V3IdlYangle
+        else:
+            raise ValueError(f"Unexpected/invalid apername for MIRI: {apername}")
+
+
+    @JWInstrument_with_IFU.aperturename.setter
+    def aperturename(self, value):
+        """Set aperturename, also update the rotation for MIRIM vs. IFU channel """
+        # apply the provided aperture name
+        # Note, the syntax for calling a parent class property setter is... painful:
+        super(MIRI, type(self)).aperturename.fset(self, value)
+        # Update the rotation angle
+        self._rotation = self._get_aperture_rotation(self.aperturename)
+
+        # if it's an IFU aperture, we're now in IFU mode:
+        self._mode = 'IFU' if value.startswith('MIRIFU') else 'imaging'
+        # if in IFU mode, we probably also want to update the IFU band
+
+        if self.mode == 'IFU':
+            if self.band != value[-2:]:
+                self.band = value[-2:]
+
+
+    @property
+    def band(self):
+        """MRS IFU spectral band. E.g. '1A', '3B'. Only applicable in IFU mode."""
+        if self.mode == 'IFU':
+            return self._band
+        else:
+            return None
+
+    @band.setter
+    def band(self, value):
+        if self.mode != 'IFU':
+            if value is not None:
+                raise RuntimeError("The 'band' property is only valid for IFU mode simulations.")
+            return
+
+        if value in self._MRS_bands.keys():
+            self._band = value
+            #self._slice_width = self._IFU_pixelscale[f"Ch{self._band[0]}"][0]
+
+            self.aperturename = 'MIRIFU_CHANNEL' + value
+            # setting aperturename will also auto update self._rotation
+            #self._rotation = self.MRS_rotation[self._band]
+            # update filter, image_mask and detector
+            #self._filter = "D"+ self.subband_to_dichroic[self._band[1]]
+            #self._image_mask = "MIRI-IFU_" + self._band[0]
+            #self._update_detector()
+        #if not (self.MRSbands[self.band][0] <= self._wavelength <= self.MRSbands[self.band][1]):
+        #    self._wavelength = np.mean(self.MRSbands[self.band])
+        else:
+            raise ValueError(f"Not a valid MRS band: {value}")
 
 class NIRCam(JWInstrument):
     """ A class modeling the optics of NIRCam.

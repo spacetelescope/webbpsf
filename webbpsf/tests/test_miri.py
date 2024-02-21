@@ -97,7 +97,39 @@ def test_miri_nonsquare_detector():
 
 def test_mode_switch():
     miri = webbpsf_core.MIRI()
+    imager_rotation = miri._rotation
+
+    # Explicitly switch mode to IFU
     miri.mode = 'IFU'
     assert 'IFU' in miri.aperturename
+    assert miri.detector =='MIRIFUSHORT'
+    assert miri.aperturename.startswith('MIRIFU_CH')
+    assert miri._rotation != imager_rotation
+    # Explicitly switch back to imaging
     miri.mode = 'imaging'
     assert 'IFU' not in miri.aperturename
+    assert miri.detector =='MIRIM'
+    assert miri.aperturename.startswith('MIRIM_')
+    assert miri._rotation == imager_rotation
+
+    # Implicitly switch to IFU 
+    miri.set_position_from_aperture_name('MIRIFU_CHANNEL3B')
+    assert 'IFU' in miri.aperturename
+    assert miri.detector =='MIRIFULONG'
+    assert miri.aperturename == 'MIRIFU_CHANNEL3B'
+    assert miri._rotation != imager_rotation
+
+    # implicitly switch to imaging
+    # LRS is an odd case, SLIT aper type but operates like in imaging mode
+    miri.set_position_from_aperture_name('MIRIM_SLIT')
+    assert 'IFU' not in miri.aperturename
+    assert miri.detector =='MIRIM'
+    assert miri.aperturename.startswith('MIRIM_')
+    assert miri._rotation == imager_rotation
+
+    # And back to IFU again:
+    miri.mode = 'IFU'
+    assert 'IFU' in miri.aperturename
+    assert miri.detector =='MIRIFUSHORT'
+    assert miri.aperturename.startswith('MIRIFU_CH')
+    assert miri._rotation != imager_rotation
