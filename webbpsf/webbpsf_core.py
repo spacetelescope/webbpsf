@@ -1121,9 +1121,7 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         # Add distortion if set in calc_psf
         if add_distortion:
-            _log.debug("Adding PSF distortion(s)")
-            if self.image_mask == "LRS slit" and self.pupil_mask == "P750L":
-                raise NotImplementedError("Distortion is not implemented yet for MIRI LRS mode.")
+            _log.debug("Adding PSF distortion(s) and detector effects")
 
             # Set up new extensions to add distortion to:
             n_exts = len(result)
@@ -1144,8 +1142,11 @@ class JWInstrument(SpaceTelescopeInstrument):
             elif self.name == "MIRI":
                 # Apply distortion effects to MIRI psf: Distortion and MIRI Scattering
                 _log.debug("MIRI: Adding optical distortion and Si:As detector internal scattering")
-                psf_siaf = distortion.apply_distortion(result)  # apply siaf distortion
-                psf_siaf_rot = detectors.apply_miri_scattering(psf_siaf)  # apply scattering effect
+                if self.image_mask != "LRS slit" and self.pupil_mask != "P750L":
+                    psf_siaf = distortion.apply_distortion(result)  # apply siaf distortion
+                else:
+                    psf_siaf = result  # distortion model in SIAF not available for LRS
+                psf_siaf_rot = detectors.apply_miri_scattering(psf_siaf)  # apply scattering effect (cruciform artifact)
                 psf_distorted = detectors.apply_detector_charge_diffusion(psf_siaf_rot,options)  # apply detector charge transfer model
             elif self.name == "NIRSpec":
                 # Apply distortion effects to NIRSpec psf: Distortion only
