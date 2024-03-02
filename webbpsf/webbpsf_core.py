@@ -1208,38 +1208,54 @@ class JWInstrument(SpaceTelescopeInstrument):
         return newopd
 
 
-    def _get_pupil_shift(self):
-        """ Return a tuple of pupil shifts, for passing to OpticalElement constructors
-        This is a minor utility function that gets used in most of the subclass optical
+    def _get_pupil_mask_alignment(self, lookup_key=None):
+        """ Return a tuple of pupil shifts and rotation, for passing to OpticalElement constructors
+        This is a utility function that gets used in most of the subclass optical
         system construction.
 
+        This has two main parts:
+        1. Determine values for the pupil mask shift X, Y, and rotation, which can either be from:
+            1a) Explicitly provided by the user in self.options
+            1b) Or else, (optional) default positions per each mask, set in constants.py
+            1c) Otherwise return None
+        2. Convert any pupil mask shift X, Y from fractions of the pupil to offsets in meters
+        projected into the primary aperture.
         For historical reasons, the pupil_shift_x and pupil_shift_y options are expressed
         in fractions of the pupil. The parameters to poppy should now be expressed in
         meters of shift. So the translation of that happens here.
 
         Returns
         -------
-        shift_x, shift_y : floats or Nones
-            Pupil shifts, expressed in meters.
+        shift_x, shift_y, rotation : floats or Nones
+            Pupil shifts, expressed in meters. And rotation in degrees.
 
         """
-        if ('pupil_shift_x' in self.options and self.options['pupil_shift_x'] != 0) or \
-                ('pupil_shift_y' in self.options and self.options['pupil_shift_y'] != 0):
 
-            from .constants import JWST_CIRCUMSCRIBED_DIAMETER
-            # missing values are treated as 0's
-            shift_x = self.options.get('pupil_shift_x', 0)
-            shift_y = self.options.get('pupil_shift_y', 0)
-            # nones are likewise treated as 0's
-            if shift_x is None: shift_x = 0
-            if shift_y is None: shift_y = 0
-            # Apply pupil scale
-            shift_x *= JWST_CIRCUMSCRIBED_DIAMETER
-            shift_y *= JWST_CIRCUMSCRIBED_DIAMETER
-            _log.info("Setting Lyot pupil shift to ({}, {})".format(shift_x,shift_y))
-        else:
-            shift_x, shift_y = None, None
-        return shift_x, shift_y
+        if not self.pupil_mask:
+            # if there is no pupil stop mask, these have no effect, so no need to do anything more to find values
+            return 0,0,None
+
+        if not lookup_key:
+            lookup_key = self.name + "_" + self.pupil_mask
+
+        values = []
+        for param in ('pupil_shift_x', 'pupil_shift_y', 'pupil_rotation'):
+            val = self.options.get(param)  # has user directly provided a value?
+            # if not, check if we have a default for this instrument + mask
+            if (val is None) and (lookup_key in constants.INSTRUMENT_PUPIL_MASK_DEFAULT_POSITIONS):
+                val = constants.INSTRUMENT_PUPIL_MASK_DEFAULT_POSITIONS[lookup_key].get(param)
+                _log.debug(f" Found default {lookup_key} {param} = {val}")
+
+            if val is not None and param.startswith('pupil_shift'):
+                val *= constants.JWST_CIRCUMSCRIBED_DIAMETER
+            values.append(val)
+
+        shift_x, shift_y, rotation = values
+
+        if any(values):
+            _log.info(f"Setting instrument pupil mask shift to ({shift_x}, {shift_y}), rotation={rotation}")
+
+        return shift_x, shift_y, rotation
 
 
     def _apply_jitter(self,  result, local_options=None):
@@ -1965,8 +1981,7 @@ class MIRI(JWInstrument):
             optsys.add_pupil(poppy.FQPM_FFT_aligner(direction='backward'))
 
         # add pupil plane mask
-        shift_x, shift_y = self._get_pupil_shift()
-        rotation = self.options.get('pupil_rotation', None)
+        shift_x, shift_y, rotation = self._get_pupil_mask_alignment()
 
         if self.options.get('coron_include_pre_lyot_plane', False) and self.pupil_mask.startswith('MASK'):
             optsys.add_pupil(poppy.ScalarTransmission(name='Pre Lyot Stop'))
@@ -2466,8 +2481,7 @@ class NIRCam(JWInstrument):
             trySAM = False
 
         # add pupil plane mask
-        shift_x, shift_y = self._get_pupil_shift()
-        rotation = self.options.get('pupil_rotation', None)
+        shift_x, shift_y, rotation = self._get_pupil_mask_alignment()
 
         # NIRCam as-built weak lenses, from WSS config file, PRDOPSFLT-027
         WLP4_diversity = 8.3443  # microns
@@ -2729,8 +2743,7 @@ class NIRISS(JWInstrument):
             radius = 0.0  # irrelevant but variable needs to be initialized
 
         # add pupil plane mask
-        shift_x, shift_y = self._get_pupil_shift()
-        rotation = self.options.get('pupil_rotation', None)
+        shift_x, shift_y, rotation = self._get_pupil_mask_alignment()
 
         # Note - the syntax for specifying shifts is different between FITS files and
         # AnalyticOpticalElement instances. Annoying but historical.
