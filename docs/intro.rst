@@ -12,7 +12,7 @@ Introduction
 
 **What this software does NOT do:**
 
-* Contain in itself any detailed thermal or optical model of JWST or Roman. For the results of end-to-end integrated simulations of JWST, see for instance `Predicted JWST imaging performance (Knight, Lightsey, & Barto; Proc. SPIE 2012) <http://proceedings.spiedigitallibrary.org/proceeding.aspx?articleid=1362264>`_. For Roman modeling, see `the Roman Reference Info page <http://wfirst.gsfc.nasa.gov/science/Instrument_Reference_Information.html>`_
+* Contain in itself any detailed thermal or optical model of JWST or Roman. For the results of end-to-end integrated simulations of JWST, see for instance `Predicted JWST imaging performance (Knight, Lightsey, & Barto; Proc. SPIE 2012) <http://proceedings.spiedigitallibrary.org/proceeding.aspx?articleid=1362264>`_. For Roman modeling, see `the Roman Reference Info page <https://roman.gsfc.nasa.gov/science/Roman_Reference_Information.html>`_
 * Model spectrally dispersed PSFs produced by any of the spectrograph gratings. It does, however, let you produce monochromatic PSFs in these modes, suitable for stitching together into spectra using some other software.
 * Model most detector effects such as pixel MTF, intrapixel sensitivity variations, interpixel capacitance, or any noise sources. Add those separately with your favorite detector model code. (\*Note, one particularly significant
   detector scattering for MIRI imaging has now been added.)
