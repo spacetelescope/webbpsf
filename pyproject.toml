@@ -1,18 +1,22 @@
 [build-system]
-requires = ["setuptools >= 61.2",
-            "setuptools_scm[toml]>=3.4.3",
-            "wheel"]
-build-backend = 'setuptools.build_meta'
+requires = [
+    "setuptools >= 61.2",
+    "setuptools_scm[toml]>=3.4.3",
+    "wheel",
+]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "webbpsf"
 description = "Creates simulated point spread functions for the James Webb Space Telescope"
-authors = [{name = "Association of Universities for Research in Astronomy", email = "help@stsci.edu"}]
-license = {file = "LICENSE.md"}
-dynamic = ["version"]
+authors = [
+    { name = "Association of Universities for Research in Astronomy", email = "help@stsci.edu" },
+]
+dynamic = [
+    "version",
+]
 readme = "README.rst"
-
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
     "numpy>=1.20.0",
     "scipy>=1.5.0",
@@ -25,6 +29,9 @@ dependencies = [
     "synphot>=1.0.0",
     "astroquery>=0.4.6",
 ]
+
+[project.license]
+file = "LICENSE.md"
 
 [project.optional-dependencies]
 test = [
@@ -45,12 +52,16 @@ docs = [
 Homepage = "http://webbpsf.readthedocs.io/"
 github_project = "https://github.com/spacetelescope/webbpsf"
 
-[tool.setuptools.packages]
-find = {namespaces = false}
+[tool.setuptools.packages.find]
+namespaces = false
 
 [tool.setuptools.package-data]
-"*" = ["*.fits, *.csv"]
-"webbpsf.tests" = ["data/*"]
+"*" = [
+    "*.fits, *.csv",
+]
+"webbpsf.tests" = [
+    "data/*",
+]
 
 [tool.setuptools_scm]
 write_to = "webbpsf/version.py"
@@ -64,15 +75,15 @@ norecursedirs = [
     "build",
     "docs/_build",
 ]
-
 astropy_header = "true"
 doctest_plus = "enabled"
 text_file_format = "rst"
 addopts = "-p no:warnings"
 
-
 [tool.coverage.run]
-source = ["webbpsf",]
+source = [
+    "webbpsf",
+]
 omit = [
     "webbpsf/conftest*",
     "webbpsf/cython_version*",
