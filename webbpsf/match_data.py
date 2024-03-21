@@ -8,8 +8,19 @@ import scipy.optimize
 import webbpsf
 
 
-def setup_sim_to_match_file(filename_or_HDUList, verbose=True, plot=False):
-    """ Setup a webbpsf Instrument instance matched to a given 
+def setup_sim_to_match_file(filename_or_HDUList, verbose=True, plot=False, choice='closest'):
+    """ Setup a webbpsf Instrument instance matched to a given dataset
+
+    Parameters
+    ----------
+    filename_or_HDUlist : str or astropy.io.fits HDUList
+        file to load
+    verbose : bool
+        be more verbose?
+    plot : bool
+        plot?
+    choice : string
+        Method to choose which OPD file to use, e.g. 'before', 'after', or 'closest'
     """
     if isinstance(filename_or_HDUList,str):
         if verbose:
@@ -31,7 +42,7 @@ def setup_sim_to_match_file(filename_or_HDUList, verbose=True, plot=False):
     inst.set_position_from_aperture_name(header['APERNAME'])
 
     dateobs = astropy.time.Time(header['DATE-OBS']+"T"+header['TIME-OBS'])
-    inst.load_wss_opd_by_date(dateobs, verbose=verbose, plot=plot)
+    inst.load_wss_opd_by_date(dateobs, verbose=verbose, plot=plot, choice=choice)
 
 
     # per-instrument specializations
