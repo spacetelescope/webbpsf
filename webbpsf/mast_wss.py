@@ -221,6 +221,7 @@ def get_opd_at_time(date, choice='closest', verbose=False, output_path=None):
         return mast_retrieve_opd(closest_fn, output_path = output_path)
 
 
+
 ### Functions for format conversion of OPDs
 
 def import_wss_opd(filename, npix_out=1024, verbose=False):
@@ -621,3 +622,97 @@ def get_visit_nrc_ta_image(visitid, verbose=True):
     ta_hdul = fits.open(mast_file_url)
 
     return ta_hdul
+
+
+# Functions for retrieving metadata about science observations
+
+def _query_program_visit_times_by_inst(program, instrument, verbose=False):
+    """ Get the start and end times of all completed visits in a program, per instrument.
+    Not intended for general use; this is mostly a helper to query_program_visit_times.
+
+    Getting the vststart_mjd and visitend_mjd fields requires using the instrument keywords
+    interface, so one has to specify which instrument ahead of time.
+
+    Parameters
+    ----------
+    program : int or str
+        Program ID
+    instrument : str
+        instrument name
+    verbose : bool
+        be more verbose in output?
+
+    returns list of (visitid, start, end) tuples.
+
+    """
+
+    from astroquery.mast import Mast
+    svc_table = {'MIRI':'Mast.Jwst.Filtered.Miri',
+                 'NIRCAM': 'Mast.Jwst.Filtered.NIRCam',
+                 'NIRSPEC': 'Mast.Jwst.Filtered.NIRSpec',
+                 'NIRISS': 'Mast.Jwst.Filtered.NIRISS',
+                }
+
+    service = svc_table[instrument.upper()]
+
+    collist = 'filename, program, observtn, visit_id, vststart_mjd, visitend_mjd, bstrtime'
+    all_columns = False
+
+    def set_params(parameters):
+        return [{"paramName" : p, "values" : v} for p, v in parameters.items()]
+
+
+    keywords = {'program': [str(program),]}
+    parameters = {'columns': '*' if all_columns else collist,
+                  'filters': set_params(keywords)}
+
+    if verbose:
+        print("MAST query parameters:")
+        print(parameters)
+
+    responsetable = Mast.service_request(service, parameters)
+    responsetable.sort(keys='bstrtime')
+
+
+    visit_times = []
+
+    for row in responsetable:
+        visit_times.append( ('V'+row['visit_id'], row['vststart_mjd'], row['visitend_mjd']))
+
+    visit_times= set(visit_times)
+    return list(visit_times)
+
+def query_program_visit_times(program,  verbose=False):
+    """ Get the start and end times of all completed visits in a program.
+
+    Parameters
+    ----------
+    program : int or str
+        Program ID
+    verbose : bool
+        be more verbose in output?
+
+    Returns astropy Table with columns for visit ID and start and end times.
+    """
+
+    from astroquery.mast import Observations
+    obs = Observations.query_criteria(obs_collection=["JWST"], proposal_id=[program])
+    # Annoyingly, that query interface doesn't return start/end times
+    instruments = set([val.split('/')[0] for val in set(obs['instrument_name'])])
+
+    visit_times = []
+    for inst in instruments:
+        if verbose:
+            print(f"querying for visits using {inst}")
+        visit_times += _query_program_visit_times_by_inst(program, inst)
+
+
+    vids = [v[0] for v in visit_times]
+    starts =astropy.time.Time([float(v[1]) for v in visit_times], format='mjd')
+    ends = astropy.time.Time([float(v[2]) for v in visit_times], format='mjd')
+
+    #visit_times = np.asarray(visit_times)
+    return astropy.table.Table([vids, starts, ends],
+                               names=('visit_id', 'start_mjd', 'end_mjd'))
+
+
