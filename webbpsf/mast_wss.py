@@ -698,7 +698,7 @@ def query_program_visit_times(program,  verbose=False):
     from astroquery.mast import Observations
     obs = Observations.query_criteria(obs_collection=["JWST"], proposal_id=[program])
     # Annoyingly, that query interface doesn't return start/end times
-    instruments = [val.split('/')[0] for val in set(obs['instrument_name'])]
+    instruments = set([val.split('/')[0] for val in set(obs['instrument_name'])])
 
     visit_times = []
     for inst in instruments:
