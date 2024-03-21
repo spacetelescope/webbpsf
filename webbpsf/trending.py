@@ -1642,7 +1642,9 @@ def show_wfs_around_obs(filename, verbose='True'):
     ax4.set_title("Delta WFE\nAfter-Before", color='C1', fontweight='bold')
 
 
-def show_wfs_during_program(program, verbose=False, ax = None, ref_wavefront_date=None):
+def show_wfs_during_program(program, verbose=False, ax = None, ref_wavefront_date=None,
+                            ref_wavefront_visit=None,
+                            start_date=None, end_date=None):
     """ Show WFS data for the entire time interval in which a given program was observed.
 
     Plots time series of the WFS measured RMS WFE as seen in NIRCam, the start and end times
@@ -1660,21 +1662,40 @@ def show_wfs_during_program(program, verbose=False, ax = None, ref_wavefront_dat
     ax : matplotlib.Axes instance, or None
         an existing Axes to plot into, or else a new one will be created.
     ref_wavefront_date : date-like str or None
-    	Optional, to specify which date's wavefront sensing should be used as
-    	the reference wavefront for computation of the plotted delta WFE RMS.
-    	The closest wavefront in time to the specified date will be used.
-    	If not set, the median wavefront over the entire time period will be used.
+        Optional, to specify which date's wavefront sensing should be used as
+        the reference wavefront for computation of the plotted delta WFE RMS.
+        The closest wavefront in time to the specified date will be used.
+        If not set, the median wavefront over the entire time period will be used.
+    ref_wavefront_visit : str
+        Another way to specify which date's wavefront sensing should be used as the
+        reference. Provide a science visit ID from the program (e.g. "V01234002001")
+        and the closest wavefront to the observation start time of that visit will be used.
+    start_date, end_date : strings or astropy.time.Time
+        Start and/or end dates for the time period to display. If not set,
+        reasonable default values will be computed that include all observations
+        for that science program plus some padding time on either side.
     """
 
     # Query mast for when the observations took place
     science_visit_table = webbpsf.mast_wss.query_program_visit_times(program, verbose=verbose)
     science_visit_table.sort(keys=['start_mjd'])
+    if verbose:
+        for row in science_visit_table:
+            print(f" Found {row['visit_id']} starting at {row['start_mjd'].iso}")
 
-    # Figure out reasonable start and end dates for the time interval to display
+
+    # Figure out reasonable start and end dates for the time interval to display,
+    # or use values provided by the user
     sci_duration = science_visit_table['start_mjd'].max() - science_visit_table['start_mjd'].min()
     plot_padding_time_range = max(sci_duration.to(u.day)*0.2, 4*u.day)
-    start_date = science_visit_table['start_mjd'].min() - plot_padding_time_range
-    end_date =  science_visit_table['end_mjd'].max() + plot_padding_time_range
+    if start_date is None:
+        start_date = science_visit_table['start_mjd'].min() - plot_padding_time_range
+    else:
+        start_date = astropy.time.Time(start_date)
+    if end_date is None:
+        end_date =  science_visit_table['end_mjd'].max() + plot_padding_time_range
+    else:
+        end_date = astropy.time.Time(end_date)
 
     # Look up wavefront sensing and mirror move corrections for that range
     opdtable = get_opdtable_for_daterange(start_date, end_date)
@@ -1695,6 +1716,14 @@ def show_wfs_during_program(program, verbose=False, ax = None, ref_wavefront_dat
     opd_array = np.asarray(opds)
 
     # Compute delta WFE, either relative to median or a specifed date
+    if ref_wavefront_visit is not None:
+        for row in science_visit_table:
+            if row['visit_id']==ref_wavefront_visit:
+                ref_wavefront_date = row['start_mjd'].iso
+                if verbose:
+                    print(f" Will compare wavefronts relative to {row['visit_id']} starting at {row['start_mjd'].iso}")
+
+
     if ref_wavefront_date:
         refdate = astropy.time.Time(ref_wavefront_date)
         delta_times = wfs_dates_array - refdate
