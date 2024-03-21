@@ -50,3 +50,35 @@ def test_calc_datacube_fast():
 
     cube = nrs.calc_datacube_fast(waves, fov_pixels=30, oversample=1, compare_methods=True)
 
+
+def test_mode_switch():
+    """ Test switch between IFU and imaging modes """
+    nrs = webbpsf_core.NIRSpec()
+    # check mode swith to IFU
+    nrs.mode = 'IFU'
+    assert 'IFU' in nrs.aperturename
+    assert nrs.band == 'PRISM/CLEAR'
+
+    # check switch of which IFU band
+    nrs.disperser = 'G395H'
+    nrs.filter = 'F290LP'
+    assert nrs.band == 'G395H/F290LP'
+
+    # check mode switch back to imaging
+    nrs.mode = 'imaging'
+    assert 'IFU' not in nrs.aperturename
+
+def test_IFU_wavelengths():
+    """ Test computing the wqvelength sampling for a sim IFU cube """
+    nrs = webbpsf_core.NIRSpec()
+    # check mode swith to IFU
+    nrs.mode = 'IFU'
+    nrs.disperser = 'G235H'
+    nrs.filter = 'F170LP'
+    waves = nrs.get_IFU_wavelengths()
+    assert isinstance(waves, u.Quantity)
+
+    assert len(waves) > 3000  # there are lots of wavelengths in the high-resolution grating cubes
+    # and test we can specify a reduced wavelength sampling:
+    for n in (10, 100):
+        assert len(nrs.get_IFU_wavelengths(n)) == n

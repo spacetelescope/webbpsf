@@ -905,7 +905,7 @@ def determine_inst_name_from_v2v3(v2v3):
         (v2v3[1] <= -4.55 * u.arcmin) and (v2v3[1] >= -9.75 * u.arcmin):
         instrument = 'NIRSpec'
         _log.debug('Field coordinates determined to be in NIRSpec field')
-    elif (v2v3[0] <= -6.2 * u.arcmin) and (v2v3[0] >= -8.3 * u.arcmin) and \
+    elif (v2v3[0] <= -6.2 * u.arcmin) and (v2v3[0] >= -8.5 * u.arcmin) and \
         (v2v3[1] <= -5.2 * u.arcmin) and (v2v3[1] >= -7.3 * u.arcmin):
         instrument = 'MIRI'
         _log.debug('Field coordinates determined to be in MIRI field')

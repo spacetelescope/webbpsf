@@ -94,3 +94,78 @@ def test_miri_nonsquare_detector():
     miri = webbpsf_core.MIRI()
     miri.detector_position = (1023, 1031)  # recall this is X, Y order
     assert miri.detector_position == (1023, 1031)
+
+def test_mode_switch():
+    """Test switching between imaging and IFU modes, and switching IFU bands
+    Also checks this works to switch aperturenane, and conversely setting aperturename switches mode if needed.
+    Also checks that this automatically changes the rotation and pixelscale properties, as expected.
+    """
+    miri = webbpsf_core.MIRI()
+    imager_rotation = miri._rotation
+    imager_pixscale = miri.pixelscale
+
+    # Explicitly switch mode to IFU
+    miri.mode = 'IFU'
+    assert 'IFU' in miri.aperturename
+    assert miri.detector =='MIRIFUSHORT'
+    assert miri.aperturename.startswith('MIRIFU_CH')
+    assert miri._rotation != imager_rotation
+    assert miri.pixelscale > imager_pixelscale
+    # Explicitly switch back to imaging
+    miri.mode = 'imaging'
+    assert 'IFU' not in miri.aperturename
+    assert miri.detector =='MIRIM'
+    assert miri.aperturename.startswith('MIRIM_')
+    assert miri._rotation == imager_rotation
+    assert miri.pixelscale == imager_pixelscale
+
+
+    # Implicitly switch to IFU 
+    miri.set_position_from_aperture_name('MIRIFU_CHANNEL3B')
+    assert 'IFU' in miri.aperturename
+    assert miri.detector =='MIRIFULONG'
+    assert miri.aperturename == 'MIRIFU_CHANNEL3B'
+    assert miri._rotation != imager_rotation
+    assert miri.pixelscale > imager_pixelscale
+
+    # implicitly switch to imaging
+    # LRS is an odd case, SLIT aper type but operates like in imaging mode
+    miri.set_position_from_aperture_name('MIRIM_SLIT')
+    assert 'IFU' not in miri.aperturename
+    assert miri.detector =='MIRIM'
+    assert miri.aperturename.startswith('MIRIM_')
+    assert miri._rotation == imager_rotation
+    assert miri.pixelscale == imager_pixelscale
+
+    # And back to IFU again:
+    miri.mode = 'IFU'
+    assert 'IFU' in miri.aperturename
+    assert miri.detector =='MIRIFUSHORT'
+    assert miri.aperturename.startswith('MIRIFU_CH')
+    assert miri._rotation != imager_rotation
+    assert miri.pixelscale > imager_pixelscale
+
+    # band switching should toggle detector and aper name
+    miri.band = '4C'
+    assert miri.detector == 'MIRIFULONG'
+    assert miri.aperturename == 'MIRIFU_CHANNEL4C'
+    assert miri.pixelscale > 3*imager_pixelscale
+
+    miri.band = '2A'
+    assert miri.detector == 'MIRIFUSHORT'
+    assert miri.aperturename == 'MIRIFU_CHANNEL2A'
+    assert imager_pixelscale < miri.pixelscale < 2*imager_pixelscale
+
+def test_IFU_wavelengths():
+    """ Test computing the wqvelength sampling for a sim IFU cube """
+    miri = webbpsf_core.MIRI()
+    # check mode swith to IFU
+    miri.mode = 'IFU'
+    miri.band = '2A'
+    waves = miri.get_IFU_wavelengths()
+    assert isinstance(waves, u.Quantity)
+
+    assert len(waves) > 900  # there are lots of wavelengths in MRScubes
+    # and test we can specify a reduced wavelength sampling:
+    for n in (10, 100):
+        assert len(miri.get_IFU_wavelengths(n)) == n
