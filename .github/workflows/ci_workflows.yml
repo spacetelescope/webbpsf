@@ -18,13 +18,13 @@ jobs:
 
           - name: Check for Sphinx doc build errors
             os: ubuntu-latest
-            python: 3.9
+            python: '3.10'
             toxenv: docbuild
 
           - name: Try Astropy development version
             os: ubuntu-latest
-            python: 3.9
-            toxenv: py39-astropydev-test
+            python: '3.10'
+            toxenv: py310-astropydev-test
 
           - name: Try latest versions of all dependencies
             os: ubuntu-latest
@@ -33,13 +33,13 @@ jobs:
 
           - name: Try minimum supported versions
             os: ubuntu-latest
-            python: 3.9
-            toxenv: py39-legacy-test
+            python: '3.10'
+            toxenv: py310-legacy-test
 
           - name: Try released POPPY and PySIAF
             os: ubuntu-latest
-            python: 3.9
-            toxenv: py39-stable-test
+            python: '3.10'
+            toxenv: py310-stable-test
             continue-on-error: 'true'
 
     steps:

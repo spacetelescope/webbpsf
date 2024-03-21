@@ -96,7 +96,7 @@ Software Requirements
 
 See `the requirements.txt specification file <https://github.com/spacetelescope/webbpsf/blob/develop/requirements.txt>`_ for the required package dependencies.
 
-**Required Python version**: WebbPSF 1.1 and above require Python 3.9 or higher.
+**Required Python version**: WebbPSF 1.1 and above require Python 3.10 or higher.
 
 The major dependencies are the standard `NumPy, SciPy <http://www.scipy.org/scipylib/download.html>`_, `matplotlib <http://matplotlib.org>`_ stack, and `Astropy <http://astropy.org>`_.
 
