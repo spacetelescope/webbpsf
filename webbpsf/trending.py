@@ -1731,11 +1731,14 @@ def show_wfs_during_program(program, verbose=False, ax = None, ref_wavefront_dat
         reference_opd = opds[closest]
         ref_label = "WFS near "+ref_wavefront_date
         if verbose:
-            print(f"for date {ref_wavefront_date}, using opd {closest}")
+            print(f"Computing delta OPDs relative to date {ref_wavefront_date}, using opd {opdtable[closest]['fileName']}")
     else:
         median_opd = np.median(opd_array, axis=0)
         reference_opd = median_opd
         ref_label = 'median wavefront'
+        if verbose:
+            print("Computing delta OPDs relative to median OPD over that time period.")
+
     delta_opds = opd_array - reference_opd
     mask = opd_array.sum(axis=0)!=0
     delta_rmses = [webbpsf.utils.rms(d, mask=mask)*1000 for d in delta_opds]
