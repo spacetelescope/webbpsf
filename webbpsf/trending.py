@@ -1619,8 +1619,8 @@ def show_wfs_around_obs(filename, verbose='True'):
 
 
 #### Functions for image comparisons
-def show_wfs_ta_img(visitid, ax=None, return_handles=False):
-    """ Retrieve and display a WFS target acq image"""
+def show_nrc_ta_img(visitid, ax=None, return_handles=False):
+    """ Retrieve and display a NIRCam target acq image"""
 
     hdul = webbpsf.mast_wss.get_visit_nrc_ta_image(visitid)
 
@@ -1633,24 +1633,22 @@ def show_wfs_ta_img(visitid, ax=None, return_handles=False):
     cmap = matplotlib.cm.viridis.copy()
     cmap.set_bad('orange')
 
-
     norm = matplotlib.colors.AsinhNorm(linear_width = vmax*0.003, vmax=vmax, #vmin=0)
                                        vmin=-1*rsig)
-
 
     if ax is None:
         ax = plt.gca()
     ax.imshow(ta_img - bglevel, norm=norm, cmap=cmap, origin='lower')
-    ax.set_title(f"WFS TA on {visitid}\n{hdul[0].header['DATE-OBS']}")
+    ax.set_title(f"NIRCam TA on {visitid}\n{hdul[0].header['DATE-OBS']}")
     ax.set_ylabel("[Pixels]")
     ax.text(0.05, 0.9, hdul[0].header['TARGPROP'],
             color='white', transform=ax.transAxes)
 
-
     if return_handles:
         return hdul, ax, norm, cmap, bglevel
 
-def nrc_ta_image_comparison(visitid):
+
+def nrc_ta_image_comparison(visitid, verbose=False, show_centroid=False):
     """ Retrieve a NIRCam target acq image and compare to a simulation
 
     Parameters:
@@ -1664,30 +1662,95 @@ def nrc_ta_image_comparison(visitid):
     fig, axes = plt.subplots(figsize=(10,5), ncols=3)
 
     # Get and plot the observed TA image
-    hdul, ax, norm, cmap, bglevel = show_wfs_ta_img(visitid, ax=axes[0], return_handles=True)
-    im_obs = hdul['SCI'].data
+    hdul, ax, norm, cmap, bglevel = show_nrc_ta_img(visitid, ax=axes[0], return_handles=True)
+    im_obs = hdul['SCI'].data.copy()
     im_obs_err = hdul['ERR'].data
+    im_obs_dq = hdul['DQ'].data
+
+    im_obs_clean = im_obs.copy()
+    im_obs_clean[im_obs_dq & 1] = np.nan  # Mask out any DO_NOT_USE pixels.
+    im_obs_clean = astropy.convolution.interpolate_replace_nans(im_obs_clean, kernel=np.ones((5, 5)))
 
     # Make a matching sim
     nrc = webbpsf.setup_sim_to_match_file(hdul, verbose=False)
     opdname = nrc.pupilopd[0].header['CORR_ID'] + "-NRCA3_FP1-1.fits"
-    psf = nrc.calc_psf(fov_pixels=64)
+    if verbose:
+        print(f"Calculating PSF to match that TA image...")
+    psf = nrc.calc_psf(fov_pixels=im_obs.shape[0])
 
     # Align and Shift:
-
     im_sim = psf['DET_DIST'].data   # Use the extension including distortion and IPC
 
-    im_obs_clean = astropy.convolution.interpolate_replace_nans(im_obs, kernel=np.ones((5,5)))
-
     shift, _, _ = phase_cross_correlation(im_obs_clean, im_sim, upsample_factor=32)
+    if verbose:
+        print(f"Shift to register sim to data: {shift} pix")
     im_sim_shifted = scipy.ndimage.shift(im_sim, shift, order=5)
 
     # figure out the background level and scale factor
-    scalefactor = np.nanmax(im_obs) / im_sim.max()
+    scalefactor = np.nanmax(im_obs_clean) / im_sim.max()
+    if verbose:
+        print(f"Scale factor to match sim to data: {scalefactor}")
 
     im_sim_scaled_aligned = im_sim_shifted*scalefactor
 
     # Plot
+    if show_centroid:
+        ### OSS CENTROIDS ###
+        # First, see if we can retrieve the on-board TA centroid measurment from the OSS engineering DB in MAST
+        try:
+            import misc_jwst  # Optional dependency, including engineering database access tools
+            # If we have that, retrieve the log for this visit, extract the OSS centroids, and convert to same
+            # coordinate frame as used here:
+            osslog = misc_jwst.engdb.get_ictm_event_log(hdul[0].header['VSTSTART'], hdul[0].header['VISITEND'])
+            try:
+                oss_cen = misc_jwst.engdb.extract_oss_TA_centroids(osslog, 'V' + hdul[0].header['VISIT_ID'])
+                # Convert from full-frame (as used by OSS) to detector subarray coords:
+                oss_cen_sci = nrc._detector_geom_info.aperture.det_to_sci(*oss_cen)
+                oss_cen_sci_pythonic = np.asarray(oss_cen_sci) - 1  # convert from 1-based pixel indexing to 0-based
+                oss_centroid_text = f"\n   OSS centroid: {oss_cen_sci_pythonic[0]:.2f}, {oss_cen_sci_pythonic[1]:.2f}"
+                axes[0].scatter(oss_cen_sci_pythonic[0], oss_cen_sci_pythonic[1], color='0.5', marker='+', s=50)
+                axes[0].text(oss_cen_sci_pythonic[0], oss_cen_sci_pythonic[1], 'OSS  ', color='0.9', verticalalignment='center', horizontalalignment='right')
+                if verbose:
+                    print(f"OSS centroid on board:  {oss_cen}  (full det coord frame, 1-based)")
+                    print(f"OSS centroid converted: {oss_cen_sci_pythonic}  (sci frame in {nrc._detector_geom_info.aperture.AperName}, 0-based)")
+                    full_ap = nrc.siaf[nrc._detector_geom_info.aperture.AperName[0:5] + "_FULL"]
+                    oss_cen_full_sci = np.asarray(full_ap.det_to_sci(*oss_cen)) - 1
+                    print(f"OSS centroid converted: {oss_cen_full_sci}  (sci frame in {full_ap.AperName}, 0-based)")
+
+            except RuntimeError:
+                if verbose:
+                    print("Could not parse TA coordinates from log. TA may have failed?")
+                oss_cen_sci_pythonic = None
+
+            ### WCS COORDINATES ###
+            import jwst.datamodels
+            model = jwst.datamodels.open(hdul)
+            targ_coords = astropy.coordinates.SkyCoord(model.meta.target.ra, model.meta.target.dec, frame='icrs', unit=u.deg)
+            targ_coords_pix = model.meta.wcs.world_to_pixel(targ_coords)  # returns x, y
+            axes[0].scatter(targ_coords_pix[0], targ_coords_pix[1], color='magenta', marker='+', s=50)
+            axes[0].text(targ_coords_pix[0], targ_coords_pix[1]+2, 'WCS', color='magenta', verticalalignment='bottom', horizontalalignment='center')
+            axes[0].text(0.95, 0.18, f'From WCS: {targ_coords_pix[0]:.2f}, {targ_coords_pix[1]:.2f}',
+                     horizontalalignment='right', verticalalignment='bottom',
+                     transform=axes[0].transAxes,
+                     color='white')
+
+            if verbose:
+                print(f"Star coords from WCS: {targ_coords_pix}")
+                if oss_cen_sci_pythonic is not None:
+                    print(f"WCS offset =  {np.asarray(targ_coords_pix) - oss_cen_sci_pythonic} pix")
+
+        except ImportError:
+            oss_centroid_text = ""
+
+        ### WEBBPSF CENTROIDS ###
+        cen = webbpsf.fwcentroid.fwcentroid(im_obs_clean)
+        axes[0].scatter(cen[1], cen[0], color='red', marker='+', s=50)
+        axes[0].text(cen[1], cen[0], '  webbpsf', color='red', verticalalignment='center')
+        axes[0].text(0.95, 0.05, f' webbpsf Centroid: {cen[1]:.2f}, {cen[0]:.2f}'+oss_centroid_text,
+                     horizontalalignment='right', verticalalignment='bottom',
+                     transform=axes[0].transAxes,
+                     color='white')
+
     axes[1].imshow(im_sim_scaled_aligned, norm=norm, cmap=cmap, origin='lower')
     axes[1].set_title(f"Simulated PSF in F212N\nusing {opdname}")
 
@@ -1709,6 +1772,6 @@ def nrc_ta_image_comparison(visitid):
     plt.tight_layout()
 
 
-    outname = f'wfs_ta_comparison_{visitid}.pdf'
+    outname = f'nrc_ta_comparison_{visitid}.pdf'
     plt.savefig(outname)
     print(f" => {outname}")
