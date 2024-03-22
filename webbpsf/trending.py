@@ -91,7 +91,8 @@ def wavefront_time_series_plot(opdtable, start_date=None, end_date=None, ymin=0,
               '2022-05-23T00:00:00': ('Larger micrometeorite strike on C3', 'red'),
               '2022-06-19T18:00:00': ('Coarse move of C3 for astigmatism correction', 'red'),
               #'2022-06-27T00:00:00': ('NIRSpec safing, not in thermal control', 'orange'),
-              '2022-07-12T00:00:00': ('Large outlier tilt event on B5+C5', 'orange')
+              '2022-07-12T00:00:00': ('Large outlier tilt event on B5+C5', 'orange'),
+              '2024-02-25T20:00:00': ('Large outlier wing tilt event on -V2 wing', 'orange'),
               }
 
     plt.figure(figsize=(16, 12))
@@ -137,8 +138,13 @@ def wavefront_time_series_plot(opdtable, start_date=None, end_date=None, ymin=0,
 
     ax.set_xlim(start_date.plot_date, end_date.plot_date)
 
-    ax.xaxis.set_major_locator(matplotlib.dates.WeekdayLocator(interval=1))
-    ax.xaxis.set_minor_locator(matplotlib.dates.DayLocator())
+    if end_date - start_date < 365:
+        ax.xaxis.set_major_locator(matplotlib.dates.WeekdayLocator(interval=1))
+        ax.xaxis.set_minor_locator(matplotlib.dates.DayLocator())
+    else:
+        ax.xaxis.set_major_locator(matplotlib.dates.MonthLocator(interval=1))
+        ax.xaxis.set_minor_locator(matplotlib.dates.WeekdayLocator(interval=1))
+
     ax.tick_params('x', length=10)
     for tick in ax.get_xticklabels():
         tick.set_rotation(75)
