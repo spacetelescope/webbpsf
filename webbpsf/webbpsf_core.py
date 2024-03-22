@@ -1121,9 +1121,7 @@ class JWInstrument(SpaceTelescopeInstrument):
 
         # Add distortion if set in calc_psf
         if add_distortion:
-            _log.debug("Adding PSF distortion(s)")
-            if self.image_mask == "LRS slit" and self.pupil_mask == "P750L":
-                raise NotImplementedError("Distortion is not implemented yet for MIRI LRS mode.")
+            _log.debug("Adding PSF distortion(s) and detector effects")
 
             # Set up new extensions to add distortion to:
             n_exts = len(result)
@@ -1144,8 +1142,11 @@ class JWInstrument(SpaceTelescopeInstrument):
             elif self.name == "MIRI":
                 # Apply distortion effects to MIRI psf: Distortion and MIRI Scattering
                 _log.debug("MIRI: Adding optical distortion and Si:As detector internal scattering")
-                psf_siaf = distortion.apply_distortion(result)  # apply siaf distortion
-                psf_siaf_rot = detectors.apply_miri_scattering(psf_siaf)  # apply scattering effect
+                if self.image_mask != "LRS slit" and self.pupil_mask != "P750L":
+                    psf_siaf = distortion.apply_distortion(result)  # apply siaf distortion
+                else:
+                    psf_siaf = result  # distortion model in SIAF not available for LRS
+                psf_siaf_rot = detectors.apply_miri_scattering(psf_siaf)  # apply scattering effect (cruciform artifact)
                 psf_distorted = detectors.apply_detector_charge_diffusion(psf_siaf_rot,options)  # apply detector charge transfer model
             elif self.name == "NIRSpec":
                 # Apply distortion effects to NIRSpec psf: Distortion only
@@ -1953,7 +1954,8 @@ class MIRI(JWInstrument):
             #
             # Per Klaus Pontoppidan: The LRS slit is aligned with the detector x-axis, so that the
             # dispersion direction is along the y-axis.
-            optsys.add_image(optic=poppy.RectangularFieldStop(width=4.7, height=0.51,
+            # Slit width and height values derived from SIAF PRDOPSSOC-063, 2024 January
+            optsys.add_image(optic=poppy.RectangularFieldStop(width=4.72345, height=0.51525,
                                                               rotation=self._rotation, name=self.image_mask))
             trySAM = False
         else:
@@ -1982,9 +1984,15 @@ class MIRI(JWInstrument):
                              name=self.pupil_mask,
                              flip_y=True, shift_x=shift_x, shift_y=shift_y, rotation=rotation)
             optsys.planes[-1].wavefront_display_hint = 'intensity'
-        elif self.pupil_mask == 'P750L':
+        elif self.pupil_mask == 'P750L' or self.image_mask == 'LRS slit':
+            # This oversized pupil stop is present on all MIRI imaging filters, thus should
+            # implicitly be included in all MIRI imager calculations, but in practice for
+            # normal imaging modes, the system pupil stop is defined by the OTE primary, so this
+            # stop has no effect. However for any light passing through the LRS slit, the spatial
+            # filtering leads to diffractive spreading in the subsequen pupil which this should
+            # be included for, in order to model slit losses correctly.
             optsys.add_pupil(transmission=self._datapath + "/optics/MIRI_LRS_Pupil_Stop.fits.gz",
-                             name=self.pupil_mask,
+                             name=self.pupil_mask if self.pupil_mask else 'MIRI internal pupil stop',
                              flip_y=True, shift_x=shift_x, shift_y=shift_y, rotation=rotation)
             optsys.planes[-1].wavefront_display_hint = 'intensity'
         else:  # all the MIRI filters have a tricontagon outline, even the non-coron ones.
@@ -1992,12 +2000,14 @@ class MIRI(JWInstrument):
                              name='filter cold stop', shift_x=shift_x, shift_y=shift_y, rotation=rotation)
             # FIXME this is probably slightly oversized? Needs to have updated specifications here.
 
-        if self.include_si_wfe:
-            # now put back in the aberrations we grabbed above.
-            optsys.add_pupil(miri_aberrations)
-
         optsys.add_rotation(-self._rotation, hide=True)
         optsys.planes[-1].wavefront_display_hint = 'intensity'
+
+        if self.include_si_wfe:
+            # now put back in the aberrations we grabbed above.
+            # Note, the SI WFE models are in the detector coordinate frame, so this has to be added
+            # *after* the rotation by ~5 degrees to that frame.
+            optsys.add_pupil(miri_aberrations)
 
         return (optsys, trySAM, SAM_box_size if trySAM else None)
 

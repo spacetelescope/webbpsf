@@ -414,7 +414,8 @@ def apply_miri_scattering(hdulist_or_filename=None, kernel_amp=None):
     # better match the MIRI CDP PSFS. See e.g. MIRI_FM_MIRIMAGE_F560W_PSF_07.02.00.fits
     # and https://github.com/spacetelescope/webbpsf/issues/415
     kernel_amp_corrections = {'F560W': 4.05, 'F770W': 4.1, 'F1000W': 3.8,
-                               'F1130W': 2.5, 'F1280W': 2.5, 'F1065C': 2.5, 'F1140C': 2.5}
+                               'F1130W': 2.5, 'F1280W': 2.5, 'F1065C': 2.5, 'F1140C': 2.5, 
+                              'FND': 3.0}  # FND value is a WAG, interpolating between the F1000W and F1130W values; in reality it varies over that huge bandpass, but we can't compute it per-wavelengthhere.
     # In-flight correction based on measured cycle 1 ePSFs, coarsely
     for k in kernel_amp_corrections:
         kernel_amp_corrections[k] *= 0.5

@@ -88,6 +88,20 @@ def test_miri_slit_apertures():
     assert np.isclose(miri._tel_coords()[0].to_value(u.arcsec), ap.V2Ref)
     assert np.isclose(miri._tel_coords()[1].to_value(u.arcsec), ap.V3Ref)
 
+def test_lrs_psf():
+    """Test that we can at least run an LRS mode PSF calculation
+
+    This is not yet a very good test; does not test the correctness of the output at all.
+    """
+    miri = webbpsf_core.MIRI()
+    miri.set_position_from_aperture_name('MIRIM_SLIT')
+    miri.image_mask = 'LRS slit'
+    miri.pupil_mask = 'P750L'
+    psf = miri.calc_psf(nlambda=1)
+
+    assert psf[0].header['APERNAME'] == miri.aperturename == 'MIRIM_SLIT'
+
+
 def test_miri_nonsquare_detector():
     """ Test that we can handle the slightly different
     dimenssions in X and Y of the MIRI detector"""
