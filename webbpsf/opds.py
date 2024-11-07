@@ -1748,7 +1748,14 @@ class OTE_Linear_Model_WSS(OPD):
             y_field_pt = np.clip(y_field_pt0, min_y_field, max_y_field)
 
             clip_dist = np.sqrt((x_field_pt - x_field_pt0) ** 2 + (y_field_pt - y_field_pt0) ** 2)
-            if clip_dist > 0.1 * u.arcsec:
+
+            # special case for MIRI: don't do the following warning specifically for the MRS field point since it's
+            # a known issue that # point is slightly outside of the valid region. This specific case is benign and
+            # it's not helpful to emit this warning for every MRS calculation ever
+            mrs_v2v3 = [-8.39108833, -5.32144667]*u.arcmin
+            is_mrs_fieldpoint = np.allclose(v2v3, mrs_v2v3, atol=0.01)
+
+            if (clip_dist > 0.1 * u.arcsec) and not is_mrs_fieldpoint:
                 # warn the user we're making an adjustment here (but no need to do so if the distance is trivially small)
                 warning_message = (
                     f'For (V2,V3) = {v2v3}, Field point {x_field_pt}, {y_field_pt} '
