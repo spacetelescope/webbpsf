@@ -405,5 +405,7 @@ MIRI_CRUCIFORM_RADIAL_SCALEFACTOR = 0.005   # Brightness factor for the diffuse 
 # Parameters for adjusting models of IFU PSFs relative to regular imaging PSFs
 INSTRUMENT_IFU_BROADENING_PARAMETERS = {
     'NIRSPEC': {'sigma': 0.05},
-    'MIRI': {'sigma': 0.05, 'fhwm_cruciform': 15, "offset_cruciform": -3},
+    'MIRI': {'sigma': 0.05,
+             'fwhm_cruciform': 15,
+             "offset_cruciform": -3},
 }
