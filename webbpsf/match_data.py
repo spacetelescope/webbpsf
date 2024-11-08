@@ -1,4 +1,5 @@
 # Functions to match or fit PSFs to observed JWST data
+import warnings
 import astropy
 import astropy.io.fits as fits
 import pysiaf
@@ -74,8 +75,23 @@ def setup_sim_to_match_file(filename_or_HDUList, verbose=True, plot=False, choic
     elif inst.name == 'MIRI':
         if header['EXP_TYPE'] == 'MIR_MRS':
             ch = header['CHANNEL']
+            band = header['BAND']
+            inferred_output_type, inferred_coord_system = infer_mrs_cube_type(filename_or_HDUList)
+            if band == 'MULTIPLE' or inferred_output_type != 'band':
+                warnings.warn(f"** The input file seems to be an MRS datacube with output_type='{inferred_output_type}', "
+                               "combining multiple bands. Note that PSF models can be computed for only 1 band at a time. "
+                               "You will need to make multiple PSF simulations to model the PSF in this dataset. For high "
+                               "precision work, be aware of the small (<1 deg) rotation differences between the individual bands. **")
+                band = 'SHORT' # just pick one, arbitrarily
+            if inferred_coord_system != 'ifualign':
+                warnings.warn(f"** The input file seems to be an MRS datacube with coord_system='skyalign'. Note that PSF "
+                               "models can be computed only for coord_system='ifualign'.. You will need to either re-reduce "
+                               "your data using the ifualign coord_system (preferred) or rotate the PSF model based on the "
+                               "position angle (less preferred, due to numerical interpolation noise). **")
             band_lookup = {'SHORT': 'A', 'MEDIUM': 'B', 'LONG': 'C'}
-            inst.band = str(ch) + band_lookup[header['BAND']]
+            inst.band = str(ch) + band_lookup[band]
+
+
 
         elif inst.filter in ['F1065C', 'F1140C', 'F1550C']:
             inst.image_mask = 'FQPM' + inst.filter[1:5]
@@ -224,3 +240,36 @@ def get_nrc_coron_mask_from_pps_apername(apname_pps):
             image_mask = image_mask[:-1]
 
     return image_mask
+
+def infer_mrs_cube_type(filename, verbose=False):
+    """attempt to infer cube coordinate system and output type from header metadata.
+    The cube_build step doesn't record in metadata several of its key input parameters; this function attempts to infer what their values were.
+
+    Returns (guessed_output_type, guessed_coord_system)
+    """
+    with fits.open(filename) as hdul:
+
+        if hdul[0].header['INSTRUME'] != 'MIRI':
+            raise RuntimeError("This function only applies to MIRI MRS data")
+
+        naxis3 = hdul['SCI'].header['NAXIS3']
+        # Infer cube output type, based on the number of wavelengths in this cube.
+        # This is inelegant but seems to work sufficiently
+        if naxis3 < 2000:
+            output_type = 'band'
+        elif naxis3 > 2000 and naxis3 < 4000:
+            output_type = 'channel'
+        elif naxis3 > 4000:
+            output_type = 'multi'
+
+        # Infer coordinate system, based on PC rotation matrix (?)
+        pc11 = hdul['SCI'].header['PC1_1']
+        pc22 = hdul['SCI'].header['PC2_2']
+        if pc11 == -1 and pc22 == 1:
+            coord_system = 'skyalign'
+        else:
+            coord_system = 'ifualign'
+
+        if verbose:
+            print(filename, naxis3, output_type, pc11, pc22, coord_system)
+    return output_type, coord_system
