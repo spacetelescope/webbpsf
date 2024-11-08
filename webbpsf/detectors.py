@@ -606,9 +606,9 @@ def apply_miri_ifu_broadening(hdulist, options, slice_width=0.196):
         out = _miri_mrs_empirical_broadening(psf_model=hdulist[ext].data, alpha_width=alpha_width, beta_width=beta_width)
         if wavelen * 1e6 <= 7.5:
             amplitude_cruciform = get_mrs_cruciform_amplitude(wavelen * 1e6)
-            oversample_factor = hdulist[ext].header['DET_SAMP']/7  # optimised parameters with oversampling = 7
-            fwhm_cruciform = constants.INSTRUMENT_IFU_BROADENING_PARAMETERS["MIRI"]["fwhm_cruciform"]*oversample_factor
-            offset_cruciform = constants.INSTRUMENT_IFU_BROADENING_PARAMETERS["MIRI"]["offset_cruciform"]*oversample_factor
+            oversample_factor = hdulist[ext].header['DET_SAMP'] / 7  # optimised parameters with oversampling = 7
+            fwhm_cruciform = constants.INSTRUMENT_IFU_BROADENING_PARAMETERS["MIRI"]["fwhm_cruciform"] * oversample_factor
+            offset_cruciform = constants.INSTRUMENT_IFU_BROADENING_PARAMETERS["MIRI"]["offset_cruciform"] * oversample_factor
             out = _miri_mrs_empirical_cruciform(psf_model=out, amp=amplitude_cruciform,
                                                 fwhm=fwhm_cruciform, x_0=offset_cruciform)
 
@@ -695,7 +695,7 @@ def get_mrs_cruciform_amplitude(wavelen):
     Empirical amplitude of additional cruciform component in MIRI IFU data
     wavelen: wavelength (only applicable if wavelength < 7.5 um - see apply_miri_ifu_broadening)
     """
-    return -0.16765378*wavelen + 1.23632423  # Patapis 2025 PSF paper
+    return -0.16765378 * wavelen + 1.23632423  # Patapis 2025 PSF paper
 
 
 def _round_up_to_odd_integer(value):
@@ -738,4 +738,4 @@ def _miri_mrs_empirical_cruciform(psf_model, amp, fwhm, x_0):
 
     # TODO: extend algorithm to handle the datacube case
     psf_model_cruciform = np.apply_along_axis(lambda m: convolve(m, kernel_cruciform), axis=1, arr=psf_model)
-    return psf_model+amp*psf_model_cruciform
+    return psf_model + amp * psf_model_cruciform

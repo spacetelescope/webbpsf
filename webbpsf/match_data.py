@@ -79,15 +79,16 @@ def setup_sim_to_match_file(filename_or_HDUList, verbose=True, plot=False, choic
             inferred_output_type, inferred_coord_system = infer_mrs_cube_type(filename_or_HDUList)
             if band == 'MULTIPLE' or inferred_output_type != 'band':
                 warnings.warn(f"** The input file seems to be an MRS datacube with output_type='{inferred_output_type}', "
-                               "combining multiple bands. Note that PSF models can be computed for only 1 band at a time. "
-                               "You will need to make multiple PSF simulations to model the PSF in this dataset. For high "
-                               "precision work, be aware of the small (<1 deg) rotation differences between the individual bands. **")
-                band = 'SHORT' # just pick one, arbitrarily
+                              "combining multiple bands. Note that PSF models can be computed for only 1 band at a time. "
+                              "You will need to make multiple PSF simulations to model the PSF in this dataset. For high "
+                              "precision work, be aware of the small (<1 deg) rotation differences between the individual"
+                              "bands. **")
+                band = 'SHORT'  # just pick one, arbitrarily
             if inferred_coord_system != 'ifualign':
                 warnings.warn(f"** The input file seems to be an MRS datacube with coord_system='skyalign'. Note that PSF "
-                               "models can be computed only for coord_system='ifualign'.. You will need to either re-reduce "
-                               "your data using the ifualign coord_system (preferred) or rotate the PSF model based on the "
-                               "position angle (less preferred, due to numerical interpolation noise). **")
+                              "models can be computed only for coord_system='ifualign'.. You will need to either re-reduce "
+                              "your data using the ifualign coord_system (preferred) or rotate the PSF model based on the "
+                              "position angle (less preferred, due to numerical interpolation noise). **")
             band_lookup = {'SHORT': 'A', 'MEDIUM': 'B', 'LONG': 'C'}
             inst.band = str(ch) + band_lookup[band]
 
@@ -241,9 +242,11 @@ def get_nrc_coron_mask_from_pps_apername(apname_pps):
 
     return image_mask
 
+
 def infer_mrs_cube_type(filename, verbose=False):
     """attempt to infer cube coordinate system and output type from header metadata.
-    The cube_build step doesn't record in metadata several of its key input parameters; this function attempts to infer what their values were.
+    The cube_build step doesn't record in metadata several of its key input parameters;
+    this function attempts to infer what their values were.
 
     Returns (guessed_output_type, guessed_coord_system)
     """
