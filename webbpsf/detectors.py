@@ -297,7 +297,7 @@ cruciform_xshifts = scipy.interpolate.interp1d([0, 357, 1031], [1.5, 0.5, -0.9],
 cruciform_yshifts = scipy.interpolate.interp1d([0, 511, 1031], [1.6, 0, -1.6], kind='linear', fill_value='extrapolate')
 
 
-def _make_miri_scattering_kernel_2d(in_psf, kernel_amp, oversample=1, wavelength=5.5, detector_position=(0, 0)):
+def _make_miri_cruciform_kernel_2d(in_psf, kernel_amp, oversample=1, wavelength=5.5, detector_position=(0, 0)):
     """Improved / more complex model of the MIRI cruciform, with parameterization to model
     additional features as seen in the GimMIRI models of Gaspar et al. 2021, PASP 133
     See in particular their Figure 12.
@@ -362,9 +362,9 @@ def _make_miri_scattering_kernel_2d(in_psf, kernel_amp, oversample=1, wavelength
     return kernel_2d
 
 
-def _apply_miri_scattering_kernel_2d(in_psf, kernel_2d, oversample):
+def _apply_miri_cruciform_kernel_2d(in_psf, kernel_2d, oversample):
     """
-    Applies the detector scattering kernel created in _make_miri_scattering_kernel
+    Applies the detector scattering kernel created in _make_miri_cruciform_kernel_2d
     function to an input image. Code is adapted from
     MIRI-TN-00076-ATC_Imager_PSF_Issue_4.pdf
 
@@ -372,9 +372,8 @@ def _apply_miri_scattering_kernel_2d(in_psf, kernel_2d, oversample):
     ----------
     in_psf : ndarray
         PSF array upon which to apply the kernel
-    kernel_x : ndarray
-        The 1D kernel in the x direction, output from _make_miri_scattering_kernel.
-        This will be transposed to create the kernel in the y direction.
+    kernel_2d : ndarray
+        The 2D kernel, output from _make_miri_cruciform_kernel_2d.
     oversample : int
         Amount by which the input PSF is oversampled
 
@@ -443,7 +442,7 @@ def get_miri_cruciform_amplitude(filt):
     return kernel_amp
 
 
-def apply_miri_scattering(hdulist_or_filename=None, kernel_amp=None, old_method=False):
+def apply_miri_imager_cruciform(hdulist_or_filename=None, kernel_amp=None, old_method=False):
     """
     Apply a distortion caused by the MIRI scattering cross artifact effect.
     In short we convolve a 2D exponentially decaying cross to the PSF where
@@ -455,6 +454,9 @@ def apply_miri_scattering(hdulist_or_filename=None, kernel_amp=None, old_method=
     input PSF is calculated as Extension 0, the calling function must put a copy of that into Extension 1
     which this will then modify. This happens in webbpsf_core.py/JWInstrument._calc_psf_format_output,
     which is where this is called from in the usual course of operation.
+
+    Note - this function is called only for **MIRI IMAGER** simulations.
+    For MRS, see instead the apply_miri_ifu_broadening function, below.
 
     Parameters
     ----------
@@ -502,14 +504,14 @@ def apply_miri_scattering(hdulist_or_filename=None, kernel_amp=None, old_method=
     in_psf = psf[ext].data
 
     # create cruciform model using improved method using a 2d convolution kernel, attempting to model more physics.
-    kernel_2d = _make_miri_scattering_kernel_2d(
+    kernel_2d = _make_miri_cruciform_kernel_2d(
         in_psf,
         kernel_amp,
         oversample,
         detector_position=(hdu_list[0].header['DET_X'], hdu_list[0].header['DET_Y']),
         wavelength=hdu_list[0].header['WAVELEN'] * 1e6,
     )
-    im_conv_both = _apply_miri_scattering_kernel_2d(in_psf, kernel_2d, oversample)
+    im_conv_both = _apply_miri_cruciform_kernel_2d(in_psf, kernel_2d, oversample)
 
     # Add this 2D scattered light output to the PSF
     psf_new = in_psf + im_conv_both
@@ -529,14 +531,16 @@ def apply_miri_scattering(hdulist_or_filename=None, kernel_amp=None, old_method=
 
 
 def _show_miri_cruciform_kernel(filt, npix=101, oversample=4, detector_position=(512, 512), ax=None):
-    """utility function for viewing/visualizing the cruciform kernel"""
+    """utility function for viewing/visualizing the cruciform kernel.
+    This displays a plot on screen, as a user convenience.
+    This display function is Not used as part of PSF calculations."""
     import matplotlib
 
     placeholder = np.zeros((npix * oversample, npix * oversample))
     kernel_amp = get_miri_cruciform_amplitude(filt)
     extent = [-npix / 2, npix / 2, -npix / 2, npix / 2]
 
-    kernel_2d = _make_miri_scattering_kernel_2d(placeholder, kernel_amp, oversample, detector_position=detector_position)
+    kernel_2d = _make_miri_cruciform_kernel_2d(placeholder, kernel_amp, oversample, detector_position=detector_position)
     norm = matplotlib.colors.LogNorm(1e-6, 1)
     cmap = matplotlib.cm.viridis
     cmap.set_bad(cmap(0))
@@ -557,6 +561,9 @@ def _show_miri_cruciform_kernel(filt, npix=101, oversample=4, detector_position=
 
 def apply_miri_ifu_broadening(hdulist, options, slice_width=0.196):
     """ Apply a simple empirical model of MIRI IFU broadening to better match observed PSFs
+
+    Note - this function is called only for **MIRI MRS** simulations.
+    For MRS, see instead the apply_miri_imager_cruciform function, above.
 
     Parameters
     -----------

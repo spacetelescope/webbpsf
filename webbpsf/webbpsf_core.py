@@ -1286,7 +1286,7 @@ class JWInstrument(SpaceTelescopeInstrument):
                         # slit type aperture, specifically LRS SLIT, does not have distortion polynomials
                         # therefore omit apply_distortion if a SLIT aperture is selected.
                         psf_siaf = result
-                    psf_siaf_rot = detectors.apply_miri_scattering(psf_siaf)  # apply scattering effect
+                    psf_siaf_rot = detectors.apply_miri_imager_cruciform(psf_siaf)  # apply scattering effect
                     psf_distorted = detectors.apply_detector_charge_diffusion(
                         psf_siaf_rot, options
                     )  # apply detector charge transfer model

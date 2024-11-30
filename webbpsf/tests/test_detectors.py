@@ -17,7 +17,7 @@ def test_apply_miri_scattering_error():
 
     # Test that running this function will raise a ValueError
     with pytest.raises(ValueError) as excinfo:
-        detectors.apply_miri_scattering(psf)
+        detectors.apply_miri_imager_cruciform(psf)
     assert 'ValueError' in str(excinfo), 'Non-MIRI PSFs should not be able to run through apply_miri_scattering'
 
 
@@ -45,7 +45,7 @@ def test_apply_miri_scattering():
         psf[ext_new].header['EXTNAME'] = psf[ext].header['EXTNAME'][0:4] + 'DIST'  # change extension name
 
     # Run it through just the apply_miri_scattering function
-    psf_cross = detectors.apply_miri_scattering(psf)
+    psf_cross = detectors.apply_miri_imager_cruciform(psf)
 
     # Rebin data to get 3rd extension
     mir.options['output_mode'] = 'Both extensions'
@@ -137,7 +137,7 @@ def test_miri_conservation_energy():
         psf[ext_new].header['EXTNAME'] = psf[ext].header['EXTNAME'][0:4] + 'DIST'  # change extension name
 
     # Run it through just the apply_miri_scattering function
-    psf_cross = detectors.apply_miri_scattering(psf)
+    psf_cross = detectors.apply_miri_imager_cruciform(psf)
 
     # Rebin data to get 3rd extension
     mir.options['output_mode'] = 'Both extensions'
