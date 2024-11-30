@@ -18,7 +18,7 @@
 #     - cron: "0 0 * * 0"
 # jobs:
 #   download_webbpsf:
-#     uses: spacetelescope/webbpsf/.github/workflows/download_data.yml@develop
+#     uses: spacetelescope/webbpsf/.github/workflows/download_data.yml@beda656c80a0254e6f80649d9c9c49235634522f  # v1.4.0
 #     with:
 #       minimal: true
 
@@ -81,7 +81,7 @@ jobs:
         run: echo "version=$(cat ${{ steps.cache_path.outputs.cache_path }}/webbpsf-data/version.txt)" >> $GITHUB_OUTPUT
       - id: cache_key
         run: echo "cache_key=webbpsf-data-${{ (github.event_name == 'schedule' || github.event_name == 'release') && 'mini' || inputs.minimal && 'mini' || 'full' }}-${{ steps.version.outputs.version }}" >> $GITHUB_OUTPUT
-      - uses: actions/cache/save@v4
+      - uses: actions/cache/save@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9  # v4.0.2
         with:
           path: ${{ runner.temp }}/data/
           key: ${{ steps.cache_key.outputs.cache_key }}

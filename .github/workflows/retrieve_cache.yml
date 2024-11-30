@@ -13,7 +13,7 @@
 # ...
 # jobs:
 #   webbpsf_data_cache_key:
-#     uses: spacetelescope/webbpsf/.github/workflows/retrieve_cache.yml@develop
+#     uses: spacetelescope/webbpsf/.github/workflows/retrieve_cache.yml@beda656c80a0254e6f80649d9c9c49235634522f  # v1.4.0
 #     with:
 #       minimal: true
 #   tests:
@@ -21,7 +21,7 @@
 #     steps:
 #       ...
 #       - name: retrieve WebbPSF data cache
-#        uses: actions/cache/restore@v4
+#        uses: actions/cache/restore@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9  # v4.0.2
 #        with:
 #          path: ${{ runner.temp }}/webbpsf-data
 #          key: ${{ needs.webbpsf_data_cache_key.outputs.cache_key }}

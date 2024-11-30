@@ -180,6 +180,39 @@ MISSING_WEBBPSF_DATA_MESSAGE = """
 """
 
 
+def auto_download_webbpsf_data():
+    import os
+    import tarfile
+    from pathlib import Path
+    from tempfile import TemporaryDirectory
+    from urllib.request import urlretrieve
+
+    # Create a default directory for the data files
+    default_path = Path.home() / "data" / "webbpsf-data"
+    default_path.mkdir(parents=True, exist_ok=True)
+
+    os.environ["WEBBPSF_PATH"] = str(default_path)
+
+    # Download the data files if the directory is empty
+    if not any(default_path.iterdir()):
+        warnings.warn("WebbPSF data files not found in default location, attempting to download them now...")
+
+        with TemporaryDirectory() as tmpdir:
+            # Download the data files to a temporary directory
+            url = "https://stsci.box.com/shared/static/qxpiaxsjwo15ml6m4pkhtk36c9jgj70k.gz"
+            filename = Path(tmpdir) / "webbpsf-data-LATEST.tar.gz"
+            urlretrieve(url, filename)
+
+            # Extract the tarball
+            with tarfile.open(filename, "r:gz") as tar:
+                tar.extractall(default_path.parent, filter="fully_trusted")
+
+        if not any(default_path.iterdir()):
+            raise IOError(f"Failed to get and extract WebbPSF data files to {default_path}")
+
+    return default_path
+
+
 def get_webbpsf_data_path(data_version_min=None, return_version=False):
     """Get the WebbPSF data path
 
@@ -201,7 +234,12 @@ def get_webbpsf_data_path(data_version_min=None, return_version=False):
     if path_from_config == 'from_environment_variable':
         path = os.getenv('WEBBPSF_PATH')
         if path is None:
-            raise EnvironmentError(f'Environment variable $WEBBPSF_PATH is not set!\n{MISSING_WEBBPSF_DATA_MESSAGE}')
+            message = (
+                'Environment variable $WEBBPSF_PATH is not set!\n'
+                f'{MISSING_WEBBPSF_DATA_MESSAGE} searching default location..s'
+            )
+            warnings.warn(message)
+            path = auto_download_webbpsf_data()
     else:
         path = path_from_config
 

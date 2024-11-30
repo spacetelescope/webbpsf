@@ -4,6 +4,7 @@
 import logging
 import os
 import os.path
+from pathlib import Path
 
 import pytest
 
@@ -48,7 +49,7 @@ def test_invalid_masks():
     assert _exception_message_starts_with(excinfo, "Instrument NIRCam doesn't have a pupil mask called 'JUNK'.")
 
 
-def test_get_webbpsf_data_path_invalid(monkeypatch):
+def test_get_webbpsf_data_path_invalid(monkeypatch, tmp_path):
     real_env_webbpsf_path = os.getenv('WEBBPSF_PATH')
     real_conf_webbpsf_path = conf.WEBBPSF_PATH
     real_webbpsf_path = real_env_webbpsf_path or real_conf_webbpsf_path
@@ -57,9 +58,19 @@ def test_get_webbpsf_data_path_invalid(monkeypatch):
     # config says to (and env var has been unset)
     monkeypatch.delenv('WEBBPSF_PATH')
     monkeypatch.setattr(conf, 'WEBBPSF_PATH', 'from_environment_variable')
-    with pytest.raises(EnvironmentError) as excinfo:
+
+    # Patch the function that gets the home directory so we don't overwrite the
+    # what is on the system
+    def mockreturn():
+        return Path(tmp_path)
+
+    monkeypatch.setattr(Path, "home", mockreturn)
+
+    with pytest.warns(UserWarning, match=r"Environment variable \$WEBBPSF_PATH is not set!\n.*") as excinfo:
         _ = utils.get_webbpsf_data_path()
-    assert 'Environment variable $WEBBPSF_PATH is not set!' in str(excinfo)
+
+    # Check that the data was downloaded
+    assert any((tmp_path / "data" / "webbpsf-data").iterdir())
 
     # Test that we can override the WEBBPSF_PATH setting here through
     # the config object even though the environment var is deleted
