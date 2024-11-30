@@ -233,7 +233,7 @@ def test_miri_ifu_broadening():
 
     miri = webbpsf_core.MIRI()
     miri.mode = 'IFU'
-    psf = miri.calc_psf(monochromatic=2.8e-6, fov_pixels=10)
+    psf = miri.calc_psf(monochromatic=6.8e-6, fov_pixels=20)
 
     fwhm_oversamp = webbpsf.measure_fwhm(psf, ext='OVERSAMP')
     fwhm_overdist = webbpsf.measure_fwhm(psf, ext='OVERDIST')
@@ -242,6 +242,8 @@ def test_miri_ifu_broadening():
     fwhm_detsamp = webbpsf.measure_fwhm(psf, ext='DET_SAMP')
     fwhm_detdist = webbpsf.measure_fwhm(psf, ext='DET_DIST')
     assert fwhm_overdist > fwhm_oversamp, "IFU broadening model should increase the FWHM for the distorted extensions"
+
+    assert np.isclose(psf['DET_SAMP'].data.sum(), psf['DET_DIST'].data.sum(), rtol=5e-3), "IFU broadening should not change total flux much"
 
     # Now test that we can also optionally turn off that effect
     miri.options['ifu_broadening'] = None

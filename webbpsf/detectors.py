@@ -578,7 +578,7 @@ def apply_miri_ifu_broadening(hdulist, options, slice_width=0.196):
     """
     # First, check an optional flag to see whether or not to include this effect.
     # User can set the option to None to disable this step.
-    model_type = options.get('ifu_broadening', 'empirical')
+    model_type = options.get('ifu_broadening', 'empirical_cruciform')
 
     if model_type is None or model_type.lower() == 'none':
         return hdulist
@@ -604,7 +604,8 @@ def apply_miri_ifu_broadening(hdulist, options, slice_width=0.196):
         beta_width = slice_width / pixelscl
         alpha_width = _miri_mrs_analytical_sigma_alpha_broadening(wavelen * 1e6) / pixelscl
         out = _miri_mrs_empirical_broadening(psf_model=hdulist[ext].data, alpha_width=alpha_width, beta_width=beta_width)
-    elif model_type.lower() == 'cruciform':
+    elif model_type.lower() == 'empirical_cruciform':
+        # The above empirical mode, plus an additional cruciform effect at < 7.5 microns
         # Model based on empirical PSF properties, Argryiou et al.
         pixelscl = float(hdulist[ext].header['PIXELSCL'])
         wavelen = float(hdulist[ext].header['WAVELEN'])
