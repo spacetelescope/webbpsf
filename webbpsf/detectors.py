@@ -754,11 +754,16 @@ def _miri_mrs_empirical_cruciform(psf_model, amp, fwhm, x_0):
        amplitude of Lorentzian in pixels
     fwhm : float
        Full Width Half Max of Lorentzian in pixels
-   x_0 : float
+    x_0 : float
        offset of Lorentzian in pixels
     """
     kernel_cruciform = _Lorentz1DKernel(1.0, fwhm, x_0)
+    webbpsf.webbpsf_core._log.info(f'  MRS empirical cruciform: amp {amp} fwhm {fwhm} x_0 {x_0}')
+
+    # Flux conservation: the integral of the Lorentz kernel is the same as the amplitude
+    # therefore the following will keep the total flux conserved in the summed output PSF.
+    flux_conv_factor = 1 / (1 + amp)
 
     # TODO: extend algorithm to handle the datacube case
     psf_model_cruciform = np.apply_along_axis(lambda m: convolve(m, kernel_cruciform), axis=1, arr=psf_model)
-    return psf_model + amp * psf_model_cruciform
+    return flux_conv_factor * (psf_model + amp * psf_model_cruciform)
