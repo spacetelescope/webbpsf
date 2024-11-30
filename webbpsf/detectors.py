@@ -289,7 +289,7 @@ def oversample_ipc_model(kernel, oversample):
     return kernel_oversample
 
 
-# Functions for applying MIRI Detector Scattering Effect
+# Functions for applying MIRI Cruciform Detector "Scattering" Diffraction Effect
 
 # Lookup tables of shifts of the cruciform
 # Estimated roughly from F560W ePSFs (ePSFs by Libralatto, shift estimate by Perrin)
@@ -552,6 +552,7 @@ def _show_miri_cruciform_kernel(filt, npix=101, oversample=4, detector_position=
 
     matplotlib.pyplot.colorbar(mappable=ax.images[0])
 
+
 # Functions for applying IFU optics systematics models
 #
 # Note, this is not actually a "Detector" effect, but this file is a
@@ -611,6 +612,7 @@ def apply_miri_ifu_broadening(hdulist, options, slice_width=0.196):
         beta_width = slice_width / pixelscl
         alpha_width = _miri_mrs_analytical_sigma_alpha_broadening(wavelen * 1e6) / pixelscl
         out = _miri_mrs_empirical_broadening(psf_model=hdulist[ext].data, alpha_width=alpha_width, beta_width=beta_width)
+
         if wavelen * 1e6 <= 7.5:
             amplitude_cruciform = get_mrs_cruciform_amplitude(wavelen * 1e6)
             oversample_factor = hdulist[ext].header['DET_SAMP'] / 7  # optimised parameters with oversampling = 7
@@ -653,10 +655,12 @@ def apply_nirspec_ifu_broadening(hdulist, options):
     return hdulist
 
 
+# Functions for modeling MIRI MRS effects, including both the cruciform (as seen in the MRS) and other IFU broadening.
+# Invoked from apply_miri_ifu_broadening, above.
+
 def _miri_mrs_analytical_sigma_alpha_broadening(wavelength):
-    """
-    Calculate the Gaussian scale of the kernel that broadens the diffraction limited
-    FWHM to the empirically measured FWHM.
+    """ Calculate the Gaussian scale of the kernel that broadens the MRS IFU PSF,
+    from the diffraction limited FWHM to the empirically measured FWHM.
 
     Parameters
     ----------
@@ -672,40 +676,51 @@ def _miri_mrs_analytical_sigma_alpha_broadening(wavelength):
 
 
 def _miri_mrs_empirical_broadening(psf_model, alpha_width, beta_width):
-     """
-     Perform the broadening of a psf model in alpha and beta
+    """ Perform the broadening of a MRS PSF model in alpha and beta.
+    This only includes the IFU broadening. See also _miri_mrs_empirical_cruciform
 
-     Parameters
-     -----------
-     psf_model : ndarray
-        webbpsf output results, eitehr monochromatic model or datacube
-     alpha_width : float
-        gaussian convolution kernel in pixels, None if no broadening should be performed
-     beta_width : float
-        slice width in pixels
-     """
-     kernel_beta = astropy.convolution.Box1DKernel(beta_width)
+    The beta (across-slice) convolution is implemented as a Box1D kernel
+    The alpha (along-slice) convolution is implemented as a Gaussian kernel
+
+    Parameters
+    -----------
+    psf_model : ndarray
+       webbpsf output results, either monochromatic model or datacube
+    alpha_width : float
+       Gaussian convolution kernel std dev in pixels
+    beta_width : float
+       slice width in pixels
+    """
+    kernel_beta = astropy.convolution.Box1DKernel(beta_width)
+    webbpsf.webbpsf_core._log.info(f'  MRS empirical broadening: alpha width {alpha_width}, beta width {beta_width}')
 
     # TODO: extend algorithm to handle the datacube case
 
-     if alpha_width is None:
-         psf_model_alpha_beta = np.apply_along_axis(lambda m: convolve(m, kernel_beta), axis=0, arr=psf_model)
-     else:
-         kernel_alpha = astropy.convolution.Gaussian1DKernel(stddev=alpha_width)
-         psf_model_alpha = np.apply_along_axis(lambda m: convolve(m, kernel_alpha), axis=1, arr=psf_model)
-         psf_model_alpha_beta = np.apply_along_axis(lambda m: convolve(m, kernel_beta), axis=0, arr=psf_model_alpha)
-     return psf_model_alpha_beta
+    if alpha_width is None:
+        psf_model_alpha_beta = np.apply_along_axis(lambda m: convolve(m, kernel_beta), axis=0, arr=psf_model)
+    else:
+        kernel_alpha = astropy.convolution.Gaussian1DKernel(stddev=alpha_width)
+        psf_model_alpha = np.apply_along_axis(lambda m: convolve(m, kernel_alpha), axis=1, arr=psf_model)
+        psf_model_alpha_beta = np.apply_along_axis(lambda m: convolve(m, kernel_beta), axis=0, arr=psf_model_alpha)
+
+    return psf_model_alpha_beta
 
 
 def get_mrs_cruciform_amplitude(wavelen):
-    """
-    Empirical amplitude of additional cruciform component in MIRI IFU data
-    wavelen: wavelength (only applicable if wavelength < 7.5 um - see apply_miri_ifu_broadening)
+    """ Calculate empirical amplitude of additional cruciform component in MIRI IFU data
+    See Patapis et al. 2025
+
+    Parameters
+    ----------
+    wavelen : float
+        wavelength (only applicable if wavelength < 7.5 um - see apply_miri_ifu_broadening)
     """
     return -0.16765378 * wavelen + 1.23632423  # Patapis 2025 PSF paper
 
 
 def _round_up_to_odd_integer(value):
+    """ ensure an integer is odd.
+    Minor utility function used by convolution kernel creation"""
     i = np.ceil(value)
     if i % 2 == 0:
         return i + 1
@@ -714,8 +729,8 @@ def _round_up_to_odd_integer(value):
 
 
 def _Lorentz1DKernel(amp, fwhm, x_0):
-    """
-    1D Lorentz model as a convolution kernel
+    """ 1D Lorentz model as an astropy convolution kernel
+
     x_size : size of kernel, should be odd
     """
     if amp is None:
@@ -727,8 +742,9 @@ def _Lorentz1DKernel(amp, fwhm, x_0):
 
 
 def _miri_mrs_empirical_cruciform(psf_model, amp, fwhm, x_0):
-    """
-    Perform the broadening of a psf model in alpha and beta
+    """ Perform the broadening of a psf model in alpha and beta for the cruciform.
+     This implements the additional effect of the cruciform on MRS data.
+     See also _miri_mrs_empirical_broadening
 
     Parameters
     -----------
