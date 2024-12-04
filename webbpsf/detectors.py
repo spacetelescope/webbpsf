@@ -621,6 +621,8 @@ def apply_miri_ifu_broadening(hdulist, options, slice_width=0.196):
             offset_cruciform = constants.INSTRUMENT_IFU_BROADENING_PARAMETERS["MIRI"]["offset_cruciform"] * oversample_factor
             out = _miri_mrs_empirical_cruciform(psf_model=out, amp=amplitude_cruciform,
                                                 fwhm=fwhm_cruciform, x_0=offset_cruciform)
+    # enforce strict flux conservation
+    out *= hdulist[ext].data.sum() / out.sum()
 
     hdulist[ext].data = out
 

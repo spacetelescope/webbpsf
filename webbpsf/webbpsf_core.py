@@ -1278,10 +1278,11 @@ class JWInstrument(SpaceTelescopeInstrument):
                 )  # apply detector charge transfer model
             elif self.name == 'MIRI':
                 # Apply distortion effects to MIRI psf: Distortion and MIRI Scattering
-                _log.debug('MIRI: Adding optical distortion and Si:As detector internal scattering')
                 if self.mode != 'IFU':
+                    _log.debug('MIRI imager: Adding optical distortion and Si:As detector internal scattering')
                     if self._detector_geom_info.aperture.AperType != 'SLIT':
                         psf_siaf = distortion.apply_distortion(result)  # apply siaf distortion
+                        _log.debug('MIRI: Applied optical distortion based on SIAF parameters')
                     else:
                         # slit type aperture, specifically LRS SLIT, does not have distortion polynomials
                         # therefore omit apply_distortion if a SLIT aperture is selected.
@@ -1291,20 +1292,22 @@ class JWInstrument(SpaceTelescopeInstrument):
                         psf_siaf_rot, options
                     )  # apply detector charge transfer model
                 else:
+                    _log.debug('MIRI MRS: Adding IFU PSF broadening effects.')
                     # there is not yet any distortion calibration for the IFU, and
                     # we don't want to apply charge diffusion directly here
                     psf_distorted = detectors.apply_miri_ifu_broadening(result, options, slice_width=self._ifu_slice_width)
             elif self.name == 'NIRSpec':
                 # Apply distortion effects to NIRSpec psf: Distortion only
                 # (because applying detector effects would only make sense after simulating spectral dispersion)
-                _log.debug('NIRSpec: Adding optical distortion')
                 if self.mode != 'IFU':
+                    _log.debug('NIRSpec: Adding optical distortion and detector charge transfer')
                     psf_siaf = distortion.apply_distortion(result)  # apply siaf distortion model
                     psf_distorted = detectors.apply_detector_charge_diffusion(
                         psf_siaf, options
                     )  # apply detector charge transfer model
 
                 else:
+                    _log.debug('NIRSpec IFU: Adding IFU PSF broadening')
                     # there is not yet any distortion calibration for the IFU.
                     psf_distorted = detectors.apply_nirspec_ifu_broadening(result, options)
 
