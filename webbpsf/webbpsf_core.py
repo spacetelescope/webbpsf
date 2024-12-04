@@ -1147,6 +1147,12 @@ class JWInstrument(SpaceTelescopeInstrument):
         # The slight departures from this are handled in the distortion model; see distortion.py
         return (ap.XSciScale + ap.YSciScale) / 2
 
+    @property
+    def mode(self):
+        # This exists just for API consistency with the subclasses that have an imaging vs IFU mode toggle,
+        # so that all JWST instrument classes have a mode attribute, consistently, whether used or not
+        return "imaging"
+
     def _get_fits_header(self, result, options):
         """populate FITS Header keywords"""
         super(JWInstrument, self)._get_fits_header(result, options)
@@ -1252,7 +1258,9 @@ class JWInstrument(SpaceTelescopeInstrument):
         add_distortion = options.get('add_distortion', True)
         crop_psf = options.get('crop_psf', True)
         # you can turn on/off IPC corrections via the add_ipc option, default True.
-        add_ipc = options.get('add_ipc', True)
+        # except for IFU mode simulations, it doesn't make sense to add the regular detector IPC
+        # instead the more complex IFU broadening models should be applied
+        add_ipc = options.get('add_ipc', True if self.mode != 'IFU' else False)
 
         # Add distortion if set in calc_psf
         if add_distortion:

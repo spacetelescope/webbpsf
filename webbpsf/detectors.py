@@ -581,7 +581,9 @@ def apply_miri_ifu_broadening(hdulist, options, slice_width=0.196):
     model_type = options.get('ifu_broadening', 'empirical_cruciform')
 
     if model_type is None or model_type.lower() == 'none':
+        webbpsf.webbpsf_core._log.debug('MIRI MRS: IFU broadening option is set to None, skipping IFU PSF broadening effects.')
         return hdulist
+    webbpsf.webbpsf_core._log.debug('MIRI MRS: Adding IFU PSF broadening effects.')
 
     ext = 1  # Apply this effect to the OVERDIST extension, which at this point in the code will be ext 1
 
