@@ -1720,10 +1720,13 @@ class JWInstrument(SpaceTelescopeInstrument):
                 # note that there is a slight focus offset between the two wavelengths, due to NIRCam's refractive design
             # Set to the sensing aperture, and retrieve the OPD there
             sensing_inst.set_position_from_aperture_name(sensing_apername)
-            # special case: for the main sensing point FP1, we use the official WAS target phase map, rather than the
-            # WebbPSF-internal SI WFE model.
-            was_targ_file = os.path.join(utils.get_webbpsf_data_path(), 'NIRCam', 'OPD', 'wss_target_phase_fp1.fits')
-            if sensing_apername == 'NRCA3_FP1' and os.path.exists(was_targ_file):
+            # special case: for the main sensing points FP1 or FP6, we use the official WAS target phase map,
+            # rather than the WebbPSF-internal SI WFE model.
+
+            # Select correct target phase map based on sensing field point.
+            # Note that the sensing maintenance program changed field point from NRC A3 to A1 around Dec 2024.
+            if sensing_apername in ['NRCA3_FP1', 'NRCA1_FP6']:
+                was_targ_file = utils.get_target_phase_map_filename(sensing_apername)
                 sensing_fp_si_wfe = poppy.FITSOpticalElement(opd=was_targ_file).opd
             else:
                 sensing_fp_si_wfe = sensing_inst.get_wfe('si')

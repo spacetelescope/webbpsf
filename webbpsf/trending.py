@@ -313,11 +313,13 @@ def wfe_histogram_plot(
             elif ote_only is True:
                 opd_data = fits.getdata(full_file_path, ext=1)
                 mask = opd_data != 0
+                sensing_apername = fits.getheader(full_file_path, ext=0)['APERNAME']
 
-                # Get WSS Target Phase Map
-                was_targ_file = os.path.join(
-                    webbpsf.utils.get_webbpsf_data_path(), 'NIRCam', 'OPD', 'wss_target_phase_fp1.fits'
-                )
+                # Get WSS Target Phase Map for the sensing aperture
+                # Note that the sensing maintenance program changed field point from NRC A3 to A1 around Dec 2024.
+                was_targ_file = webbpsf.utils.get_target_phase_map_filename(sensing_apername)
+
+
                 target_1024 = astropy.io.fits.getdata(was_targ_file)
                 target_256 = poppy.utils.krebin(target_1024, (256, 256)) / 16
                 wf_si = target_256 * mask  # Nircam target phase map at FP1
@@ -607,6 +609,7 @@ def single_measurement_trending_plot(
     opd, opdhdu = _read_opd(filename)
     mask = opd != 0
     opd[~mask] = np.nan
+    sensing_apername = opdhdu[0].header['APERNAME']
 
     # hdr_rmswfe = opdhdu[1].header['RMS_WFE']
     visit = opdhdu[0].header['OBS_ID'][0:12]
@@ -628,18 +631,31 @@ def single_measurement_trending_plot(
         print('     Previous OPD is:', prev_filename)
 
     prev_opd, prev_opd_hdu = _read_opd(prev_filename)
+    prev_sensing_apername = prev_opd_hdu[0].header['APERNAME']
 
     if subtract_target:
         if verbose:
             print('     Subtracting NIRCam SI WFE target phase map')
 
-        # Get WSS Target Phase Map
-        was_targ_file = os.path.join(webbpsf.utils.get_webbpsf_data_path(), 'NIRCam', 'OPD', 'wss_target_phase_fp1.fits')
+        # Get WSS Target Phase Map for the sensing aperture
+        # Note that the sensing maintenance program changed field point from NRC A3 to A1 around Dec 2024.
+        was_targ_file = webbpsf.utils.get_target_phase_map_filename(sensing_apername)
+        prev_was_targ_file = webbpsf.utils.get_target_phase_map_filename(prev_sensing_apername)
+
+
         target_1024 = astropy.io.fits.getdata(was_targ_file)
         target_256 = poppy.utils.krebin(target_1024, (256, 256)) / 16  # scale factor for rebinning w/out increasing values
 
+        if prev_was_targ_file != was_targ_file:
+            prev_target_1024 = astropy.io.fits.getdata(prev_was_targ_file)
+            prev_target_256 = poppy.utils.krebin(prev_target_1024,
+                                                 (256, 256)) / 16  # scale factor for rebinning w/out increasing values
+        else:
+            prev_target_256 = target_256
+
+
         opd -= target_256
-        prev_opd -= target_256
+        prev_opd -= prev_target_256
 
     # Compute deltas and decompose
     deltatime = get_datetime_utc(opdhdu, return_as='astropy') - get_datetime_utc(prev_opd_hdu, return_as='astropy')
@@ -961,9 +977,13 @@ def wavefront_drift_plots(
 
     opd, opdhdu = _read_opd(opdtable[which_opds_mask][0]['fileName'])
     mask = opd != 0
+    sensing_apername = opdhdu[0].header['APERNAME']
 
-    # Get WSS Target Phase Map
-    was_targ_file = os.path.join(webbpsf.utils.get_webbpsf_data_path(), 'NIRCam', 'OPD', 'wss_target_phase_fp1.fits')
+    # Get WSS Target Phase Map for the sensing aperture
+    # Note that the sensing maintenance program changed field point from NRC A3 to A1 around Dec 2024.
+
+    was_targ_file = webbpsf.utils.get_target_phase_map_filename(sensing_apername)
+
     target_1024 = astropy.io.fits.getdata(was_targ_file)
     target_256 = poppy.utils.krebin(target_1024, (256, 256))
 

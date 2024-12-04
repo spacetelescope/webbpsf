@@ -96,7 +96,7 @@ conf = Conf()
 
 from . import utils  # noqa - must go after config
 from . import trending  # noqa - must go after config
-from .utils import setup_logging, restart_logging, system_diagnostic, measure_strehl  # noqa - must go after config
+from .utils import setup_logging, restart_logging, system_diagnostic, measure_strehl, display_psf_exts  # noqa - must go after config
 
 from poppy import (  # noqa
     display_psf,

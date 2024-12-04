@@ -1050,8 +1050,31 @@ def label_wavelength(nwavelengths, wavelength_slices):
     return label
 
 
+def get_target_phase_map_filename(apername):
+    """Get WSS Target Phase Map for the specified aperture
+    Note that the sensing maintenance program changed field point from NRC A3 to A1 around Dec 2024.
+    """
+    path = os.getenv('WEBBPSF_PATH')
+    if apername == 'NRCA3_FP1':
+        fn = 'wss_target_phase_fp1.fits'
+    elif apername == 'NRCA1_FP6':
+        fn = 'wss_target_phase_fp6.fits'
+    else:
+        raise ValueError(f"Target phase map not available for aperture = {apername}")
+
+    was_targ_file = os.path.join(
+        get_webbpsf_data_path(), 'NIRCam', 'OPD', fn)
+
+    if not os.path.exists(was_targ_file):
+        raise ValueError("File wss_target_phase_{}.fits, \
+        not found under {}.".format(apername.split('_')[1].lower(),path))
+
+    return was_targ_file
+
+
 def display_psf_exts(psf, figsize=(12,3), imagecrop=5, colorbar=False, **kwargs):
     """ Display all extensions of a given PSF.
+    This is a simple wrapper for display_psf in a for loop over the extensions.
 
     See display_psf for additional information on parameters.
     """
@@ -1062,3 +1085,6 @@ def display_psf_exts(psf, figsize=(12,3), imagecrop=5, colorbar=False, **kwargs)
     for ext in range(n_exts):
         poppy.display_psf(psf, ext=ext, ax=axes[ext], title=f'Ext {ext}: {psf[ext].header["EXTNAME"]}',
                            imagecrop=imagecrop, colorbar=colorbar, **kwargs)
+
+
+
