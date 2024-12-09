@@ -107,7 +107,7 @@ def test_all_detectors():
 
     # Case 1: Shortwave -> check that only the SW detectors are applied for the SW filter
     nir.filter = shortfilt
-    grid1 = nir.psf_grid(all_detectors=True, num_psfs=1, add_distortion=False, fov_pixels=1, oversample=2, verbose=False)
+    grid1 = nir.psf_grid(all_detectors=True, num_psfs=1, add_distortion=False, fov_pixels=4, oversample=2, verbose=False)
     det_list = []
     for hdu in grid1:
         det_list.append(hdu.meta['detector'][0])
@@ -117,7 +117,7 @@ def test_all_detectors():
 
     # Case 2: Longwave -> check that only the LW detectors are applied for the LW filter
     nir.filter = longfilt
-    grid2 = nir.psf_grid(all_detectors=True, num_psfs=1, add_distortion=False, fov_pixels=1, oversample=2, verbose=False)
+    grid2 = nir.psf_grid(all_detectors=True, num_psfs=1, add_distortion=False, fov_pixels=4, oversample=2, verbose=False)
     det_list = []
     for hdu in grid2:
         det_list.append(hdu.meta['detector'][0])
@@ -189,29 +189,29 @@ def test_nircam_errors():
     # Shouldn't error - applying SW to SW and LW to LW
     nir.filter = longfilt
     nir.detector = longdet
-    nir.psf_grid(all_detectors=False, num_psfs=1, fov_pixels=1, detector_oversample=2, fft_oversample=2, verbose=False)
+    nir.psf_grid(all_detectors=False, num_psfs=1, fov_pixels=4, detector_oversample=2, fft_oversample=2, verbose=False)
 
     nir.filter = shortfilt
     nir.detector = shortdet
-    nir.psf_grid(all_detectors=False, num_psfs=1, fov_pixels=1, detector_oversample=2, fft_oversample=2, verbose=False)
+    nir.psf_grid(all_detectors=False, num_psfs=1, fov_pixels=4, detector_oversample=2, fft_oversample=2, verbose=False)
 
     # Should error - Bad filter/detector combination (LW filt to SW det)
     with pytest.raises(RuntimeError) as excinfo:  # Errors inside calc_psf() call
         nir.filter = longfilt
         nir.detector = shortdet
-        nir.psf_grid(all_detectors=False, num_psfs=1, fov_pixels=1, verbose=False)  # error
+        nir.psf_grid(all_detectors=False, num_psfs=1, fov_pixels=4, verbose=False)  # error
     assert 'RuntimeError' in str(excinfo)
 
     # Should error - Bad filter/detector combination (SW filt to LW det)
     with pytest.raises(RuntimeError) as excinfo:  # Errors inside calc_psf() call
         nir.filter = shortfilt
         nir.detector = longdet
-        nir.psf_grid(all_detectors=False, num_psfs=1, fov_pixels=1, verbose=False)  # error
+        nir.psf_grid(all_detectors=False, num_psfs=1, fov_pixels=4, verbose=False)  # error
     assert 'RuntimeError' in str(excinfo)
 
     # Should error - Bad num_psfs entry (must be a square number)
     with pytest.raises(ValueError) as excinfo:
-        nir.psf_grid(all_detectors=False, num_psfs=2, fov_pixels=1, verbose=False)  # error
+        nir.psf_grid(all_detectors=False, num_psfs=2, fov_pixels=4, verbose=False)  # error
     assert 'ValueError' in str(excinfo)
 
 

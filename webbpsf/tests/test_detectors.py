@@ -195,7 +195,7 @@ def test_ipc_basic_effect_on_psf_fwhm():
     for extname in ['OVERSAMP', 'DET_SAMP']:
         fwhm_ipc = poppy.measure_fwhm(psf_withipc, ext=extname)
         fwhm_noipc = poppy.measure_fwhm(psf_noipc, ext=extname)
-        assert fwhm_ipc == fwhm_noipc, f'Adding IPC should not have any effect on the {extname} data.'
+        assert np.isclose(fwhm_ipc, fwhm_noipc), f'Adding IPC should not have any effect on the {extname} data.'
         print(f'test ok for {extname}')
 
     for extname in ['OVERDIST', 'DET_DIST']:

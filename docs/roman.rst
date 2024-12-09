@@ -22,6 +22,11 @@ Wide Field Instrument (WFI)
 
 The WFI model is based on the `Cycle 9 instrument reference information <https://roman.gsfc.nasa.gov/science/Roman_Reference_Information.html>`_ from the Roman team at Goddard Space Flight Center (GSFC). The reported jitter for the Roman observatory is 0.012 arcsec per axis, per `GSFC <https://roman.ipac.caltech.edu/sims/Param_db.html#telescope>`_.
 
+.. note::
+
+   The current Roman WFI optical model was provided by Goddard Space Flight Center circa 2021 (the Cycle 9 reference data); a new optical model is currently being implemented in WebbPSF.
+
+
 To work with the WFI model, import and instantiate it just like any of the JWST instruments::
 
     >>> from webbpsf import roman

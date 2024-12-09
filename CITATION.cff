@@ -56,4 +56,4 @@ abstract: >-
   including its Wide Field Instrument and a preliminary
   version of the Coronagraph Instrument.
 license: BSD-3-Clause
-version: 1.4.0
+version: 1.5.0

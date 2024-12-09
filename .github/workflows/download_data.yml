@@ -18,7 +18,7 @@
 #     - cron: "0 0 * * 0"
 # jobs:
 #   download_webbpsf:
-#     uses: spacetelescope/webbpsf/.github/workflows/download_data.yml@develop
+#     uses: spacetelescope/webbpsf/.github/workflows/download_data.yml@beda656c80a0254e6f80649d9c9c49235634522f  # v1.4.0
 #     with:
 #       minimal: true
 
@@ -27,8 +27,13 @@ name: download and cache data
 on:
   workflow_call:
     inputs:
+      url:
+        description: URL to gzip file
+        type: string
+        required: false
+        default: https://stsci.box.com/shared/static/0dt9z6b927iqgtify2a4cvls9hvapi6k.gz
       minimal:
-        description: minimal dataset
+        description: dataset is minimal (as opposed to full)
         type: boolean
         required: false
         default: true
@@ -41,17 +46,25 @@ on:
         value: ${{ jobs.download.outputs.cache_key }}
   workflow_dispatch:
     inputs:
+      url:
+        description: URL to gzip file
+        type: string
+        required: false
+        default: https://stsci.box.com/shared/static/0dt9z6b927iqgtify2a4cvls9hvapi6k.gz
       minimal:
-        description: minimal dataset
+        description: dataset is minimal (as opposed to full)
         type: boolean
         required: false
         default: true
   schedule:
     - cron: "0 0 * * 0"
   release:
+  push:
+    branches:
+      - develop
 
 env:
-  DATA_URL: https://stsci.box.com/shared/static/qxpiaxsjwo15ml6m4pkhtk36c9jgj70k.gz
+  FULL_DATA_URL: https://stsci.box.com/shared/static/qxpiaxsjwo15ml6m4pkhtk36c9jgj70k.gz
   MINIMAL_DATA_URL: https://stsci.box.com/shared/static/0dt9z6b927iqgtify2a4cvls9hvapi6k.gz
 
 jobs:
@@ -59,7 +72,7 @@ jobs:
     name: download and cache WebbPSF data
     runs-on: ubuntu-latest
     steps:
-      - run: wget ${{ (github.event_name == 'schedule' || github.event_name == 'release') && env.MINIMAL_DATA_URL || inputs.minimal && env.MINIMAL_DATA_URL || env.DATA_URL }} -O ${{ runner.temp }}/webbpsf-data.tar.gz
+      - run: wget ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && inputs.url || env.MINIMAL_DATA_URL }} -O ${{ runner.temp }}/webbpsf-data.tar.gz
       - run: mkdir ${{ runner.temp }}/data/
       - run: tar -xzvf ${{ runner.temp }}/webbpsf-data.tar.gz -C ${{ runner.temp }}/data/
       - id: cache_path
@@ -68,7 +81,7 @@ jobs:
         run: echo "version=$(cat ${{ steps.cache_path.outputs.cache_path }}/webbpsf-data/version.txt)" >> $GITHUB_OUTPUT
       - id: cache_key
         run: echo "cache_key=webbpsf-data-${{ (github.event_name == 'schedule' || github.event_name == 'release') && 'mini' || inputs.minimal && 'mini' || 'full' }}-${{ steps.version.outputs.version }}" >> $GITHUB_OUTPUT
-      - uses: actions/cache/save@v4
+      - uses: actions/cache/save@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9  # v4.0.2
         with:
           path: ${{ runner.temp }}/data/
           key: ${{ steps.cache_key.outputs.cache_key }}

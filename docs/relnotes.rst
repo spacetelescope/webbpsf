@@ -24,6 +24,50 @@ Version History and Change Log
 -------------------------------
 
 
+Version 1.5.0
+=============
+*2024 December*
+WebbPSF IS BEING MIGRATED TO A NEW REPOSITORY: STPSF (Space Telescope PSF)
+To reflect its broader support for Roman as well as James Webb, WebbPSF is being migrated to a new repository: STPSF (Space Telescope PSF).
+This transition is being done in such a way as to maintain back-compatibility for existing code, and existing installations will continue to run as-is.
+This release will be among the final releases to WebbPSF and the initial release to STPSF.
+
+This release requires new data webbpsf-data-1.5.0 https://stsci.box.com/s/oyoih9ibuaowksxzaia02ua4t6g1bbp1
+For more information on this new data please view https://github.com/spacetelescope/webbpsf/pull/937
+
+**What's Changed**
+* Add IFU+datacubes docs page. by @mperrin in https://github.com/spacetelescope/webbpsf/pull/917
+
+* Update for Photutils 2.0 by @mperrin in https://github.com/spacetelescope/webbpsf/pull/925
+
+* MNT: Use hash for Action workflow versions and update if needed by @pllim in https://github.com/spacetelescope/webbpsf/pull/916
+
+* Dependabot updates PLUS pyproject upper limit for photutils.  by @dependabot in https://github.com/spacetelescope/webbpsf/pull/926
+
+* update ifu docs to describe about coord_system and pixel scale by @mperrin in https://github.com/spacetelescope/webbpsf/pull/923
+
+* update photutils upper bound by @BradleySappington in https://github.com/spacetelescope/webbpsf/pull/935
+
+* Add automatic data download by @WilliamJamieson in https://github.com/spacetelescope/webbpsf/pull/932
+
+* switch a test case float comparison to np.allclose for robustness by @mperrin in https://github.com/spacetelescope/webbpsf/pull/934
+
+* Add support for new sensing point and target phase map by @obi-wan76 in https://github.com/spacetelescope/webbpsf/pull/937
+
+* Minor update to docs about the WFI optical model by @Skyhawk172 in https://github.com/spacetelescope/webbpsf/pull/936
+
+* update monthly trending plot to allow shifted date ranges by @mperrin in https://github.com/spacetelescope/webbpsf/pull/943
+
+* Readme advise by @BradleySappington in https://github.com/spacetelescope/webbpsf/pull/944
+
+* update MAST query for OPDs to also retrieve OPDs from FP6 by @mperrin in https://github.com/spacetelescope/webbpsf/pull/945
+
+## New Contributors
+* @WilliamJamieson made their first contribution in https://github.com/spacetelescope/webbpsf/pull/932
+
+**Full Changelog**: https://github.com/spacetelescope/webbpsf/compare/v1.4.0...1.5.0
+
+
 Version 1.4.0
 =============
 

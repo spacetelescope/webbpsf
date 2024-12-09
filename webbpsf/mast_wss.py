@@ -357,7 +357,7 @@ def infer_pre_or_post_correction(row):
         return 'UNKNOWN'
 
 
-def retrieve_mast_opd_table(aperture_list=['NRCA3_FP1'], verbose=False):
+def retrieve_mast_opd_table(aperture_list=['NRCA3_FP1', 'NRCA1_FP6'], verbose=False):
     """Retrieve table of OPDs from MAST.
 
     Returns : Astropy table listing available OPDs and metadata such as dates and sensing type.
