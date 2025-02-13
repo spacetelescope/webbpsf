@@ -1,0 +1,38 @@
+name: webbpsf
+description: 'Downloads latest WebbPSF dataset'
+branding:
+  icon: download
+  color: black
+
+inputs:
+  dataset:
+    description: either `MINIMAL`, `FULL`, or a URL to a specific gzip file
+    required: false
+    default: MINIMAL
+  path:
+    description: path to which to download dataset
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - id: url
+      run: |
+        echo full='https://stsci.box.com/shared/static/qxpiaxsjwo15ml6m4pkhtk36c9jgj70k.gz' >> $GITHUB_OUTPUT
+        echo minimal='https://stsci.box.com/shared/static/0dt9z6b927iqgtify2a4cvls9hvapi6k.gz' >> $GITHUB_OUTPUT
+      shell: bash
+    - run: wget ${{ inputs.dataset == 'FULL' && steps.url.outputs.full || inputs.dataset == env.MINIMAL_DATA_URL && steps.url.outputs.minimal || inputs.dataset }} -O ${{ runner.temp }}/webbpsf-data.tar.gz
+      shell: bash
+    - id: path
+      run: echo download=${{ inputs.path == '' && format('{0}/data/', runner.temp) || inputs.path }} >> $GITHUB_OUTPUT
+      shell: bash
+    - run: mkdir ${{ steps.path.outputs.download }}
+      shell: bash
+    - run: tar -xzvf ${{ runner.temp }}/webbpsf-data.tar.gz -C ${{ runner.temp }}/data/
+      shell: bash
+
+outputs:
+  path:
+    description: path to which data was downloaded
+    value: ${{ steps.path.outputs.download }}/webbpsf-data/

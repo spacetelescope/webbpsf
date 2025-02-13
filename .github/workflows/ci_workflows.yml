@@ -3,10 +3,6 @@ name: CI
 on: [push, pull_request]
 
 jobs:
-  retrieve_cache:
-    uses: spacetelescope/webbpsf/.github/workflows/retrieve_cache.yml@beda656c80a0254e6f80649d9c9c49235634522f  # v1.4.0
-    with:
-      minimal: true
   tests:
     needs: [ retrieve_cache ]
     name: ${{ matrix.name }}
@@ -62,13 +58,13 @@ jobs:
       run: pip install tox tox-conda>=0.2
 
     - name: Get WebbPSF Data
-      uses: actions/cache/restore@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9  # v4.0.2
+      id: download
+      uses: ./
       with:
-        path: ${{ needs.retrieve_cache.outputs.cache_path }}
-        key: ${{ needs.retrieve_cache.outputs.cache_key }}
+        dataset: MINIMAL
 
     - name: Set WebbPSF data path
-      run: echo "WEBBPSF_PATH=${{ needs.retrieve_cache.outputs.cache_path }}/webbpsf-data/" >> $GITHUB_ENV
+      run: echo "WEBBPSF_PATH=${{ steps.download.outputs.path }}" >> $GITHUB_ENV
 
     - name: Check conda info
       run: conda info
