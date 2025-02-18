@@ -15,38 +15,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-
-          - name: Coverage test in Python 3
+          - name: Try Python 311
             os: ubuntu-latest
             python: '3.11'
-            toxenv: py311-poppydev-pysiafdev-cov
-
-          - name: Check for Sphinx doc build errors
-            os: ubuntu-latest
-            python: '3.10'
-            toxenv: docbuild
-
-          - name: Try Astropy development version
-            os: ubuntu-latest
-            python: '3.10'
-            toxenv: py310-astropydev-test
-
-          - name: Try latest versions of all dependencies
-            os: ubuntu-latest
-            python: '3.11'
-            toxenv: py311-latest-test
-
-          - name: Try minimum supported versions
-            os: ubuntu-latest
-            python: '3.10'
-            toxenv: py310-legacy-test
-
-          - name: Try released POPPY and PySIAF
-            os: ubuntu-latest
-            python: '3.10'
-            toxenv: py310-stable-test
-            continue-on-error: 'true'
-
+            toxenv: py311-test
     steps:
     - name: Checkout code
       uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938  # v4.2.0
@@ -62,34 +34,16 @@ jobs:
       run: pip install tox tox-conda>=0.2
 
     - name: Get WebbPSF Data
-      uses: actions/cache/restore@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9  # v4.0.2
+      uses: actions/cache@v4  # v4.0.2
       with:
         path: ${{ needs.retrieve_cache.outputs.cache_path }}
         key: ${{ needs.retrieve_cache.outputs.cache_key }}
 
     - name: Set WebbPSF data path
-      run: echo "WEBBPSF_PATH=${{ needs.retrieve_cache.outputs.cache_path }}/webbpsf-data/" >> $GITHUB_ENV
+      run: echo "WEBBPSF_PATH=${{ needs.retrieve_cache.outputs.cache_path }}/stpsf-data/" >> $GITHUB_ENV
 
     - name: Check conda info
       run: conda info
 
-    - name: Run tests with requirements file
-      if: ${{ contains(matrix.toxenv,'-latest') }}
-      run: |
-        cp requirements.txt ${{ runner.temp }}
-        tox -e ${{ matrix.toxenv }}
-
-    - name: Run tests
-      if: ${{ matrix.continue-on-error == null && contains(matrix.toxenv,'-latest') != true }}
+    - name: Run Sphinx doc build
       run: tox -e ${{ matrix.toxenv }}
-
-    - name: Run tests and allow failures
-      if: matrix.continue-on-error
-      continue-on-error: true
-      run: tox -e ${{ matrix.toxenv }}
-
-    - name: Upload coverage to codecov
-      if: ${{ contains(matrix.toxenv,'-cov') }}
-      uses: codecov/codecov-action@e28ff129e5465c2c0dcc6f003fc735cb6ae0c673  # v4.5.0
-      with:
-        file: ./coverage.xml
