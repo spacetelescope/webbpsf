@@ -55,6 +55,7 @@ namespaces = false
 ]
 
 [tool.setuptools_scm]
+local_scheme = "no-local-version"
 write_to = "webbpsf/version.py"
 
 [tool.pytest.ini_options]

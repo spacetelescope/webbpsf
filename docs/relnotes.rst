@@ -24,6 +24,24 @@ Version History and Change Log
 -------------------------------
 
 
+Version 2.0.0
+=============
+*2025 February*
+WebbPSF Migration to new repository continues: WebbPSF is an alias for STPSF (Space Telescope PSF)
+WebbPSF is now an alias of STPSF and is running code from the STPSF library.
+Therefore, the versioning of WebbPSF will not be parallel to the released versions of STPSF.
+WebbPSF will automatically include the newest STPSF changes but can still be used with the WebbPSF name.
+
+For users ready to switch to STPSF please see https://stpsf.readthedocs.io/en/latest/webbpsf_to_stpsf.html
+
+**What's Changed**
+* WebbPSF to STPSF by @BradleySappington in https://github.com/spacetelescope/webbpsf/pull/951
+* only using mini in workflow.  name accordingly by @BradleySappington in https://github.com/spacetelescope/webbpsf/pull/960
+
+
+**Full Changelog**: https://github.com/spacetelescope/webbpsf/compare/v1.5.0...v2.0.0
+
+
 Version 1.5.0
 =============
 *2024 December*
