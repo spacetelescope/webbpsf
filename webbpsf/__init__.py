@@ -36,3 +36,7 @@ if not _warned:
 
     sys.modules["webbpsf"] = stpsf
     os.environ["STPSF_PATH"] = os.environ.get("WEBBPSF_PATH", "")
+
+    # Add a back-compatibility alias for a function whose name changed during the migration
+    # This prevents failure of legacy code calls to webbpsf.utils.get_webbpsf_data_path()
+    stpsf.utils.get_webbpsf_data_path = stpsf.utils.get_stpsf_data_path
