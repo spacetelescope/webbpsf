@@ -1,6 +1,7 @@
 import itertools
 import os
 from collections import OrderedDict
+import astropy.utils.decorators
 
 import astropy.convolution
 import numpy as np
@@ -551,6 +552,7 @@ class CreatePSFLibrary:
         hdu.writeto(file, overwrite=self.overwrite)
 
 
+@astropy.utils.decorators.deprecated('1.3.0', alternative='photutils.psf.GriddedPSFModel.plot_grid')
 def display_psf_grid(grid, zoom_in=True, figsize=(14, 12), scale_range=1e-4, diff_scale_range=1, cmap=None):
     """Display a PSF grid in a pair of plots
 
